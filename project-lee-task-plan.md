@@ -1,7 +1,7 @@
 # Project LEE — Full Build Task Plan
 *Learning Environment Engine · Pronounced: Lee*
 *Named after the founder's grandmother.*
-*Generated: July 2, 2026 · Version 2.0 — 18 Tasks*
+*Generated: July 2, 2026 · Version 3.0 — 25 Tasks*
 
 ---
 
@@ -9,13 +9,91 @@
 
 Lee is not a chatbot with memory bolted on. She starts with operating continuity and treats the language model as one interchangeable capability within a much larger system. She is a persistent digital Chief of Staff — she doesn't replace your thinking, she protects it. She doesn't replace your decisions, she prepares them. She doesn't replace your memory, she preserves it.
 
+The primary asset is the accumulated knowledge, governance, memory, relationships, timelines, and operational state — not the specific model answering questions. The model could change. Lee continues to grow.
+
 ---
 
-## Full Task Map
+## Architecture Principles (v3.0)
+
+**1. The Constitution sits above everything.** Every engine consults the Constitution before acting. Absolute provisions cannot be overridden — not even by governance approval.
+
+**2. Event Sourcing is the foundation.** Almost nothing mutates directly. State changes are events. Current state is a projection. Re-projection from the Event Log alone must produce a consistent database.
+
+**3. Facts and Interpretations are never mixed.** The Fact Ledger holds what is verifiable. The Interpretation Ledger holds what Lee reasons. They have different canon rules, different confidence rules, and different decay rates.
+
+**4. Confidence flows.** Every derived object carries a confidence lineage. The user always knows how certainty degraded from source to recommendation.
+
+**5. Every output has a Why Chain.** No recommendation without reasoning. No observation without grounded steps. Every inference chain is navigable.
+
+**6. Provenance is non-negotiable.** Nothing appears without origin. One click to the source, always.
+
+**7. Assumptions are tracked.** Every simulation and strategy names its assumptions. Invalidated assumptions trigger review of all conclusions built on them.
+
+**8. The model is interchangeable.** Lee's value is the brain. The LLM is a reasoning service. Swap the model, Lee keeps growing.
+
+---
+
+## Capability Levels
+
+Lee is designed to grow through defined capability levels. Each level unlocks the next.
+
+| Level | Capability | Unlocked By |
+|-------|-----------|-------------|
+| 1 | Records | Tasks #1–#2 |
+| 2 | Organizes | Tasks #3–#4 |
+| 3 | Understands | Tasks #5–#6, #12–#13 |
+| 4 | Predicts | Tasks #14, #16, #23 |
+| 5 | Explains | Tasks #19–#22, #24 |
+| 6 | Collaborates | Tasks #7–#8, #18 |
+| 7 | Advises | Tasks #11, #17 |
+| 8 | Coordinates | Tasks #10, #15 |
+| 9 | Improves itself | Task #17 (behavioral learning, not code mutation) |
+
+---
+
+## Engine Dependency Order
+
+```
+Constitution (#19)
+        ↓
+Event Log / Foundation (#1)
+        ↓
+Fact Ledger + Interpretation Ledger (#21)
+        ↓
+Memory Architecture (#12)
+        ↓
+Intelligence Graph (#13)
+        ↓
+Understanding Pipeline (#3)
+        ↓
+Confidence Propagation (#20)
+        ↓
+Why Chain + Provenance (#22)
+        ↓
+Assumption Ledger (#23)
+        ↓
+Identity Engine (#11)
+        ↓
+Learning Engine (#17)
+        ↓
+Curiosity + Opportunity (#14)     Decision Impact Graph (#24)
+        ↓
+Strategy + Simulation + Reflection (#16)
+        ↓
+Orchestration (#10)               Health Engine + Trust Score (#15)
+        ↓
+Operating Modes / Workspace (#18)     Digital Twin Timeline (#25)
+        ↓
+Console (#2)                      Android (#7)
+```
+
+---
+
+## Full Task Map (25 Tasks)
 
 | # | Task | Depends On |
 |---|------|-----------|
-| 1 | Foundation — Data Layer & API Server | — |
+| 1 | Foundation — Data Layer, API Server, Event Sourcing | — |
 | 2 | Console — Private Web Interface | #1 |
 | 3 | Understanding Pipeline — Imports & Extraction | #1, #2 |
 | 4 | Time Engine & Daily Briefs | #3 |
@@ -26,56 +104,61 @@ Lee is not a chatbot with memory bolted on. She starts with operating continuity
 | 9 | Backup & Migration System | #1 |
 | 10 | Orchestration Engine | #1, #4 |
 | 11 | Identity Engine & Founder Profile | #3, #5 |
-| 12 | Tiered Memory Architecture | #1, #3 |
+| 12 | Tiered Memory Architecture + Compression Roadmap | #1, #3 |
 | 13 | Intelligence Graph & Personal Knowledge Map | #3, #12 |
 | 14 | Curiosity Engine & Opportunity Engine | #3, #4, #13 |
-| 15 | Health Engine & Self Monitoring | #1, #4, #10 |
+| 15 | Health Engine, Self Monitoring & Trust Score | #1, #4, #10 |
 | 16 | Strategy, Simulation & Reflection Engines | #5, #11, #13 |
 | 17 | Learning Engine | #3, #11, #13 |
-| 18 | Adaptive Workspace & Relationship Intelligence | #2, #6, #11, #14 |
+| 18 | Adaptive Workspace, Operating Modes & Relationship Intelligence | #2, #6, #11, #14 |
+| 19 | Constitution Engine | #1 |
+| 20 | Confidence Propagation System | #1, #3, #12 |
+| 21 | Fact/Interpretation Separation | #1, #3 |
+| 22 | Why Chain & Provenance System | #1, #5 |
+| 23 | Assumption Ledger | #1, #16 |
+| 24 | Decision Impact Graph | #1, #13 |
+| 25 | Digital Twin Timeline | #2, #13 |
 
 ---
 
-## Task #1 — Lee Foundation — Data Layer & API Server
+## Task #1 — Lee Foundation — Data Layer, API Server & Event Sourcing
 
 ### What & Why
-Build the durable core of Project LEE: the database schema, API server, authentication, object storage, and all foundational data structures. This is the bedrock every other phase builds on. Everything in Lee flows through this layer — nothing can be built without it.
+Build the durable core of Project LEE: the database schema, API server, authentication, object storage, and all foundational data structures. This version incorporates Event Sourcing as a first-class architectural principle. Almost nothing mutates directly — state changes are expressed as immutable events, and current state is a projection of those events. This makes restoration near-perfect, debugging dramatically easier, and every object's history inspectable at any depth.
 
 ### Done looks like
-- Private Lee API server running on Replit (Express, TypeScript) with health check and versioning
-- PostgreSQL database with the complete Universal Object Model schema: objects (projects, people, companies, documents, files, conversations, messages, meetings, ideas, tasks, decisions, questions, risks, opportunities, sources, waiting loops, notifications, context packets, model calls, briefs), each with the full standard field set (id, type, name, description, created_at, updated_at, last_confirmed_at, status, confidence, freshness, importance, source_refs, related_objects, history, permissions, version)
-- Event Log table capturing every meaningful state change (event_id, type, timestamp, actor, source, payload, affected_objects, processing_status, result, error)
-- Reality Ledger table for belief records (statement, belief_type — declared/observed/extracted/inferred/predicted/speculative/rejected/superseded — confidence, status, source_evidence, first_seen, last_confirmed, freshness, related_project, related_person, risk_if_wrong, superseded_by)
-- Canon System field on all applicable records (scratch / candidate / working / locked / canonical)
-- Source Vault table (original_filename, source_type, upload_time, original_creation_time, checksum, storage_path, related_projects, related_people, processing_status, privacy_level, chunk_count, summary, evidence_quality)
-- Object storage bucket (Replit App Storage) for raw files (PDFs, DOCX, exports, screenshots, voice notes, transcripts, backups)
-- Connector metadata table (name, provider, auth_method, permission_scopes, read_caps, write_caps, risk_level, sync_schedule, webhook_support, last_sync, error_state, rate_limits, data_types, retry_rules, token_refresh, disconnect_flow, audit_log)
-- Cost ledger table (model_call_id, provider, model, project_id, workflow, tokens_in, tokens_out, cost_usd, timestamp, cached, reused)
-- Audit log table (action, actor, target_id, target_type, timestamp, risk_level, verdict, source)
-- Private authentication: single-user session-based login (no public sign-up, one owner only), protected behind env-based credentials
-- All API routes use Zod validation; all DB access goes through Drizzle ORM
-- OpenAPI spec updated to cover all core CRUD endpoints for every entity
-- Database push script verified and working
+- Private Lee API server (Express, TypeScript) with health check and versioning
+- **Event Sourcing foundation** — Event Log is append-only and immutable; all significant state changes are events first; current state is a projection; re-projection from event_id 0 must produce a consistent database; causation_id and correlation_id on every event for full trace
+- **Projection layer** — idempotent projectors maintaining current-state tables by consuming events in order; replay_from(event_id) utility; full re-projection verified before Task #1 is complete
+- **Universal Object Model schema** — all Lee object types with full standard field set including confidence_lineage, propagated_confidence, why_chain, memory_tier, last_accessed_at, compression_stage, version
+- **Fact Ledger** — fact_ledger table; fact types: observed, extracted, declared, verified; source_evidence required; confidence, propagated_confidence, confidence_lineage, canon_level; database-level type constraints preventing interpretation types from appearing
+- **Interpretation Ledger** — interpretation_ledger table; interpretation types: pattern, prediction, observation, opportunity, strategy, simulation_result, inference; at least one linked input fact required; database-level type constraints preventing fact types from appearing
+- **Assumption Ledger** — assumption_ledger and assumption_uses tables
+- **Constitution schema** — constitution_provisions (tier: ABSOLUTE / GOVERNED / CONFIGURABLE, machine_readable_rule, applies_to_engines, consultation_count) and constitution_versions; seed script with ~20 initial provisions
+- **Decision Impact Graph schema** — impact_nodes and impact_edges tables; separate from Intelligence Graph tables
+- Source Vault, Connector metadata, Cost ledger, Audit log, Waiting loops, Notifications tables — all defined with full fields
+- Private single-user session auth; Zod validation on all routes; Drizzle ORM throughout
+- OpenAPI spec updated; codegen verified
+- **Re-projection test must pass** — this is the acceptance criterion for Task #1
 
 ### Out of scope
-- AI model calls or model routing (Task #5)
-- File parsing and entity extraction (Task #3)
-- Connector auth flows with real services (Task #6)
-- Android API surface (Task #7)
-- Scheduled jobs / background worker (Task #4)
-- UI / frontend (Task #2)
+- AI model calls (Task #5), file parsing (Task #3), connector auth (Task #6), UI (Task #2), scheduled jobs (Task #4), Constitution Engine logic (Task #19 — schema only here)
 
 ### Steps
-1. **Authentication layer** — Implement private single-user session auth on the API server; protect all routes behind login; use env-based owner credentials; include session timeout and secure cookie handling
-2. **Universal Object Model schema** — Define Drizzle schema for all Lee object types with the full standard field set; use JSONB for flexible fields (source_refs, related_objects, history, permissions); add proper indexes on id, type, status, and created_at
-3. **Event Log schema** — Define the event_log table with all required fields; ensure every state-changing API handler writes an event; build an event emitter utility the rest of the server can use
-4. **Reality Ledger schema** — Define the reality_beliefs table with all belief types and canon levels; build CRUD endpoints for belief management
-5. **Source Vault schema + object storage** — Define the sources table; integrate Replit App Storage for raw file uploads; ensure raw files are preserved untouched after upload
-6. **Connector, Cost, and Audit tables** — Define schemas for connector_configs, cost_ledger, and audit_log; build CRUD endpoints for each
-7. **Waiting loops and notifications tables** — Define waiting_loops (start_date, last_touch, days_waiting, person_id, project_id, expected_window, risk, recommended_action, notification_level) and notifications tables
-8. **Core API routes** — Build full CRUD REST endpoints for: projects, people, companies, decisions, tasks, waiting loops, sources, reality beliefs, cost entries, notifications, connectors, audit records
-9. **OpenAPI spec** — Update lib/api-spec/openapi.yaml to reflect all new endpoints and schemas; run codegen
-10. **Database push + seed** — Push schema to Postgres; add a seed script with canonical Lee truths (the constitution, locked decisions about Replit-first, portability law, etc.) and starter reality beliefs
+1. Auth layer — single-user session; env-based credentials; session timeout; secure cookie handling
+2. Event Sourcing infrastructure — append-only Event Log schema; event emitter utility; emit-before-mutate rule established throughout
+3. Projection layer — projector framework; idempotent event handlers; replay_from(event_id) utility; verified pass
+4. Universal Object Model schema — all types, all standard fields including all v3.0 additions
+5. Fact Ledger and Interpretation Ledger — both tables with full type vocabulary; database-level constraints on type fields
+6. Assumption Ledger schema — assumption_ledger and assumption_uses
+7. Constitution schema and seed — provisions and versions tables; ~20 starter provisions seeded
+8. Source Vault + object storage — sources table; Replit App Storage integration; raw files preserved untouched
+9. Decision Impact Graph schema — impact_nodes and impact_edges; separate from graph_nodes/graph_edges
+10. Remaining tables — connector_configs, cost_ledger, audit_log, waiting_loops, notifications; CRUD endpoints for all
+11. Core API routes — CRUD for all entity types; every state-changing route emits event before mutation
+12. OpenAPI spec — update and run codegen
+13. Database push + seed — push schema; seed constitution provisions; seed starter canonical facts in Fact Ledger
+14. Re-projection test — verified pass required before completion
 
 ---
 
@@ -84,53 +167,38 @@ Build the durable core of Project LEE: the database schema, API server, authenti
 *Depends on: Task #1*
 
 ### What & Why
-Build the Lee Console: the private, hosted web interface that is Lee's primary control surface. This is not a generic SaaS dashboard — it is a personal command center. Calm, structured, evidence-backed, alive. Dark mode. The user should open this every morning and feel oriented without rebuilding context manually.
+The Lee Console is Lee's primary control surface. Calm, structured, evidence-backed, alive. Dark mode. The user should open this every morning and feel oriented without rebuilding context manually.
 
 ### Done looks like
-- React + Vite web app running at the root path (`/`) on Replit
-- Private: login wall protects the entire console; only the owner can access
-- **Top status bar** always visible: Project LEE name, current date/time, system health indicator, cost today, pending approvals count, notification count, current model mode, backup status
-- **Left navigation** with all sections: Today, Ask Lee, Projects, People, Decisions, Waiting, Evidence, Imports, Connectors, Costs, Governance, Backups, Settings
-- **Right context rail** on applicable pages: current context packet, related sources, recent changes, confidence indicator, freshness indicator, action buttons, evidence links
-- **Today page**: Lee's Brief card, top priority, what changed, waiting loops, upcoming meetings, stale context warnings, active risks, open approvals, recommended next moves, cost status, system health, recent captures, backup status
-- **Ask Lee page**: message area with conversation history, project/person detection indicator, mode selector (Normal / Deep Think / Build / Write / Review / Pilot / Low Cost / Private / No Model / Governed Action), cost estimate display, context packet preview panel, model route indicator, save-as-decision button, create-task button, lock-context button, mark-as-scratch button, export-answer button, evidence panel
-- **Context Packet Preview**: before any expensive answer, Lee shows detected intent, active project, relevant people, included/excluded context, decisions used, sources used, estimated cost, selected model, risk level — with Run / Use Cheaper Model / Packet Only / Edit Packet / Cancel options
-- **Projects page**: card grid showing name, status, priority, health, freshness, last activity, waiting loop count, open risks, next action; clicking opens full project detail with Overview, Current State, Timeline, Decisions, Files, People, Waiting, Risks, Opportunities, Evidence, Briefs, Context Packets, Outdated Context, Exports tabs; CerbaSeal projects get a Pilot Mode tab
-- **CerbaSeal Pilot Mode tab**: pilot status, Olivia/LineAxia timeline, security review readiness, artifacts sent/pending, open questions, questions owed, meeting history, follow-up recommendations, pilot health score, momentum indicator, risks, next best action, draft follow-up
-- **People page**: person cards showing name, role, org, related project, last contact, waiting status, relationship sensitivity, follow-up window, open loop; detail page with Timeline, Messages, Meetings, Decisions Influenced, Documents Shared, Open Questions, Tone Notes, Risks, Recommended Next Action, Evidence
-- **Decisions page**: ledger with views for Locked / Canonical / Working / Candidate / Superseded / Rejected / Needs Review; decision detail shows decision, why, when, source, affected projects, confidence, supersedes, risk if wrong, review date; actions: Lock, Downgrade, Supersede, Reject, Add Evidence
-- **Waiting page**: list of all open waiting loops with person/org, project, days waiting, last touch, expected window, risk level, recommended action, notification threshold; actions: Snooze, Resolve, Prepare Follow-up, Mark Stale, Ask Lee
-- **Evidence page**: source browser with filters (project, person, source type, date, confidence, processing status); detail shows raw file link, parsed text, chunks, summary, extracted entities, decisions found, related beliefs, related projects
-- **Imports page**: drag-and-drop upload area supporting ChatGPT export (JSON), PDF, DOCX, Markdown, TXT, screenshot, transcript, email thread paste, manual note; recent imports list with processing status; detected projects/people/decisions; needs-review queue
-- **Connectors page**: connector cards (provider, status, last sync, next sync, permissions, errors, risk level, available actions); Phase 1 shows Manual Upload connector as active; all others shown as "coming soon" with their planned capabilities described
-- **Costs page**: today/week/month cost; budget remaining; cost by provider, model, project, workflow; most expensive actions list; CIL savings, cache savings, avoided calls; projected monthly; budget controls (daily/weekly/monthly limits, strong-model approval threshold, low-cost mode toggle)
-- **Governance page**: approval queue with pending actions, risk level, reason, related source, recommended verdict; Approve / Hold / Reject / Edit / Ask Why actions; sensitive actions show evidence before action buttons
-- **Backups page**: last backup time, health, size, location, restore test status; Export Lee Brain button; Import Lee Brain button; Download Archive; Verify Archive; Migration Readiness indicator
-- **Settings page**: owner profile, model provider API key management (masked), notification preferences, session management, feature flags, app version, schema version, export format version
-- Visual design: dark mode first, soft contrast, readable serif/mono typography, clear spacing, status badges (green/amber/red/blue/purple/gray per spec), confidence indicators, freshness indicators, no noisy animations, no emojis anywhere in UI
-- All data fetched from the Lee API using generated React Query hooks; no mocked data in final state
+- React + Vite web app at the root path (`/`) on Replit
+- Login wall protecting the entire console; only the owner can access
+- **Top status bar** always visible: Lee name, date/time, system health, Operating Mode indicator and override, cost today, pending approvals, notification count, backup status
+- **Left navigation**: Today, Ask Lee, Timeline, Knowledge Map, Projects, People, Decisions, Assumptions, Waiting, Evidence (Fact Ledger / Interpretation Ledger), Observations, Imports, Connectors, Costs, Governance, Health, Backups, Settings
+- **Right context rail**: current context packet, related sources, confidence distribution, trust advisory, freshness indicator, Why Chain, action buttons, evidence links
+- **Today page**: Lee's Brief, top priority, what changed, waiting loops, upcoming meetings, freshness warnings, active risks, open approvals, Operating Mode card, health summary, backup status, high-relevance Observations
+- **Ask Lee page**: conversation, mode selector, cost estimate, context packet preview with confidence distribution and trust advisory, Why Chain for every answer, all action buttons
+- **Context Packet Preview**: detected intent, active project, relevant people, context tier distribution, confidence distribution, trust advisory, active assumptions, selected model, estimated cost, risk level; Run / Use Cheaper Model / Packet Only / Edit Packet / Cancel
+- **Evidence page split** — Fact Ledger tab and Interpretation Ledger tab as distinct views; Fact/Interpretation badge on every surface; Assumption Ledger browsable from Evidence or Governance
+- **Provenance indicators** — every card shows source indicator; one click to provenance panel with navigable chain
+- All remaining pages (Projects, People, Decisions, Waiting, Imports, Connectors, Costs, Governance, Backups, Settings) as specified in v2.0; updated to reflect v3.0 additions throughout
+- Dark mode first; no emojis anywhere; status badges consistent; all data from generated React Query hooks
 
 ### Out of scope
-- Actual AI model calls wired end-to-end (Task #5 wires Ask Lee fully)
-- Real connector auth flows (Task #6)
-- Scheduler / background jobs (Task #4)
-- Android (Task #7)
+- AI model calls wired end-to-end (Task #5), real connector auth (Task #6), scheduler (Task #4), Android (Task #7)
 
 ### Steps
-1. **Create the react-vite artifact** at path `/` — configure with dark-mode-first theme and the Lee color system (green/amber/red/blue/purple/gray functional palette)
-2. **Authentication wall** — gate the entire app behind a login screen; session cookie persists until timeout; no public routes except `/login`
-3. **Shell layout** — build the persistent top status bar, left navigation, main workspace area, and right context rail; wire status bar data to live API calls
-4. **Today page** — build the home screen with all sections; Lee's Brief card shows placeholder when no brief exists yet
-5. **Ask Lee page** — build the conversation UI with mode selector, cost estimate display, context packet preview panel, and all action buttons; actual AI call integration deferred to Task #5 but UI fully built
-6. **Projects pages** — projects list with card grid; full project detail with all tabs; CerbaSeal Pilot Mode tab fully built
-7. **People pages** — people list with cards; full person detail with timeline and all sections
-8. **Decisions page** — full decision ledger with all views, filters, and decision detail with all actions
-9. **Waiting page** — full waiting tracker with all columns and action buttons
-10. **Evidence page** — source browser with all filters and detail view
-11. **Imports page** — upload area with file type support, recent imports list, processing status, needs-review queue
-12. **Connectors, Costs, Governance, Backups, Settings pages** — build all remaining pages fully
-13. **Right context rail** — build the context rail component; pulls context packet, related sources, freshness, confidence from API
-14. **Polish and consistency** — typography, spacing, color system, status badges consistent across all pages; verify no emojis appear anywhere
+1. Create react-vite artifact at path `/`; dark-mode-first theme with Lee color system
+2. Authentication wall — gate entire app; session cookie; no public routes except `/login`
+3. Shell layout — top status bar with Operating Mode indicator, left navigation, main workspace, right context rail
+4. Today page — all sections including Operating Mode card, health summary, Observations
+5. Ask Lee page — conversation, mode selector, context packet preview with confidence/trust, Why Chain panel
+6. Projects pages — list with card grid; full detail with all tabs including Fact/Interpretation evidence
+7. People pages — list; full person detail with all sections
+8. Decisions page — full decision ledger with all views and actions
+9. Waiting, Evidence (Fact/Interpretation split), Observations, Assumptions, Imports pages
+10. Connectors, Costs, Governance, Backups, Settings pages
+11. Right context rail — context packet, confidence chain, trust advisory, provenance links
+12. Polish — typography, spacing, color system, provenance indicators, Fact/Interpretation badges consistent throughout
 
 ---
 
@@ -139,41 +207,35 @@ Build the Lee Console: the private, hosted web interface that is Lee's primary c
 *Depends on: Task #1, Task #2*
 
 ### What & Why
-Build the intelligence layer that transforms raw uploads into operational understanding. When you drop a PDF, a ChatGPT export, or a transcript into Lee, this pipeline reads it, chunks it, detects what projects/people/decisions it touches, updates the Reality Ledger, and queues anything uncertain for your review. This is how Lee learns from evidence instead of assumption.
+Transforms raw uploads into operational understanding. This pipeline writes exclusively to the Fact Ledger — extracted, observed, and declared facts only. It never creates interpretations. Interpretation is the job of the Curiosity, Strategy, and Simulation Engines.
 
 ### Done looks like
-- Background worker process that picks up uploaded files from the Source Vault and processes them through the pipeline
-- Parser support for all Phase 1 import types: ChatGPT JSON export, PDF, DOCX, Markdown, TXT, plain email thread paste, screenshot (OCR via API), transcript (plain text), manual note
-- **Chunking engine** — splits parsed text into semantically coherent chunks with metadata (source_id, chunk_index, char_range, token_estimate)
-- **Understanding Engine** — for each chunk, asks: What happened? What changed? Which project is affected? Which person is involved? Is this new? Is this a decision? Is this a task? Is this a risk? Is this an opportunity? Does this contradict something existing? Does this make older context stale?
-- **Entity extraction** — project detection (fuzzy name match), person detection, decision detection (keyword + pattern detection), task detection, risk detection
-- **Reality updates** — when new evidence confirms, contradicts, or refines an existing belief, the Reality Ledger is updated with updated confidence, updated last_confirmed_at, the new source linked as evidence, a contradiction flag if applicable
-- **Contradiction Engine** — detects when new evidence conflicts with an existing locked or canonical belief; never silently resolves high-impact contradictions
-- **Evidence Graph links** — after extraction, creates relationship links: projects ↔ documents, documents ↔ decisions, people ↔ emails, meetings ↔ action items, briefs ↔ sources
-- **Needs-review queue** — any detected entity or belief update with confidence below threshold is placed in the needs-review queue; user can approve, reject, or edit each suggestion
-- **Belief type tagging** — all extracted beliefs tagged: declared, observed, extracted, inferred, speculative
-- **Canon protection** — the pipeline never auto-promotes a belief to Locked or Canonical
-- **Duplicate detection** — checksums prevent the same source file from being imported twice; near-duplicate chunk detection prevents redundant beliefs
-- **Event emission** — every pipeline step emits events to the Event Log
-- **Processing status visible in UI** — Imports page shows real-time pipeline status per uploaded file
+- Background worker processing uploaded files through the full pipeline
+- Parser support: ChatGPT JSON export, PDF, DOCX, Markdown, TXT, email thread paste, screenshot (OCR), transcript, manual note
+- **Chunking engine** — semantically coherent chunks with source_id, chunk_index, char_range, token_estimate
+- **Entity extraction** — project, person, decision, task, risk detection; fuzzy-name-matched against existing records
+- **Fact Ledger writes** — extracted facts written to fact_ledger with fact_type = extracted; source_evidence populated; propagated_confidence computed via Confidence Propagation system; confidence_lineage attached
+- **Contradiction detection** — new facts compared against locked/canonical facts; contradictions surface to needs-review queue, never silently resolved
+- **Evidence Graph links** — relationship links after extraction: projects ↔ documents, documents ↔ facts, people ↔ emails, meetings ↔ action items
+- **Needs-review queue** — low-confidence facts queued for owner review; approve, reject, or edit
+- **Canon protection** — pipeline never auto-promotes to Locked or Canonical
+- **Duplicate detection** — checksum deduplication; near-duplicate chunk detection
+- **Event emission** — every pipeline stage emits events to the Event Log
 
 ### Out of scope
-- Vector/semantic embeddings and semantic search (basic keyword search only in this phase)
-- Live connector ingestion (Task #6)
-- Model routing and cost optimization for extraction calls (Task #5)
+- Vector/semantic embeddings, live connector ingestion (Task #6), model routing for extraction (Task #5), writing to Interpretation Ledger (other engines handle that)
 
 ### Steps
-1. **Worker process** — set up a background worker (Node.js with a job queue) that polls for pending source records and processes them sequentially
-2. **Parsers** — implement parsers for each import type; each parser returns structured text + metadata
-3. **Chunker** — implement a chunking strategy (paragraph-aware, max token size per chunk) that preserves sentence boundaries; store chunks in DB
-4. **Entity detector** — build matchers for projects, people, decisions, risks, and tasks
-5. **Understanding Engine** — for each chunk, run entity detection and classify the chunk's meaning; produce candidate belief updates and evidence graph links
-6. **Reality Ledger updater** — apply belief updates; flag contradictions; create candidate beliefs at appropriate type
-7. **Contradiction Engine** — compare new extractions against locked/canonical beliefs; surface conflicts to the needs-review queue
-8. **Evidence Graph writer** — create relationship records linking the processed source to detected projects, people, and decisions
-9. **Needs-review queue** — build the review queue API and wire it to the Imports page UI
-10. **Duplicate guard** — implement checksum-based deduplication on upload; implement chunk-level near-duplicate detection
-11. **Event emission** — ensure every pipeline stage emits the appropriate event to the Event Log with full payload
+1. Worker process — job queue; polls pending sources; sequential processing
+2. Parsers — all import types; returns structured text + metadata
+3. Chunker — paragraph-aware, max-token chunks; stored with metadata
+4. Entity detector — matchers for projects, people, decisions, risks, tasks
+5. Fact writer — write extracted facts to fact_ledger; populate confidence_lineage via Confidence Propagation; enforce fact_type = extracted
+6. Contradiction detector — compare new facts against locked/canonical; surface conflicts to needs-review
+7. Evidence Graph writer — relationship records linking source to detected entities and facts
+8. Needs-review queue — queue API and UI integration
+9. Duplicate guard — checksum deduplication; chunk-level near-duplicate detection
+10. Event emission — every pipeline stage emits appropriate Event Log events with full payload
 
 ---
 
@@ -182,35 +244,30 @@ Build the intelligence layer that transforms raw uploads into operational unders
 *Depends on: Task #3*
 
 ### What & Why
-Build Lee's temporal awareness and its signature daily artifacts. The Time Engine makes Lee time-conscious — every fact has an age, every wait has a duration, every context has a freshness. The Brief Engine generates the documents that make Lee useful every single day. The Scheduler runs recurring jobs. This is what makes Lee feel alive.
+Build Lee's temporal awareness and its signature daily artifacts. Every fact has an age, every wait has a duration, every context has a freshness. The Brief Engine generates the documents that make Lee useful every single day. Every brief item carries a Why Chain and provenance link.
 
 ### Done looks like
-- **Time Engine** — all objects carry computed temporal fields: age, staleness, wait_duration, deadline_distance, follow_up_window, freshness_score (0–100, decays by object type)
-- **Freshness decay rules** per object type: project status (~7 days to stale), relationship context (~14 days), technical docs (faster after repo changes), market/regulatory (fast), founder principles (very slow), decisions (no decay until superseded)
-- **Waiting Engine** — tracks all open waiting loops; computes days_waiting in real time; applies risk escalation (amber at expected window, red past it); fires notification events when thresholds crossed
-- **Freshness Engine** — runs on a schedule and re-scores all objects; marks objects as fresh / aging / stale / critical
-- **Scheduler** — cron-based job runner with named jobs: morning_brief (08:00 local), evening_reflection (20:00 local), weekly_review (Sunday 09:00), backup_check (daily 02:00), cost_check (daily), stale_context_scan (every 6h), connector_health_scan (every 1h)
-- **Brief Engine** — generates: Today's Brief, Evening Reflection, Weekly Review, CerbaSeal Pilot Brief, Project Brief, Person Brief, Decision Brief, Meeting Brief
-- **Brief storage** — briefs persisted as objects in DB with type, generated_at, sources_used, confidence, version
-- **Notifications center** — notification objects with level (silent_log / digest / in_app / push / sms); Lee never becomes noisy — push only for high-impact events; SMS reserved for critical alerts
-- **Today page fully alive** — real brief content, real freshness warnings, real waiting loop states, real stale context surfaced
-
-### Out of scope
-- Push notifications to Android (Task #7)
-- SMS delivery (Task #7)
-- Real connector data feeding briefs (Task #6)
+- **Time Engine** — temporal fields on all objects: age, staleness, wait_duration, deadline_distance, follow_up_window, freshness_score (0–100, decays by object type)
+- **Freshness decay rules** by type: project status (~7 days), relationship context (~14 days), decisions (no decay until superseded), facts (decay by source type)
+- **Waiting Engine** — tracks open loops; computes days_waiting; risk escalation (amber at expected window, red past); notification events at thresholds
+- **Freshness Engine** — scheduled scan; re-scores all objects; marks fresh / aging / stale / critical
+- **Scheduler** — named cron jobs: morning_brief, evening_reflection, weekly_review, backup_check, cost_check, stale_context_scan, connector_health_scan
+- **Brief Engine** — generates: Today's Brief, Evening Reflection, Weekly Review, CerbaSeal Pilot Brief, Project Brief, Person Brief, Decision Brief, Meeting Brief; each brief item carries a Why Chain and provenance link
+- **Brief personalization** — Founder Profile voice dimensions applied once available (noted dependency on Task #11)
+- **Brief storage** — persisted as objects; history browsable in console
+- **Notifications center** — by level: silent_log / digest / in_app / push / sms; push only for high-impact; SMS for critical
 
 ### Steps
-1. **Time Engine utilities** — build shared time utilities: age_of, days_waiting, freshness_score, deadline_distance, follow_up_window, is_stale
-2. **Freshness decay config** — define per-type decay rates and stale thresholds in a config file; make tunable via Settings
-3. **Waiting Engine** — recomputes days_waiting, risk level, and recommended_action for all open loops on each scheduler tick
-4. **Freshness Engine** — scheduled freshness scan that re-scores all objects; creates stale_context events for objects crossing the stale threshold
-5. **Scheduler** — implement cron-based job runner; register all named jobs; all jobs must catch errors and emit job_failed events without crashing
-6. **Brief Engine — core** — build the brief generator starting with Today's Brief and Evening Reflection
-7. **Brief Engine — specialized briefs** — extend to CerbaSeal Pilot Brief, Project Brief, Person Brief, Decision Brief, Meeting Brief
-8. **Brief storage and history** — persist all generated briefs; make brief history browsable in the console
-9. **Notifications Engine** — build the notification decision engine; create notification objects at the right level; expose notification API
-10. **Wire Today page to live data** — real brief, real freshness warnings, real waiting loop escalations, real notification queue, real cost status
+1. Time Engine utilities — age_of, days_waiting, freshness_score, deadline_distance, follow_up_window, is_stale
+2. Freshness decay config — per-type decay rates; tunable via Settings
+3. Waiting Engine — real-time days_waiting, risk level, recommended_action per loop
+4. Freshness Engine — scheduled scan; stale_context events to Event Log
+5. Scheduler — cron job runner; all named jobs; error handling; Event Log emission on failure
+6. Brief Engine (core) — Today's Brief and Evening Reflection; each item uses Why Chain builder; provenance links
+7. Brief Engine (specialized) — Pilot Brief, Project Brief, Person Brief, Decision Brief, Meeting Brief
+8. Brief storage and history — persist briefs; make history browsable
+9. Notifications Engine — notification decision logic; notification objects by level; notification API
+10. Wire Today page to live data — real brief, real freshness warnings, real waiting escalations
 
 ---
 
@@ -219,37 +276,32 @@ Build Lee's temporal awareness and its signature daily artifacts. The Time Engin
 *Depends on: Task #1, Task #2*
 
 ### What & Why
-Wire Lee's AI brain end-to-end. Integrates real model providers (OpenAI, Anthropic, Gemini), builds the cost-aware model router, implements the Context Packet system that prevents manual context rebuilding, and fully activates the Ask Lee conversation interface. After this phase, Lee can reason with real intelligence while never spending money silently.
+Wire Lee's AI brain end-to-end. Real model providers, cost-aware routing, the Context Packet system, and the full Ask Lee conversation interface. Lee can reason with real intelligence while never spending money silently. Every answer includes a Why Chain and provenance.
 
 ### Done looks like
-- **Model Router** — routing engine selecting the cheapest sufficient path: (1) No model, (2) Cached answer, (3) CIL-style reuse, (4) Cheap model (GPT-4o-mini / Haiku), (5) Mid-tier (GPT-4o / Sonnet), (6) Strong frontier (o1 / Opus), (7) Human review; routing decision always logged
-- **Provider adapters** — modular adapters for OpenAI, Anthropic, and Gemini; interchangeable via Settings
-- **Context Packet system** — assembles packets: detected intent, active project, relevant people, included context, excluded stale context (with freshness warnings), selected model, estimated cost, risk level; packets stored and reusable
-- **Context Packet Preview** — Run / Use Cheaper Model / Packet Only / Edit Packet / Cancel; user never gets a surprise bill
-- **Cost estimation** — pre-call cost estimate shown in UI before every model call
-- **Strong-model gate** — cost exceeding threshold creates a governance hold before calling
-- **Ask Lee fully wired** — sends messages, builds context packets, routes to correct model, streams responses, stores conversation history, detects mentioned projects/people, extracts candidate decisions, shows evidence links
+- **Model Router** — cheapest sufficient path: (1) No model, (2) Cached, (3) CIL reuse, (4) Cheap (GPT-4o-mini / Haiku), (5) Mid-tier (GPT-4o / Sonnet), (6) Strong frontier (o1 / Opus), (7) Human review; routing decision always logged; reads current Operating Mode's model_routing_override
+- **Provider adapters** — OpenAI, Anthropic, Gemini; consistent interface; interchangeable via Settings
+- **Context Packet system** — assembles: detected intent, active project, relevant people, context by memory tier, confidence distribution, trust advisory for primary engine, active assumptions, constitution provisions, Founder Profile dimensions; packets stored and reusable
+- **Context Packet Preview** — full preview with confidence distribution, trust advisory, active assumptions, active constitution provisions before any run
+- **Why Chain generation** — every Ask Lee answer includes a Why Chain section based on Lee's actual knowledge; not post-hoc model explanation
+- **Provenance in answers** — every answer cites which facts and interpretations were consulted
+- **Cost estimation** — pre-call estimate shown before every model call
+- **Strong-model gate** — cost exceeding threshold creates governance hold
+- **Ask Lee fully wired** — sends messages, builds packets, routes, streams responses, stores history, detects projects/people, extracts candidate facts (queued to Fact Ledger via needs-review), shows Why Chain and evidence links
 - **Conversation modes** — Normal, Deep Think, Build, Write, Review, Pilot, Low Cost, Private, No Model, Governed Action
-- **CIL-style reuse** — context packets cached by intent fingerprint; reuse events logged and credited in cost savings
-- **Cost Engine** — tracks all model calls; aggregates for today/week/month; enforces daily/weekly/monthly budget limits with hard stops; projects monthly cost
-- **Budget controls enforced** — when daily limit is reached, Lee stops expensive calls and switches to Low Cost mode automatically; not silently ignored
-
-### Out of scope
-- Android Ask Lee (Task #7)
-- Connector data in context packets (Task #6)
-- Local/open-source model adapters (architecture must support them as a future route)
+- **Budget enforcement** — hard daily/weekly/monthly limits; auto-switch to Low Cost; logged
 
 ### Steps
-1. **Provider adapters** — implement OpenAI, Anthropic, and Gemini adapters; consistent interface: send(prompt, options) → {text, tokens_in, tokens_out, model, provider, cost_usd}; API keys from environment secrets
-2. **Model routing logic** — router evaluates request type, cost sensitivity, mode, and budget state; logs every routing decision with reason
-3. **Context Packet builder** — assembles packets from the Lee Brain; applies freshness filtering; estimates token count and cost
-4. **CIL-style packet cache** — cache assembled packets by intent fingerprint; invalidate when source objects change
-5. **Cost estimation and display** — pre-call cost estimation; expose in Context Packet Preview; display in Ask Lee UI
-6. **Strong-model gate** — configurable cost threshold; above threshold, create a governance hold item
-7. **Budget enforcement** — hard daily/weekly/monthly limits; auto-switch to Low Cost mode when limit hit; notify user
-8. **Ask Lee conversation endpoint** — streaming conversation API: receive message, build packet, route, stream response, store turn, extract candidate decisions, link evidence
-9. **Wire Ask Lee UI** — connect full Ask Lee page to live conversation API
-10. **Cost Engine aggregations** — build cost aggregation queries; wire to Costs page; add cache savings and avoided calls tracking
+1. Provider adapters — OpenAI, Anthropic, Gemini; API keys from environment secrets
+2. Model routing logic — evaluates request type, Operating Mode override, cost sensitivity, budget state; logs every decision
+3. Context Packet builder — assembles by memory tier; includes confidence distribution, trust advisory, active assumptions, constitution provisions, Founder Profile dimensions
+4. CIL-style packet cache — cache by intent fingerprint; invalidate on source changes
+5. Cost estimation and display — pre-call estimate; display in Context Packet Preview
+6. Strong-model gate — configurable threshold; governance hold above threshold
+7. Budget enforcement — hard limits; auto-switch to Low Cost; notify user
+8. Ask Lee conversation endpoint — streaming; build packet; route; stream response; store turn; extract candidate facts; build and attach Why Chain; link evidence
+9. Wire Ask Lee UI — connect full Ask Lee page to live conversation API
+10. Cost Engine aggregations — aggregation queries; Costs page; cache and avoided-call savings tracking
 
 ---
 
@@ -258,30 +310,30 @@ Wire Lee's AI brain end-to-end. Integrates real model providers (OpenAI, Anthrop
 *Depends on: Task #1, Task #3, Task #5*
 
 ### What & Why
-Connect Lee to the live services where your real work happens. Every connector is read-only first, produces events (never directly mutates the Lee Brain), and respects the governance boundary — Lee observes, reasons, and recommends; humans approve consequential actions.
+Connect Lee to the live services where your real work happens. Every connector is read-only first, produces events (never directly mutates the Lee Brain), and respects the Constitution and governance boundary — Lee observes, reasons, and recommends; humans approve consequential actions.
 
 ### Done looks like
-- **Connector framework** — connector produces events → Understanding Engine processes events → Reality Engine updates Lee Brain; no connector directly writes to projects/people/decisions/beliefs
-- **Gmail connector** (read-only): OAuth2, polls watched labels, detects replies from tracked people, updates waiting loops when reply resolves an open loop, imports threads into Source Vault, draft creation only (send always requires governance approval)
-- **Google Calendar connector** (read-only): OAuth2, syncs 14 days of upcoming events, detects meetings with tracked people, feeds Today page, triggers Meeting Brief generation
-- **Google Drive connector** (read-only): OAuth2, watches specified folders, imports changed documents, detects staleness relative to GitHub commits
-- **GitHub connector** (read-only): personal access token, imports repos (README, key docs, open issues, recent PRs, commit log summary), tracks commit activity, detects README drift
-- **Replit connector** (read-only): API token, tracks Replit repls linked to Lee projects, monitors deployment status, surfaces in project detail
-- **Android capture API** — POST /android/capture, POST /android/ask, GET /android/brief, GET /android/waiting, GET /android/alerts, POST /android/approve; all require device pairing token
-- **Connector health monitoring** — tracks last_sync, error_state, consecutive_failure_count; Connectors page shows health; reconnect option on failure
-- **Connector audit log** — every sync, event produced, and error logged with connector_id and timestamp
+- **Connector framework** — connector produces events → Understanding Pipeline processes events → Fact Ledger updated; no connector directly writes to any Lee object; ConstitutionEngine consulted before any write-adjacent action
+- **Gmail connector** — OAuth2, read-only, poll tracked labels, update waiting loops on reply, import threads, draft creation (send always requires governance HOLD)
+- **Google Calendar connector** — OAuth2, sync 14 days of events, detect meetings with tracked people, feed Today page, trigger Meeting Brief
+- **Google Drive connector** — OAuth2, watch specified folders, import changed documents, detect staleness vs. GitHub commits
+- **GitHub connector** — personal access token, import repos, track commit activity, detect README drift
+- **Replit connector** — API token, track repls linked to Lee projects, monitor deployment status
+- **Android capture API** — POST /android/capture, POST /android/ask, GET /android/brief, GET /android/waiting, GET /android/alerts, POST /android/approve; device pairing token auth
+- **Connector health monitoring** — last_sync, error_state, consecutive_failure_count; visible in Connectors page with reconnect option
+- **Connector audit log** — every sync, event produced, and error logged
 
 ### Steps
-1. **Connector Engine framework** — ConnectorEngine class with registration, scheduling, health tracking, and audit logging; no connector writes directly to Lee Brain tables
-2. **OAuth2 infrastructure** — OAuth2 flow handler for Google services; token storage (encrypted); token refresh
-3. **Gmail connector** — poll for new messages from tracked senders; emit reply_received / thread_imported events; implement draft creation; governance gate on send
-4. **Google Calendar connector** — sync upcoming events; detect meetings with tracked people; emit meeting_detected events; trigger Meeting Brief generation
-5. **Google Drive connector** — watch specified folder for changes; emit document_changed events; detect staleness relative to GitHub commits
-6. **GitHub connector** — import repos; track commits; detect drift between code activity and documentation
-7. **Replit connector** — link Replit repls to Lee projects; poll deployment/run status; emit deployment_changed events
-8. **Android capture API** — all Android endpoints with device pairing authentication; captures queued to Understanding Pipeline immediately
-9. **Connector health monitoring + UI** — implement health tracking; update Connectors page to show real health state with reconnect/reauthorize flows
-10. **End-to-end event flow test** — verify: Gmail reply from tracked person → reply_received event → Understanding Engine → waiting loop updated → Today page reflects change → notification created
+1. Connector Engine framework — ConnectorEngine with registration, scheduling, health tracking, constitution consultation, audit logging
+2. OAuth2 infrastructure — Google OAuth2 flow; token storage encrypted; token refresh
+3. Gmail connector — poll tracked senders; emit events; draft creation; governance gate on send; constitution check
+4. Google Calendar connector — sync events; emit meeting_detected; trigger Meeting Brief generation
+5. Google Drive connector — watch folders; emit document_changed; detect staleness
+6. GitHub connector — import repos; track commits; detect drift
+7. Replit connector — link repls to Lee projects; poll deployment status
+8. Android capture API — all endpoints; device pairing auth; captures queued to Understanding Pipeline immediately
+9. Connector health monitoring + UI — health tracking; Connectors page real health state; reconnect/reauthorize flows
+10. End-to-end event flow test — Gmail reply from tracked person → event → Understanding Pipeline → Fact Ledger → waiting loop updated → Today page reflects change → notification created
 
 ---
 
@@ -290,32 +342,32 @@ Connect Lee to the live services where your real work happens. Every connector i
 *Depends on: Task #6*
 
 ### What & Why
-Lee in your pocket. Not a miniature desktop app — briefs, captures, waiting loops, alerts, quick questions, and approvals. Simple, fast, and trustworthy.
+Lee in your pocket. Not a miniature desktop app — briefs, captures, waiting loops, alerts, quick questions, and approvals. Simple, fast, Operating Mode-aware.
 
 ### Done looks like
 - Expo React Native app targeting Android
-- **Device pairing** — first launch: enter Lee API URL and device pairing token; all calls use this token
-- **Brief tab** — today's summary: top priority, what changed, open waiting loops, upcoming meetings, recommended focus; pull-to-refresh; offline cache
-- **Capture tab** — voice note (upload + pipeline), text note with tag selector, photo/screenshot from camera or gallery; local queue with sync-on-connect; processing status display
+- Device pairing — URL + pairing token; all calls use this token
+- **Brief tab** — Operating Mode-aware content; today's summary; pull-to-refresh; offline cache
+- **Capture tab** — voice note, text note, photo/screenshot; local queue with sync-on-connect; processing status
 - **Waiting tab** — color-coded risk list; Snooze / Resolve / Prepare Follow-up actions
-- **Alerts tab** — push-level notifications; Snooze / Dismiss / Open Lee (deep link to console) actions; critical alerts in red
-- **Ask tab** — quick question UI; low-cost mode default; escalation to stronger model with cost estimate; streaming response
-- **Approvals tab** — governance items; Approve / Hold / Reject with confirmation; tap-and-hold for consequential actions
-- **Push notifications** — FCM integration; categories: brief_ready, alert, waiting_escalation, approval_required, cost_warning
-- **Offline resilience** — brief tab caches last brief; capture tab queues locally; waiting tab shows cached data with stale indicator
-- **Visual design** — dark mode matching console palette; no emojis; bottom tab bar
+- **Alerts tab** — push-level notifications with action buttons; critical alerts in red
+- **Ask tab** — quick question UI; low-cost default; streaming response; Why Chain accessible; escalation option with cost estimate
+- **Approvals tab** — governance items; Approve / Hold / Reject with confirmation; tap-and-hold for HIGH/CRITICAL
+- **Push notifications (FCM)** — brief_ready, alert, waiting_escalation, approval_required, cost_warning
+- **Offline resilience** — brief tab caches last brief; capture tab queues locally; cached data shows stale indicator
+- Dark mode matching console palette; no emojis; bottom tab bar
 
 ### Steps
-1. **Create Expo artifact** — bootstrap Android app; configure to point at hosted Lee API URL; dark-mode theme with Lee's color system
-2. **Device pairing screen** — URL + token input; verification call to API; stored in AsyncStorage
-3. **API client** — typed client wrapping Lee API Android endpoints; handles auth token, retry, offline detection
-4. **Brief tab** — fetch and display; pull-to-refresh; offline cache
-5. **Capture tab** — voice recording, text note, photo/screenshot; local queue with sync-on-connect
-6. **Waiting tab** — color-coded risk list; Snooze/Resolve/Prepare actions
-7. **Alerts tab** — push-level notifications with action buttons; critical accent styling
-8. **Ask tab** — quick question UI with streaming response; escalation option with cost estimate
-9. **Approvals tab** — governance items; tap-and-hold for consequential actions; updates propagate to console
-10. **Push notifications (FCM)** — register device token with Lee API on pairing; handle notification receipt and tap navigation
+1. Create Expo artifact; dark-mode theme with Lee color system
+2. Device pairing screen — URL + token input; verification call to API; stored in AsyncStorage
+3. API client — typed client; auth token; retry; offline detection
+4. Brief tab — mode-aware content ordering; pull-to-refresh; offline cache
+5. Capture tab — voice recording, text note, photo/screenshot; local queue with sync-on-connect
+6. Waiting tab — color-coded risk list; action buttons
+7. Alerts tab — action buttons; critical accent styling
+8. Ask tab — streaming response; Why Chain section in answer; escalation with cost estimate
+9. Approvals tab — tap-and-hold for HIGH/CRITICAL; updates propagate to console
+10. Push notifications (FCM) — register device token on pairing; handle receipt and tap navigation
 
 ---
 
@@ -324,32 +376,29 @@ Lee in your pocket. Not a miniature desktop app — briefs, captures, waiting lo
 *Depends on: Task #2, Task #5*
 
 ### What & Why
-Build the governance system that enforces Lee's Constitution. Lee prepares, drafts, summarizes, and recommends — but she never sends, publishes, shares, deletes, or permanently marks canon without passing through ALLOW / HOLD / REJECT. This is the trust layer that makes Lee safe to give real access to.
+Build the governance system that enforces Lee's operating rules. Lee prepares, drafts, summarizes, and recommends — but she never sends, publishes, shares, deletes, or permanently marks canon without passing through ALLOW / HOLD / REJECT. The Constitution Engine provides the layer above this (ABSOLUTE provisions block before governance); governance handles GOVERNED provisions and all high-risk actions.
 
 ### Done looks like
-- **Governance Engine** — intercepts all consequential actions before they execute: external messages, publishing content, sharing files externally, deleting sources, marking beliefs canonical, changing official project status, any risk_level ≥ MEDIUM action
-- **ALLOW / HOLD / REJECT logic**: ALLOW (pre-approved rule or user-approved), HOLD (creates governance item, execution blocked), REJECT (blocked by rule or user)
-- **Governance queue** — shows: action Lee wants to take, risk level (LOW / MEDIUM / HIGH / CRITICAL), reason, related evidence, affected object, recommended verdict, time waiting
-- **Action evidence** — for HIGH and CRITICAL actions, Lee must show supporting evidence before the action buttons appear
-- **Verdict actions** — Approve, Hold (snooze optional), Reject, Edit (modify action before approving), Ask Why
-- **Standing rules** — always allow X / always reject X / always hold X; rules versioned and logged
-- **Audit trail** — every governance decision logged with action_id, verdict, actor, timestamp, reason, evidence_shown, was_edited
-- **Risk classification** — LOW (internal state change), MEDIUM (reversible external effect), HIGH (irreversible or externally visible), CRITICAL (financial, legal, security, relationship-critical)
-- **Fail-closed by default** — unclassified actions default to HOLD, never ALLOW
-- **Session governance** — items expire within configurable window (48h for HIGH, 7 days for MEDIUM); auto-rejected and logged; user notified before expiry
-- **Governance integrated across all engines** — model router uses governance gate for strong-model calls; connector write actions route through governance; import deletes route through governance
+- **Governance Engine** — intercepts all consequential actions; evaluates ALLOW / HOLD / REJECT; Constitution consulted first (ABSOLUTE violations blocked before governance queue)
+- **ALLOW / HOLD / REJECT logic** with evidence display (required for HIGH/CRITICAL before action buttons appear); verdict actions: Approve, Hold, Reject, Edit, Ask Why
+- **Governance queue** — action, risk level, reason, evidence, Why Chain (for Ask Why flow), recommended verdict, time waiting
+- **Risk classification** — LOW / MEDIUM / HIGH / CRITICAL; fail-closed for unknown types
+- **Standing rules** — always allow X / always reject X / always hold X; versioned and logged
+- **Audit trail** — every governance decision logged: action_id, verdict, actor, timestamp, reason, evidence_shown, was_edited
+- **Session expiry** — HIGH items expire after 48h; MEDIUM after 7 days; auto-rejected and logged; user notified before expiry
+- **Governance integrated across all engines** — model router, Gmail send, Drive share, GitHub create, source delete, belief promotion, project status change
 
 ### Steps
-1. **Governance Engine core** — GovernanceEngine class: register_action(), evaluate() → ALLOW/HOLD/REJECT, execute(action_id) after approval
-2. **Risk classifier** — action type + payload → risk level; fail-closed for unknown types
-3. **Governance queue DB** — governance_items table; CRUD API endpoints
-4. **Standing rules system** — governance_rules table; rules management UI in Settings/Governance; apply rules before creating HOLD items
-5. **Governance page** — queue with filters, action detail with evidence display (required before buttons for HIGH/CRITICAL), verdict buttons, bulk actions, standing rules manager
-6. **Audit log UI** — searchable by action type, verdict, actor, date; full detail per decision
-7. **Governance gate integration** — wire into: model router, Gmail send (always HOLD), Drive share (always HOLD), GitHub create (always HOLD), source delete (always HIGH), belief promote-to-canonical (MEDIUM), project status change (MEDIUM)
-8. **Session expiry and notifications** — expiry logic; in-app notifications before expiry; auto-reject and log
-9. **Ask Why flow** — takes governance item, builds context packet explaining Lee's reasoning, calls model, returns explanation inline without executing action
-10. **Android Approvals tab integration** — verify tap-and-hold confirmation works for HIGH/CRITICAL; verify approved actions execute correctly via API
+1. Governance Engine core — GovernanceEngine: register_action(), evaluate() → ALLOW/HOLD/REJECT; constitution.check() called first
+2. Risk classifier — action type + payload → risk level; fail-closed for unknown
+3. Governance queue DB — governance_items table; CRUD API
+4. Standing rules system — governance_rules table; rules management UI in Settings/Governance
+5. Governance page — queue with filters; evidence display; verdict buttons; bulk actions; standing rules manager
+6. Audit log UI — searchable by action type, verdict, actor, date; full detail per decision
+7. Governance gate integration — wire into: model router, Gmail send, Drive share, GitHub create, source delete, belief promote-to-canonical, project status change
+8. Session expiry and notifications — expiry logic; in-app notifications before expiry; auto-reject and log
+9. Ask Why flow — builds context packet explaining Lee's reasoning; Why Chain included; model call; response inline without executing action
+10. Android Approvals tab integration — verify tap-and-hold for HIGH/CRITICAL; verify approved actions execute correctly
 
 ---
 
@@ -358,32 +407,28 @@ Build the governance system that enforces Lee's Constitution. Lee prepares, draf
 *Depends on: Task #1*
 
 ### What & Why
-A backup that cannot restore is not a backup. Build the durable backup and migration system that makes Lee portable. The Lee Brain must always be ownable, not held hostage by any hosting provider.
+A backup that cannot restore is not a backup. Event Sourcing makes restoration near-perfect — the Event Log alone can rebuild the full database state. Build the durable backup and migration system that makes Lee permanently portable.
 
 ### Done looks like
-- **Backup Engine** — complete, verifiable Lee Brain snapshots: full database dump, all object storage files, evidence index, decision ledger, reality ledger, project states, people timelines, context assets, settings, cost logs, audit logs, connector metadata (not tokens), backup manifest with checksums
-- **Backup manifest** — manifest.json in every backup: backup_id, timestamp, lee_version, db_schema_version, reality_model_version, object_count by type, source_file_count, total_size_bytes, checksums for every included file, backup_format_version
-- **Backup formats** — AES-256 encrypted ZIP (user-supplied passphrase); unencrypted ZIP for migration; manifest always in plaintext
-- **Manual backup** — "Backup Now" button; progress shown; download link when complete
-- **Scheduled backup** — daily at 02:00 (configurable); last 7 daily, 4 weekly, 12 monthly retained; old backups pruned automatically
-- **Backup verification** — validates manifest checksums, reports completeness, does NOT restore; runs automatically after every scheduled backup
-- **Restore test** — provisions a temporary isolated database, restores backup, runs integrity checks (FK consistency, belief type validity, event log continuity), reports pass/fail; does not affect the live Lee Brain
-- **Export Lee Brain** — full backup archive for download; passphrase prompted; download link expires after 1 hour; logged to audit trail; requires governance approval (MEDIUM risk)
-- **Import Lee Brain** — accepts archive upload, validates manifest, shows import preview, warns on schema version mismatch, requires explicit confirmation, runs migration scripts if needed
-- **Migration readiness indicator** — score from: backup health, restore test status, schema export completeness, portability checklist (all raw sources present, no external-only references)
-- **Backup status** on Today page and status bar — amber if last backup >24h, red if >72h
+- **Backup Engine** — complete, verifiable snapshots: Event Log (primary recovery primitive), full database dump (secondary fast path), all object storage files, Fact Ledger, Interpretation Ledger, Assumption Ledger, Decision Impact Graph, Constitution with all versions, Trust Score history, memory tier classifications, all other ledgers
+- **Event Log primary** — always included first; re-projection verification always runs as part of backup verification
+- **Backup manifest** — manifest.json: backup_id, timestamp, lee_version, db_schema_version, event_log_event_count, object_count by type, checksums for every file, backup_format_version
+- **AES-256 encrypted ZIP** with plaintext manifest; unencrypted ZIP for migration
+- **Manual backup + Scheduled backup (daily 02:00) + Backup verification + Restore test** — as specified; restore test provisions a temporary DB and runs re-projection; pass required
+- **Re-projection verification** — part of every backup verification; if re-projection doesn't produce consistent state, backup flagged as degraded
+- **Export, Import, Migration readiness indicator** — as previously specified; import flow validates constitution presence
 
 ### Steps
-1. **Backup Engine core** — BackupEngine class: assemble_backup() collects all DB tables and object storage files; computes checksums
-2. **Manifest builder** — manifest.json generator with all version fields, object counts, checksums
-3. **Encryption layer** — AES-256 encryption with user-supplied passphrase; decryption for restore and verification
-4. **Backup storage + retention** — Replit App Storage; retention policy (7 daily, 4 weekly, 12 monthly); pruning job
-5. **Manual backup + download** — "Backup Now" API endpoint with progress streaming; 1-hour expiring download link; wire to Backups page UI
-6. **Scheduled backup** — register backup_check in the scheduler; emit backup_created or backup_failed events
-7. **Backup verification** — verify_archive function: load archive, validate checksums, report completeness; auto-run after scheduled backups
-8. **Restore test** — test_restore function: provision temporary DB schema, restore data, run integrity checks, report pass/fail
-9. **Import Lee Brain** — accept archive upload; validate manifest; show import preview; run schema migration if needed; apply after confirmation; require governance approval
-10. **Migration readiness + UI** — compute migration readiness score; display in Backups page; wire Today page backup status indicator and status bar
+1. Backup Engine core — assemble_backup(): Event Log first, then all tables, then object storage; checksums
+2. Manifest builder — manifest.json with event_log_event_count and all version fields
+3. Encryption layer — AES-256; passphrase-based; decryption for restore and verification
+4. Backup storage + retention — Replit App Storage; 7 daily, 4 weekly, 12 monthly; auto-pruning
+5. Manual backup + download — Backup Now endpoint with progress streaming; 1-hour expiring download link; Backups page UI
+6. Scheduled backup — register backup_check in scheduler; emit events on success/failure
+7. Backup verification — validate checksums AND run re-projection test; report both results; flag as degraded if either fails
+8. Restore test — temporary DB; restore data; re-projection pass required; report pass/fail; does not affect live Lee Brain
+9. Import Lee Brain — validate manifest; schema migration if needed; import preview; constitution presence validated; confirmation required; governance approval
+10. Migration readiness + UI — compute score; Backups page display; Today page status indicator
 
 ---
 
@@ -392,38 +437,31 @@ A backup that cannot restore is not a backup. Build the durable backup and migra
 *Depends on: Task #1, Task #4*
 
 ### What & Why
-Every subsystem in Lee — Understanding, Reality, Time, Cost, Governance, Notification, Connectors, Health, Curiosity, Strategy — is only as good as its coordination. Without a central orchestration layer, Lee becomes a collection of isolated modules that occasionally conflict. The Orchestration Engine is the conductor. It doesn't think in the LLM sense; it coordinates, prioritizes, schedules, resolves contention, and ensures every engine works as a coherent whole. As Lee grows over years, this layer is what keeps the entire system from drifting into chaos.
+The conductor. Coordinates all background engines, prioritizes work, resolves contention, enforces cost-aware scheduling, and ensures coherence across the entire system. No engine calls another directly — all work is submitted through the Orchestration Engine. The Constitution is consulted before dispatching actions that touch external systems.
 
 ### Done looks like
-- **Orchestration Engine** — a persistent coordination service that manages the lifecycle of all background engines and subsystems; runs as the system's internal nervous system
-- **Engine registry** — every engine self-registers with name, capabilities, priority class, expected run frequency, resource consumption estimate, and dependencies; the registry is the system map
-- **Work queue with priority classes** — CRITICAL (health alerts, governance approvals, backup failures), HIGH (connector sync, brief generation, waiting loop escalation), NORMAL (understanding pipeline, reality updates, freshness scans), LOW (learning, reflection, opportunity scanning, dormant memory maintenance)
-- **Competing priority resolution** — CRITICAL always wins; within the same class, recency and urgency score determine order; starved LOW tasks get a boost after configurable time
-- **Brief generation coordination** — decides when to generate briefs: morning brief only if Understanding Pipeline isn't mid-import and Reality Engine has settled; doesn't blindly fire the Brief Engine on a clock
-- **Connector orchestration** — staggers connector syncs to avoid thundering herd on the DB or model quota; respects each connector's defined sync schedule but adds jitter
-- **Engine health monitoring** — tracks each engine's last successful run, error rate, and average run duration; exponential backoff for repeatedly failing engines; alerts the Health Engine
-- **Cost-aware scheduling** — before scheduling any model call, checks current cost state; if daily budget is >80%, delays non-CRITICAL model calls and logs the delay
-- **Shutdown and restart coordination** — on graceful shutdown, flushes queue state to DB; on startup, reloads queue state and resumes interrupted jobs
-- **Orchestration log** — every scheduling decision, priority resolution, delay, and engine failure logged to the Event Log
-- **Visible in Health page** — queue state, last decisions, engine health scores, and any scheduling conflicts visible in the Health page
-- **API for internal use** — all engines call the Orchestration Engine to request work scheduling; no engine calls another directly
-
-### Out of scope
-- Real-time streaming coordination (event-driven with async queue is sufficient)
-- Multi-machine distributed orchestration (Replit-first is single-process; architecture must allow future distribution without rewrite)
-- User-facing orchestration controls (Health page is read-only visibility; user-configurable priorities are a future Settings addition)
+- **Engine registry** — every engine self-registers with name, capabilities, priority class, run frequency, resource consumption, dependencies; DB-persisted for restart recovery
+- **Priority work queue** — CRITICAL / HIGH / NORMAL / LOW; DB-persisted; survives restarts
+- **Competing priority resolution** — CRITICAL always wins; within class, recency and urgency determine order; starved LOW tasks get a boost after configurable time
+- **Cost-aware scheduling gate** — before dispatching model-calling jobs, checks current cost state; if daily budget >80%, delays non-CRITICAL model calls and logs
+- **Constitution consultation** — before dispatching actions touching external systems, consults constitution.check()
+- **Connector sync staggering** — spaces out syncs; adds jitter; respects schedules
+- **Engine health tracking** — last_success, error_count, backoff_state, avg_duration per engine; feeds Health Engine; exponential backoff
+- **Shutdown/resume** — SIGTERM flushes queue state to DB; startup reloads and resumes
+- **Orchestration log** — every scheduling decision emitted to Event Log
+- **Health page visibility** — queue depth by priority class, engine health scores, current delays, conflicts
 
 ### Steps
-1. **Engine registry** — EngineRegistry with self-registration; stored in memory with DB persistence for restart recovery
-2. **Priority queue** — unified work queue with CRITICAL / HIGH / NORMAL / LOW priority classes; queue persisted to DB; survives restarts
-3. **Orchestration scheduler** — core scheduling loop: poll queue, evaluate competing priorities, apply resolution rules, dispatch work; runs every few seconds in a lightweight async loop
-4. **Cost-aware scheduling gate** — before dispatching any model-calling job, check current cost state; delay and log if budget threshold crossed
-5. **Connector sync staggering** — spaces out connector syncs to avoid resource contention; respects sync schedules but adds jitter
-6. **Engine health tracking** — track last_success, error_count, backoff_state, avg_duration for every registered engine; feed data to Health Engine; implement exponential backoff
-7. **Shutdown and resume** — on SIGTERM, flush queue state to DB; on startup, reload queue state and resume interrupted jobs
-8. **Orchestration log** — emit orchestration events to the Event Log for every significant scheduling decision
-9. **Health page integration** — build the Orchestration section of the Health page: queue depth by priority class, engine health scores, recent scheduling decisions, any current delays or conflicts
-10. **Wire all existing engines** — update the Understanding Pipeline, Brief Engine, Freshness Engine, Waiting Engine, Notification Engine, and Connector Engine to register with and submit work through the Orchestration Engine
+1. Engine registry — self-registration; DB-persisted for restart recovery
+2. Priority queue — CRITICAL / HIGH / NORMAL / LOW; DB-persisted; survives restarts
+3. Orchestration scheduler — core scheduling loop; competing priority resolution; dispatch
+4. Cost-aware scheduling gate — check budget state before model-calling jobs; delay and log
+5. Constitution consultation — check before dispatching external-touching actions
+6. Connector sync staggering — spaces syncs; adds jitter
+7. Engine health tracking — last_success, error_count, backoff_state, avg_duration; exponential backoff
+8. Shutdown and resume — SIGTERM flush; startup reload and resume
+9. Orchestration log — emit orchestration events to Event Log for every significant decision
+10. Wire all existing engines — update all engines to register with and submit work through the Orchestration Engine
 
 ---
 
@@ -432,80 +470,62 @@ Every subsystem in Lee — Understanding, Reality, Time, Cost, Governance, Notif
 *Depends on: Task #3, Task #5*
 
 ### What & Why
-Lee understands projects, people, and decisions. But she doesn't yet understand you. Not your personal data — your operating identity. How you think. How you solve problems. How you write. Your risk tolerance. What creates momentum and what causes stalls. Over years, this Founder Profile becomes one of the most valuable assets in the system. It is learned, not assumed, and always correctable.
+Lee understands projects, people, and decisions. This task makes Lee understand you — operationally. Thinking style, decision style, writing voice, risk tolerance, energy patterns, recurring friction. Learned from corrections and evidence, never assumed.
 
 ### Done looks like
-- **Identity Engine** — builds, maintains, and applies the Founder Profile; learns from corrections, explicit declarations, observed patterns, and behavioral signals; never guesses; never hard-codes assumptions
-- **Founder Profile dimensions**: thinking style, decision style, writing voice, technical depth (by domain), documentation preferences, risk tolerance (by domain), current goals, current priorities, energy patterns (what drains, what creates momentum, what causes stalls), preferred models, favorite workflows, current learning goals, recurring friction
-- **Learning from corrections** — every time the user corrects Lee's output, tone, or recommendation, the Identity Engine records the correction and updates the relevant dimension; corrections outrank all other signals
-- **Learning from patterns** — background scan on behavioral signals: which conversation modes are most used, which brief sections are read first, which recommendations are acted on vs. ignored, which waiting loops are resolved quickly vs. stalled
-- **Explicit declaration interface** — Settings page Founder Profile section: user can read Lee's current understanding and correct any dimension; corrections immediately applied and logged
-- **Profile confidence tracking** — each dimension has a confidence score (low / medium / high / confirmed) and a source log; low-confidence dimensions are flagged, never applied as assumptions
-- **Profile applied in context packets** — high-confidence Founder Profile dimensions included in every context packet; low-confidence dimensions excluded; packet preview shows which profile dimensions were applied
-- **Profile applied in briefs** — briefs written in the user's documented voice; prioritize what the Founder Profile identifies as high-priority energy patterns
-- **Founder Profile history** — every version of the profile kept; browsable in Settings — see how Lee's understanding of you has evolved over time
-- **Profile export** — included in all Lee Brain backups; travels with Lee when Lee migrates to desktop
-
-### Out of scope
-- Psychological profiling or emotional modeling (this is operational, not personal)
-- Inferring anything not backed by evidence or explicit declaration
-- Making the profile visible to anyone other than the owner
+- **Identity Engine** — builds and maintains the Founder Profile; learns from corrections (highest-weight signal), behavioral patterns, and explicit declarations; never infers; never hard-codes
+- **Profile dimensions** — thinking style, decision style, writing voice, technical depth by domain, documentation preferences, risk tolerance by domain, current goals, current priorities, energy patterns, preferred models, current learning goals, recurring friction
+- **Correction integration** — every correction to Lee's output updates the relevant dimension immediately and sends a trust signal to the Trust Score Engine for the generating subsystem
+- **Profile confidence tracking** — each dimension has confidence (low/medium/high/confirmed) and source log; low-confidence dimensions excluded from context packets
+- **Profile applied in context packets** — high-confidence dimensions included; packet preview shows which dimensions applied
+- **Founder Profile Settings UI** — all dimensions with current value, confidence, source summary, last-updated date; Edit button for explicit correction
+- **Profile history** — every version kept; browsable in Settings; shows how Lee's understanding has evolved
+- **Profile in backups** — full profile with all versions in every Lee Brain export
 
 ### Steps
-1. **Founder Profile schema** — founder_profile table with all dimensions; each stored as structured record with value, confidence, source_log, last_updated, correction_count
-2. **Identity Engine core** — IdentityEngine class: update_dimension(), apply_corrections(), get_profile_for_context(); register with Orchestration Engine at LOW priority for background scans
-3. **Correction listener** — wire correction capture into all surfaces: brief edits, recommendation dismissals, draft corrections, belief disputes; correction events are the highest-weight signal
-4. **Behavioral pattern scanner** — background scanner analyzing conversation mode frequency, brief section engagement, recommendation follow-through rate, waiting loop resolution speed; runs at LOW priority via Orchestration Engine
-5. **Founder Profile Settings UI** — Founder Profile section in Settings: each dimension with current value, confidence, source summary, last-updated date; Edit button for explicit correction
-6. **Context packet integration** — update the Context Engine (Task #5) to pull high-confidence Founder Profile dimensions and include them in every context packet; packet preview shows which profile dimensions were applied
-7. **Brief personalization** — update the Brief Engine (Task #4) to apply Founder Profile dimensions: voice, density, prioritization, section ordering reflect what has been learned
-8. **Profile history** — store every version of the Founder Profile as a snapshot whenever a dimension changes; make history browsable in Settings
-9. **Profile export** — include full Founder Profile (all dimensions, history, confidence scores) in Lee Brain backup format; verify it restores correctly
+1. Founder Profile schema — founder_profile table; all dimensions with confidence, source_log, correction_count, last_updated per dimension
+2. Identity Engine core — IdentityEngine: update_dimension(), apply_corrections(), get_profile_for_context(); register with Orchestration Engine at LOW priority
+3. Correction listener — wire into all surfaces; send trust signal to Trust Score Engine on every correction
+4. Behavioral pattern scanner — conversation mode frequency, brief section engagement, recommendation follow-through; LOW priority via Orchestration Engine
+5. Founder Profile Settings UI — all dimensions with current value, confidence, source summary, Edit button
+6. Context packet integration — pull high-confidence dimensions; packet preview shows applied dimensions
+7. Brief personalization — Brief Engine applies voice, density, prioritization from Founder Profile
+8. Profile history — snapshot on every dimension change; history browsable in Settings
+9. Profile export — full profile with all versions in Lee Brain backup
 
 ---
 
-## Task #12 — Lee Tiered Memory Architecture
+## Task #12 — Lee Tiered Memory Architecture + Compression Roadmap
 
 *Depends on: Task #1, Task #3*
 
 ### What & Why
-Flat storage treats a conversation from yesterday the same as a foundational decision made three years ago. That's not how memory works. This task replaces Lee's flat object store with a brain-like memory architecture where information lives at the right tier, decays or consolidates appropriately, and surfaces at the right time.
+Information lives at the right tier, decays or consolidates appropriately, and surfaces at the right time. Stages 1 and 2 are implemented now. The full 6-stage Memory Compression Roadmap is documented and architecturally preserved — every decision made here must leave a clear path to Stages 3–6 without requiring a rewrite.
 
 ### Done looks like
-- **Memory tiers**:
-  - **Recent** — last 7 days; full fidelity; always available in context packets
-  - **Working** — active projects, open decisions, open waiting loops, current goals; dynamically maintained regardless of age
-  - **Reference** — information consulted regularly but not daily; medium retrieval weight
-  - **Historical** — resolved items, past conversations, completed projects; compressed summaries retained; raw data preserved in Source Vault
-  - **Archived** — objects older than a configurable threshold with no recent references; compressed to essential fields; retrievable on explicit query
-  - **Dormant** — objects not accessed in a long time with low relevance scores; silently retained but excluded from all automatic surfaces
-  - **Evergreen** — documents, principles, and frameworks declared as permanently relevant (Lee's Constitution, CerbaSeal security framework, Lamont Labs principles); never decays
-  - **Foundational** — core identity facts about projects, people, and the operating environment
-  - **Canonical** — user-confirmed truth at the highest level; never overridden by inference; used as ground truth in all context packets
-- **Tier assignment** — new objects enter Recent; tier promoted/demoted as time passes and access frequency changes; protected tier rules (canonical never demoted, working memory tied to object status)
-- **Decay and consolidation** — Historical memory automatically compressed: raw conversation turns summarized, key entities preserved, source files retained in Source Vault
-- **Retrieval weighting** — Canonical and Evergreen always included; Working Memory always included; others weighted by relevance; Archived and Dormant excluded unless queried directly
-- **Working Memory surface** — Today page and right context rail always show current Working Memory: active projects, open decisions, live waiting loops, current goals
-- **Memory tier badge** — every object shows its current memory tier; user can manually promote or demote any object
-- **Memory health** — Health Engine tracks memory tier distribution, compression backlog, dormant object count; visible in Health page
-- **Memory in backups** — all tier classifications, consolidation states, and access history included in Lee Brain exports
-
-### Out of scope
-- Vector embedding-based semantic retrieval (structured relevance scoring in this phase; semantic search slots in later)
-- Automatic compression of Canonical or Evergreen memory
-- User-configurable tier thresholds in this phase
+- **Memory tiers** — Recent (7 days, full fidelity), Working (status-driven, age-independent), Reference (consulted regularly), Historical (resolved items, Stage 2 summaries), Archived (compressed essential fields), Dormant (excluded from automatic surfaces), Evergreen (never decays — Lee's Constitution, operating principles), Foundational (core identity facts), Canonical (user-confirmed ground truth)
+- **Stage 2 consolidation** — Historical tier objects get model-generated summaries using cheap model; key entities preserved explicitly as named fields; raw sources retained in Source Vault; compression_stage = 2; summary format explicitly compatible with Stage 3 hierarchical summary input
+- **Memory Compression Roadmap — 6 stages**:
+  - Stage 1: Full storage (current — every object at full fidelity)
+  - Stage 2: Summaries (implemented — model-generated summaries for Historical tier)
+  - Stage 3: Hierarchical summaries (future — summaries of summaries; project-level and person-level)
+  - Stage 4: Concept maps (future — structured key-concept extraction; concept nodes and links)
+  - Stage 5: Knowledge Graph compression (future — Intelligence Graph becomes primary storage for Historical content)
+  - Stage 6: Long-term semantic memory (future — vector embedding over concept map; semantic similarity retrieval)
+- **Architecture preservation** — all objects carry compression_stage field initialized to 1; consolidation engine is a pluggable pipeline; Stage 2 summaries preserve entity_list, key_decisions, key_facts, original_object_ids, compression_stage, source_confidence to enable future stage transitions
+- Tier badges, manual promote/demote controls, memory health metrics in Health page, backup integration
 
 ### Steps
-1. **Memory tier schema** — add memory_tier field to all Lee objects; add last_accessed_at, access_count, relevance_score, consolidated_at; create indexes on tier and last_accessed_at
-2. **Tier assignment rules** — define the rule set: initial tier by object type, promotion/demotion thresholds, protected tier rules
-3. **Memory Architecture Engine** — MemoryArchitectureEngine class: scan_and_reclassify() runs on schedule via Orchestration Engine; emit memory_tier_changed events
-4. **Historical consolidation** — compression process for objects transitioning to Historical tier: summarize via model router (cheap model), preserve key entities, log the consolidation; runs at LOW priority via Orchestration Engine
-5. **Context Engine integration** — update the Context Engine (Task #5) to apply tier-based retrieval weights when building context packets
-6. **Today page Working Memory** — update Today page to show current Working Memory as the primary operational surface
-7. **Object detail tier badge** — add memory tier badge to every object detail page; include promote/demote controls
-8. **Manual tier controls** — promote/demote UI; manual overrides flagged and logged; automatic reclassification respects manual overrides until released
-9. **Memory health metrics** — expose tier distribution, consolidation backlog, and dormant object count to the Health Engine; display in Health page
-10. **Backup integration** — verify tier classifications, consolidation states, and access history included in Lee Brain exports
+1. Memory tier schema — memory_tier, last_accessed_at, access_count, relevance_score, consolidated_at, compression_stage on all Lee objects; indexes
+2. Tier assignment rules — rule set with all thresholds, promotion/demotion conditions, protected tier rules
+3. Memory Architecture Engine — MemoryArchitectureEngine: scan_and_reclassify(); register with Orchestration Engine; emit memory_tier_changed events
+4. Historical consolidation (Stage 2) — summarize via cheap model; preserve key entities explicitly; compression_stage = 2; Stage 2 format validated against Stage 3 compatibility requirements; LOW priority via Orchestration Engine
+5. Stage compatibility enforcement — Stage 2 output format validated: entity_list, key_decisions, key_facts, original_object_ids, compression_stage, source_confidence all required
+6. Context Engine integration — apply tier-based retrieval weights; use Stage 2 summaries for Historical/Archived in context packets
+7. Today page Working Memory — update Today page to use current Working Memory as primary operational surface
+8. Object detail tier badge and controls — tier badge on every detail page; promote/demote controls; manual overrides flagged and logged
+9. Memory health metrics — tier distribution, consolidation backlog, Stage 2 compression coverage, dormant object count → Health Engine; Health page display
+10. Backup integration — tier classifications, consolidation states, compression_stage, access history in Lee Brain exports
 
 ---
 
@@ -514,32 +534,29 @@ Flat storage treats a conversation from yesterday the same as a foundational dec
 *Depends on: Task #3, Task #12*
 
 ### What & Why
-The Understanding Pipeline creates links between objects. The Intelligence Graph makes those links a first-class system. Every meaningful object in Lee becomes a node. Every meaningful relationship becomes a typed, weighted, directed edge. The Personal Knowledge Map makes that graph visible — navigable, zoomable, alive. From Lamont Labs down to a single waiting loop.
+Every meaningful object in Lee becomes a node. Every meaningful relationship becomes a typed, weighted, directed edge. The Personal Knowledge Map makes that graph visible — navigable, zoomable, alive. Context Engine uses graph traversal instead of flat joins; traversal depth is configurable per Operating Mode.
 
 ### Done looks like
-- **Intelligence Graph** — graph data structure stored in DB (adjacency list + edge metadata) where every Lee object is a node and meaningful relationships are typed, weighted, directed edges
-- **Node types** — all Universal Object Model types: projects, people, companies, documents, files, conversations, messages, meetings, ideas, tasks, decisions, questions, risks, opportunities, repositories, sources, waiting loops, context packets, briefs, goals, technologies, architectures
-- **Edge types** — typed, directional edges: involves, produced, references, contradicts, supports, depends_on, tracks, spawned_from, informs, supersedes, and extensible new types
-- **Edge weight and freshness** — every edge has a weight (strength of relationship, based on evidence count and recency) and a freshness score; stale edges flagged but not deleted
-- **Graph builder** — continuously updated when Understanding Pipeline extracts entities/relationships and when Reality Engine updates beliefs
-- **Graph queries** — API endpoints: get_neighbors(node_id, depth), find_path(node_a, node_b), get_cluster(node_id), find_related(node_id, edge_types), get_most_connected(node_type), find_orphans()
-- **Context Engine uses the graph** — depth-limited graph traversal replaces simple JOIN-based context building; finds related context that flat queries miss
-- **Personal Knowledge Map UI** — dedicated page in the console: force-directed graph layout, nodes sized by importance and colored by type, edges colored by type and weighted by strength, click-to-detail, double-click-to-focus, pan/zoom, filter by node type/edge type/project/person/date range, timeline slider
-- **Lamont Labs view** — curated top-level view showing the high-level structure of Lamont Labs operations; default landing view; navigable to any depth
-- **Orphan detection** — regular scan for isolated nodes; surfaced in Health page as potential gaps in understanding
-- **Graph in backups** — full graph included in Lee Brain exports; graph rebuild from event log as a recovery path
+- **Intelligence Graph** — adjacency list + edge metadata in DB; all Universal Object Model types as nodes; typed, weighted, directed edges; edge weight and freshness tracked
+- **Edge types** — involves, produced, references, contradicts, supports, depends_on, tracks, spawned_from, informs, supersedes; extensible
+- **Context Engine uses graph traversal** — depth-limited traversal replaces flat JOIN-based context building; traversal depth reads current Operating Mode's graph_traversal_depth config
+- **Personal Knowledge Map UI** — force-directed layout; nodes sized by importance and colored by type; edges colored by type, weighted by strength; click-to-detail, double-click-to-focus, pan/zoom; filters (node type, edge type, project, person, date range); timeline slider; search
+- **Lamont Labs strategic view** — curated top-level view; default landing view of the Knowledge Map
+- **Orphan detection** — regular scan; Health page metric; list with suggested connections
+- **Separate from Decision Impact Graph** — different tables, different visualization, different purpose
+- **Graph in backups** — included in Lee Brain exports; graph rebuild from Event Log as recovery path
 
 ### Steps
-1. **Graph schema** — graph_nodes and graph_edges tables with all required fields; indexes on source_node_id, target_node_id, edge_type
-2. **Graph builder** — GraphBuilder class: add_node(), add_edge(), update_edge_weight(), mark_historical(); wire into Understanding Pipeline so entity extraction automatically updates the graph
-3. **Graph query API** — REST endpoints for: get_neighbors, find_path, get_cluster, get_most_connected, find_orphans, find_related
-4. **Context Engine graph traversal** — update the Context Engine (Task #5) to use graph traversal: starting from detected intent nodes, traverse to depth 2 to find related context; weight traversal results by edge weight and node freshness
-5. **Personal Knowledge Map page** — build the Knowledge Map page: integrate a graph visualization library; render nodes and edges with type-based coloring and sizing; implement click-to-detail, double-click-to-focus, pan/zoom
-6. **Filters and search** — filter controls: node type toggles, edge type toggles, project filter, person filter, date range; node search that highlights and centers on the matched node
-7. **Timeline slider** — graph state snapshots stored periodically; timeline slider to replay the graph as it existed at any past date; powered by the Event Log
-8. **Lamont Labs strategic view** — curated top-level view showing high-level Lamont Labs structure; default landing view of the Knowledge Map
-9. **Orphan detection** — orphan scanner as a Health Engine metric; surface orphan count in Health page with link to list and suggested connections
-10. **Graph backup integration** — verify graph nodes and edges included in Lee Brain exports; implement graph rebuild-from-events as recovery path
+1. Graph schema — graph_nodes and graph_edges tables; all fields; indexes on source/target node ids and edge_type
+2. Graph builder — GraphBuilder: add_node(), add_edge(), update_edge_weight(), mark_historical(); wired into Understanding Pipeline for automatic updates
+3. Graph query API — REST endpoints: get_neighbors, find_path, get_cluster, get_most_connected, find_orphans, find_related
+4. Context Engine graph traversal — update Context Engine to traverse graph from detected intent nodes; traversal depth reads Operating Mode config; weight results by edge weight and node freshness
+5. Personal Knowledge Map page — integrate graph visualization library; render nodes and edges with type-based coloring and sizing; click-to-detail, double-click-to-focus, pan/zoom
+6. Filters and search — node type toggles, edge type toggles, project filter, person filter, date range; node search that highlights and centers
+7. Timeline slider — graph state snapshots stored periodically; slider to replay graph at any past date; powered by Event Log
+8. Lamont Labs strategic view — curated top-level view; default landing
+9. Orphan detection — orphan scanner as Health Engine metric; surface in Health page with suggested connections
+10. Graph backup integration — nodes and edges in Lee Brain exports; implement graph rebuild from Event Log as recovery path
 
 ---
 
@@ -548,81 +565,67 @@ The Understanding Pipeline creates links between objects. The Intelligence Graph
 *Depends on: Task #3, Task #4, Task #13*
 
 ### What & Why
-A system that only responds to questions is a tool. A system that notices things is a partner. The Curiosity Engine gives Lee the ability to proactively observe — to surface patterns, drift, contradictions, and signals without being asked. The Opportunity Engine is its forward-looking counterpart: instead of noticing problems, it notices possibilities.
+Notices things without being asked. The Curiosity Engine surfaces patterns, drift, contradictions, and signals from internal knowledge. The Opportunity Engine surfaces possibilities. All outputs are written to the Interpretation Ledger with at least two evidence links and a Why Chain attached.
 
 ### Done looks like
-- **Curiosity Engine** — background engine that continuously scans Lee's knowledge base for notable patterns, anomalies, and signals; surfaces findings as Observations without waiting to be asked
-- **Observation types**: cross-document pattern ("Three separate documents mention the same unresolved problem"), architecture drift, recurring idea ("You have referenced this concept six times without formalizing it"), strengthening relationship, avoidance signal ("You have not opened this high-priority project in 18 days"), risk aging, contradictory assumption, stale anchor, momentum signal
-- **Observation structure** — observation_id, type, headline (one sentence), supporting_evidence (≥2 source links required), affected_objects, confidence, generated_at, relevance_score, acknowledged_at, dismissed_at
-- **Observation lifecycle** — Acknowledged, Acted On, Dismissed, or Promoted (to task/risk/decision with one click)
-- **Evidence requirement** — no Observation generated without at least two evidence links; speculative observations labeled and have reduced surfacing weight
-- **Opportunity Engine** — forward-looking counterpart; runs at LOW priority; scans for: reusable work, synthesizable context, solved problems, architecture opportunities, product signals, revisit signals, cross-project synergy
-- **Opportunity structure** — mirrors Observation structure with potential_value (low/medium/high) and action_suggestion fields
-- **Curiosity calibration** — Settings control for: observations per day limit, minimum confidence threshold, observation type toggles; prevents Lee from becoming noisy
-- **Today page and context rail integration** — high-relevance Observations surface on Today page; contextually relevant items appear in right context rail; dedicated Observations/Opportunities section in left nav
-- **History** — all generated Observations and Opportunities stored and browsable; input to the Reflection Engine
-
-### Out of scope
-- Real-time curiosity (observations generated in background scans, not real time)
-- External world signals (Health Engine handles those; Curiosity Engine works on internal knowledge only)
-- Autonomous action based on observations
+- **Observations written to Interpretation Ledger** — interpretation_type = observation; at least 2 linked input facts required; Why Chain attached; confidence propagated from input facts via Confidence Propagation System
+- **Observation types** — cross-document pattern, architecture drift, recurring idea, avoidance signal, risk aging, contradictory assumption, stale anchor, momentum signal, strengthening relationship
+- **Observation lifecycle** — Acknowledged, Acted On, Dismissed, Promoted (to task/risk/decision with one click)
+- **No observation without at least two evidence links** — enforced at Curiosity Engine level before any observation is created; speculative observations labeled with reduced surfacing weight
+- **Opportunities written to Interpretation Ledger** — interpretation_type = opportunity; potential_value (low/medium/high); action_suggestion
+- **Calibration settings** — observations per day limit, minimum confidence threshold, observation type toggles
+- **Today page and context rail integration** — high-relevance Observations on Today page; contextually relevant items in right context rail; dedicated Observations section in left nav
+- **All observations and opportunities browsable** — history stored; input to Reflection Engine
 
 ### Steps
-1. **Observation and Opportunity schema** — observations and opportunities tables with all required fields; indexes on type, relevance_score, generated_at, acknowledged_at
-2. **Curiosity Engine core** — CuriosityEngine class with scan() method; register with Orchestration Engine at NORMAL priority; scan reads from Intelligence Graph, Reality Ledger, and Event Log
-3. **Cross-document pattern detector** — find objects/chunks sharing unresolved topics across multiple sources; generate observations when threshold is met (3+ sources, unresolved topic)
-4. **Drift detector** — compare architecture descriptions in documents against current repository structure; compare messaging in briefs against locked decisions; surface divergences
-5. **Recurring idea detector** — track concept co-occurrence across chunks and conversations; when a concept appears N+ times without being formalized, generate an observation
-6. **Avoidance and momentum signals** — detect when high-priority objects have not been accessed recently (avoidance) and when object quality/activity has improved significantly (momentum)
-7. **Opportunity Engine core** — OpportunityEngine class with scan() method; register with Orchestration Engine at LOW priority; runs after Curiosity Engine scan completes
-8. **Opportunity detectors** — implement detectors for: reusable work, synthesizable context, solved problems, architecture opportunities, cross-project synergy
-9. **Today page and context rail integration** — surface high-relevance Observations on Today page; contextually relevant items in right context rail; add dedicated section to left nav
-10. **Observation lifecycle UI** — Acknowledge / Act On / Dismiss / Promote controls; Promote opens flow to convert to task, decision, or project; all lifecycle transitions logged
-11. **Calibration settings** — add Curiosity calibration controls to Settings: observations per day limit, minimum confidence threshold, observation type toggles
+1. Observation and Opportunity schema — observations and opportunities as Interpretation Ledger records; additional metadata fields; indexes
+2. Curiosity Engine core — CuriosityEngine: scan(); register with Orchestration Engine at NORMAL priority; enforces ≥2 evidence link requirement before creating any observation; uses Why Chain builder during scan
+3. Cross-document pattern detector — find objects/chunks sharing unresolved topics across ≥3 sources; generate observation when threshold met
+4. Drift detector — compare architecture descriptions in documents against repository structure; compare messaging in briefs against locked decisions; surface divergences
+5. Recurring idea detector — concept co-occurrence across chunks; N+ appearances without formalization → observation
+6. Avoidance and momentum signals — high-priority objects not accessed recently (avoidance); significant improvement in object quality/activity (momentum)
+7. Opportunity Engine core — OpportunityEngine: scan(); register with Orchestration Engine at LOW priority; runs after Curiosity Engine scan completes
+8. Opportunity detectors — reusable work, synthesizable context, solved problems, architecture opportunities, cross-project synergy
+9. Today page and context rail integration — surface high-relevance Observations on Today page; contextually relevant in right context rail; dedicated section in left nav
+10. Observation lifecycle UI — Acknowledge / Act On / Dismiss / Promote controls; Promote opens flow to convert to task, decision, or project; all lifecycle transitions logged
+11. Calibration settings — add to Settings: observations per day limit, minimum confidence threshold, observation type toggles
 
 ---
 
-## Task #15 — Lee Health Engine & Self Monitoring
+## Task #15 — Lee Health Engine, Self Monitoring & Trust Score
 
 *Depends on: Task #1, Task #4, Task #10*
 
 ### What & Why
-Lee should know when she is sick before you do. A personal AI operating environment that requires the user to notice its own failures is not reliable enough to trust. The Health Engine is Lee's immune system: it monitors every subsystem, every connector, every scheduled job, every backup, every model call, and every queue — and it surfaces problems clearly before they affect you.
+Lee should know when she is sick before you do. The Health Engine monitors every subsystem. The Trust Score system adds a per-subsystem measure of earned reliability — separate from confidence — that tells you where Lee is strongest and where she still has to prove herself. Confidence says "I think this is true." Trust says "I have earned your confidence in this domain."
 
 ### Done looks like
-- **Health page** — dedicated page in the console:
-  - **Brain Health** — composite score (0–100); green ≥ 90, amber 70–89, red < 70
-  - **Database** — connection status, query latency p50/p95, table sizes, index health, recent errors
-  - **Memory** — tier distribution, consolidation backlog, dormant object count, last consolidation run
-  - **Import Pipeline** — queue depth, last successful import, failed imports with error, average processing time, stuck jobs
-  - **API** — uptime, request rate, error rate, p95 response time, recent 5xx errors
-  - **Connectors** — per-connector health card: last sync time, consecutive failures, next scheduled sync, reconnect needed flag
-  - **Cost** — today's spend vs. budget, % of daily limit used, burn rate, projected monthly, any budget threshold breaches
-  - **Backups** — last backup time, last backup size, last verification result, last restore test result
-  - **Model Providers** — per-provider availability, last successful call, error rate, current rate limit state
-  - **Queue** — Orchestration Engine queue depth by priority class, any CRITICAL items waiting, any engines in backoff state
-  - **Brief Engine** — last morning brief generated, last evening reflection, last weekly review, any generation failures
-  - **Freshness** — objects by freshness state, last freshness scan time
-  - **Intelligence Graph** — node count, edge count, orphan count, last graph update time
-- **Health Score calculation** — composite score weighted by subsystem criticality: Database and Backup failures have the highest impact; Connector warnings have low impact
-- **Health alerts** — CRITICAL alerts appear in the top status bar (red indicator), push to Android if paired; non-critical alerts appear in Health page and Today page
-- **Self-healing actions** — for known recoverable failures: retry a stuck import job, reconnect a stalled connector, reschedule a missed brief, re-run a failed backup verification; all self-healing logged
-- **World Awareness component** — monitors Lee's own operational environment for external changes: AI model provider pricing changes, API deprecation notices, package security vulnerabilities, connector API rate limit changes, GitHub dependency updates for Lee's own codebase
-- **Health history** — health scores and subsystem states recorded every hour; 30-day health trend chart in Health page
-- **Health API** — GET /health (public, for uptime monitoring); GET /health/detail (private, authenticated); top status bar polls /health/detail every 60 seconds
-- **Today page health summary** — compact health summary card: overall score, active alerts count, one-line description of most critical issue
+- **Health page** — composite score (0–100); subsystem cards for: Database, Memory, Import Pipeline, API, Connectors, Cost, Backups, Model Providers, Queue, Brief Engine, Freshness, Intelligence Graph, Constitution Engine (consultation rate, violation count), Confidence Propagation (system-wide average propagated confidence), Fact/Interpretation Ledger health (orphaned interpretations without input facts, facts without source evidence)
+- **Health Score** — composite weighted score; Database and Backup failures highest impact; Connector warnings lowest impact; average Trust Score across subsystems contributes 15%
+- **Trust Score system** — per-subsystem score (0–100); separate from confidence; starting at 50 (neutral, unearned)
+- **Trust Score by subsystem** — Understanding Engine (extraction accuracy, correction rate), Simulation Engine (prediction validation rate), Strategy Engine (recommendation follow-through), Curiosity Engine (observation acknowledgment vs. dismissal rate), Reflection Engine (report engagement), Brief Engine (section read rate, edit rate), Model Router (routing quality, override rate), Fact Ledger (fact validation rate), Interpretation Ledger (interpretation promotion vs. dismissal rate)
+- **Trust signal weights** — corrections and invalidations: negative ×2; acted-on recommendations: positive ×1.5; dismissals: neutral negative ×0.5
+- **Trust decay** — maximum −2 per month without activity; trust is earned, not banked indefinitely
+- **Trust timeline** — per-subsystem trust history chart; trust events with reason and evidence links
+- **Trust Score in context packets** — low-trust advisory shown in packet preview for the primary generating subsystem
+- **Trust Score dashboard on Health page** — all subsystems with score, trend (improving/stable/declining), color coding; click subsystem for trust history detail view
+- **Self-healing actions** — retry stuck import, reconnect stalled connector, reschedule missed brief, re-run failed backup verification; all logged
+- **World Awareness** — model provider pricing changes, API deprecation notices, npm audit, connector API rate limit changes, GitHub dependency updates for Lee's codebase
+- **Health history** — hourly snapshots; 30-day trend chart
+- **Health API** — GET /health (public), GET /health/detail (private); status bar polls every 60 seconds
 
 ### Steps
-1. **Health Engine schema** — health_snapshots table (timestamp, overall_score, subsystem_scores JSONB, active_alerts JSONB); health_alerts table; 90-day retention for hourly snapshots
-2. **Health Engine core** — HealthEngine class: evaluate_all() runs every 5 minutes via Orchestration Engine; evaluates each subsystem, computes composite score, emits health_alert events, stores snapshot
-3. **Subsystem evaluators** — individual evaluator functions for: database, memory tier distribution, import queue depth, API error rate, connector last-sync age, cost vs. budget, backup age and verification status, model provider reachability, orchestration queue state, brief generation recency, Intelligence Graph integrity
-4. **Health Score calculator** — weighted composite scoring with defined weights per subsystem; track score history
-5. **Health alerts system** — alert creation, deduplication, and resolution detection; CRITICAL alerts trigger status bar update and Android push; all alerts logged with severity
-6. **Self-healing actions** — recoverable self-healing for: stuck import jobs, stalled connector, missed brief, failed backup verification; all self-healing logged and visible in Health page
-7. **World Awareness monitors** — scheduled checks: model provider pricing table diff, npm audit, connector API health endpoints, rate limit pattern detection; surface as World Awareness alerts
-8. **Health page** — full Health page: composite score with color, all subsystem cards, active alerts with self-healing action buttons, 30-day trend chart, World Awareness section
-9. **Health API endpoints** — build GET /health and GET /health/detail; wire top status bar to poll every 60 seconds
-10. **Today page health summary** — compact health summary card on Today page; clicking opens the Health page
+1. Health Engine schema — health_snapshots, health_alerts, trust_scores, trust_events tables
+2. Health Engine core — evaluate_all() every 5 minutes via Orchestration Engine; compute composite score; emit health alerts; store snapshots
+3. Subsystem evaluators — individual evaluator functions for all subsystems including Constitution Engine and Fact/Interpretation Ledger health
+4. Health Score calculator — weighted composite with all subsystem weights defined; trust score contribution at 15%
+5. Trust Score Engine core — TrustScoreEngine: update_score(subsystem, event_type, evidence), get_score(subsystem), apply_decay()
+6. Trust signal collection — wire into: Learning Engine (correction captured → negative signal to source subsystem), Assumption Engine (validated → positive, invalidated → negative), Brief Engine (section read → positive), Curiosity Engine (acted on → positive, dismissed → negative), Simulation Engine (prediction validated → positive)
+7. Trust score calculation — weighted signal aggregation; weekly decay job via Orchestration Engine
+8. Health alerts — CRITICAL to status bar and Android push; all alerts logged with severity
+9. Self-healing actions — recoverable failures; all self-healing logged and visible in Health page
+10. World Awareness monitors — pricing changes, npm audit, connector API health, rate limit patterns
+11. Health page — full page including Trust Score dashboard; subsystem detail views; 30-day trend chart; health API endpoints; Today page health summary card
 
 ---
 
@@ -631,38 +634,27 @@ Lee should know when she is sick before you do. A personal AI operating environm
 *Depends on: Task #5, Task #11, Task #13*
 
 ### What & Why
-Three engines operating at the highest level of Lee's intelligence stack. The Strategy Engine makes Lee aware of long-term objectives and evaluates every recommendation against them. The Simulation Engine lets you think through consequences before acting — not through guessing, but through structured reasoning over everything Lee knows. The Reflection Engine creates your growth history: evidence-backed measurement of how your thinking, your projects, and your operating environment have evolved over time.
+Three engines at the highest level of Lee's intelligence stack. Strategy makes Lee aware of long-term objectives and evaluates every recommendation against them. Simulation lets you think through consequences before acting — using named assumptions that are registered with the Assumption Ledger. Reflection measures how your thinking and operating environment have evolved over time.
 
 ### Done looks like
-
-**Strategy Engine**
-- **Strategy record** — active objectives (goal, horizon, status, progress evidence, blockers, related projects, key decisions, last reviewed date), blocked objectives, emerging opportunities, capital/hiring/learning/marketing/product strategy
-- **Strategy applied to recommendations** — context packets include current strategy as context; if a recommendation conflicts with a stated strategic objective, Lee surfaces the conflict
-- **Strategy review cadence** — weekly strategy review prompt from the Scheduler: Are these objectives still current? Has anything changed?
-- **Strategy page** — dedicated page: all objectives by horizon, status indicators, related projects, blockers, recommended next actions; editing through Ask Lee natural interaction
-
-**Simulation Engine**
-- **Simulation types**: delay simulation, pivot simulation, cost simulation, resource simulation, technical simulation
-- **Simulation structure** — question asked, assumptions used (with confidence), reasoning chain (visible), likely outcomes (by probability tier: likely / possible / unlikely), risks identified, opportunities identified, recommended decision, evidence links, model and cost used
-- **Simulation transparency** — shows reasoning chain; assumptions labeled with confidence; user can correct any assumption and re-run
-- **Simulation history** — all simulations stored; browsable from Ask Lee history and from related project/decision pages
-
-**Reflection Engine**
-- **Reflection dimensions**: decision history, assumption accuracy, documentation quality trends, question evolution, cost trends, project momentum, waiting loop patterns, Lee accuracy (how often observations/recommendations were acted on vs. dismissed)
-- **Reflection reports** — Weekly Review includes a Reflection section; dedicated Monthly Reflection generated on first of each month; Annual Reflection on January 1
-- **Reflection page** — dedicated page: reflection reports by period, dimension trend charts, "most surprising changes" highlights, growth indicators
+- **Strategy Engine** — active objectives (goal, horizon, status, progress evidence, blockers, related projects, key decisions, last reviewed); strategy items written to Interpretation Ledger as interpretation_type = strategy; strategy evaluated in every context packet; weekly review prompt from Scheduler
+- **Simulation Engine** — structured simulations: question, assumptions named and registered with Assumption Ledger, Why Chain built during reasoning, reasoning chain visible, likely outcomes by probability tier (likely/possible/unlikely), risks, opportunities, recommended decision, evidence links; simulation results written to Interpretation Ledger as interpretation_type = simulation_result
+- **Simulation transparency** — full assumption list shown before outcomes; user can correct any assumption and re-run; re-runs linked to original; confidence propagated from input facts and observations
+- **Reflection Engine** — Weekly Review Reflection section; Monthly Reflection generated on first of each month; Annual Reflection on January 1; reflection items carry Why Chain on key insights
+- **Reflection dimensions** — decision history, assumption accuracy, documentation quality trends, question evolution, cost trends, project momentum, waiting loop patterns, Lee accuracy (observations/recommendations acted on vs. dismissed); Trust Score history per subsystem
+- **Reflection page** — period selector; dimension trend charts; report viewer; "most surprising changes" highlights
 
 ### Steps
-1. **Strategy schema** — strategic_objectives table; strategy_reviews table for review history
-2. **Strategy Engine** — StrategyEngine class: get_active_strategy(), evaluate_against_strategy(), generate_strategy_review_prompt(); register with Orchestration Engine; wire to weekly strategy review scheduler job
-3. **Strategy applied to context** — update the Context Engine (Task #5) to include high-priority active objectives in every context packet; add strategy-conflict detection
-4. **Strategy page** — objectives by horizon with status, blockers, related projects, recommended next actions; inline editing via Ask Lee integration
-5. **Simulation Engine** — SimulationEngine class: run_simulation(question, type, context_override); assembles structured simulation prompt; calls model router (mid-tier or strong based on complexity); parses structured output; log to DB with full reasoning chain
-6. **Simulation UI** — add simulation mode to Ask Lee (mode selector or "What happens if..." prefix); display: assumptions panel, reasoning chain, outcome tiers, evidence links, re-run with corrected assumptions; show model and cost used
-7. **Simulation history** — store all simulations; make browsable from Ask Lee history; link simulations to related projects and decisions
-8. **Reflection Engine schema** — reflection_reports table (period, type, dimensions JSONB, generated_at, model_used, sources_used); reflection_metrics table for time-series dimension data
-9. **Reflection Engine** — ReflectionEngine class: generate_reflection(period, dimensions); collects raw metrics from DB; assembles structured report using cheap model for aggregation, mid-tier for narrative; store report
-10. **Reflection page and brief integration** — build the Reflection page with period selector, dimension trend charts, report viewer; wire Monthly and Annual Reflection to the Scheduler; add Reflection section to Weekly Review brief; surface most notable reflection insight on Today page first day of each month
+1. Strategy schema — strategic_objectives, strategy_reviews tables
+2. Strategy Engine — get_active_strategy(), evaluate_against_strategy(), generate_strategy_review_prompt(); register with Orchestration Engine; writes to Interpretation Ledger
+3. Strategy applied to context — include active high-priority objectives in context packets; add strategy-conflict detection
+4. Strategy page — objectives by horizon; status, blockers, related projects, recommended next actions; inline editing via Ask Lee
+5. Simulation Engine — run_simulation(question, type, context_override); assembles structured prompt; registers all assumptions with Assumption Ledger before dispatching; calls model router; parses structured output; builds Why Chain; writes to Interpretation Ledger
+6. Simulation UI — assumptions panel (Correct & Re-run per assumption); reasoning chain view; outcome tiers; evidence links; model and cost displayed; re-runs linked to original
+7. Simulation history — linked to related projects and decisions; browsable from Ask Lee history
+8. Reflection Engine schema — reflection_reports, reflection_metrics tables
+9. Reflection Engine — generate_reflection(period, dimensions); collects metrics; assembles report; Why Chain on key insights; cheap model for aggregation, mid-tier for narrative
+10. Reflection page and brief integration — period selector; dimension trend charts; report viewer; Monthly and Annual generation via Scheduler; Reflection section in Weekly Review Brief; Trust Score trend included
 
 ---
 
@@ -671,86 +663,326 @@ Three engines operating at the highest level of Lee's intelligence stack. The St
 *Depends on: Task #3, Task #11, Task #13*
 
 ### What & Why
-Every correction makes Lee smarter. Every workflow pattern that succeeds becomes reusable. Every recurring prompt that produces the same structure becomes a template. Every mistake Lee makes and the user corrects is a training signal. The Learning Engine closes the feedback loop — it ensures Lee is measurably better at serving this specific user at month 12 than she was at month 1.
+Every correction makes Lee smarter. Every successful workflow becomes reusable. Every recurring pattern becomes a named shortcut. Every correction also sends a trust signal to the Trust Score Engine — the generating subsystem's trust score falls, which improves routing and calibration over time. The Learning Engine closes the feedback loop.
 
 ### Done looks like
-- **Correction integration** — highest-priority learning signal: when the user corrects Lee's output, the Learning Engine captures the correction in full (what Lee produced, what the user changed it to, the context, the engine that produced the original); immediately applied to the Founder Profile and routing rules
-- **Workflow capture** — when the user completes a multi-step workflow successfully, the Learning Engine records it as a named pattern with its steps, context, and outcome; captured workflows are reusable templates
-- **Recurring prompt detection** — tracks message patterns in Ask Lee; when a structurally similar prompt appears 3+ times, flagged as a recurring prompt; Lee suggests creating a named workflow or shortcut; recurring prompts and their best responses are cached for CIL-style reuse (Task #5)
-- **Routing improvement** — tracks which model routing decisions led to high-quality outcomes vs. low-quality; feeds signal back to the Model Router as advisory weights; routing policy changes require user confirmation
-- **Documentation preference learning** — tracks types of documentation imported, engaged with, and referenced most; learns preferred formats; feeds into Brief Engine and writing mode context
-- **Project structure learning** — when new projects are created, checks if they resemble past successful project structures; suggests applying successful structure as a starting template
-- **Mistake pattern detection** — tracks categories of corrections over time; after 3+ corrections in the same category, surfaces a Pattern Insight with proposed standing correction rule for user review
-- **Standing correction rules** — user-confirmed mistake patterns become standing correction rules applied before model calls; versioned and auditable; no rule is ever applied without user confirmation
-- **Learning assets** — produces: named workflow templates, recurring prompt shortcuts (with cached responses), standing correction rules, routing preference signals, documentation format preferences, project structure templates
-- **Learning dashboard** — section in Reflection page or Settings tab: corrections logged, standing correction rules, named workflow templates, routing preference signals, most-applied learnings, learning age
-- **Learning assets in backups** — corrections history, standing rules, workflow templates, routing signals included in Lee Brain exports; learning does not reset when Lee migrates
-
-### Out of scope
-- Fine-tuning underlying model weights (behavioral learning at the application layer only)
-- Automated application of standing rules without user review
-- Learning from other users (Lee learns only from her owner)
+- **Correction integration** — every correction captured in full (what Lee produced, what the user changed, context, generating engine); immediately applied to Founder Profile; trust signal sent to Trust Score Engine (negative signal to generating subsystem)
+- **Workflow capture** — successful multi-step workflows recorded as named patterns; reusable templates
+- **Recurring prompt detection** — structurally similar prompts tracked; 3+ recurrences → suggest named shortcut; saved shortcuts cached for CIL-style reuse
+- **Routing improvement** — outcome tracking for model calls (edited/not edited, acted on/dismissed, followed by correction); aggregated signals as preference weights to Model Router; policy changes require explicit user review
+- **Mistake pattern detection** — 3+ corrections in same category → Pattern Insight with proposed standing correction rule for user review
+- **Standing correction rules** — user-confirmed; applied before model calls; versioned; auditable; no rule applied without user confirmation
+- **Learning assets** — workflow templates, recurring prompt shortcuts (with cached responses), standing correction rules, routing preference signals, documentation format preferences, project structure templates
+- **Learning dashboard** — corrections by category, active standing rules, workflow templates, routing signals, most-applied learnings, learning age
 
 ### Steps
-1. **Corrections schema** — corrections table (correction_id, engine_name, original_output, corrected_output, context_snapshot, correction_type, captured_at); standing_correction_rules table; learning_assets table for workflow templates and routing signals
-2. **Correction capture hooks** — wire correction capture into all surfaces where the user can edit Lee's output: brief edits, recommendation dismissals, draft corrections, belief disputes, routing overrides; each correction emits a correction_captured event to the Learning Engine
-3. **Learning Engine core** — LearningEngine class: ingest_correction(), detect_patterns(window), promote_to_standing_rule(pattern), apply_learning_assets(); register with Orchestration Engine at LOW priority
-4. **Pattern detector** — groups corrections by category and context similarity; when a category reaches the threshold (3+ corrections), generates a Pattern Insight with proposed standing rule for user review
-5. **Standing rule confirmation UI** — Pattern Insights surface in the Learning dashboard: shows proposed standing rules with evidence, Confirm / Dismiss / Edit actions; confirmed rules immediately active; standing rule list is browsable and editable
-6. **Workflow capture** — track multi-step interaction sequences; when a sequence completes successfully (detected by outcome signals), record as a candidate workflow template; prompt the user to name and save it
-7. **Recurring prompt detector** — track message hash/similarity in Ask Lee; when structurally similar prompt recurs 3+ times, flag and suggest creating a named shortcut; saved shortcuts appear as quick-access options in Ask Lee
-8. **Routing preference signals** — implement outcome tracking for model calls (edited/not edited, acted on/dismissed, followed by correction); feed aggregated signals as preference weights to the Model Router; policy changes require explicit user review
-9. **Learning assets applied** — update Context Engine to apply standing correction rules in context packets; update Brief Engine to apply documentation format preferences; update project creation flow to suggest matching templates; update Model Router to apply routing preference signals
-10. **Learning dashboard** — build the Learning section: corrections logged by category, active standing rules, workflow templates, routing signals, most-applied learnings, learning age; inspectable and editable
+1. Corrections schema — corrections, standing_correction_rules, learning_assets tables
+2. Correction capture hooks — wire into all surfaces; each correction emits correction_captured event to Learning Engine AND trust signal to Trust Score Engine for generating subsystem
+3. Learning Engine core — LearningEngine: ingest_correction(), detect_patterns(window), promote_to_standing_rule(pattern), apply_learning_assets(); register with Orchestration Engine at LOW priority
+4. Pattern detector — groups corrections by category and context similarity; threshold triggers Pattern Insight with proposed rule
+5. Standing rule confirmation UI — Pattern Insights with evidence; Confirm / Dismiss / Edit; confirmed rules immediately active; browsable and editable
+6. Workflow capture — track multi-step sequences; record successful patterns; prompt user to name and save
+7. Recurring prompt detector — track message hash/similarity in Ask Lee; 3+ recurrences → suggest shortcut; saved shortcuts as quick-access options
+8. Routing preference signals — outcome tracking; aggregated signals as preference weights to Model Router; policy changes require user review
+9. Learning assets applied — Context Engine applies standing correction rules; Brief Engine applies documentation format preferences; project creation suggests matching templates; Model Router applies routing preference signals
+10. Learning dashboard — corrections by category, active rules, workflow templates, routing signals, most-applied learnings
 
 ---
 
-## Task #18 — Lee Adaptive Workspace & Relationship Intelligence
+## Task #18 — Lee Adaptive Workspace, Operating Modes & Relationship Intelligence
 
 *Depends on: Task #2, Task #6, Task #11, Task #14*
 
 ### What & Why
-Two final layers that make Lee feel unmistakably personal. The Adaptive Workspace means the console reorganizes around what matters — morning shows the brief, pilot week shows the pilot dashboard, deployment week shows infrastructure. Lee should feel like she knows where you are in your work. Relationship Intelligence deepens the People system into something genuinely useful for high-stakes professional relationships: operational tracking of every promise, question, document, and interaction.
+Operating Modes upgrade from a UI-only concept to a system-wide behavioral architecture. Each mode changes which models are used, how strict governance is, how deep graph traversal goes, how aggressively connectors sync, and how notifications filter. The entire system adapts, not just the screen.
+
+### Done looks like
+- **Operating Modes — 10 modes** — Morning, Deep Work, Pilot, Deployment, Writing, Travel, Budget, Research, Evening, Review
+- **Each mode defines all behavioral parameters**:
+  - model_routing_override (cheap-first / mid-tier-allowed / strong-allowed)
+  - governance_strictness_override (normal / strict / relaxed)
+  - graph_traversal_depth (2 shallow → 5 maximum)
+  - connector_sync_override (normal / reduced / minimal)
+  - notification_threshold (normal / raised / lowered / critical-only)
+  - context_packet_tier_weights (which memory tiers get how much weight)
+  - ask_lee_default_mode (conversation mode default)
+  - nav_order (which sections surface at top of left nav)
+  - status_bar_slots (what mode-relevant stats appear in status bar)
+- **Mode behavioral parameters enforced** — Model Router reads model_routing_override; Notification Engine reads notification_threshold; Context Engine reads graph_traversal_depth and tier_weights; Connector Engine reads connector_sync_override; Governance Engine reads governance_strictness_override; every engine queries current mode at job dispatch time via Orchestration Engine
+- **Mode examples**:
+  - Deep Work: frontier models allowed, notifications suppressed to CRITICAL, graph traversal depth 4, connector sync reduced
+  - Budget: cheapest models only, strong-model threshold $0.01, no frontier models, aggressive CIL reuse
+  - Pilot: governance strict (all external communications HOLD), relationship intelligence weighted higher, notification threshold lowered
+  - Travel: cache-first responses, cheap-only models, connector sync minimal, notifications critical-only
+  - Research: graph traversal depth 5, citations emphasized, context packets include broader Reference tier
+- **Workspace Context Engine** — evaluate_context() scores all mode signals; activates highest-scoring mode with reason; runs every 15 minutes; register at LOW priority with Orchestration Engine
+- **Adaptive layout** — left nav reorders per mode; status bar shows mode-relevant quick stats; mode indicator and manual override always visible in status bar
+- **Mode history** — every activation logged with reason; browsable in Settings
+- **Relationship Intelligence** — per-relationship record: interaction timeline, interaction frequency trend, outstanding promises (both directions), shared projects, trust history, open questions, recent momentum (active/warming/cooling/dormant), follow-up windows, tone sensitivity notes (user-declared only)
+- **Relationship health score** (0–100) — open waiting loops, overdue promises, days since last contact vs. expected frequency, unanswered open questions
+- **Promise tracking UI** — Person detail Promises tab: outgoing and incoming with status, due date, source evidence; overdue promises highlighted amber/red
+- **Relationship briefs and alerts** — Person Brief includes full relationship intelligence; Meeting Brief includes outstanding promises, open questions, momentum; high-stakes relationships configurable for higher notification sensitivity
+
+### Steps
+1. Operating Mode schema — mode_configs table with all behavioral parameters per mode; mode_history table; current_mode in session state
+2. Workspace Context Engine — evaluate_context() scores all mode signals; highest-scoring mode with reason
+3. Mode behavioral parameters wired — update each affected engine to query current mode parameters at job dispatch; Model Router, Notification Engine, Context Engine, Connector Engine, Governance Engine all read from mode_configs
+4. Adaptive layout and nav — dynamic nav ordering; mode-relevant status bar slots; mode indicator and manual override selector
+5. Mode history and user controls — log every activation with reason; Settings viewer; manual override controls; section pinning; adaptive mode toggle
+6. Android adaptive brief — Operating Mode-aware content ordering in Brief tab
+7. Relationship intelligence schema — extend people table; interactions, promises, relationship_health_scores tables
+8. Interaction ingestion — wire into Understanding Pipeline and Connector Engine; detect interactions and promises in processed content; promises → needs-review queue
+9. Person detail relationship tabs — Interaction Timeline, Promises (outgoing + incoming), Open Questions, Meeting History, Momentum indicator; relationship health score badge
+10. Relationship briefs and alerts — Person Brief and Meeting Brief update; health score monitoring; per-relationship notification level configuration
+
+---
+
+## Task #19 — Lee Constitution Engine
+
+*Depends on: Task #1*
+
+### What & Why
+The immutable kernel above every other engine. Every engine must consult the Constitution before acting. Absolute provisions block before governance — they cannot be overridden even with approval. This is what prevents Lee from drifting over years as complexity grows.
+
+### Done looks like
+- **The Lee Constitution** — constitution_provisions table: provision_id, category, title, rule_text, machine_readable_rule (JSON), tier (ABSOLUTE / GOVERNED / CONFIGURABLE), version, created_at, amended_at, amendment_reason, applies_to_engines, consultation_count; constitution_versions for full amendment history
+- **Immutability** — no engine modifies constitution records; only owner can propose amendments; amendments require CRITICAL governance approval; old versions sealed and retained permanently; the first constitution is always version 1
+- **Constitution consultation API** — constitution.check(action_type, payload) → { permitted, applicable_provisions, constraints, override_required }; every consultation logged to Event Log
+- **Tier enforcement**:
+  - ABSOLUTE: blocks before governance; violation emits CRITICAL health alert; cannot be overridden by any means
+  - GOVERNED: creates governance HOLD item; executable only after approval
+  - CONFIGURABLE: owner can change via Settings without governance
+- **Starter constitution provisions (~20)** — Replit-first but portable, all consequential actions require human review, no silent cost accumulation, raw sources preserved forever, facts never mixed with interpretations in the same ledger, model is interchangeable, privacy is absolute, Event Log is append-only and never modified, re-projection must always produce consistent state, nothing appears without provenance, no recommendation without Why Chain, model providers are cost-accountable, governance is fail-closed
+- **Constitution provisions in context packets** — high-relevance provisions included in every context packet by category tag
+- **Constitution violations** — blocked before governance; logged as CRITICAL health alert; visible in Health page
+- **Constitution page** — read-only display organized by category; version history with diff view; consultation count per provision; Amendment Proposal flow (requires CRITICAL governance approval)
+- **Constitution in every backup** — all versions; restore flow validates constitution presence before proceeding
+
+### Steps
+1. Constitution schema — constitution_provisions and constitution_versions tables; all fields; consultation_count index
+2. Constitution Engine core — ConstitutionEngine: check(action_type, payload), log_consultation(), identify_provisions_by_action_type(); returns structured result
+3. Starter provisions seed — ~20 provisions covering all known Lee principles; machine_readable_rule for each
+4. Constitution consultation hooks — wire constitution.check() into: Governance Engine (before any HOLD/ALLOW), Understanding Pipeline (before Fact Ledger writes), Model Router (before strong-model dispatch), Connector Engine (before any write-adjacent action), Backup Engine (before export), Brief Engine (before generation)
+5. Violation detection and blocking — when check() returns blocked: halt calling engine's action, emit constitution_violation event at CRITICAL severity, route to Health Engine alert
+6. Amendment flow — Amendment Proposal API; governance CRITICAL approval required; on approval, create new constitution version, mark provisions amended; old version sealed and retained
+7. Constitution provisions in context packets — update Context Engine to query high-relevance provisions by category tag and include them in every context packet
+8. Constitution page UI — read-only by category; version history with diff view; consultation count per provision; Amendment Proposal button (routes to governance)
+9. Backup integration — full constitution with all versions in Lee Brain exports; restore flow validates constitution presence before proceeding
+10. Wire all engines — audit every engine's action dispatch paths; insert constitution.check() at correct interception point; no engine bypasses the Constitution
+
+---
+
+## Task #20 — Lee Confidence Propagation System
+
+*Depends on: Task #1, Task #3, Task #12*
+
+### What & Why
+Confidence flows. A PDF has a confidence. The extraction from that PDF has a slightly lower confidence. The belief formed from that extraction has a lower one still. The observation built from that belief, lower still. The recommendation, lower still. The Confidence Propagation System makes the degradation of certainty visible at every step — so the user always knows how certain the system actually is, not just how confident the original source was.
+
+Example chain:
+```
+Source PDF          → 96%
+   ↓ extraction (×0.95)
+Fact                → 91%
+   ↓ belief formation (×0.94)
+Observation         → 87%
+   ↓ recommendation (×0.94)
+Recommendation      → 82%
+   ↓ simulation (×0.93)
+Simulation          → 76%
+   ↓ strategy (×0.95)
+Strategy            → 72%
+```
+
+### Done looks like
+- **Confidence chain data model** — confidence_lineage JSONB on all derivable objects: [{ source_id, source_confidence, step_type, degradation_factor, resulting_confidence, timestamp }]; propagated_confidence field distinct from user-assigned confidence
+- **Degradation factors by step type** — extraction (×0.95), belief formation (×0.94), observation from belief (×0.91), recommendation from observation (×0.94), simulation from recommendation (×0.93), strategy from simulation (×0.95); stored as constitution CONFIGURABLE provisions; tunable via Settings
+- **Evidence count bonus** — more supporting sources = less degradation; formula: bonus = min(0.03 × (n_sources − 1), 0.10)
+- **Confidence floors** — Canonical beliefs: minimum 90%; Speculative: maximum 60%; Evergreen: shown as "permanent" not as a percentage
+- **Confidence Chain UI** — Confidence Chain section on every object detail page; navigable vertical chain showing confidence at each step, degradation factor applied, link to source object; "Where did this confidence come from?" is always answerable
+- **Confidence indicators on all cards** — propagated_confidence (not user-assigned confidence) used as the visual indicator throughout the console; color-coded: ≥85% green, 70–84% amber, 55–69% orange, <55% red
+- **Confidence in context packets** — Context Packet Preview shows confidence distribution: % high (≥85%), % medium (70–84%), % low (<70%); user can filter out low-confidence context before running
+- **System-wide confidence metric** — Health Engine tracks average propagated_confidence across all active recommendations and observations; sustained drop below threshold triggers a Health alert
+
+### Steps
+1. Confidence lineage schema — confidence_lineage JSONB and propagated_confidence on all derivable object types
+2. Degradation factor config — all step type factors defined as constitution CONFIGURABLE provisions; read at runtime by Propagation Engine
+3. Confidence Propagation Engine — ConfidencePropagationEngine: compute_propagated(source_objects, step_type), evidence_count_bonus(n_sources), apply_floor(confidence, belief_type)
+4. Wire into Understanding Pipeline — extracted facts carry propagated_confidence and confidence_lineage
+5. Wire into Curiosity and Opportunity Engines — observations and opportunities propagate from input facts
+6. Wire into Simulation and Strategy Engines — simulations and strategies propagate from input observations and recommendations
+7. Confidence Chain UI component — reusable ConfidenceChain component; navigable; degradation factor per step visible; source links
+8. Confidence indicators on all cards — visual confidence indicator using propagated_confidence; color-coded scale
+9. Context packet confidence distribution — show distribution in Context Packet Preview; low-confidence filter option
+10. Health metric — system-wide average propagated confidence in Health Engine; alert on sustained drop
+
+---
+
+## Task #21 — Lee Fact/Interpretation Separation
+
+*Depends on: Task #1, Task #3*
+
+### What & Why
+The most important architectural decision in v3.0. The Reality Ledger currently stores all beliefs in a single category. This task splits them permanently into two clean ledgers that can never be confused. A Fact Ledger (observed, extracted, declared, verifiable) and an Interpretation Ledger (patterns, predictions, observations, opportunities, strategies, simulations). Mixing them is how intelligent systems become untrustworthy over years. This must happen before the Reality Ledger accumulates significant data.
+
+### Done looks like
+- **Fact Ledger** — fact_ledger table; fact_types: observed, extracted, declared, verified; source_evidence required (at least 1); confidence, propagated_confidence, confidence_lineage, canon_level; database-level CHECK constraints preventing interpretation type names from appearing in this table
+- **Interpretation Ledger** — interpretation_ledger table; interpretation_types: pattern, prediction, observation, opportunity, strategy, simulation_result, inference; at least 1 linked input fact required; generated_by_engine logged; database-level CHECK constraints preventing fact type names
+- **Hard separation — Constitution ABSOLUTE provision** — "Predictions, patterns, observations, and strategies must never be written as Facts"; enforced at schema level, API Zod validation level, and ConstitutionEngine consultation for all Reality write operations
+- **Migration script** — classifies every existing reality_beliefs record: declared/extracted/observed → fact_ledger; pattern/prediction/observation/opportunity/strategy/simulation → interpretation_ledger; ambiguous → interpretation_ledger with needs_review flag; no records lost
+- **Interpretation-to-Fact promotion** — when reality confirms an interpretation, user can promote it; governance MEDIUM risk approval required; creates new fact record with source evidence; original interpretation retained with status = promoted; creates a link between them
+- **Canon rules differ** — facts can reach Canonical through normal confirmation; interpretations cannot auto-promote above Working canon; Canonical for an interpretation requires owner confirmation + at least 2 linked supporting facts + governance MEDIUM approval
+- **UI distinction** — Fact Ledger and Interpretation Ledger as separate tabs in Evidence page; every card, recommendation, and observation throughout the console shows a Fact or Interpretation badge; badges are visually distinct (solid vs. outlined)
+
+### Steps
+1. Schema design — fact_ledger and interpretation_ledger tables; all fields; database-level type CHECK constraints on both tables
+2. Migration script — classify and move all existing reality_beliefs; ambiguous → interpretation_ledger with needs_review flag; verify zero records lost
+3. Constitution provision — ABSOLUTE provision: no predictions/patterns/observations/strategies as Facts; wire into ConstitutionEngine for all Reality write operations
+4. Fact Ledger API — CRUD; enforce source_evidence requirement (≥1) and fact type vocabulary at Zod layer; enforce at DB layer
+5. Interpretation Ledger API — CRUD; enforce input_facts requirement (≥1 linked fact) and interpretation type vocabulary; enforce at DB layer
+6. Update all writing engines — Understanding Pipeline: writes only to Fact Ledger; Curiosity, Opportunity, Strategy, Simulation Engines: write only to Interpretation Ledger; ConstitutionEngine consulted on all writes
+7. Interpretation-to-Fact promotion flow — promotion endpoint; governance MEDIUM approval; creates fact record linked to interpretation; updates interpretation status to promoted; preserves link
+8. Context packet update — both ledgers queried; records labeled separately in packet; preview shows fact count and interpretation count as distinct figures
+9. UI distinction — Fact/Interpretation badge on all surfaces; Evidence page split into two tabs; badge styling (solid fact, outlined interpretation) consistent throughout
+10. Canon rule enforcement — update canon promotion logic for both ledgers; Canonical for interpretations: owner confirmation + ≥2 supporting facts + MEDIUM governance; enforce via ConstitutionEngine
+
+---
+
+## Task #22 — Lee Why Chain & Provenance System
+
+*Depends on: Task #1, Task #5*
+
+### What & Why
+Two problems solved together. The Why Chain makes reasoning navigable — click any recommendation and navigate the full chain of reasoning that produced it, step by step, with the evidence at each step. The Provenance System makes origin non-negotiable — nothing appears in Lee without a clear, navigable path back to where it came from. Together they answer: "Why this? Why now? And how do I know it's true?"
 
 ### Done looks like
 
-**Adaptive Workspace**
-- **Workspace Context Engine** — evaluates current operating context and adjusts the console's default layout, primary focus area, and surfaced shortcuts; context derived from: time of day, active waiting loops, upcoming calendar events, project activity patterns, Founder Profile, recent usage patterns
-- **Adaptive layout modes**:
-  - **Morning mode** — Today page primary, brief expanded, waiting loops prominent, upcoming meetings surfaced
-  - **Deep Work mode** — active project's detail page becomes primary workspace; notifications suppressed except CRITICAL
-  - **Pilot mode** — CerbaSeal Pilot Mode becomes primary workspace; pilot health score in status bar; follow-up recommendations prominent
-  - **Deployment mode** — Infrastructure and Connectors pages surfaced in nav; GitHub connector status prominent
-  - **Writing mode** — Imports page and Evidence browser surfaced; Ask Lee defaults to Write mode; brief condensed
-  - **Evening mode** — Evening Reflection prompt appears; Today page shifts to "what happened" view
-  - **Review mode** — Decisions page surfaced; Reflection section prominent; strategy review prompt appears
-- **Adaptive nav** — left nav reorders to surface most relevant sections at the top; less relevant sections collapse but remain accessible; user can pin sections
-- **Adaptive status bar** — shows mode-relevant quick stats: Pilot mode shows pilot health score; Deployment mode shows last deployment status
-- **Mode history** — every mode activation logged with reason; browsable in Settings
-- **User control** — override current mode, disable adaptive layout entirely, pin any section, configure which signals trigger which modes
-- **Android adaptive brief** — Brief tab adapts: morning brief is primary in morning, pilot updates prominent during pilot-active periods
+**Why Chain**
+- **Why Chain record** — why_chain JSONB on all recommendation-type objects (recommendations, observations, opportunities, brief items, simulation results, strategy items): ordered list of steps, each with { step_type, statement, evidence_id (optional), confidence, engine_name }
+- **Step types** — waiting_loop_exceeded, relationship_importance, historical_pattern, decision_precedence, freshness_threshold, cost_signal, constitution_provision, fact_confirmed, interpretation_promoted, strategy_alignment, assumption_validated
+- **Minimum 2 grounded steps** — no Why Chain generated purely from model output without at least 2 steps grounded in real Lee data; enforced by Why Chain builder
+- **Why Chain built during reasoning** — not generated post-hoc; constructed by each engine using the WhyChain builder as it reasons; attached to the output before returning
+- **Why Chain UI panel** — click any recommendation, observation, or brief item → Why Chain panel expands inline; each step shown as a navigable node with statement, evidence link, confidence, engine name; "Why that?" drill-down on each step; chain navigable to any depth
+- **Why Chain in Ask Lee answers** — every model-generated answer includes a Why Chain section built from Lee's actual knowledge and the context packet used; shows which facts and interpretations were consulted, which constitution provisions applied, how confidence degraded
 
-**Relationship Intelligence**
-- **Per-relationship intelligence record** for each person: interaction timeline, interaction frequency (trending up or down), outstanding promises (you to them), incoming promises (them to you), shared projects, trust history, open questions (both directions), recent momentum (active / warming / cooling / dormant), follow-up windows, important documents, meeting history, tone sensitivity notes (user-declared, never inferred)
-- **Relationship health score** — 0–100 based on: open waiting loops, outstanding promises overdue, days since last contact vs. expected frequency, open questions unanswered; shown on person card
-- **Relationship briefs** — Person Brief includes the full relationship intelligence record; Meeting Brief includes outstanding promises, open questions, recent momentum, and recommended talking points
-- **Relationship alerts** — when relationship health score drops, Lee creates a notification; high-stakes relationships (like Olivia/CerbaSeal) can be configured for higher notification levels
-- **Promise tracking UI** — Person detail page Promises tab: outgoing (you to them) and incoming (them to you), each with status, due date, source evidence; overdue promises highlighted amber/red
+**Provenance System**
+- **Provenance rule — Constitution ABSOLUTE provision** — "No object appears in the console without a provenance link"; enforced at API layer: any object without source_refs is marked unverified and flagged in the UI
+- **Provenance panel** — every card has a source indicator; one click opens provenance panel: origin sources with links, extraction date, confidence at extraction, engine, pipeline run; chain is navigable (source → file → original upload)
+- **Source indicator styles** — fully-sourced (solid icon), partially-sourced (amber icon), unverified (red outlined icon)
+- **Provenance completeness metric** — Health Engine tracks % of active objects with ≥1 source_ref; target ≥95%; Health page alert below threshold
+- **Provenance in exports** — full provenance chain for every object included in Lee Brain exports
 
 ### Steps
-1. **Workspace Context Engine** — WorkspaceContextEngine class: evaluate_context() scores all mode signals and returns highest-scoring mode with reason; runs on page load and every 15 minutes; register with Orchestration Engine at LOW priority
-2. **Layout mode system** — define mode schema (mode_name, signal_weights, nav_order, status_bar_slots, ask_lee_default_mode, notification_threshold); implement layout mode switcher in the console shell; persist current mode in session state
-3. **Adaptive nav and status bar** — update left navigation to support dynamic ordering based on current mode; update status bar to show mode-relevant quick stats; add mode indicator and manual override selector
-4. **Mode history and user controls** — log every mode activation with reason to mode_history table; build mode history viewer in Settings; add mode override controls, section pinning, and adaptive layout toggle
-5. **Android adaptive brief** — update Android Brief tab to apply mode-aware content ordering
-6. **Relationship intelligence schema** — extend people table; add interactions table, promises table, relationship_health_scores; update person cards to show health score
-7. **Interaction ingestion** — wire interaction recording into Understanding Pipeline (Task #3) and Connector Engine (Task #6): when an email/meeting/message is processed and a known person is detected, create an interaction record; when a promise is detected in text, create a promise record in the needs-review queue
-8. **Person detail — Relationship Intelligence tabs** — update Person detail page: Interaction Timeline tab, Promises tab (outgoing + incoming with status), Open Questions tab, Meeting History tab, Momentum indicator; relationship health score badge on person card
-9. **Relationship briefs integration** — update Person Brief (Task #4) to include full relationship intelligence; update Meeting Brief to pull outstanding promises, open questions, and momentum for meeting participants
-10. **Relationship alerts** — implement relationship health score monitoring; create notifications when score drops below threshold or promise becomes overdue; add per-relationship notification level configuration
+1. Why Chain schema — why_chain JSONB on all recommendation-type objects; step schema with all required fields
+2. Why Chain builder utility — WhyChain builder class: add_step(type, statement, evidence_id, confidence, engine), build() → ordered chain with minimum 2 grounded steps enforced
+3. Wire Why Chain into generating engines — Curiosity, Opportunity, Brief, Simulation, Strategy Engines all use WhyChain builder during their scan/generation loops; chain built before output returned
+4. Why Chain UI panel — reusable WhyChainPanel: collapsible; step nodes with confidence, evidence links, engine attribution; "Why that?" drill-down per step
+5. Wire Why Chain panel into all surfaces — recommendation cards, observation cards, brief items on Today page and full brief view, simulation results, strategy items, Ask Lee answers
+6. Provenance constitution provision — add ABSOLUTE provision: "No object appears without a provenance link"; API layer enforcement: reject object creation without source_refs (except system-generated roots)
+7. Provenance panel component — reusable ProvenancePanel: source list with links, extraction date, confidence, engine, pipeline run; navigable chain
+8. Provenance indicator on all cards — source indicator on every card; three styles (fully-sourced / partially-sourced / unverified) applied consistently throughout the console
+9. Provenance completeness metric — % active objects with ≥1 source_ref in Health Engine; alert below 95%; Health page display
+10. Provenance in backups — full source chain in Lee Brain exports; restore flow validates provenance completeness before completing
+
+---
+
+## Task #23 — Lee Assumption Ledger
+
+*Depends on: Task #1, Task #16*
+
+### What & Why
+Almost no AI system tracks its own assumptions. When an assumption is invalidated, the system should know which simulations and strategies were built on it and flag them for review. The Assumption Ledger gives assumptions the same lifecycle as facts — named, tracked, validated, invalidated, and linked to every conclusion that depended on them. Over years, this makes Lee measurably more accurate as the accumulated record of what was assumed and what turned out to be wrong builds up.
+
+### Done looks like
+- **Assumption record** — assumption_id, statement, assumption_type (structural / behavioral / market / technical / relationship / temporal), confidence, evidence_basis (source_refs, ≥0 at creation), status (active / validated / invalidated / superseded / expired), created_at, created_by_engine, used_in (simulation_ids, recommendation_ids, strategy_ids), validated_at, invalidated_at, invalidation_source, superseded_by, review_date
+- **Assumptions registered when used** — Simulation, Strategy, and Curiosity Engines create or reference assumptions before dispatching; assumptions are named and explicit, never implicit; reuse tracked
+- **Assumption used_in links** — every simulation, recommendation, and strategy stores the assumption_ids it was built on; clicking any conclusion shows which assumptions it rested on
+- **Assumption validation** — when new facts confirm an assumption: mark validated; confidence of all linked conclusions updated
+- **Assumption invalidation** — when new facts contradict an assumption: HIGH notification listing all conclusions that depended on it with one-click re-run links for simulations; stale flag on all linked conclusions
+- **Assumption expiry** — temporal assumptions carry a review_date; when date passes without validation: flagged as expired; all linked conclusions flagged as potentially stale; digest notification
+- **Simulation assumption display** — full assumption list shown before outcomes; Correct & Re-run button per assumption; re-runs create new simulation linked to original
+- **Assumption Ledger page** — all assumptions by status; filter by type, engine, date, status; assumption detail with statement, evidence basis, all linked conclusions, validation/invalidation history; action buttons: Mark Validated / Invalidate / Supersede / Extend Review Date
+
+### Steps
+1. Assumption schema — assumption_ledger and assumption_uses tables; all fields; indexes on status, created_by_engine, review_date
+2. Assumption Engine core — AssumptionEngine: create_or_reference(statement, type, confidence, evidence_basis, created_by), mark_validated(id, source), invalidate(id, source), expire_stale(); register with Orchestration Engine
+3. Wire into Simulation Engine — extract assumptions from simulation parameters; register with Assumption Engine before dispatching; link simulation_id to assumption records
+4. Wire into Strategy Engine — register structural and temporal assumptions used in strategy generation; link strategy_item_id
+5. Wire into Curiosity Engine — register behavioral and market assumptions underlying observations; link observation_id
+6. Assumption invalidation notification — when invalidate() called: HIGH notification listing all linked conclusions with one-click re-run links; stale flag on all linked conclusions
+7. Assumption expiry scanner — scheduled job via Orchestration Engine; scans for expired review_dates; flags assumptions; creates digest notification listing all expired
+8. Simulation assumption display — full assumption list before outcomes in Simulation UI; Correct & Re-run per assumption; re-runs create new simulation linked to original
+9. Assumption Ledger page — full page with all filters; assumption detail view with linked conclusions and history; all action buttons
+10. Assumption in context packets — include active assumptions as named, explicit context items in simulation and strategy calls so the model reasons from them explicitly
+
+---
+
+## Task #24 — Lee Decision Impact Graph
+
+*Depends on: Task #1, Task #13*
+
+### What & Why
+Different from the Intelligence Graph. Instead of relationships, this tracks consequences. Decision A caused Project B to be created, which caused Waiting Loop C to open, which caused Meeting D, which produced Pilot E. Over years, this becomes the founder's evidence-backed causal record — which decisions actually mattered, which paths were dead ends, which choices had the most leverage.
+
+### Done looks like
+- **Decision Impact Graph** — separate tables from the Intelligence Graph; nodes are decisions and consequences; edges are typed causal links: caused (direct), enabled (removed a blocker), prevented (blocked a negative path), informed (influenced without directly causing), accelerated, delayed; all directional, all typed
+- **Node types** — decision, project, waiting_loop, meeting, artifact, commitment, revenue_signal, relationship_event, pilot_milestone, risk_realized, opportunity_captured, principle_applied; every node links to the corresponding Lee object by id
+- **Impact score** — every decision node has a computed impact_score: downstream consequence count weighted by depth (direct ×3, depth-2 ×2, depth-3+ ×1) × consequence importance; updates automatically as new consequence edges are added
+- **Manual consequence linking** — "What caused this?" picker on all applicable object detail pages; creates causal edge at confidence 1.0 (user_declared); immediately recalculates impact scores; this is the primary input mechanism
+- **Automated consequence proposals** — Understanding Pipeline detects causal language ("as a result of", "following the decision to", "after we decided"); proposed consequence edges → needs-review queue at appropriate confidence
+- **Decision Impact page** — force-directed graph visualization; nodes sized by impact_score, colored by type; click a decision to see all downstream consequences as a navigable tree; timeline filter; "most impactful decisions" ranked list
+- **Impact chain view** — from any decision: full downstream tree showing every consequence at every depth with date observed and evidence link
+- **Decision detail integration** — every Decision page includes an Impact section: impact_score badge, direct downstream consequences with links, "View full impact chain" button
+- **Brief and Reflection integration** — Weekly Review and Annual Reflection include highest-impact decisions of the period using impact_score; consequence chain summary in narrative
+- **Separate from Intelligence Graph** — separate tables (impact_nodes, impact_edges), separate visualization page, separate API endpoints; the two graphs may reference the same underlying objects but are never merged
+
+### Steps
+1. Decision Impact schema — impact_nodes and impact_edges tables; all fields; edge_type vocabulary; impact_score field on impact_nodes; indexes
+2. Impact score calculator — weighted downstream consequence count; recalculate when new edges are added; efficient graph traversal query
+3. Manual consequence linking UI — "What caused this?" picker on all applicable detail pages; creates edge at user_declared confidence; triggers impact score recalculation
+4. Automated consequence proposals — extend Understanding Pipeline entity extractor to detect causal language patterns; create proposed impact edges in needs-review queue with pattern-based confidence
+5. Decision Impact Graph visualization — force-directed layout; nodes sized by impact_score, colored by object type; click-to-expand consequence tree; timeline filter slider
+6. Impact chain view — from any decision node: full downstream consequence tree as collapsible outline with dates and evidence links at each node
+7. Ranked impact list — sortable list of all decision nodes by impact_score; filter by date range, project, decision type; displayed alongside the graph
+8. Decision detail impact section — Impact section on every decision detail page with impact_score badge, direct consequences, and link to full impact chain view
+9. Brief and Reflection integration — query top N decisions by impact_score in the period for Weekly Review and Annual Reflection; include consequence chain summary in generated narrative
+10. API endpoints — GET /impact/graph, GET /impact/decision/:id/tree, GET /impact/leaderboard, POST /impact/edges (manual), GET /impact/proposed (needs-review queue)
+
+---
+
+## Task #25 — Lee Digital Twin Timeline
+
+*Depends on: Task #2, Task #13*
+
+### What & Why
+Everything in Lee has a timestamp. This task makes that history navigable as a scrollable, filterable, zoomable founder timeline — Git for your career. Not a summary. Not a report. The actual record of what happened, in sequence, as it unfolded. At year three, you will be able to scroll back to April 2026, see the day pilot discussions with CerbaSeal began, and trace the exact sequence of decisions and meetings that led to any outcome. That understanding compounds.
+
+### Done looks like
+- **Timeline data model** — constructed from the Event Log and object timestamps; significance scoring determines which events surface; operationally significant moments only by default; significance threshold configurable in Settings
+- **Event types surfaced** — decision_made, decision_locked, decision_superseded, project_created, project_status_changed, meeting_occurred, waiting_loop_opened, waiting_loop_resolved, document_imported, fact_extracted, belief_promoted, pilot_milestone, relationship_event, connector_sync_notable, brief_generated, model_call_notable (strong model or high cost only), backup_completed, constitution_amended, assumption_validated, assumption_invalidated, opportunity_captured
+- **Zoom levels** — Year view (most significant events per month only), Month view (all significant events), Week view (all logged events including minor), Day view (full detail, every event)
+- **Event card** — event type badge, headline (one sentence), related objects as linked chips, date/time; click to expand for full detail including evidence links
+- **Milestone markers** — user marks any event as a Milestone with a label; appear prominently in Year view; included in Annual Reflections and Decision Impact Graph narrative
+- **Filter controls** — project, person, event type, date range, significance threshold slider; saved filter sets
+- **Project Timeline tab** — Timeline tab on every project detail page; pre-filtered to that project; full history of the project as it actually happened
+- **Person Timeline tab** — Timeline tab on every person detail page; pre-filtered to that person; all interaction events, waiting loop events, meeting events, document events
+- **Timeline search** — full-text search across event headlines; results shown in timeline position with surrounding context
+- **Timeline export** — any date range → markdown document or PDF; the founder's operational history for that period; used in Annual Reflection generation
+
+### Steps
+1. Timeline event classification — significance scoring function; timeline_event_config table mapping Event Log event types to visibility rules and significance scores
+2. Timeline query layer — GET /timeline?start&end&projects&people&types&min_significance; efficient indexed query from Event Log + object tables; returns chronologically ordered, significance-filtered events
+3. Timeline page shell — scrollable vertical layout with date markers; zoom level selector (Year/Month/Week/Day); filter panel; search bar
+4. Event card component — reusable TimelineEventCard: type badge, headline, related objects as linked chips, expand/collapse for full detail; significance-based sizing; Milestone marker button
+5. Zoom level rendering — Year view aggregates by month, top-N significant only; Month/Week/Day views show progressively more events; smooth zoom transition
+6. Filter controls — all filters; saved filter sets stored in Settings per user
+7. Milestone system — milestone_markers table; Milestone button on event cards; Year view renders milestone markers prominently; milestone list feeds Annual Reflection generation
+8. Project Timeline tab — Timeline tab on project detail pages; pre-filtered to project; same event card component and filter panel
+9. Person Timeline tab — Timeline tab on person detail pages; pre-filtered to person
+10. Timeline export — date range → markdown or PDF; accessible from filter panel; used by Reflection Engine for Annual Reflection narrative generation
 
 ---
 
 *End of Project LEE Full Build Task Plan*
-*18 Tasks. One coherent system.*
+*25 Tasks. One coherent system. One Constitution above everything.*
 *One Lee. Many surfaces. The memory must not be replaceable.*

@@ -6,3 +6,9 @@ id = "5IpGuPlJozleyLZJ1JrYu"
 uri = "file://project-lee-task-plan.md"
 type = "text"
 title = "Project LEE — Full Build Task Plan (v6.0 · 45 Tasks)"
+
+[[outputs]]
+id = "bBe6mH0oAzp6Bl5cQzU5l"
+uri = "file://replit-integrations.md"
+type = "text"
+title = "Replit Integrations — Complete List (423 integrations)"

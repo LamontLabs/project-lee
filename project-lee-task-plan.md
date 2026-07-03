@@ -1,7 +1,7 @@
 # Project LEE — Full Build Task Plan
 *Learning Environment Engine · Pronounced: Lee*
 *Named after the founder's grandmother.*
-*Generated: July 2, 2026 · Version 7.0 — 46 Tasks*
+*Generated: July 2, 2026 · Version 8.0 — 47 Tasks*
 
 ---
 
@@ -23,7 +23,7 @@ None of them maintain an evolving operational model of you. LEE does.
 
 ---
 
-## Architecture Principles (v7.0)
+## Architecture Principles (v8.0)
 
 **1. The Constitution sits above everything.** Every engine consults the Constitution before acting. Absolute provisions cannot be overridden — not even by governance approval.
 
@@ -55,15 +55,17 @@ None of them maintain an evolving operational model of you. LEE does.
 
 **15. Lee can describe herself.** The System Manifest is always current. The Capability Registry is always accurate. The Self-Test Framework can verify every claim.
 
-**16. Lee knows the outside world.** The World State Engine maintains an active model of external context: time, calendar, market signals, technical deprecations, and owner-configured monitoring topics. Lee's reasoning is never context-blind to external reality.
+**16. Lee knows the outside world.** The World State Engine maintains an active model of external context: time, calendar, market signals, technical deprecations, and owner-configured monitoring topics.
 
-**17. Lee knows how you work.** Operational Memory observes the owner's demonstrated behavioral patterns — routines, attention windows, response cadence, work session types — from existing signals. Not declared preferences. Observed operational rhythm.
+**17. Lee knows how you work.** Operational Memory observes the owner's demonstrated behavioral patterns from existing signals. Not declared preferences. Observed operational rhythm.
 
 **18. Lee initiates.** The Initiative Engine surfaces proactive operational observations without being asked. Not reminders. Not alerts. Operational awareness delivered when it is actionable.
 
-**19. Continuous prioritization is the heart.** The Operational Intelligence Engine is the always-on signal that answers "what deserves attention right now?" It synthesizes everything — knowledge, external context, behavioral patterns, initiative observations, strategy — into a live operational answer. This is what makes LEE a Chief of Staff rather than an assistant.
+**19. Continuous prioritization is the heart.** The Operational Intelligence Engine is the always-on signal that answers "what deserves attention right now?" It synthesizes everything into a live operational answer.
 
-**20. Providers are replaceable. The operating intelligence is not.** The Provider Abstraction Layer sits between every external service and Lee's internal engines. No engine above the adapter layer references Gmail, GitHub, or Google Calendar by name. It references CommunicationProvider, DevelopmentProvider, SchedulingProvider. Switching from Gmail to Proton Mail Bridge is an adapter swap — zero engine changes. This principle applies to every external service Lee will ever connect to.
+**20. Providers are replaceable. The operating intelligence is not.** The Provider Abstraction Layer sits between every external service and Lee's internal engines. No engine above the adapter layer references Gmail, GitHub, or Google Calendar by name. Switching from Gmail to Proton Mail Bridge is an adapter swap — zero engine changes.
+
+**21. The owner should not reconstruct reality manually if the evidence already exists.** When a repository is connected, LEE reads its structure, documentation, dependencies, and APIs to bootstrap an initial knowledge model automatically. She then asks only for the judgments the evidence cannot answer. This principle extends beyond repositories — any structured external artifact should be a starting point for understanding, not a request for the owner to re-explain what already exists.
 
 ---
 
@@ -85,6 +87,7 @@ None of them maintain an evolving operational model of you. LEE does.
 | 12 | Initiates | Task #44 |
 | 13 | Continuously prioritizes | Task #45 |
 | 14 | Connects to anything | Task #46 |
+| 15 | Bootstraps understanding from evidence | Task #47 |
 
 ---
 
@@ -122,8 +125,9 @@ None of them maintain an evolving operational model of you. LEE does.
 │  Initiative Engine · Operational Intelligence Engine           │
 ├─────────────────────────────────────────────────────────────────┤
 │  7. PROVIDER LAYER                                              │
-│  Provider Abstraction Layer                                    │
-│  Communication · Document · Development · Scheduling · Storage │
+│  Provider Abstraction Layer · Project Bootstrap Engine         │
+│  Communication · Document · Development Intelligence           │
+│  Scheduling · Storage                                          │
 │  Gmail Adapter · Google Calendar Adapter · Google Drive Adapter│
 │  GitHub Adapter · [Proton Bridge Adapter — desktop phase]      │
 ├─────────────────────────────────────────────────────────────────┤
@@ -139,8 +143,6 @@ None of them maintain an evolving operational model of you. LEE does.
 
 ## Provider Abstraction Model
 
-The Provider Layer is the boundary between external services and Lee's operating intelligence. Nothing above this boundary references a specific service by name.
-
 ```
 External services
   Gmail   Proton Bridge   Outlook   GitHub   GitLab   Google Calendar ...
@@ -149,25 +151,67 @@ External services
     ↓
   Provider Interfaces
     CommunicationProvider · DocumentProvider
-    DevelopmentProvider · SchedulingProvider · StorageProvider
+    DevelopmentProvider (Intelligence) · SchedulingProvider · StorageProvider
     ↓
   Standardized Domain Events
     EmailReceived · ThreadUpdated · WaitingLoopResolved
     CommitPushed · IssueOpened · PRMerged · BuildFailed
+    RepoFirstConnected · RepoStructureChanged
     CalendarEventCreated · MeetingWithPersonDetected · TravelDetected
     DocumentCreated · DocumentUpdated · FileCreated ...
     ↓
   Event Log  →  Subscribed engines
-    (Understanding Pipeline, Relationship Engine,
-     Initiative Engine, Operational Intelligence, ...)
+    (Understanding Pipeline, Bootstrap Engine,
+     Relationship Engine, Initiative Engine, ...)
 ```
 
 **Proton Mail path (desktop phase):**
 ```
 Proton Mail → Proton Bridge (local IMAP) → ProtonBridgeAdapter
-            → CommunicationProvider interface
-            → EmailReceived domain event
+            → CommunicationProvider interface → EmailReceived
             → [zero changes to any engine above]
+```
+
+---
+
+## Project Bootstrap Flow
+
+```
+Repository connected (any DevelopmentProvider adapter)
+  ↓
+RepoFirstConnected domain event emitted
+  ↓
+Project Bootstrap Engine triggered automatically
+  ↓
+File tree read via DevelopmentProvider.get_file_tree()
+  ↓
+Extractors run in parallel:
+  Technology Stack · Repository Map · Architecture Graph
+  Dependency Inventory · API Inventory · Documentation Inventory
+  Configuration Inventory · Security Observations
+  ↓
+Understanding Pipeline processes README + documentation files
+  ↓
+Fact Ledger entries created (created_by: project_bootstrap_engine)
+Interpretation Ledger entries created (requires_verification: true)
+Intelligence Graph nodes + edges created
+  ↓
+Cross-project relationship detection runs across all bootstrapped projects
+  ↓
+Confirmation conversation presented to owner:
+  "I believe this is an AI governance platform. Is that correct?"
+  What I found · Questions for you · Issues I noticed
+  ↓
+Owner confirms / corrects / dismisses each item
+  ↓
+Verified items → confidence boosted, verified_by: owner
+Corrected items → Fact/Interpretation updated, owner-verified
+  ↓
+BootstrapCompleted domain event emitted
+  ↓
+Continuous monitoring begins:
+  CommitPushed → RepoStructureChanged → structural change Curiosity items
+  Documentation freshness → staleness Curiosity items
 ```
 
 ---
@@ -177,23 +221,11 @@ Proton Mail → Proton Bridge (local IMAP) → ProtonBridgeAdapter
 ```
 Input
   ↓
-Intent Engine          (classify intent → typed Intent record)
+Intent Engine → Operational Intelligence Engine → Query Engine
   ↓
-Operational Intelligence Engine   (what is the current focus?)
+Context Economy → Model Router → Explanation Engine
   ↓
-Query Engine           (retrieve candidates using intent spec)
-  ↓
-Context Economy        (score candidates → select within token budget)
-  ↓
-Model Router           (select model tier → assemble final packet)
-  ↓
-Explanation Engine     (translate output for audience, if applicable)
-  ↓
-Output
-  ↓
-Domain Event emitted   (typed event → Event Log)
-  ↓
-Subscribers react
+Output → Domain Event → Subscribers react
 ```
 
 ---
@@ -258,6 +290,7 @@ Constitution Engine → Policy Engine → Governance Engine
 | 44 | Initiative Engine | 10, 15, 42, 43 |
 | 45 | Operational Intelligence Engine | 16, 26, 34, 42, 43, 44 |
 | 46 | Provider Abstraction Layer | 1, 6, 35 |
+| 47 | Project Bootstrap Engine | 3, 6, 13, 21, 46 |
 
 ---
 
@@ -268,21 +301,21 @@ Constitution Engine → Policy Engine → Governance Engine
 ### Task 1 — Foundation & Core Schema
 **Depends on:** nothing
 
-Base layer for everything. Node.js + TypeScript + Express, PostgreSQL + Drizzle ORM, core database schema, event sourcing infrastructure. Re-projection from the Event Log alone must produce a consistent database state.
+Base layer. Node.js + TypeScript + Express, PostgreSQL + Drizzle ORM, core schema, event sourcing infrastructure. Re-projection from the Event Log alone must produce a consistent database state.
 
 ---
 
 ### Task 2 — Console (Web App)
 **Depends on:** 1
 
-Primary desktop interface. Dark-mode-first React web app. No business logic client-side. No emojis anywhere.
+Primary desktop interface. Dark-mode-first React. No business logic client-side. No emojis anywhere.
 
 ---
 
 ### Task 3 — Understanding Pipeline
 **Depends on:** 1
 
-Ingestion and comprehension layer. Accepts text, URLs, files, voice notes. Extraction → enrichment → entity detection → classification → importance scoring → storage. Entry point for all new knowledge.
+Ingestion and comprehension layer. Accepts text, URLs, files, voice notes. Extraction → enrichment → entity detection → classification → importance scoring → storage. Entry point for all new knowledge, including Bootstrap Engine document processing.
 
 ---
 
@@ -296,67 +329,63 @@ Daily briefing generator. Assembles context packet, calls Model Router, renders 
 ### Task 5 — Model Router & Context Engine
 **Depends on:** 1
 
-Routing intelligence between Lee and external models. Tiered model selection. Token budget enforcement. Context Packet Preview shows exactly what will be sent. CIL for reusable context segments.
+Tiered model selection, token budget enforcement, Context Packet Preview, CIL reuse.
 
 ---
 
 ### Task 6 — Connector Engine
 **Depends on:** 1, 3
 
-First provider adapters: Gmail, Google Calendar, Google Drive, GitHub, Replit awareness. All read-only. All produce events rather than directly writing to the Lee Brain.
-
-**Note:** These connectors are the first implementation of the Provider Abstraction Layer (Task #46). After Task #46 is built, they are refactored to emit standardized typed Domain Events through the provider interface (EmailReceived, CommitPushed, etc.) — zero changes to engines above the adapter layer. That refactor is the proof that the abstraction works.
+First provider adapters: Gmail, Google Calendar, Google Drive, GitHub, Replit. All read-only. After Task #46, refactored to emit standardized typed Domain Events through the provider interface. The refactor changes nothing above the adapter layer — which proves the abstraction works.
 
 ---
 
 ### Task 7 — Android App
 **Depends on:** 2, 4
 
-Mobile surface for Lee. Expo React Native. Presentation only. Screens: Today (powered by Task #45 Operational Intelligence Engine after that task is built), Capture, People, Settings.
+Expo React Native. Presentation only. Today screen powered by Task #45 after it is built.
 
 ---
 
 ### Task 8 — Cost Engine
 **Depends on:** 1, 5
 
-Financial accountability layer. Tracks every token and model call. Hard limits trigger governance holds, not silent failures. Spend breakdown by engine and purpose.
+Tracks every token and model call. Hard limits trigger governance holds. Spend breakdown by engine and purpose.
 
 ---
 
 ### Task 9 — Backup, Migration & Brain Versioning
 **Depends on:** 1
 
-Portability and durability layer. Brain Version (YYYY.M.minor). Every backup tagged. Verify Archive and Test Restore functional. Migration framework between Brain Versions defined.
+Brain Version (YYYY.M.minor). Daily automated backup. Verify Archive and Test Restore functional. Migration framework between Brain Versions.
 
 ---
 
 ### Task 10 — Orchestration Engine & Scheduler Calendar
 **Depends on:** 1
 
-Scheduler and dispatcher for all background work. Priority queue (CRITICAL/HIGH/NORMAL/LOW). Engine registration, concurrency, retry with exponential backoff.
-
-**Scheduler Calendar:** Settings → System → Schedule shows every background job on a 24-hour timeline. Read-only.
+Priority queue (CRITICAL/HIGH/NORMAL/LOW). Engine registration, concurrency, retry. Scheduler Calendar at Settings → System → Schedule.
 
 ---
 
 ### Task 11 — Governance Engine
 **Depends on:** 1, 10
 
-Approval and oversight layer. Risk levels: LOW (auto-approve), MEDIUM (notify + approve), HIGH (explicit confirmation), CRITICAL (full review). Full audit trail.
+LOW (auto-approve), MEDIUM (notify + approve), HIGH (explicit confirmation), CRITICAL (full review). Full audit trail.
 
 ---
 
 ### Task 12 — Memory Architecture
 **Depends on:** 1, 3
 
-Six-tier memory hierarchy: Working → Short-term → Long-term → Reference → Archive → Semantic (Stage 6 = Task #28). Promotion, demotion, and compression rules.
+Six-tier hierarchy: Working → Short-term → Long-term → Reference → Archive → Semantic (Stage 6 = Task #28). Promotion, demotion, compression.
 
 ---
 
 ### Task 13 — Intelligence Graph
 **Depends on:** 1, 3
 
-Knowledge graph. Typed nodes and typed edges. Automatic edge creation from Understanding Pipeline. Pattern detection: clusters, weak links, orphaned nodes.
+Typed nodes and edges. Automatic edge creation from Understanding Pipeline and Bootstrap Engine. Pattern detection. Cross-project relationship nodes created by Bootstrap Engine.
 
 ---
 
@@ -370,14 +399,14 @@ People layer. Relationship strength, interaction history, follow-up states, wait
 ### Task 15 — Curiosity Engine
 **Depends on:** 3, 12, 13
 
-Proactive question-asking. Scans for staleness, gaps, and conflicts. Does not ask questions Lee could answer herself. Trust Score per curiosity item type.
+Proactive question-asking. Scans for staleness, gaps, conflicts. Consumes Bootstrap Engine's missing documentation flags. Does not ask questions Lee could answer herself.
 
 ---
 
 ### Task 16 — Strategy Engine
 **Depends on:** 13, 14, 15
 
-Forward-looking intelligence. OKRs, strategic option evaluation, recommendations with confidence and Why Chain, prioritization. Strategies update when underlying facts change via Event Log subscription.
+OKRs, option evaluation, recommendations with confidence and Why Chain, prioritization. Strategies update when underlying facts change via Event Log subscription.
 
 ---
 
@@ -391,114 +420,114 @@ Period comparison, trend identification, lesson surfacing, structural gap detect
 ### Task 18 — Operating Modes
 **Depends on:** 10, 11
 
-System-wide behavioral configurations: FOCUS, TRAVEL, DEEP_WORK, REVIEW, EMERGENCY. Every engine reads current mode parameters at dispatch time. Current mode in status bar.
+FOCUS, TRAVEL, DEEP_WORK, REVIEW, EMERGENCY. Every engine reads current mode parameters at dispatch time.
 
 ---
 
 ### Task 19 — Constitution Engine
 **Depends on:** 1, 2, 3, 4, 5
 
-Immutable governance kernel. ABSOLUTE provisions block unconditionally before governance evaluation. CONFIGURABLE provisions are owner-adjustable. 72-hour quorum for amendments.
+Immutable governance kernel. ABSOLUTE provisions block unconditionally.
 
-**ABSOLUTE provisions include:** Provenance non-negotiable. /internal/ namespace never exposed externally. Semantic Index embeddings stored locally. No silent failures. Event Log append-only. Facts and Interpretations never mixed. Provider Abstraction Layer enforced (no engine above adapters references a specific service by name).
+**ABSOLUTE provisions include:** Provenance non-negotiable. /internal/ never exposed externally. Semantic Index embeddings stored locally. No silent failures. Event Log append-only. Facts and Interpretations never mixed. No engine above the Provider Abstraction Layer references a specific service by name. Bootstrap Engine never reads secret values — environment variable names only.
 
 ---
 
 ### Task 20 — Confidence Propagation
 **Depends on:** 1, 12, 13
 
-Every object carries a confidence score. Confidence degrades through inference chains at defined degradation factors per hop. Always visible in Why Chain and on object detail pages.
+Confidence degrades per inference hop. Bootstrap-extracted facts have confidence based on source quality (package.json = 0.95, README = 0.7, inferred from folder names = 0.4).
 
 ---
 
 ### Task 21 — Fact/Interpretation Separation
 **Depends on:** 1, 3, 13
 
-Two permanent, separate ledgers enforced at schema, API, and constitutional layers. No API that accepts one will accept the other.
+Two permanent, separate ledgers. Bootstrap Engine writes technology stack, dependency inventory, and API inventory to Fact Ledger; project summaries and architecture descriptions to Interpretation Ledger.
 
 ---
 
 ### Task 22 — Why Chain & Provenance
 **Depends on:** 1, 5, 20, 21
 
-Every recommendation has a navigable Why Chain. Provenance is an ABSOLUTE constitutional provision. UI renders with source links and confidence at each step.
+Every recommendation has a navigable Why Chain. Bootstrap-created Fact Ledger entries include source_refs pointing to the specific repository files they were extracted from.
 
 ---
 
 ### Task 23 — Assumption Ledger
 **Depends on:** 12, 20, 21, 22
 
-Assumption lifecycle: active → under_review → invalidated. Invalidation propagates to all dependent conclusions as a Domain Event.
+Assumption lifecycle: active → under_review → invalidated. Invalidation propagates as a Domain Event.
 
 ---
 
 ### Task 24 — Decision Impact Graph
 **Depends on:** 13, 16, 22
 
-Consequence tracking. Separate from Intelligence Graph. Tracks historical consequence, not structural relationship.
+Consequence tracking. Separate from Intelligence Graph.
 
 ---
 
 ### Task 25 — Digital Twin Timeline
 **Depends on:** 1, 12, 13, 22, 24
 
-Operational history as a scrollable, zoomable, filterable timeline. Events from Event Log, connectors, briefs, governance, state changes.
+Operational history as scrollable, zoomable, filterable timeline. Bootstrap Engine creates the first Timeline entry for each imported project (repository creation, first commit, most recent commit).
 
 ---
 
 ### Task 26 — Query Engine
 **Depends on:** 1, 12, 13, 21
 
-Universal data access layer. No intelligence engine reads storage directly. Single retrieval policy, ranking (importance × freshness × confidence × relevance), cache, authorization. Every result includes why_included.
+Universal data access layer. Single retrieval policy, ranking, cache, authorization. Every result includes why_included. "Show me everything related to authentication" searches LEE's understanding across all bootstrapped projects — not GitHub directly.
 
 ---
 
 ### Task 27 — Explanation Engine
 **Depends on:** 5, 22, 26
 
-Audience-aware translation: Developer, Investor, Founder, Executive, Legal, Technical, General. Explanations cached and reused until source objects change.
+Audience-aware translation: Developer, Investor, Founder, Executive, Legal, Technical, General. Explanations cached until source objects change.
 
 ---
 
 ### Task 28 — Semantic Index
 **Depends on:** 3, 12, 26
 
-Vector embedding store over all Lee's knowledge. Discovery-mode fuzzy search. Stage 6 of Memory Compression Roadmap. Embeddings stored locally — ABSOLUTE constitutional provision.
+Vector embedding store over all Lee's knowledge. Discovery-mode fuzzy search. Stage 6 of Memory Compression Roadmap. Embeddings stored locally — ABSOLUTE.
 
 ---
 
 ### Task 29 — Policy Engine
 **Depends on:** 1, 19
 
-Mutable operational policy layer. Cost, Privacy, Retention, Notification, Relationship, Backup, Connector policies. All versioned. Rollback available.
+Cost, Privacy, Retention, Notification, Relationship, Backup, Connector policies. All versioned. Rollback available.
 
 ---
 
 ### Task 30 — Resource Engine
 **Depends on:** 1, 10
 
-Tracks CPU, RAM, disk, token budgets, API quotas, network quality, battery. HEALTHY/CONSTRAINED/CRITICAL per dimension. Orchestration Engine reads before every dispatch.
+CPU, RAM, disk, token budgets, API quotas, network quality, battery. HEALTHY/CONSTRAINED/CRITICAL. Orchestration Engine reads before every dispatch.
 
 ---
 
 ### Task 31 — Intent Engine
 **Depends on:** 1, 26
 
-Every request produces a typed Intent record before anything else happens. Corrections feed Learning Engine. Intent history browsable.
+Every request produces a typed Intent record. Corrections feed Learning Engine.
 
 ---
 
 ### Task 32 — State Engine
 **Depends on:** 1, 10
 
-Operational state: Booting, Learning, Idle, Thinking, Briefing, Importing, Synchronizing, Waiting, Recovering, Offline, Degraded. Exactly one primary state at all times. Visible everywhere.
+Booting, Learning, Idle, Thinking, Briefing, Importing, Synchronizing, Waiting, Recovering, Offline, Degraded. Exactly one primary state. Visible everywhere.
 
 ---
 
 ### Task 33 — Internal API Contracts & Capability Registry
 **Depends on:** 1, 10
 
-Every engine exposes a versioned, typed REST API at /internal/[engine-name]. Zod-validated. /internal/ namespace never exposed externally — ABSOLUTE constitutional provision.
+Every engine exposes a versioned, typed REST API at /internal/[engine-name]. Zod-validated. /internal/ never exposed externally — ABSOLUTE.
 
 ---
 
@@ -512,125 +541,171 @@ Context Value =
 × (Confidence × W_confidence) × (Trust × W_trust) × (Mode_Relevance × W_mode)
 ```
 
-All factors [0, 1]. Multiplicative. Weights configurable per intent type via Policy Engine.
+Multiplicative. Any zero eliminates the object. Weights configurable per intent type.
 
 ---
 
 ### Task 35 — Domain Events
 **Depends on:** 1
 
-Typed event contract system. Every state change emits a typed, versioned, schema-validated Domain Event. EventBus validates before writing. Caused-by chain browsable. Full event catalog including provider events: EmailReceived, ThreadUpdated, WaitingLoopResolved, CommitPushed, IssueOpened, PRMerged, CalendarEventCreated, MeetingWithPersonDetected, TravelDetected, DocumentCreated, WorldStateUpdated, OperationalPatternEstablished, InitiativeItemCreated, OperationalContextUpdated, and all system events.
+Typed event contract system. Every state change emits a typed, versioned, schema-validated Domain Event. Full catalog includes all provider events plus BootstrapCompleted, RepoFirstConnected, RepoStructureChanged.
 
 ---
 
 ### Task 36 — Engine Lifecycle, Dependency Validation & Recovery Policies
 **Depends on:** 10, 33
 
-Standard lifecycle: initialize() → boot() → health_check() → pause() → resume() → recover() → shutdown(). Recovery Policies: AUTO_RESTART, AUTO_FALLBACK, GRACEFUL_DISABLE, MANUAL_RECOVERY. Layer-ordered startup.
+initialize() → boot() → health_check() → pause() → resume() → recover() → shutdown(). AUTO_RESTART, AUTO_FALLBACK, GRACEFUL_DISABLE, MANUAL_RECOVERY. Layer-ordered startup.
 
 ---
 
 ### Task 37 — Self-Test Framework
 **Depends on:** 33, 36
 
-"Run Full System Check." PASS / WARN / FAIL per test with evidence. Test suites include: Engine, API, Connector, Policy, Query, Event Log, Backup, Constitution, Semantic Index, Domain Events, Context Economy, World State, Operational Memory, Provider Abstraction (verifies no engine above adapters imports provider-specific types).
+"Run Full System Check." Test suites include Provider Abstraction Suite (verifies no engine above adapters imports provider-specific types) and Bootstrap Suite (verifies extraction quality, cross-project relationship detection, confirmation conversation generation).
 
 ---
 
 ### Task 38 — Recovery Modes
 **Depends on:** 10, 32
 
-Cold Boot · Warm Restart · Safe Mode · Recovery Mode · Migration Mode · Read Only. Boot mode determination logic runs on every startup. Safe Mode banner on all Console pages.
+Cold Boot · Warm Restart · Safe Mode · Recovery Mode · Migration Mode · Read Only.
 
 ---
 
 ### Task 39 — Data Ownership
 **Depends on:** 1, 3
 
-Six ownership fields on every knowledge object: created_by, modified_by, verified_by, imported_from, generated_by, current_owner. Auto-populated. "Mark as Verified" resets age clock and feeds Trust Score.
+created_by, modified_by, verified_by, imported_from, generated_by, current_owner on every object. Bootstrap-created objects: created_by = "project_bootstrap_engine". Owner-confirmed objects: verified_by = owner.
 
 ---
 
 ### Task 40 — Knowledge Aging
 **Depends on:** 12, 26
 
-Fresh → Current → Old → Historical → Stale → Expired. Stale triggers Curiosity item. Expired objects excluded from context (Goal_Match forced to 0). Age windows configurable per object type.
+Fresh → Current → Old → Historical → Stale → Expired. Stale triggers Curiosity item. Expired excluded from context. Documentation freshness tracked by Bootstrap Engine's continuous monitoring.
 
 ---
 
 ### Task 41 — System Manifest
 **Depends on:** 9, 19, 29, 33
 
-Auto-generated living document. Generated fresh on every request in under 2 seconds. Sections: Identity, Constitution, Policies, Brain State, Capabilities, Connectors (drawn from Provider Registry), Schemas, Indexes, Statistics, Storage, Health, Dependencies. JSON and Markdown exports. Included in every Brain backup.
+Auto-generated, always current, under 2 seconds. Connectors section drawn from Provider Registry. JSON and Markdown exports. Included in every Brain backup.
 
 ---
 
 ### Task 42 — World State Engine
 **Depends on:** 1, 6, 10
 
-Active model of external reality. Not web search — curated, structured, time-aware signals:
-
-- **Universal (always maintained):** current date/time/timezone, upcoming holidays, market hours, fiscal period
-- **Location context (opt-in):** city/region, travel window from Calendar connector
-- **Technical dependency monitoring:** API deprecation notices, breaking change alerts for connected services
-- **Owner-configured topics (all explicit opt-in):** news areas, regulatory domains, competitor activity, software changelogs
-
-WorldStateUpdated domain events consumed by Initiative Engine and Brief Engine.
+Active model of external reality: time/timezone/holidays/market hours (always maintained) + location context (opt-in) + technical deprecation monitoring + owner-configured topic monitoring (all explicit opt-in).
 
 ---
 
 ### Task 43 — Operational Memory
 **Depends on:** 1, 3, 12, 25
 
-Behavioral pattern learning from observed signals — not declared preferences. Observed from data Lee already has: Gmail timestamps, GitHub commit times, Console session activity, capture timestamps. Never additional tracking.
-
-Pattern types: routine detection, attention patterns, response cadence, work session patterns, project attention cycles, decision making patterns. Pattern confidence lifecycle: candidate → established → strong. Pattern breaks emit OperationalPatternBroken events consumed by Initiative Engine.
+Behavioral pattern learning from observed signals. Pattern types: routine detection, attention patterns, response cadence, work session patterns, project attention cycles, decision making patterns. Confidence lifecycle: candidate → established → strong.
 
 ---
 
 ### Task 44 — Initiative Engine
 **Depends on:** 10, 15, 42, 43
 
-Proactive operational observations without being asked. Observation types: drift, relationship, financial, technical health, assumption health, knowledge drift, data health, world state triggers, operational rhythm breaks. Quality over quantity — configurable daily limits and deduplication window. HIGH/CRITICAL items in Morning Brief. CRITICAL items trigger push notification.
+Proactive operational observations. Drift, relationship, financial, technical health, assumption health, knowledge drift, data health, world state triggers, operational rhythm breaks. Quality over quantity — configurable daily limits and deduplication.
 
 ---
 
 ### Task 45 — Operational Intelligence Engine
 **Depends on:** 16, 26, 34, 42, 43, 44
 
-Always-on signal: "What deserves attention right now?" Operational Context contains: Active Priority, What Changed, What is Drifting, What is Waiting, What is Blocked, What is at Risk, What Can Wait, What Should Be Ignored Today. Refreshes every 15 minutes and reactively on significant events. Powers the Console Today page, Morning Brief opening, Ask Lee context, and Android Today screen.
+Always-on: "What deserves attention right now?" Operational Context: Active Priority, What Changed, What is Drifting, What is Waiting, What is Blocked, What is at Risk, What Can Wait, What Should Be Ignored Today. Powers Today page, Morning Brief opening, Ask Lee context, Android Today screen.
 
 ---
 
 ### Task 46 — Provider Abstraction Layer
 **Depends on:** 1, 6, 35
 
-The boundary between external services and Lee's operating intelligence. Five provider categories with standardized interfaces:
+The boundary between external services and Lee's operating intelligence. Five provider categories:
 
-| Category | Interface | Adapters (current) | Adapters (future) |
-|----------|-----------|-------------------|------------------|
+| Category | Interface | Current Adapters | Future Adapters |
+|----------|-----------|-----------------|-----------------|
 | Communication | CommunicationProvider | Gmail | Proton Bridge (desktop), Outlook, Fastmail, IMAP |
 | Document | DocumentProvider | Google Drive, Google Docs | OneDrive, Notion, local filesystem |
-| Development | DevelopmentProvider | GitHub | GitLab, Replit (desktop), local Git |
-| Scheduling | SchedulingProvider | Google Calendar | Outlook Calendar, Calendly, iCloud |
+| Development Intelligence | DevelopmentProvider | GitHub | GitLab, Replit (desktop), local Git |
+| Scheduling | SchedulingProvider | Google Calendar | Outlook Calendar, Calendly |
 | Storage | StorageProvider | Google Drive, App Storage | OneDrive, Dropbox, local disk |
 
-**Standardized Domain Events per category:**
-- **Communication:** EmailReceived, ThreadUpdated, WaitingLoopResolved, EmailSentDetected
-- **Document:** DocumentCreated, DocumentUpdated, DocumentShared
-- **Development:** CommitPushed, IssueOpened, IssueResolved, PROpened, PRMerged, BuildFailed, RepoInactive
-- **Scheduling:** CalendarEventCreated, CalendarEventUpdated, CalendarEventCancelled, TravelDetected, MeetingWithPersonDetected
-- **Storage:** FileCreated, FileUpdated, FileDeleted
+**DevelopmentProvider — richer than basic GitHub access.** Every adapter must implement: `list_repos()`, `get_repo_metadata()`, `get_file_tree()` (for Bootstrap Engine), `get_file_content()` (for Bootstrap Engine), `fetch_commits()`, `fetch_issues()`, `fetch_pull_requests()`, `fetch_releases()`, `fetch_deployments()`, `get_build_status()`, `get_dependency_alerts()`.
 
-**Constitutional enforcement (ABSOLUTE):** No engine above the adapter layer may reference a specific service by name. This is verified by the Provider Abstraction Suite in the Self-Test Framework.
+**Key bootstrap events:** `RepoFirstConnected` → triggers Project Bootstrap Engine automatically. `RepoStructureChanged` (in CommitPushed payload) → triggers structural change Curiosity items.
 
-**Proton Mail desktop path:** `Proton Mail → Proton Bridge (local IMAP) → ProtonBridgeAdapter implements CommunicationProvider → EmailReceived → [zero engine changes above]`
+**Constitutional enforcement (ABSOLUTE):** No engine above the adapter layer may reference a specific service by name. Verified by Provider Abstraction Suite in Self-Test.
 
-**Done when:** All four existing connectors refactored as typed provider adapters. Understanding Pipeline and Relationship Engine consume standardized Domain Events, not service-specific types. Provider Registry in Capability Registry. Connector settings page redesigned by provider category. Self-Test Provider Abstraction Suite passes.
+---
+
+### Task 47 — Project Bootstrap Engine
+**Depends on:** 3, 6, 13, 21, 46
+
+When a repository is connected, Lee reads all available evidence and builds an initial knowledge model — automatically, without the owner having to explain what already exists.
+
+**What Bootstrap Engine extracts:**
+
+| Artifact | Output | Ledger |
+|----------|--------|--------|
+| Technology stack | Languages, frameworks, runtime, package manager | Fact Ledger |
+| Repository map | Folder structure, file counts, inferred directory purpose | Fact Ledger |
+| Project summary | One-paragraph description from README + docs | Interpretation Ledger |
+| Architecture graph | Application layers, modules, external dependencies | Intelligence Graph nodes + edges |
+| Dependency inventory | All packages with category and security advisory flags | Fact Ledger |
+| API inventory | Documented endpoints from OpenAPI/route files | Fact Ledger |
+| Documentation inventory | All doc files with freshness scores | Fact Ledger |
+| Configuration inventory | Config file types, env var names (never values) | Fact Ledger |
+| Security observations | Static analysis flags — exposed secrets, deprecated patterns | Curiosity items / Governance holds |
+| Missing documentation | Gaps between repo map and documentation inventory | Curiosity items |
+| Initial Timeline entry | Repository creation, first commit, most recent commit | Timeline |
+
+**Confirmation conversation:**
+```
+Bootstrap complete: CerbaSeal
+
+I believe this is an AI governance platform with a deterministic
+execution layer built with TypeScript, Node.js, and PostgreSQL.
+Is that correct?
+
+What I found: technology stack confirmed · 847 files · 34 API
+endpoints documented · 3 cross-project relationships detected
+
+Questions for you:
+  1. Is this intended for external customers or internal use?
+  2. The /governance/ directory appears incomplete — active development?
+  3. README references "pilot customers" but no CRM data found.
+
+Issues I noticed:
+  ⚠ No CHANGELOG · 6 undocumented API endpoints
+  ⚠ README last updated 47 days ago; 312 commits since
+```
+
+**Cross-project intelligence:** After bootstrapping, Intelligence Graph queried for structural similarities across all projects. Observations surfaced as Initiative items: "CerbaSeal and Project LEE both implement governance approval patterns."
+
+**Continuous monitoring:** CommitPushed events trigger structural change detection (new directory → Curiosity item), documentation freshness decay (README age vs. commit age → staleness Curiosity item), new major dependency detection (Dependency Inventory updated).
+
+**Re-bootstrap:** preserves owner-verified facts; updates only what changed; shows diff summary.
+
+**Done when:** Bootstrap auto-triggers on RepoFirstConnected. All 9 extractors functional. Confirmation conversation presented after bootstrap. Cross-project relationship detection runs. Continuous monitoring wired to CommitPushed events. BootstrapCompleted domain event emitted. Bootstrap History in project detail pages.
 
 ---
 
 ## Architecture Reference Notes
+
+### Confidence at bootstrap time
+
+| Source | Confidence |
+|--------|-----------|
+| package.json, Cargo.toml, go.mod | 0.95 |
+| OpenAPI spec, Prisma schema | 0.90 |
+| README documented facts | 0.70 |
+| Inferred from folder naming | 0.40 |
+| Owner-confirmed after bootstrap | Boosted to ≥ 0.90 |
 
 ### Confidence vs. Trust
 
@@ -639,34 +714,32 @@ The boundary between external services and Lee's operating intelligence. Five pr
 | Measures | Epistemic certainty of a specific object | Reliability of a subsystem over time |
 | Range | 0–1 | 0–100 (starts at 50) |
 | Decay | Per inference hop | 0.5/day without activity |
-| Rises when | Source quality high; chain is short | Owner verifies subsystem outputs |
 
 ### Recovery Mode vs. Operational State
 
 | | Recovery Modes (#38) | Operational States (#32) |
 |---|---|---|
 | Describes | How Lee starts or restarts | What Lee is doing right now |
-| Examples | Cold Boot, Safe Mode, Recovery Mode | Idle, Thinking, Importing, Offline |
 
 ### Curiosity vs. Initiative vs. Operational Intelligence
 
 | | Curiosity (#15) | Initiative (#44) | Operational Intelligence (#45) |
 |---|---|---|---|
 | Type | Questions | Observations | Continuous prioritization |
-| Trigger | Knowledge gaps, staleness | Drifts, events, pattern breaks | Always on — 15-min + reactive |
+| Trigger | Gaps, staleness | Drifts, events | Always on |
 | Output | Questions to ask | Observations to note | Ranked operational context |
 
-### Provider Abstraction — Email Path Options
+### Provider email path options
 
-| Option | Status | Notes |
-|--------|--------|-------|
-| Gmail → GmailAdapter | Current | First implementation of CommunicationProvider |
-| Proton Bridge → ProtonBridgeAdapter | Desktop phase | Plug-in adapter swap; zero engine changes |
-| Outlook → OutlookAdapter | Future | CommunicationProvider + SchedulingProvider |
-| IMAP generic → IMAPAdapter | Future | Fallback for any IMAP-compatible mail service |
+| Option | Status |
+|--------|--------|
+| Gmail → GmailAdapter | Current |
+| Proton Bridge → ProtonBridgeAdapter | Desktop phase — adapter swap, zero engine changes |
+| Outlook → OutlookAdapter | Future |
+| IMAP generic → IMAPAdapter | Future fallback |
 
 ---
 
-*Plan version: 7.0 · Task count: 46 · Date: July 2, 2026*
+*Plan version: 8.0 · Task count: 47 · Date: July 2, 2026*
 
-*New in v7.0: Task #46 (Provider Abstraction Layer) · Architecture Principle #20 added (Providers are replaceable; the operating intelligence is not) · Provider Layer added to Layer Hierarchy · Provider Abstraction Model diagram added · Provider Abstraction Suite added to Self-Test (#37) · Provider Abstraction enforcement added to Constitution ABSOLUTE provisions (#19) · Provider Registry added to System Manifest Connectors section (#41) · Task #6 updated to note provider adapter refactor relationship with Task #46 · Email path options reference table added*
+*New in v8.0: Task #47 (Project Bootstrap Engine) · Task #46 DevelopmentProvider expanded to Development Intelligence Provider with get_file_tree(), get_file_content(), fetch_releases(), fetch_deployments(), get_build_status(), get_dependency_alerts(), RepoFirstConnected event, RepoStructureChanged event · Architecture Principle #21 added (owner should not reconstruct reality manually if evidence already exists) · Project Bootstrap Flow diagram added · Bootstrap confidence table added · Capability Level 15 added*

@@ -18,3 +18,8 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+CIL_LEE_ENDPOINT = "https://cognitive-infrastructure-layer.replit.app/api/query/lee"

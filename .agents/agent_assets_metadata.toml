@@ -12,3 +12,9 @@ id = "bBe6mH0oAzp6Bl5cQzU5l"
 uri = "file://replit-integrations.md"
 type = "text"
 title = "Replit Integrations — Complete List (423 integrations)"
+
+[[outputs]]
+id = "avJ2AgUsSDZ-huE0udH-V"
+uri = "file://lee-cil-integration-spec.md"
+type = "text"
+title = "CIL ↔ Project LEE Integration Specification"

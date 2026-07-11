@@ -23,8 +23,8 @@ timeoutMs = 20000
 
 [userenv.shared]
 CIL_LEE_ENDPOINT = "https://cognitive-infrastructure-layer.replit.app/api/query/lee"
-CERBASEAL_BASE_URL = "http://localhost:4001"
+CERBASEAL_BASE_URL = "https://cerbaseal.replit.app"
 CERBASEAL_POLICY_PACK_VERSION = "2026.7.1"
-CERBASEAL_EVALUATE_ENDPOINT = "http://localhost:4001/govern/evaluate"
-CERBASEAL_POLICY_VERSION_ENDPOINT = "http://localhost:4001/policy/current-version"
-CERBASEAL_HEALTH_ENDPOINT = "http://localhost:4001/health"
+CERBASEAL_EVALUATE_ENDPOINT = "https://cerbaseal.replit.app/govern/evaluate"
+CERBASEAL_POLICY_VERSION_ENDPOINT = "https://cerbaseal.replit.app/policy/current-version"
+CERBASEAL_HEALTH_ENDPOINT = "https://cerbaseal.replit.app/health"

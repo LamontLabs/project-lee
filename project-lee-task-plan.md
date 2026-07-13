@@ -1,7 +1,7 @@
 # Project LEE — Full Build Task Plan
 *Learning Environment Engine · Pronounced: Lee*
 *Named after the founder's grandmother.*
-*Version 10.0 — 55 Tasks · July 13, 2026*
+*Version 11.0 — 65 Tasks · July 13, 2026*
 
 ---
 
@@ -10,16 +10,6 @@
 Lee is not a chatbot with memory bolted on. She starts with operating continuity and treats the language model as one interchangeable capability within a much larger system. She is a persistent digital Chief of Staff — she doesn't replace your thinking, she protects it. She doesn't replace your decisions, she prepares them. She doesn't replace your memory, she preserves it.
 
 The primary asset is the accumulated knowledge, governance, memory, relationships, timelines, and operational state — not the specific model answering questions. The model could change. Lee continues to grow.
-
-What makes LEE fundamentally different from existing tools:
-
-- ChatGPT stores conversations.
-- Claude stores projects.
-- Notion stores documents.
-- GitHub stores code.
-- Google Calendar stores events.
-
-None of them maintain an evolving operational model of you. LEE does.
 
 ---
 
@@ -32,79 +22,72 @@ CIL                    CerbaSeal
 (reusable reasoning)   (execution governance)
 ```
 
-**LEE** knows. She owns context, projects, people, timelines, facts, interpretations, operational priorities, provider routing, and orchestration. She decides what problem is being solved and what support is needed.
+**LEE** knows. She owns context, projects, people, timelines, facts, interpretations, operational priorities, provider routing, and orchestration.
 
-**CIL** remembers reusable reasoning. It resolves queries through three tiers — trigram reuse, vector similarity reuse, and frontier escalation — reducing frontier dependency and cost. LEE calls CIL to answer: "Do we already have approved, reusable reasoning for this?"
+**CIL** remembers reusable reasoning. Three tiers: trigram reuse, vector similarity reuse, frontier escalation.
 
-**CerbaSeal** decides whether execution may proceed. It evaluates a governed request and returns ALLOW, HOLD, or REJECT with reason codes, a decision envelope, and an evidence bundle. LEE calls CerbaSeal to answer: "Is this consequential action authorized to proceed?"
-
-The three systems remain independent. LEE is the primary client that knows when to call each one. CIL and CerbaSeal are never embedded in LEE's codebase — they are called through versioned API contracts.
+**CerbaSeal** decides whether execution may proceed. ALLOW / HOLD / REJECT with reason codes, decision envelope, evidence bundle.
 
 ---
 
-## Architecture Principles (v10.0)
+## Request Processing Order (v11.0)
 
-**1. The Constitution sits above everything.** Every engine consults the Constitution before acting. Absolute provisions cannot be overridden — not even by governance approval.
+Every request — human or machine-initiated — flows through this sequence:
 
-**2. Event Sourcing is the foundation.** Almost nothing mutates directly. State changes are typed Domain Events. Current state is a projection. Re-projection from the Event Log alone must produce a consistent database.
+```
+Identity    →  who am I and how do I operate?
+Constitution →  what am I allowed to do?
+Intent       →  what is being asked?
+Context      →  what is relevant?
+CIL          →  do we have reusable reasoning?
+CerbaSeal    →  is this action authorized to proceed? (consequential only)
+```
 
-**3. Facts and Interpretations are never mixed.** The Fact Ledger holds what is verifiable. The Interpretation Ledger holds what Lee reasons. They have different canon rules, different confidence rules, and different decay rates.
-
-**4. The Query Engine is the universal access layer.** No intelligence engine reads from storage directly. All reads go through the Query Engine. One retrieval policy, one ranking algorithm, one cache, one authorization layer.
-
-**5. Intent is a first-class typed object.** Every request — human or machine-initiated — classifies its intent before retrieval or reasoning begins. All downstream decisions use the Intent record.
-
-**6. Context competes.** The Context Economy formula replaces static tier weights. Every object scores against eight dimensions. The highest-scoring objects within the token budget always win, regardless of which memory tier they came from.
-
-**7. Intelligence is independent of presentation.** Every capability must work without any UI. The Console, Android app, CLI, API, and future desktop app all consume identical services via the Internal API surface.
-
-**8. Resource-aware scheduling.** The Orchestration Engine reads the Resource Engine before every dispatch. No heavy jobs run blindly into a constrained system.
-
-**9. Brain Versioning for safe migrations.** A Brain Version (YYYY.M.minor) covers Memory schema, Knowledge graph, Learning assets, Constitution, Policies, and Semantic Index together. Every backup is tagged with its Brain Version.
-
-**10. Confidence flows. Trust is earned.** Confidence degrades through each inference step at defined rates. Trust is a per-subsystem score that decays without activity and rises with accurate, verified performance. They are different constructs and are never conflated.
-
-**11. Every output has a Why Chain.** No recommendation without reasoning. No observation without grounded steps. Every inference chain is navigable.
-
-**12. Assumptions are tracked.** Every simulation and strategy names its assumptions. Invalidated assumptions trigger review of all conclusions built on them.
-
-**13. Domain Events are typed contracts.** Every significant state change emits a typed Domain Event with a defined schema. No generic log entries. The event catalog is the language that re-projection speaks.
-
-**14. Every engine has a lifecycle.** Every engine declares its dependencies, exposes standard lifecycle methods, and declares a recovery policy. The Orchestration Engine manages engines, not just jobs.
-
-**15. Lee can describe herself.** The System Manifest is always current. The Capability Registry is always accurate. The Self-Test Framework can verify every claim.
-
-**16. Lee knows the outside world.** The World State Engine maintains an active model of external context: time, calendar, market signals, technical deprecations, and owner-configured monitoring topics.
-
-**17. Lee knows how you work.** Operational Memory observes the owner's demonstrated behavioral patterns from existing signals. Not declared preferences. Observed operational rhythm.
-
-**18. Lee initiates.** The Initiative Engine surfaces proactive operational observations without being asked. Not reminders. Not alerts. Operational awareness delivered when it is actionable.
-
-**19. Continuous prioritization is the heart.** The Operational Intelligence Engine is the always-on signal that answers "what deserves attention right now?" It synthesizes everything into a live operational answer.
-
-**20. Providers are replaceable. The operating intelligence is not.** The Provider Abstraction Layer sits between every external service and Lee's internal engines. No engine above the adapter layer references Gmail, GitHub, or Google Calendar by name. Switching from Gmail to Proton Mail Bridge is an adapter swap — zero engine changes.
-
-**21. The owner should not reconstruct reality manually if the evidence already exists.** When a repository is connected, LEE reads its structure, documentation, dependencies, and APIs to bootstrap an initial knowledge model automatically. She then asks only for the judgments the evidence cannot answer.
-
-**22. LEE coordinates. CIL reasons cheaply. CerbaSeal governs execution. They are separate services, not embedded subsystems.** CIL and CerbaSeal are Lamont Labs internal capability services — not external providers, not internal engines. LEE calls them through versioned, authenticated API contracts. Their databases are never shared. CIL degrades gracefully when unavailable. CerbaSeal is fail-closed: no consequential action executes without a valid ALLOW verdict. These behaviors are architectural invariants, not configuration options.
-
-**23. LEE never stops running.** The Executive Loop is the operational heartbeat — a continuous seven-phase cycle (Observe → Understand → Prioritize → Decide → Prepare → Wait → Review → Repeat) that drives everything LEE does. It is not a scheduled job. It is the rhythm of the system.
-
-**24. LEE knows how much to trust herself.** Operational Confidence is a composite, time-aware score reflecting the quality of the current operational picture — not a status indicator. When connectors are stale, assumptions are overdue, or capability services are degraded, LEE surfaces the degradation honestly.
-
-**25. Projects have direction, not just status.** Project Momentum captures the velocity and trajectory of each project from the signals LEE already observes. Momentum is distinct from status — it is a trajectory, not a snapshot.
-
-**26. LEE looks for leverage.** The Opportunity Engine scans the portfolio for cross-project reuse, strategic alignment, and operational leverage. It answers "what have we already solved?" before recommending that anything be built again.
-
-**27. Capacity shapes presentation, not content.** Operational Capacity Awareness infers the owner's current operational load from observed behavioral signals — not emotion or psychology. Presentation adapts. Intelligence does not change. The owner can always override.
-
-**28. Some knowledge does not decay.** Strategic Anchors — founding rationales, rejected directions, and architectural commitments — are intentionally durable. They do not enter the Knowledge Aging cycle. Recommendations that contradict them are flagged, not blocked.
-
-**29. Lamont Labs is a portfolio, not a list.** The Portfolio Intelligence Engine maintains a model of shared infrastructure, shared customers, shared technology, shared risks, and resource allocation across all projects. Portfolio-level intelligence is distinct from project-level intelligence.
+The Identity Engine is first. It is the center. Everything asks Identity before anything else.
 
 ---
 
-## Capability Levels
+## Architecture Principles (v11.0)
+
+**1–22.** All v10.0 principles remain unchanged.
+
+**23. LEE never stops running.** The Executive Loop is the operational heartbeat — Observe → Understand → Prioritize → Decide → Prepare → Wait → Review → Repeat.
+
+**24. LEE knows how much to trust herself.** Operational Confidence is a composite, time-aware score.
+
+**25. Projects have direction, not just status.** Project Momentum: Explosive / Rising / Stable / Declining / Dormant / Stalled.
+
+**26. LEE looks for leverage.** The Opportunity Engine finds cross-project reuse, strategic alignment, and operational leverage.
+
+**27. Capacity shapes presentation, not content.** Operational Capacity Awareness infers operational load from observed signals — not emotion.
+
+**28. Some knowledge does not decay.** Strategic Anchors — founding rationales, rejected directions, architectural commitments — are intentionally durable.
+
+**29. Lamont Labs is a portfolio, not a list.** The Portfolio Intelligence Engine maintains a model of shared infrastructure, customers, technology, risks, and resource allocation.
+
+**30. Identity is the center.** The Identity Engine defines who LEE is, why she exists, what she is responsible for, and how she operates. Everything asks Identity before Constitution. Identity and Constitution are distinct responsibilities: Identity answers "what kind of operating partner am I?"; Constitution answers "what am I allowed to do?".
+
+**31. Objectives are operational, not project-bound.** Executive Objectives are ongoing operational goals that span projects, people, and time. Every recommendation, observation, and surfaced item is weighted against active objectives.
+
+**32. Organizations exist independently of their projects.** Organizational Memory models Lamont Labs as a first-class entity — infrastructure ownership, people categories, technology ownership, shared services. The organization is not a project.
+
+**33. Decision patterns are observable.** Decision Memory infers operational heuristics from observed behavior — not self-reported preferences. Every recommendation is evaluated against established patterns. LEE can say "I think you'll probably reject this" before you do.
+
+**34. The future can be simulated.** The Simulation Engine runs structured what-if scenarios against the full knowledge model. Simulations are stored, their assumptions are tracked, and when reality matches a stored scenario, LEE surfaces the prediction.
+
+**35. History can be reconstructed.** The Time Machine reconstructs the complete operational state at any past moment via event log re-projection. Every past state is navigable, comparable, and usable as a simulation starting point.
+
+**36. Confidence and uncertainty are distinct signals.** Confidence measures how well-grounded a belief is in available evidence. Uncertainty measures how unstable a situation is regardless of what we know. High confidence and high uncertainty can coexist.
+
+**37. Attention is a limited resource that must be allocated.** The Resource Allocation Engine continuously computes where time and attention should go across the portfolio — not declared, but calculated from objectives, momentum, readiness, and dependencies.
+
+**38. Projects have readiness, not just status.** Execution Readiness measures a project's readiness across named dimensions (architecture, documentation, security, demo, pilot, pitch) rather than a single status field.
+
+**39. Dependencies define blast radius.** The Portfolio Dependency Graph models directional dependencies across all projects and shared services. One change surfaces every downstream impact automatically.
+
+---
+
+## Capability Levels (v11.0)
 
 | Level | Capability | Unlocked By |
 |-------|-----------|-------------|
@@ -131,71 +114,88 @@ The three systems remain independent. LEE is the primary client that knows when 
 | 21 | Adapts to operational capacity | #53 |
 | 22 | Remembers what must not be forgotten | #54 |
 | 23 | Sees the portfolio, not just the projects | #55 |
+| 24 | Knows who she is | #56 |
+| 25 | Pursues objectives, not just projects | #57 |
+| 26 | Understands the organization | #58 |
+| 27 | Knows how you decide | #59 |
+| 28 | Simulates the future | #60 |
+| 29 | Reconstructs the past | #61 |
+| 30 | Distinguishes confidence from uncertainty | #62 |
+| 31 | Allocates attention across the portfolio | #63 |
+| 32 | Knows what each project is ready to do | #64 |
+| 33 | Sees ripple effects before they happen | #65 |
 
 ---
 
-## Layer Hierarchy (v10.0)
+## Layer Hierarchy (v11.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  1. FOUNDATIONS                                                 │
-│  Constitution Engine · Event Log · Domain Events               │
-│  Foundation DB · Memory Architecture · Brain Versioning        │
+│  LAYER 0 — IDENTITY [v11]                                       │
+│  Identity Engine — the center; asked before everything else     │
 ├─────────────────────────────────────────────────────────────────┤
-│  2. KNOWLEDGE                                                   │
-│  Fact Ledger · Interpretation Ledger · Data Ownership          │
-│  Intelligence Graph · Assumption Ledger · Knowledge Aging      │
-│  Why Chain & Provenance · Digital Twin Timeline                │
-│  Strategic Anchors — Anchor Ledger [v10]                       │
+│  LAYER 1 — FOUNDATIONS                                          │
+│  Constitution Engine · Event Log · Domain Events                │
+│  Foundation DB · Brain Versioning · Core Schema                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  3. RETRIEVAL                                                   │
-│  Query Engine · Semantic Index                                  │
+│  LAYER 2 — KNOWLEDGE                                            │
+│  Fact Ledger · Interpretation Ledger · Data Ownership           │
+│  Intelligence Graph · Assumption Ledger · Knowledge Aging       │
+│  Why Chain & Provenance · Digital Twin Timeline                 │
+│  Strategic Anchors — Anchor Ledger (never ages)                 │
+│  Decision Memory — Decision Heuristic Ledger [v11]              │
+│  Organizational Memory [v11]                                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  4. INTELLIGENCE                                                │
-│  Intent Engine · Understanding Pipeline                        │
-│  Curiosity Engine · Strategy Engine                            │
-│  Reflection Engine · Explanation Engine                        │
-│  Confidence Propagation                                        │
+│  LAYER 3 — RETRIEVAL                                            │
+│  Query Engine · Semantic Index (local embeddings)               │
 ├─────────────────────────────────────────────────────────────────┤
-│  5. COORDINATION                                                │
-│  Orchestration Engine & Scheduler Calendar                     │
-│  Policy Engine · Governance Engine                             │
-│  Resource Engine · State Engine · Recovery Modes               │
-│  Operating Modes · Engine Lifecycle & Recovery Policies        │
-│  Capability Registry                                           │
+│  LAYER 4 — INTELLIGENCE                                         │
+│  Intent Engine · Understanding Pipeline                         │
+│  Curiosity Engine · Strategy Engine                             │
+│  Reflection Engine · Explanation Engine                         │
+│  Confidence Propagation · Uncertainty Tracking [v11]            │
+│  Simulation Engine [v11]                                        │
 ├─────────────────────────────────────────────────────────────────┤
-│  6. OPERATIONAL CONTEXT                                         │
-│  World State Engine · Operational Memory                       │
-│  Operational Capacity Awareness [v10]                          │
-│  Initiative Engine · Operational Intelligence Engine           │
-│  Executive Loop [v10]                                          │
-│  Operational Confidence [v10]                                  │
+│  LAYER 5 — COORDINATION                                         │
+│  Orchestration Engine & Scheduler Calendar                      │
+│  Policy Engine · Governance Engine                              │
+│  Resource Engine · State Engine                                 │
+│  Operating Modes · Engine Lifecycle & Recovery Policies         │
+│  Recovery Modes · Capability Registry                           │
 ├─────────────────────────────────────────────────────────────────┤
-│  6b. PORTFOLIO INTELLIGENCE [v10]                               │
+│  LAYER 6 — OPERATIONAL CONTEXT                                  │
+│  World State Engine · Operational Memory                        │
+│  Operational Capacity Awareness                                 │
+│  Initiative Engine · Operational Intelligence Engine            │
+│  Executive Loop — the operational heartbeat                     │
+│  Operational Confidence                                         │
+│  Executive Objectives Engine [v11]                              │
+│  Resource Allocation Engine [v11]                               │
+├─────────────────────────────────────────────────────────────────┤
+│  LAYER 6b — PORTFOLIO INTELLIGENCE                              │
 │  Project Momentum Engine                                        │
-│  Opportunity Engine                                            │
-│  Portfolio Intelligence Engine                                 │
+│  Opportunity Engine                                             │
+│  Portfolio Intelligence Engine                                  │
+│  Portfolio Dependency Graph [v11]                               │
+│  Execution Readiness [v11]                                      │
 ├─────────────────────────────────────────────────────────────────┤
-│  7. INTERNAL CAPABILITY SERVICES                                │
-│  Reasoning Services (CIL) · Governance Services (CerbaSeal)   │
-│  Separate databases · Versioned APIs · Strict auth boundary    │
-│  CIL: graceful degradation · CerbaSeal: fail-closed           │
+│  LAYER 7 — INTERNAL CAPABILITY SERVICES                         │
+│  Reasoning Services (CIL) · Governance Services (CerbaSeal)    │
 ├─────────────────────────────────────────────────────────────────┤
-│  8. PROVIDER LAYER (External Services)                          │
-│  Provider Abstraction Layer · Project Bootstrap Engine         │
-│  Communication · Document · Development Intelligence           │
-│  Scheduling · Storage                                          │
+│  LAYER 8 — PROVIDER LAYER (External Services)                   │
+│  Provider Abstraction Layer · Project Bootstrap Engine          │
 ├─────────────────────────────────────────────────────────────────┤
-│  9. INTERFACES & OBSERVABILITY                                  │
-│  Console (+ Portfolio View [v10]) · Android App                │
-│  Cost Engine · Backup & Migration                              │
-│  Context Economy · Brief Engine · Self-Test · System Manifest  │
+│  LAYER 9 — INTERFACES & OBSERVABILITY                           │
+│  Console (+ Portfolio View + Objectives + Org + Simulate +      │
+│            Time Machine) · Android App                          │
+│  Cost Engine · Backup & Migration                               │
+│  Context Economy · Brief Engine · Self-Test · System Manifest   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Task Index (55 tasks)
+## Task Index (65 tasks)
 
 | # | Title | Depends On |
 |---|-------|------------|
@@ -254,400 +254,158 @@ The three systems remain independent. LEE is the primary client that knows when 
 | 53 | Operational Capacity Awareness | 43, 44, 45 |
 | 54 | Strategic Anchors & Long-Term Memory | 12, 16, 21, 22 |
 | 55 | Portfolio Intelligence Engine | 13, 16, 45, 51, 52, 54 |
+| 56 | Identity Engine | 1, 19, 29 |
+| 57 | Executive Objectives Engine | 16, 26, 44, 45 |
+| 58 | Organizational Memory | 1, 3, 13, 14 |
+| 59 | Decision Memory | 16, 22, 24 |
+| 60 | Simulation Engine | 16, 23, 26, 45 |
+| 61 | Time Machine | 25, 35 |
+| 62 | Uncertainty Tracking | 20, 23, 26, 50 |
+| 63 | Resource Allocation Engine | 45, 51, 55, 57, 64 |
+| 64 | Execution Readiness | 13, 26, 47 |
+| 65 | Portfolio Dependency Graph | 13, 47, 55 |
 
 ---
 
 ## Task Descriptions
 
-### Task 1 — Foundation & Core Schema
-**Depends on:** nothing
+### Tasks 1–55
+All v10.0 task descriptions remain authoritative. The following notes capture v11.0 cross-task effects:
 
-Base layer. Node.js + TypeScript + Express, PostgreSQL + Drizzle ORM, core schema, event sourcing infrastructure. Re-projection from the Event Log alone must produce a consistent database state.
-
----
-
-### Task 2 — Console (Web App)
-**Depends on:** 1
-
-Primary desktop interface. Dark-mode-first React. No business logic client-side. No emojis anywhere. After Task #55, Console gains a Portfolio View page.
-
----
-
-### Task 3 — Understanding Pipeline
-**Depends on:** 1
-
-Ingestion and comprehension layer. Accepts text, URLs, files, voice notes. Extraction → enrichment → entity detection → classification → importance scoring → storage. Entry point for all new knowledge.
+- **Task 1** — Core schema adds Identity Profile table, Executive Objective table, Decision Heuristic Ledger table, Organizational Profile table
+- **Task 2** — Console navigation adds: Objectives, Organization, Simulate, Time Machine pages
+- **Task 4** — Brief Engine: after #56, Brief opening checks Identity Profile behavioral dimensions; after #57, Brief includes active Executive Objectives summary; after #62, high-uncertainty items flagged distinctly
+- **Task 16** — Strategy Engine: after #56, strategy recommendations check Identity behavioral profile; after #59, recommendations include Pattern Alignment field; after #62, recommendations include Uncertainty levels for key assumptions
+- **Task 19** — Constitution Engine: after #56, a new ABSOLUTE provision added: "The Identity Engine is consulted before the Constitution on every request"; the Constitution does not override Identity — they are complementary
+- **Task 22** — Why Chain: after #59, heuristic conflict explanations included in Why Chain when a recommendation contradicts a Decision Memory heuristic
+- **Task 25** — Digital Twin Timeline: after #61, Time Machine snapshots can be launched from Timeline date markers
+- **Task 35** — Domain Events: v11.0 additions listed below
+- **Task 37** — Self-Test: v11.0 additions — Identity Suite, Executive Objectives Suite, Organizational Memory Suite, Decision Memory Suite, Simulation Suite, Time Machine Suite, Uncertainty Suite, Resource Allocation Suite, Execution Readiness Suite, Portfolio Dependency Graph Suite
+- **Task 41** — System Manifest: v11.0 additions — Identity Profile summary, active Executive Objectives, Organizational Profile summary, Resource Allocation current distribution, Execution Readiness portfolio summary, Portfolio Dependency Graph alert count
+- **Task 45** — OIE: after #57, OIE weights all surfaced items against active Executive Objectives; after #63, OIE consumes Resource Allocation as a signal
 
 ---
 
-### Task 4 — Brief Engine
-**Depends on:** 3, 5
+### Task 56 — Identity Engine
+**Depends on:** 1, 19, 29
 
-Daily briefing generator. After Task #45, opening derived from Operational Intelligence Engine's active priority. After Task #50, header includes Operational Confidence score. After Task #53, length and item count adapt to Operational Capacity state. After Task #55, includes a Portfolio section when portfolio-level items are active.
+The center. Everything asks Identity first. Request processing order: Identity → Constitution → Intent → Context → CIL → CerbaSeal.
 
----
+Identity and Constitution are distinct: Identity answers "what kind of operating partner am I?"; Constitution answers "what am I allowed to do?"
 
-### Task 5 — Model Router & Context Engine
-**Depends on:** 1
+Twelve behavioral dimensions in the Identity Profile: who am I, why do I exist, what am I responsible for, what will I never do, what must I protect, what are my priorities, what constitutes success, when to interrupt, when to remain silent, when to escalate, when to ask, when to observe.
 
-Tiered model selection, token budget enforcement, Context Packet Preview, CIL reuse. After Task #48, CIL is the first tier before frontier escalation.
-
----
-
-### Task 6 — Connector Engine
-**Depends on:** 1, 3
-
-First provider adapters: Gmail, Google Calendar, Google Drive, GitHub, Replit. All read-only. After Task #46, refactored to emit standardized typed Domain Events through provider interfaces.
+Profile is versioned — every change creates a new version with a Why Chain. Changes require owner confirmation. New installations begin with a structured identity-onboarding conversation.
 
 ---
 
-### Task 7 — Android App
-**Depends on:** 2, 4
+### Task 57 — Executive Objectives Engine
+**Depends on:** 16, 26, 44, 45
 
-Expo React Native. Presentation only. After Task #45, Today screen powered by Operational Intelligence Engine. After Task #50, Today screen shows Operational Confidence score.
+Ongoing operational goals that span projects, people, and time. Not projects (deliverables). Not OKRs (planning documents). Operational intelligence objects with purpose, priority, progress, evidence, blockers, success metrics, related projects, expected completion, confidence, and owner.
 
----
-
-### Task 8 — Cost Engine
-**Depends on:** 1, 5
-
-Tracks every token and model call. Hard limits trigger governance holds. After Task #48, CIL cost tracked separately from frontier cost; spend breakdown includes resolution tier distribution.
+Health states: On Track / At Risk / Stalled / Achieved / Abandoned. Progress computed automatically — not manually updated — from contributing project signals in the Event Log. Every recommendation and surfaced item weighted against active objectives.
 
 ---
 
-### Task 9 — Backup, Migration & Brain Versioning
-**Depends on:** 1
+### Task 58 — Organizational Memory
+**Depends on:** 1, 3, 13, 14
 
-Brain Version (YYYY.M.minor). Daily automated backup. Verify Archive and Test Restore functional. After Task #54, Anchor Ledger included in all Brain backups.
+Lamont Labs as a first-class entity. Structural dimensions: departments, current team, future roles. People categories: employees, partners, investors, advisors, clients, pilot partners, competitors. Infrastructure ownership map. Technology ownership. Revenue model. Legal footprint.
 
----
-
-### Task 10 — Orchestration Engine & Scheduler Calendar
-**Depends on:** 1
-
-Priority queue (CRITICAL/HIGH/NORMAL/LOW). Engine registration, concurrency, retry. After Task #48, routes informational requests through ReasoningService and consequential actions through GovernanceService. After Task #49, the Executive Loop registers as a permanent engine, not a scheduled job.
+Updated automatically from Relationship Engine changes, Bootstrap Engine discoveries, and connector events. The key capability: "how does this affect the organization?" not just "how does this affect this project?"
 
 ---
 
-### Task 11 — Governance Engine
-**Depends on:** 1, 10
+### Task 59 — Decision Memory
+**Depends on:** 16, 22, 24
 
-Internal governance: risk levels, approval flows, audit trail. After Task #48, coordinates with CerbaSeal for external execution authorization.
+Operational heuristics inferred from observed decision patterns — not self-reported. Sources: Decision Impact Graph entries, rejected Strategy recommendations, deferred governance actions, abandoned assumptions.
 
----
+Heuristics have confidence (rises with consistent evidence, decays with exceptions). Strategy Engine adds a Pattern Alignment field to every recommendation. When a recommendation contradicts a high-confidence heuristic, LEE surfaces it proactively: "I think you'll probably reject this — here is why."
 
-### Task 12 — Memory Architecture
-**Depends on:** 1, 3
-
-Six-tier hierarchy: Working → Short-term → Long-term → Reference → Archive → Semantic. Promotion, demotion, compression. After Task #54, Anchor Ledger added as a seventh non-aging ledger.
+Different from Strategic Anchors: Anchors are declared commitments; Decision Memory heuristics are inferred from behavior.
 
 ---
 
-### Task 13 — Intelligence Graph
-**Depends on:** 1, 3
+### Task 60 — Simulation Engine
+**Depends on:** 16, 23, 26, 45
 
-Typed nodes and edges. Automatic edge creation from Understanding Pipeline and Bootstrap Engine. After Task #52, Opportunity Engine adds cross-project reuse edges. After Task #55, Portfolio Intelligence Engine adds cross-project customer and infrastructure edges.
+Structured what-if scenarios evaluated against the full knowledge model. "What happens if CerbaSeal gets funded?" "What if Replit shuts down?" "What if Olivia replies tomorrow?"
 
----
-
-### Task 14 — Identity & Relationship Engine
-**Depends on:** 1, 6, 13
-
-People layer. Relationship strength, interaction history, follow-up states, waiting loops. Trust tiers. After Task #55, people appearing across multiple projects flagged as cross-project relationships.
+Simulations are stored. Their assumptions are linked to the Assumption Ledger. When real-world events match a stored simulation scenario, LEE surfaces the stored prediction. Simulations can be compared. Simulations are always read-only — they never trigger actions or CerbaSeal calls. Can be launched from a Time Machine past state.
 
 ---
 
-### Task 15 — Curiosity Engine
-**Depends on:** 3, 12, 13
+### Task 61 — Time Machine
+**Depends on:** 25, 35
 
-Proactive question-asking. Scans for staleness, gaps, conflicts. Does not ask questions Lee could answer herself.
+Reconstructs the complete operational state at any past moment via Event Log re-projection. "Show me Lamont Labs on March 3rd." "Show me CerbaSeal before Olivia." "Show me Project LEE at Version 6."
 
----
-
-### Task 16 — Strategy Engine
-**Depends on:** 13, 14, 15
-
-OKRs, option evaluation, recommendations with confidence and Why Chain, prioritization. After Task #54, checks recommendations against active Strategic Anchors; contradictions flagged inline.
+Snapshot covers: project states, relationship states, active decisions, active objectives, active anchors, active assumptions, portfolio state. Read-only — no actions from a past state. Named snapshots can be saved. A Time Machine snapshot can be used as the starting state for a Simulation Engine run.
 
 ---
 
-### Task 17 — Reflection Engine
-**Depends on:** 12, 13, 16
+### Task 62 — Uncertainty Tracking
+**Depends on:** 20, 23, 26, 50
 
-Period comparison, trend identification, lesson surfacing. After Task #53, uses Operational Capacity history to assess workload patterns in retrospectives.
+Uncertainty is distinct from confidence. Confidence measures evidence quality. Uncertainty measures situational instability — regardless of what is known.
 
----
+Example: CerbaSeal funding — Confidence 72 (evidence of interest), Uncertainty HIGH (outcome is unknown). These can coexist.
 
-### Task 18 — Operating Modes
-**Depends on:** 10, 11
-
-FOCUS, TRAVEL, DEEP_WORK, REVIEW, EMERGENCY. After Task #53, Operational Capacity state informs Operating Mode suggestion logic.
+Three dimensions: outcome uncertainty, timing uncertainty, scope uncertainty. Computed from: open waiting loops, externally-dependent assumptions, unresolved simulation scenarios. Uncertainty depresses Operational Confidence when elevated. Rendered distinctly from confidence in all views.
 
 ---
 
-### Task 19 — Constitution Engine
-**Depends on:** 1, 2, 3, 4, 5
+### Task 63 — Resource Allocation Engine
+**Depends on:** 45, 51, 55, 57, 64
 
-Immutable governance kernel. ABSOLUTE provisions block unconditionally. After Task #54, an ABSOLUTE provision added: "Strategic Anchors are never silently contradicted — contradictions must always be flagged."
+Continuous computation of where time and attention should go across the portfolio. Not declared — calculated from: Executive Objectives priority, Project Momentum, Execution Readiness, Portfolio Dependency Graph position, Operational Capacity state, World State time sensitivity.
 
----
-
-### Task 20 — Confidence Propagation
-**Depends on:** 1, 12, 13
-
-Confidence degrades per inference hop. CIL-resolved answers carry their returned confidence score directly.
+Displayed as percentages, implied hours, and opportunity cost narrative. Divergence detection: when observed attention (from Operational Memory) diverges from recommended allocation beyond a threshold, an Initiative item is surfaced. Manual overrides with expiry dates. Updated every Executive Loop cycle.
 
 ---
 
-### Task 21 — Fact/Interpretation Separation
-**Depends on:** 1, 3, 13
+### Task 64 — Execution Readiness
+**Depends on:** 13, 26, 47
 
-Two permanent, separate ledgers. Bootstrap Engine writes facts to Fact Ledger and summaries to Interpretation Ledger.
+Multi-dimensional readiness score replacing the single "project status" field. Standard dimensions (all projects): architecture, documentation, repository, security, testing. Product dimensions (when applicable): demo, website, pricing, legal. Commercial dimensions: pilot, client. Growth dimensions: pitch, investment.
 
----
-
-### Task 22 — Why Chain & Provenance
-**Depends on:** 1, 5, 20, 21
-
-Every recommendation has a navigable Why Chain. CIL-resolved answers include cognitive_asset_id and asset_version in the provenance chain.
+Technical dimensions populated automatically from Bootstrap Engine outputs. Non-technical dimensions populated from owner-created facts. The query "Is CerbaSeal pilot-ready?" evaluates only pilot-relevant dimensions and surfaces blocking gaps. Readiness feeds the Resource Allocation Engine as a bonus signal for nearly-ready projects.
 
 ---
 
-### Task 23 — Assumption Ledger
-**Depends on:** 12, 20, 21, 22
+### Task 65 — Portfolio Dependency Graph
+**Depends on:** 13, 47, 55
 
-Assumption lifecycle: active → under_review → invalidated. Invalidation propagates as a Domain Event.
+Directional dependency structure across the entire portfolio. Dependency types: service, data, infrastructure, commercial, knowledge, team.
 
----
-
-### Task 24 — Decision Impact Graph
-**Depends on:** 13, 16, 22
-
-Consequence tracking. Separate from Intelligence Graph.
+Populated automatically from Bootstrap Engine inventories. When any node changes (breaking change, shutdown risk, version deprecation), blast radius is computed and surfaced as a Portfolio alert. "What is affected if CIL changes its API?" returns an ordered impact list with dependency chain. Includes a visual diagram from Console → Portfolio → Dependency Graph.
 
 ---
 
-### Task 25 — Digital Twin Timeline
-**Depends on:** 1, 12, 13, 22, 24
+## v11.0 Domain Event Additions
 
-Operational history as scrollable, zoomable, filterable timeline. Bootstrap Engine creates the first Timeline entry per imported project.
-
----
-
-### Task 26 — Query Engine
-**Depends on:** 1, 12, 13, 21
-
-Universal data access layer. Single retrieval policy, ranking, cache, authorization. All engines — including Momentum, Opportunity, and Portfolio Intelligence — read through the Query Engine.
-
----
-
-### Task 27 — Explanation Engine
-**Depends on:** 5, 22, 26
-
-Audience-aware translation: Developer, Investor, Founder, Executive, Legal, Technical, General.
+- `IdentityProfileUpdated` — dimension, previous_value, new_value, confirmed_by
+- `ExecutiveObjectiveCreated` — objective_id, priority, related_projects
+- `ExecutiveObjectiveHealthChanged` — objective_id, previous_health, new_health, evidence_refs
+- `ExecutiveObjectiveAchieved` — objective_id, achieved_at, success_metric_refs
+- `OrganizationalProfileUpdated` — dimension, change_summary
+- `DecisionHeuristicEstablished` — heuristic_id, statement, confidence, evidence_refs
+- `DecisionHeuristicRevised` — heuristic_id, confidence_delta, exception_or_reinforcement
+- `SimulationCreated` — simulation_id, trigger_question, named_assumptions
+- `SimulationScenarioMatched` — simulation_id, matching_event_id, match_confidence
+- `TimeMachineSnapshotGenerated` — target_timestamp, snapshot_id, dimensions_included
+- `UncertaintyLevelChanged` — object_id, previous_level, new_level, driving_signals
+- `ResourceAllocationUpdated` — allocation_distribution, divergence_detected, cycle_number
+- `ExecutionReadinessUpdated` — project_id, dimension, previous_score, new_score
+- `PortfolioDependencyGraphUpdated` — change_type, affected_nodes, blast_radius_size
 
 ---
 
-### Task 28 — Semantic Index
-**Depends on:** 3, 12, 26
-
-Vector embedding store over all Lee's knowledge. Discovery-mode fuzzy search. Embeddings stored locally — ABSOLUTE.
-
----
-
-### Task 29 — Policy Engine
-**Depends on:** 1, 19
-
-Mutable operational policy layer. After Task #49, Executive Loop phase durations and re-entry thresholds configurable here. After Task #50, Operational Confidence degradation thresholds configurable here. After Task #51, Momentum signal weights and classification thresholds configurable here. After Task #53, Operational Capacity state thresholds configurable here.
-
----
-
-### Task 30 — Resource Engine
-**Depends on:** 1, 10
-
-Real-time system health: CPU, RAM, disk, token budgets, API rate limits. Orchestration Engine reads this before every dispatch.
-
----
-
-### Task 31 — Intent Engine
-**Depends on:** 1, 26
-
-Every request produces a typed Intent record first. Intent record drives all downstream decisions including CerbaSeal routing.
-
----
-
-### Task 32 — State Engine
-**Depends on:** 1, 10
-
-Operational state machine. After Task #49, Executive Loop's current phase surfaced alongside State Engine state — they are distinct (State: what is LEE doing; Executive Loop phase: where is LEE in her operational cycle).
-
----
-
-### Task 33 — Internal API Contracts & Capability Registry
-**Depends on:** 1, 10
-
-Versioned, typed REST API at /internal/[engine-name]/v[N]. After Tasks #49–#55, each new engine registered in the Capability Registry.
-
----
-
-### Task 34 — Context Economy
-**Depends on:** 5, 12, 20, 26
-
-Competitive scoring algorithm for context packet composition. After Task #54, active Strategic Anchors always included in context for Strategy and Recommendation intents — not subject to competitive scoring exclusion.
-
----
-
-### Task 35 — Domain Events
-**Depends on:** 1
-
-Typed event contract system. v10.0 additions: ExecutiveLoopPhaseChanged, OperationalConfidenceUpdated, ProjectMomentumChanged, OpportunityDetected, OpportunityResolved, OperationalCapacityChanged, AnchorCreated, AnchorRetired, AnchorContradictionDetected, PortfolioStateUpdated, PortfolioRiskDetected, PortfolioOpportunityDetected.
-
----
-
-### Task 36 — Engine Lifecycle, Dependency Validation & Recovery Policies
-**Depends on:** 10, 33
-
-Standard lifecycle for every engine. Layer-ordered startup. Dependency validation before boot.
-
----
-
-### Task 37 — Self-Test Framework
-**Depends on:** 33, 36
-
-v10.0 test suite additions: Executive Loop Suite, Operational Confidence Suite, Momentum Suite, Opportunity Suite, Capacity Suite, Anchor Suite, Portfolio Suite.
-
----
-
-### Task 38 — Recovery Modes
-**Depends on:** 10, 32
-
-Six boot modes. After Task #49, Executive Loop boot behavior defined per mode: Safe Mode = loop suspended; Recovery Mode = Observe-only phase until recovery completes.
-
----
-
-### Task 39 — Data Ownership
-**Depends on:** 1, 3
-
-Six ownership fields on every knowledge object. After Task #54, Anchor Ledger entries carry the same ownership fields; verified_by required for portfolio-wide anchors.
-
----
-
-### Task 40 — Knowledge Aging
-**Depends on:** 12, 26
-
-Freshness states: Fresh → Current → Old → Historical → Stale → Expired. After Task #54, Anchor Ledger entries explicitly excluded from Knowledge Aging — they do not age.
-
----
-
-### Task 41 — System Manifest
-**Depends on:** 9, 19, 29, 33
-
-Auto-generated living document. v10.0 additions: Executive Loop (phase, cycle count, average cycle duration), Operational Confidence (score, last computed, factors), Project Momentum (all projects with classification), Active Strategic Anchors (portfolio-wide and per active project), Portfolio State (health score, shared infrastructure summary).
-
----
-
-### Task 42 — World State Engine
-**Depends on:** 1, 6, 10
-
-Active model of external reality. After Task #52, Opportunity Engine subscribes to World State signals for cross-system insight detection. After Task #55, portfolio-wide world state risks surfaced in the Portfolio Intelligence Engine.
-
----
-
-### Task 43 — Operational Memory
-**Depends on:** 1, 3, 12, 25
-
-Behavioral pattern learning from observed signals. After Task #53, also provides signal inputs for the Operational Capacity Awareness inference engine.
-
----
-
-### Task 44 — Initiative Engine
-**Depends on:** 10, 15, 42, 43
-
-Proactive operational observations. After Task #49, Executive Loop triggers the Initiative Engine during the Observe phase rather than on a fixed schedule. After Task #53, in Low capacity state, non-CRITICAL observations are held.
-
----
-
-### Task 45 — Operational Intelligence Engine
-**Depends on:** 16, 26, 34, 42, 43, 44
-
-Always-on synthesizer. After Task #49, becomes the intelligence substrate of the Executive Loop — the loop drives it, it doesn't schedule itself. After Task #50, output includes current Operational Confidence. After Task #51, consumes Momentum as a signal. After Task #53, adapts item count and depth based on Operational Capacity state.
-
----
-
-### Task 46 — Provider Abstraction Layer
-**Depends on:** 1, 6, 35
-
-Five provider interfaces: CommunicationProvider, DocumentProvider, DevelopmentProvider (Intelligence), SchedulingProvider, StorageProvider. CIL and CerbaSeal are NOT in this layer. Enforced by Self-Test.
-
----
-
-### Task 47 — Project Bootstrap Engine
-**Depends on:** 3, 6, 13, 21, 46
-
-Nine parallel extractors. Confirmation conversation. Continuous monitoring. After Task #52, cross-project structural similarity output feeds the Opportunity Engine's code reuse detection.
-
----
-
-### Task 48 — Internal Capability Services Layer — CIL + CerbaSeal
-**Depends on:** 1, 5, 10, 11, 31, 33, 35, 46
-
-CIL endpoint: https://cognitive-infrastructure-layer.replit.app/api/query/lee
-CerbaSeal evaluate endpoint: https://cerbaseal.replit.app/govern/evaluate
-Bearer + HMAC-SHA256 auth on every request. CIL: graceful degradation. CerbaSeal: fail-closed.
-
----
-
-### Task 49 — Executive Loop
-**Depends on:** 10, 32, 44, 45
-
-The operational heartbeat. Seven phases: Observe → Understand → Prioritize → Decide → Prepare → Wait → Review → Repeat. Never stops. Phase transitions are typed Domain Events. Current phase visible in Console status bar. Survives system restarts. CRITICAL events interrupt mid-cycle. Registered with the Orchestration Engine as a permanent engine.
-
----
-
-### Task 50 — Operational Confidence
-**Depends on:** 20, 42, 43, 45
-
-Composite time-aware score reflecting the quality of the current operational picture. Headline number with plain-language explanation. Expandable Why breakdown. Contributing factors: connector sync freshness, stale knowledge ratio, assumption health, CIL health, CerbaSeal health, world state freshness. Recomputed every Executive Loop cycle. Displayed on Console Today, Android Today, and Morning Brief header.
-
----
-
-### Task 51 — Project Momentum Engine
-**Depends on:** 13, 25, 46, 47
-
-Per-project velocity: Explosive / Rising / Stable / Declining / Dormant / Stalled. Computed from: commits, documentation updates, captures, decisions, external responses, waiting loop resolution rate. Visible on Projects list and project detail pages with 30-day sparkline history.
-
----
-
-### Task 52 — Opportunity Engine
-**Depends on:** 13, 16, 43, 47, 51
-
-Cross-portfolio leverage identification. Opportunity types: code reuse, documentation reuse, governance reuse, pricing reuse, strategic alignment, cross-system insight, resource leverage. Evidence required for every item. Deduplication window: 14 days. Daily limit: 3. Surfaces in Console Today, Morning Brief, and Android push for HIGH-confidence items.
-
----
-
-### Task 53 — Operational Capacity Awareness
-**Depends on:** 43, 44, 45
-
-Operational load inference — not emotion detection. States: High / Nominal / Constrained / Low / Recovery. Inferred from: session duration, capture frequency, completion rate, waiting loop count, decision backlog, late-night patterns. Influences Brief Engine, OIE, and Initiative Engine surfacing. Owner can manually override.
-
----
-
-### Task 54 — Strategic Anchors & Long-Term Memory
-**Depends on:** 12, 16, 21, 22
-
-Anchor Ledger storing intentionally durable knowledge: founding rationale, rejected directions, architectural commitments. Anchors never enter the Knowledge Aging cycle. Contradiction detection in Strategy Engine and Opportunity Engine. Rejected direction memory surfaces prior reasoning when a similar direction is re-explored.
-
----
-
-### Task 55 — Portfolio Intelligence Engine
-**Depends on:** 13, 16, 45, 51, 52, 54
-
-Lamont Labs as a portfolio. Dimensions: shared infrastructure, shared customers, shared technology, shared risks, shared opportunities, resource attention distribution, strategic alignment, momentum distribution. Portfolio View page in the Console. Portfolio section in Morning Brief when active. Portfolio health score. Resource attention derived from Operational Memory patterns — not declared.
-
----
-
-*Version 10.0 · 55 Tasks · July 13, 2026*
-*v9.0 (48 tasks) → v10.0 (55 tasks): Tasks #49–#55 added based on architectural review*
-*New architecture principles: #23–#29*
-*New layer: 6b Portfolio Intelligence*
-*New capability levels: 17–23*
+*Version 11.0 · 65 Tasks · July 13, 2026*
+*v10.0 (55 tasks) → v11.0 (65 tasks): Tasks #56–#65 added*
+*New architecture principles: #30–#39*
+*New layer: Layer 0 (Identity)*
+*New capability levels: 24–33*
+*Request processing order established: Identity → Constitution → Intent → Context → CIL → CerbaSeal*

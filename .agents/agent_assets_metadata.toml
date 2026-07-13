@@ -5,7 +5,7 @@ generated = []
 id = "5IpGuPlJozleyLZJ1JrYu"
 uri = "file://project-lee-task-plan.md"
 type = "text"
-title = "Project LEE — Full Build Task Plan (v9.0 · 48 Tasks)"
+title = "Project LEE — Task Plan (v10.0 · 55 Tasks)"
 
 [[outputs]]
 id = "bBe6mH0oAzp6Bl5cQzU5l"
@@ -29,4 +29,4 @@ title = "CerbaSeal ↔ Project LEE Integration Specification"
 id = "3zV9XI1crDGGSDLU61DXl"
 uri = "file://project-lee-master-breakdown.md"
 type = "text"
-title = "Project LEE — Master Breakdown (v9.0 · 48 Tasks · Max Detail)"
+title = "Project LEE — Master Breakdown (v10.0 · 55 Tasks)"

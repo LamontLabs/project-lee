@@ -12,6 +12,7 @@ import { KnowledgePage } from "./pages/Knowledge";
 import { SystemsPage } from "./pages/Systems";
 import { GlossaryPage } from "./pages/Glossary";
 import { VersionHistoryPage } from "./pages/VersionHistory";
+import { IntegrationManualPage } from "./pages/IntegrationManual";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/systems" component={SystemsPage} />
       <Route path="/glossary" component={GlossaryPage} />
       <Route path="/version-history" component={VersionHistoryPage} />
+      <Route path="/integration-manual" component={IntegrationManualPage} />
       <Route component={NotFound} />
     </Switch>
   );

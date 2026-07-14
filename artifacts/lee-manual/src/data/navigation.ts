@@ -71,6 +71,13 @@ export const NAVIGATION: NavItem[] = [
     ],
   },
   {
+    id: "integration-manual",
+    label: "Integration Manual",
+    path: "/integration-manual",
+    status: "implementation",
+    badge: "Wiring Guide",
+  },
+  {
     id: "systems",
     label: "LEE, CIL, and CerbaSeal",
     path: "/systems",

@@ -15,3 +15,4 @@ export * from "./ai";
 export * from "./backups";
 export * from "./orchestration";
 export * from "./founder-profile";
+export * from "./curiosity";

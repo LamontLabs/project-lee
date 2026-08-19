@@ -7,6 +7,8 @@ const defaults = [
   ["Understanding Pipeline", ["extract", "classify"], "NORMAL", "on import"],
   ["Identity Engine", ["profile_update", "behavioral_scan"], "LOW", "daily"],
   ["Memory Architecture Engine", ["reclassify", "consolidate"], "LOW", "daily"],
+  ["Curiosity Engine", ["scan", "observe"], "NORMAL", "every 4 hours"],
+  ["Opportunity Engine", ["scan", "opportunity"], "LOW", "after curiosity"],
   ["Brief Engine", ["morning_brief", "reflection"], "HIGH", "daily"],
   ["Connector Engine", ["sync"], "HIGH", "staggered"],
   ["Freshness Engine", ["scan"], "NORMAL", "hourly"],

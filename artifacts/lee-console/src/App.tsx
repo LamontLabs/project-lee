@@ -6,6 +6,7 @@ import SchedulePage from './SchedulePage';
 import FounderProfilePanel from './FounderProfilePanel';
 import MemoryHealthPanel from './MemoryHealthPanel';
 import KnowledgeMapPage from './KnowledgeMapPage';
+import ObservationsPage from './ObservationsPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
@@ -52,6 +53,7 @@ import {
   WalletCards,
   ShieldAlert,
   Archive,
+  Eye,
   ListChecks,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
@@ -62,7 +64,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -155,6 +157,7 @@ const navItems = [
   { href: '/strategy/decision-patterns', label: 'Decision patterns', icon: GitBranch },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
+  { href: '/observations', label: 'Observations', icon: Eye },
   { href: '/institutional', label: 'Institutional', icon: Sparkles },
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },

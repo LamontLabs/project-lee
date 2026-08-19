@@ -28,6 +28,7 @@ import backupsRouter from "./backups";
 import orchestrationRouter from "./orchestration";
 import founderProfileRouter from "./founder-profile";
 import memoryArchitectureRouter from "./memory-architecture";
+import curiosityRouter from "./curiosity";
 
 const router: IRouter = Router();
 
@@ -59,6 +60,7 @@ router.use(backupsRouter);
 router.use(orchestrationRouter);
 router.use(founderProfileRouter);
 router.use(memoryArchitectureRouter);
+router.use(curiosityRouter);
 router.use(foundationRouter);
 
 export default router;

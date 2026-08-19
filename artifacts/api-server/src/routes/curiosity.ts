@@ -1,0 +1,13 @@
+import { Router, type IRouter } from "express";
+import { desc } from "drizzle-orm";
+import { db, observation, opportunity, curiositySetting } from "@workspace/db";
+import { getCuriositySettings, queueCuriosityScans, scanCuriosity, scanOpportunities, updateLifecycle } from "../lib/curiosity";
+const router: IRouter = Router();
+router.get("/curiosity/observations", async (_req, res) => res.json(await db.select().from(observation).orderBy(desc(observation.generatedAt)).limit(100)));
+router.get("/curiosity/opportunities", async (_req, res) => res.json(await db.select().from(opportunity).orderBy(desc(opportunity.generatedAt)).limit(100)));
+router.get("/curiosity/settings", async (_req, res) => res.json(await getCuriositySettings()));
+router.post("/curiosity/settings", async (req, res) => { const [updated] = await db.update(curiositySetting).set({ observationsPerDay: Number(req.body?.observationsPerDay ?? 8), minimumConfidence: String(req.body?.minimumConfidence ?? "medium"), enabledTypes: Array.isArray(req.body?.enabledTypes) ? req.body.enabledTypes : [], updatedAt: new Date() }).returning(); res.json(updated); });
+router.post("/curiosity/scan", async (_req, res) => res.status(201).json({ observations: await scanCuriosity(), opportunities: await scanOpportunities() }));
+router.post("/curiosity/queue", async (_req, res) => res.status(202).json(await queueCuriosityScans()));
+router.post("/curiosity/:kind/:id/:lifecycle", async (req, res) => { if (!["observation", "opportunity"].includes(req.params.kind) || !["acknowledged", "acted_on", "dismissed", "promoted"].includes(req.params.lifecycle)) { res.status(400).json({ error: "Invalid lifecycle transition." }); return; } const updated = await updateLifecycle(req.params.kind as "observation" | "opportunity", req.params.id, req.params.lifecycle); if (!updated) { res.status(404).json({ error: "Item not found." }); return; } res.json(updated); });
+export default router;

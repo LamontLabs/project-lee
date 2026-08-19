@@ -14,6 +14,7 @@ import LearningPage from './LearningPage';
 import RelationshipsPage from './RelationshipsPage';
 import WorkspacePage from './WorkspacePage';
 import ConstitutionPage from './ConstitutionPage';
+import ConfidencePage from './ConfidencePage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -74,7 +75,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -155,6 +156,7 @@ const navItems = [
   { href: '/people', label: 'People', icon: Users },
   { href: '/workspace', label: 'Workspace', icon: Settings2 },
   { href: '/constitution', label: 'Constitution', icon: ShieldCheck },
+  { href: '/confidence', label: 'Confidence', icon: Gauge },
   { href: '/decisions', label: 'Decisions', icon: Scale },
   { href: '/waiting', label: 'Waiting', icon: Clock3 },
   { href: '/evidence', label: 'Evidence', icon: FileText },

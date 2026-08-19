@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, eventLog, strategicObjective, strategyReview, simulation, reflectionReport, reflectionMetric, factLedger, costRecord, observation, opportunity, waitingLoop } from "@workspace/db";
 import { enqueueWork } from "./orchestration";
+import { computeConfidence } from "./confidence";
 
 export async function listStrategy() { return db.select().from(strategicObjective).orderBy(desc(strategicObjective.updatedAt)); }
 export async function createStrategy(input: { objective: string; horizon?: string; blockers?: string[]; nextAction?: string }) {
@@ -20,7 +21,8 @@ export async function runSimulation(question: string, simulationType = "general"
   const [objectives, facts, waiting] = await Promise.all([listStrategy(), db.select().from(factLedger).limit(12), db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).limit(12)]);
   const evidenceLinks = [...facts.map((item) => item.id), ...waiting.map((item) => item.id)].slice(0, 10);
   const assumptions = [{ statement: "Current ledger records are an adequate basis for this first-pass simulation.", confidence: evidenceLinks.length ? 0.65 : 0.35 }];
-  const [item] = await db.insert(simulation).values({ question, simulationType, assumptions, reasoningChain: [`Classify the question as ${simulationType}.`, `Compare it against ${objectives.length} active strategic objectives.`, `Check ${waiting.length} open waiting loops for timing risk.`, "Separate likely, possible, and unlikely outcomes before recommending a decision."], likelyOutcomes: objectives.length ? ["The decision changes sequencing against at least one active objective."] : ["The immediate effect is bounded to the requested area."], possibleOutcomes: ["A new blocker or opportunity appears after implementation details are clarified."], unlikelyOutcomes: ["All downstream effects are materialized immediately without new evidence."], risks: waiting.length ? ["Open waiting loops may age while the decision is executed."] : [], opportunities: objectives.length ? ["Align the next action to an existing strategic objective."] : [], recommendedDecision: "Use this as a structured pre-decision review and confirm assumptions before acting.", evidenceLinks }).returning();
+  const lineage = await computeConfidence(evidenceLinks.map((id) => ({ id, confidence: 0.65 })), "simulation");
+  const [item] = await db.insert(simulation).values({ question, simulationType, assumptions, ...lineage, reasoningChain: [`Classify the question as ${simulationType}.`, `Compare it against ${objectives.length} active strategic objectives.`, `Check ${waiting.length} open waiting loops for timing risk.`, "Separate likely, possible, and unlikely outcomes before recommending a decision."], likelyOutcomes: objectives.length ? ["The decision changes sequencing against at least one active objective."] : ["The immediate effect is bounded to the requested area."], possibleOutcomes: ["A new blocker or opportunity appears after implementation details are clarified."], unlikelyOutcomes: ["All downstream effects are materialized immediately without new evidence."], risks: waiting.length ? ["Open waiting loops may age while the decision is executed."] : [], opportunities: objectives.length ? ["Align the next action to an existing strategic objective."] : [], recommendedDecision: "Use this as a structured pre-decision review and confirm assumptions before acting.", evidenceLinks }).returning();
   return item;
 }
 export async function generateReflection(period = "current", reportType = "weekly") {

@@ -55,6 +55,8 @@ import {
   constitutionVersion,
   constitutionConsultation,
   constitutionViolation,
+  observation,
+  opportunity,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -106,6 +108,8 @@ const snapshotTables = {
   constitutionVersion,
   constitutionConsultation,
   constitutionViolation,
+  observation,
+  opportunity,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

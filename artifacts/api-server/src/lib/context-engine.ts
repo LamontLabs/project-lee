@@ -26,7 +26,7 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     ...memoryItems.map((item) => {
       const protectedTier = ["canonical", "evergreen", "foundational", "working"].includes(item.memoryTier);
       const text = item.compressionStage >= 2 && item.memorySummary ? `${item.name}: ${JSON.stringify(item.memorySummary)}` : `${item.name}: ${item.description ?? item.status}`;
-      return { id: item.id, text, kind: item.objectType, confidence: item.confidence, recencyDays: Math.max(0, (Date.now() - item.updatedAt.getTime()) / 86400000), strategicAnchor: protectedTier, memoryTier: item.memoryTier };
+      return { id: item.id, text, kind: item.objectType, confidence: item.propagatedConfidence ?? item.confidence, recencyDays: Math.max(0, (Date.now() - item.updatedAt.getTime()) / 86400000), strategicAnchor: protectedTier, memoryTier: item.memoryTier };
     }),
     ...facts.map((item) => ({ id: item.id, text: `${item.subject} ${item.predicate} ${item.object}`, kind: "fact", confidence: item.confidence, recencyDays: Math.max(0, item.updatedAt ? (Date.now() - item.updatedAt.getTime()) / 86400000 : 0), strategicAnchor: item.canonLevel === "canonical" })),
     ...interpretations.map((item) => ({ id: item.id, text: item.statement, kind: "interpretation", confidence: item.confidence, recencyDays: Math.max(0, item.updatedAt ? (Date.now() - item.updatedAt.getTime()) / 86400000 : 0), strategicAnchor: item.canonLevel === "canonical" })),

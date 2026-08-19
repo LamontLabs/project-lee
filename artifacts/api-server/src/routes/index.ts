@@ -35,6 +35,7 @@ import learningRouter from "./learning";
 import workspaceRouter from "./workspace";
 import constitutionRouter from "./constitution";
 import confidenceRouter from "./confidence";
+import ledgersRouter from "./ledgers";
 
 const router: IRouter = Router();
 
@@ -73,6 +74,7 @@ router.use(learningRouter);
 router.use(workspaceRouter);
 router.use(constitutionRouter);
 router.use(confidenceRouter);
+router.use(ledgersRouter);
 router.use(foundationRouter);
 
 export default router;

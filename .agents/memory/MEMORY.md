@@ -13,3 +13,4 @@
 - [Event sequence migration](event-sequence-migration.md) — legacy events may share default sequence values, so sequence uniqueness requires backfill before a database constraint.
 - [Understanding pipeline schema](understanding-pipeline-schema.md) — raw sources, chunks, runs, and uncertain extractions remain separately auditable.
 - [Managed provider URL roots](managed-provider-url-roots.md) — managed AI base URLs already include the provider root; don't append public API version prefixes blindly.
+- [Fact and interpretation separation](fact-interpretation-separation.md) — source-backed facts and Lee-generated reasoning require distinct ledgers, validation, labels, and promotion rules.

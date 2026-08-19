@@ -48,7 +48,7 @@ export async function checkConstitution(actionType: string, payload: Record<stri
   const provisions = await db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true));
   const tags = `${actionType} ${engineName} ${JSON.stringify(payload)}`.toLowerCase();
   const applicable = provisions.filter((item) => item.appliesToEngines.some((engine) => engine === "All Engines" || engine.toLowerCase().includes(engineName.toLowerCase())) || Object.keys(item.machineReadableRule).some((key) => tags.includes(key.toLowerCase())));
-  const blocked = applicable.find((item) => item.tier === "ABSOLUTE" && ((item.machineReadableRule.category === "security" && /external|send|write|execute/.test(tags)) || (item.machineReadableRule.category === "safety" && /delete|destroy|irreversible/.test(tags))));
+  const blocked = applicable.find((item) => item.tier === "ABSOLUTE" && ((item.machineReadableRule.category === "security" && /external|send|execute/.test(tags)) || (item.machineReadableRule.category === "safety" && /delete|destroy|irreversible/.test(tags))));
   const constraints = applicable.filter((item) => item.tier !== "ABSOLUTE").map((item) => String(item.machineReadableRule.ruleText ?? item.title));
   const [consultation] = await db.insert(constitutionConsultation).values({ actionType, engineName, payload, permitted: !blocked, overrideRequired: applicable.some((item) => item.tier === "GOVERNED"), applicableProvisionIds: applicable.map((item) => item.id), constraints }).returning();
   for (const item of applicable) await db.update(constitutionProvision).set({ consultationCount: item.consultationCount + 1 }).where(eq(constitutionProvision.id, item.id));

@@ -15,6 +15,7 @@ import RelationshipsPage from './RelationshipsPage';
 import WorkspacePage from './WorkspacePage';
 import ConstitutionPage from './ConstitutionPage';
 import ConfidencePage from './ConfidencePage';
+import EvidenceLedgerPage from './EvidenceLedgerPage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -75,7 +76,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -748,10 +749,12 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
 function LiveCollectionPage({ eyebrow, title, detail, endpoint, emptyTitle, emptyDetail, icon: Icon = ListChecks }: { eyebrow: string; title: string; detail: string; endpoint: string; emptyTitle: string; emptyDetail: string; icon?: typeof ListChecks }) {
   const [items, setItems] = useState<any[] | null>(null);
   const [error, setError] = useState('');
-  useEffect(() => { void fetch(endpoint).then(async (response) => { if (!response.ok) throw new Error('This live surface is not available yet.'); return response.json(); }).then((value) => setItems(Array.isArray(value) ? value : value?.items ?? [])).catch((cause) => { setItems([]); setError(cause instanceof Error ? cause.message : 'Unable to load this surface.'); }); }, [endpoint]);
+  const liveEndpoint = title === 'Evidence' ? '/api/facts' : endpoint;
+  useEffect(() => { void fetch(liveEndpoint).then(async (response) => { if (!response.ok) throw new Error('This live surface is not available yet.'); return response.json(); }).then((value) => setItems(Array.isArray(value) ? value : value?.items ?? [])).catch((cause) => { setItems([]); setError(cause instanceof Error ? cause.message : 'Unable to load this surface.'); }); }, [liveEndpoint]);
   if (endpoint === '/api/understanding/runs') return <ImportsPage />;
   if (endpoint === '/api/governance/requests') return <GovernancePage />;
   if (endpoint === '/api/brain-versions') return <BackupsPage />;
+  if (title === 'Evidence') return <EvidenceLedgerPage />;
   return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow={eyebrow} title={title} detail={detail} /><Panel>{error && <div className="mb-5 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-muted-foreground">{error}</div>}{items === null ? <SkeletonRows /> : items.length ? <div className="grid gap-3 md:grid-cols-2">{items.map((item, index) => <div key={item.id ?? index} className="rounded-xl border border-border bg-muted/40 p-4"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon size={16} /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.name ?? item.title ?? item.subject ?? item.originalFilename ?? item.eventType ?? `Record ${index + 1}`}</p><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description ?? item.body ?? item.status ?? item.sourceRef ?? 'Live record from the Lee API.'}</p></div><span className="lee-label text-muted-foreground">{item.status ?? 'live'}</span></div></div>)}</div> : <EmptyState title={emptyTitle} detail={emptyDetail} />}</Panel></div>;
 }
 

@@ -85,8 +85,8 @@ export async function importSource(input: ImportInput) {
   for (const chunk of chunkRows) {
     const entities = await detectEntities(chunk.content);
     const extraction = extractUnderstanding({ sourceType: input.mimeType, sourceRef: source.id, content: chunk.content, sourceReliability: "medium" });
-    const facts = await db.insert(factLedger).values(extraction.facts.map((fact) => ({ subject: fact.subject, predicate: fact.predicate, object: fact.object, sourceRef: source.id, confidence: fact.confidence, observedAt: now, status: "active", canonLevel: "candidate" }))).returning();
-    const interpretations = await db.insert(interpretationLedger).values(extraction.interpretations.map((item) => ({ statement: item.statement, basis: source.id, sourceRef: source.id, confidence: item.confidence, validFrom: now, status: "active", canonLevel: "candidate" }))).returning();
+    const facts = await db.insert(factLedger).values(extraction.facts.map((fact) => ({ subject: fact.subject, predicate: fact.predicate, object: fact.object, factType: "extracted", sourceEvidence: [source.id], sourceRef: source.id, confidence: fact.confidence, observedAt: now, firstSeen: now, status: "active", canonLevel: "candidate" }))).returning();
+    const interpretations = await db.insert(interpretationLedger).values(extraction.interpretations.map((item) => ({ statement: item.statement, interpretationType: "inference", inputFacts: facts.map((fact) => fact.id), basis: source.id, sourceRef: source.id, confidence: item.confidence, validFrom: now, status: "active", canonLevel: "working", generatedByEngine: "Understanding Pipeline" }))).returning();
     factCount += facts.length; interpretationCount += interpretations.length;
     await db.insert(provenanceRecord).values([...facts.map((fact) => ({ runId: run.id, recordType: "fact", recordId: fact.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: fact.confidence })), ...interpretations.map((item) => ({ runId: run.id, recordType: "interpretation", recordId: item.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: item.confidence }))]);
     const suggestions = [

@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: understanding
+    description: Source ingestion and knowledge extraction
 paths:
   /healthz:
     get:
@@ -24,6 +26,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /understanding/runs:
+    post:
+      operationId: createUnderstandingRun
+      tags: [understanding]
+      summary: Process a source through the understanding pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnderstandingRunInput"
+      responses:
+        "201":
+          description: Completed understanding run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnderstandingRunResult"
+        "400":
+          description: Invalid source input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listUnderstandingRuns
+      tags: [understanding]
+      summary: List recent understanding runs
+      responses:
+        "200":
+          description: Recent runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UnderstandingRunSummary"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +72,112 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    UnderstandingRunInput:
+      type: object
+      properties:
+        sourceType:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Type of source being ingested, such as note, email, document, or message.
+        sourceRef:
+          type: string
+          minLength: 1
+          description: Stable reference to the source. Required for every emitted record.
+        sourceReliability:
+          type: string
+          enum: [high, medium, low]
+          default: medium
+        content:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [sourceType, sourceRef, content]
+    ExtractedFact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        predicate:
+          type: string
+        object:
+          type: string
+        sourceRef:
+          type: string
+        confidence:
+          type: number
+        provenanceId:
+          type: string
+          format: uuid
+      required: [id, subject, predicate, object, sourceRef, confidence, provenanceId]
+    ExtractedInterpretation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        statement:
+          type: string
+        basis:
+          type: string
+        sourceRef:
+          type: string
+        confidence:
+          type: number
+        provenanceId:
+          type: string
+          format: uuid
+      required: [id, statement, basis, sourceRef, confidence, provenanceId]
+    UnderstandingRunSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceType:
+          type: string
+        sourceRef:
+          type: string
+        status:
+          type: string
+        factCount:
+          type: integer
+        interpretationCount:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required: [id, sourceType, sourceRef, status, factCount, interpretationCount, startedAt]
+    UnderstandingRunResult:
+      allOf:
+        - $ref: "#/components/schemas/UnderstandingRunSummary"
+        - type: object
+          properties:
+            facts:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExtractedFact"
+            interpretations:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExtractedInterpretation"
+            eventId:
+              type: string
+              format: uuid
+          required: [facts, interpretations, eventId]
 

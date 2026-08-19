@@ -45,7 +45,6 @@ import type {
   ScheduledJob,
   ScheduledJobRunResult,
   SearchMemoryParams,
-  TraverseGraphParams,
   UnderstandingRunInput,
   UnderstandingRunResult,
   UnderstandingRunSummary
@@ -1397,30 +1396,21 @@ export const useCreateGraphEdge = <TError = ErrorType<ErrorResponse>,
     }
 
 export const getTraverseGraphUrl = (objectType: string,
-    objectId: string,
-    params?: TraverseGraphParams,) => {
-  const normalizedParams = new URLSearchParams();
+    objectId: string,) => {
 
-  Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
 
-  const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/graph/traverse/${objectType}/${objectId}?${stringifiedParams}` : `/api/graph/traverse/${objectType}/${objectId}`
+  return `/api/graph/traverse/${objectType}/${objectId}`
 }
 
 /**
  * @summary Traverse outgoing graph edges
  */
 export const traverseGraph = async (objectType: string,
-    objectId: string,
-    params?: TraverseGraphParams, options?: RequestInit): Promise<GraphTraversalResult> => {
+    objectId: string, options?: RequestInit): Promise<GraphTraversalResult> => {
 
-  return customFetch<GraphTraversalResult>(getTraverseGraphUrl(objectType,objectId,params),
+  return customFetch<GraphTraversalResult>(getTraverseGraphUrl(objectType,objectId),
   {
     ...options,
     method: 'GET'
@@ -1434,26 +1424,24 @@ export const traverseGraph = async (objectType: string,
 
 
 export const getTraverseGraphQueryKey = (objectType: string,
-    objectId: string,
-    params?: TraverseGraphParams,) => {
+    objectId: string,) => {
     return [
-    `/api/graph/traverse/${objectType}/${objectId}`, ...(params ? [params] : [])
+    `/api/graph/traverse/${objectType}/${objectId}`
     ] as const;
     }
 
 
 export const getTraverseGraphQueryOptions = <TData = Awaited<ReturnType<typeof traverseGraph>>, TError = ErrorType<unknown>>(objectType: string,
-    objectId: string,
-    params?: TraverseGraphParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    objectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getTraverseGraphQueryKey(objectType,objectId,params);
+  const queryKey =  queryOptions?.queryKey ?? getTraverseGraphQueryKey(objectType,objectId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof traverseGraph>>> = ({ signal }) => traverseGraph(objectType,objectId,params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof traverseGraph>>> = ({ signal }) => traverseGraph(objectType,objectId, { signal, ...requestOptions });
 
 
 
@@ -1472,12 +1460,11 @@ export type TraverseGraphQueryError = ErrorType<unknown>
 
 export function useTraverseGraph<TData = Awaited<ReturnType<typeof traverseGraph>>, TError = ErrorType<unknown>>(
  objectType: string,
-    objectId: string,
-    params?: TraverseGraphParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+    objectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getTraverseGraphQueryOptions(objectType,objectId,params,options)
+  const queryOptions = getTraverseGraphQueryOptions(objectType,objectId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -501,11 +501,3 @@ from?: string;
 to?: string;
 };
 
-export type TraverseGraphParams = {
-/**
- * @minimum 1
- * @maximum 5
- */
-depth?: number;
-};
-

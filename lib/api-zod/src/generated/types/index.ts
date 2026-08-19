@@ -62,7 +62,6 @@ export * from './scheduleJobInput';
 export * from './scheduleJobInputPayload';
 export * from './searchMemoryParams';
 export * from './selectedContextItem';
-export * from './traverseGraphParams';
 export * from './understandingRunInput';
 export * from './understandingRunInputMetadata';
 export * from './understandingRunInputSourceReliability';

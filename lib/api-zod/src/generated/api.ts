@@ -527,15 +527,6 @@ export const TraverseGraphParams = zod.object({
   "objectId": zod.coerce.string().uuid()
 })
 
-export const traverseGraphQueryDepthDefault = 1;
-export const traverseGraphQueryDepthMax = 5;
-
-
-
-export const TraverseGraphQueryParams = zod.object({
-  "depth": zod.coerce.number().min(1).max(traverseGraphQueryDepthMax).default(traverseGraphQueryDepthDefault)
-})
-
 export const TraverseGraphResponse = zod.object({
   "root": zod.record(zod.string(), zod.unknown()),
   "nodes": zod.array(zod.record(zod.string(), zod.unknown())),

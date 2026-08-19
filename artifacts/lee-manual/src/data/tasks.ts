@@ -319,7 +319,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "2",
     dependsOn: [1, 3],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "The knowledge graph connecting all LEE knowledge objects with typed, directed edges. The central navigable structure for relational queries.",
     description: "Implements a property graph over the core knowledge objects. Edge types include: SUPPORTS, CONTRADICTS, DERIVED_FROM, RELATES_TO, OWNED_BY, PART_OF, DEPENDS_ON_PORTFOLIO (v11.0 addition). All edges have created_at, confidence, and source reference.",
     responsibilities: ["Graph storage and indexing", "Typed edge management", "Graph traversal queries", "Graph consistency maintenance"],

@@ -8,6 +8,7 @@ import brainVersionsRouter from "./brain-versions";
 import schedulerRouter from "./scheduler";
 import governanceRouter from "./governance";
 import memoryRouter from "./memory";
+import graphRouter from "./graph";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(brainVersionsRouter);
 router.use(schedulerRouter);
 router.use(governanceRouter);
 router.use(memoryRouter);
+router.use(graphRouter);
 
 export default router;

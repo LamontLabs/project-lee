@@ -34,11 +34,15 @@ import type {
   GraphEdgeInput,
   GraphTraversalResult,
   HealthStatus,
+  InteractionResult,
   MemoryConsolidationResult,
   MemoryIndex,
   MemoryIndexInput,
+  Person,
+  PersonInput,
   ReasoningRequestInput,
   ReasoningRouteResult,
+  RelationshipInteractionInput,
   RestoreBrainVersionInput,
   RestoreBrainVersionResult,
   ScheduleJobInput,
@@ -1476,4 +1480,222 @@ export function useTraverseGraph<TData = Awaited<ReturnType<typeof traverseGraph
 
 
 
+
+export const getCreatePersonUrl = () => {
+
+
+
+
+  return `/api/relationships/people`
+}
+
+/**
+ * @summary Create or update a person identity
+ */
+export const createPerson = async (personInput: PersonInput, options?: RequestInit): Promise<Person> => {
+
+  return customFetch<Person>(getCreatePersonUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(personInput)
+  }
+);}
+
+
+
+
+export const getCreatePersonMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPerson>>, TError,{data: BodyType<PersonInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPerson>>, TError,{data: BodyType<PersonInput>}, TContext> => {
+
+const mutationKey = ['createPerson'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPerson>>, {data: BodyType<PersonInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPerson(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePersonMutationResult = NonNullable<Awaited<ReturnType<typeof createPerson>>>
+    export type CreatePersonMutationBody = BodyType<PersonInput>
+    export type CreatePersonMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create or update a person identity
+ */
+export const useCreatePerson = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPerson>>, TError,{data: BodyType<PersonInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPerson>>,
+        TError,
+        {data: BodyType<PersonInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePersonMutationOptions(options));
+    }
+
+export const getListPeopleUrl = () => {
+
+
+
+
+  return `/api/relationships/people`
+}
+
+/**
+ * @summary List relationship records
+ */
+export const listPeople = async ( options?: RequestInit): Promise<Person[]> => {
+
+  return customFetch<Person[]>(getListPeopleUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPeopleQueryKey = () => {
+    return [
+    `/api/relationships/people`
+    ] as const;
+    }
+
+
+export const getListPeopleQueryOptions = <TData = Awaited<ReturnType<typeof listPeople>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPeople>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPeopleQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPeople>>> = ({ signal }) => listPeople({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPeople>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPeopleQueryResult = NonNullable<Awaited<ReturnType<typeof listPeople>>>
+export type ListPeopleQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List relationship records
+ */
+
+export function useListPeople<TData = Awaited<ReturnType<typeof listPeople>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPeople>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPeopleQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordRelationshipInteractionUrl = (id: string,) => {
+
+
+
+
+  return `/api/relationships/people/${id}/interactions`
+}
+
+/**
+ * @summary Record a person interaction and refresh relationship health
+ */
+export const recordRelationshipInteraction = async (id: string,
+    relationshipInteractionInput: RelationshipInteractionInput, options?: RequestInit): Promise<InteractionResult> => {
+
+  return customFetch<InteractionResult>(getRecordRelationshipInteractionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(relationshipInteractionInput)
+  }
+);}
+
+
+
+
+export const getRecordRelationshipInteractionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRelationshipInteraction>>, TError,{id: string;data: BodyType<RelationshipInteractionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordRelationshipInteraction>>, TError,{id: string;data: BodyType<RelationshipInteractionInput>}, TContext> => {
+
+const mutationKey = ['recordRelationshipInteraction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordRelationshipInteraction>>, {id: string;data: BodyType<RelationshipInteractionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordRelationshipInteraction(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordRelationshipInteractionMutationResult = NonNullable<Awaited<ReturnType<typeof recordRelationshipInteraction>>>
+    export type RecordRelationshipInteractionMutationBody = BodyType<RelationshipInteractionInput>
+    export type RecordRelationshipInteractionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a person interaction and refresh relationship health
+ */
+export const useRecordRelationshipInteraction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRelationshipInteraction>>, TError,{id: string;data: BodyType<RelationshipInteractionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordRelationshipInteraction>>,
+        TError,
+        {id: string;data: BodyType<RelationshipInteractionInput>},
+        TContext
+      > => {
+      return useMutation(getRecordRelationshipInteractionMutationOptions(options));
+    }
 

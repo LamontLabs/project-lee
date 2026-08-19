@@ -534,3 +534,127 @@ export const TraverseGraphResponse = zod.object({
 })
 
 
+/**
+ * @summary Create or update a person identity
+ */
+export const createPersonBodyTrustScoreMin = 0;
+export const createPersonBodyTrustScoreMax = 1;
+
+
+
+export const CreatePersonBody = zod.object({
+  "identityKey": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().optional(),
+  "roles": zod.array(zod.string()).optional(),
+  "expertise": zod.array(zod.string()).optional(),
+  "projects": zod.array(zod.string()).optional(),
+  "communicationRhythm": zod.string().optional(),
+  "trustScore": zod.number().min(createPersonBodyTrustScoreMin).max(createPersonBodyTrustScoreMax).optional(),
+  "currentState": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const createPersonResponseOneTrustScoreMin = 0;
+export const createPersonResponseOneTrustScoreMax = 1;
+
+
+
+export const CreatePersonResponse = zod.object({
+  "identityKey": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().optional(),
+  "roles": zod.array(zod.string()).optional(),
+  "expertise": zod.array(zod.string()).optional(),
+  "projects": zod.array(zod.string()).optional(),
+  "communicationRhythm": zod.string().optional(),
+  "trustScore": zod.number().min(createPersonResponseOneTrustScoreMin).max(createPersonResponseOneTrustScoreMax).optional(),
+  "currentState": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "relationshipHealth": zod.string(),
+  "recommendedCadenceDays": zod.number(),
+  "lastInteractionAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+
+
+/**
+ * @summary List relationship records
+ */
+export const listPeopleResponseOneTrustScoreMin = 0;
+export const listPeopleResponseOneTrustScoreMax = 1;
+
+
+
+export const ListPeopleResponseItem = zod.object({
+  "identityKey": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().optional(),
+  "roles": zod.array(zod.string()).optional(),
+  "expertise": zod.array(zod.string()).optional(),
+  "projects": zod.array(zod.string()).optional(),
+  "communicationRhythm": zod.string().optional(),
+  "trustScore": zod.number().min(listPeopleResponseOneTrustScoreMin).max(listPeopleResponseOneTrustScoreMax).optional(),
+  "currentState": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "relationshipHealth": zod.string(),
+  "recommendedCadenceDays": zod.number(),
+  "lastInteractionAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
+
+
+/**
+ * @summary Record a person interaction and refresh relationship health
+ */
+export const RecordRelationshipInteractionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RecordRelationshipInteractionBody = zod.object({
+  "normalizedEventId": zod.string().uuid().optional(),
+  "provider": zod.string().optional(),
+  "direction": zod.enum(['inbound', 'outbound', 'bidirectional', 'unknown']).optional(),
+  "summary": zod.string(),
+  "sourceRef": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const recordRelationshipInteractionResponsePersonOneTrustScoreMin = 0;
+export const recordRelationshipInteractionResponsePersonOneTrustScoreMax = 1;
+
+
+
+export const RecordRelationshipInteractionResponse = zod.object({
+  "person": zod.object({
+  "identityKey": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().optional(),
+  "roles": zod.array(zod.string()).optional(),
+  "expertise": zod.array(zod.string()).optional(),
+  "projects": zod.array(zod.string()).optional(),
+  "communicationRhythm": zod.string().optional(),
+  "trustScore": zod.number().min(recordRelationshipInteractionResponsePersonOneTrustScoreMin).max(recordRelationshipInteractionResponsePersonOneTrustScoreMax).optional(),
+  "currentState": zod.string().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "relationshipHealth": zod.string(),
+  "recommendedCadenceDays": zod.number(),
+  "lastInteractionAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "interaction": zod.record(zod.string(), zod.unknown()),
+  "eventId": zod.string().uuid()
+})
+
+

@@ -9,6 +9,7 @@ import schedulerRouter from "./scheduler";
 import governanceRouter from "./governance";
 import memoryRouter from "./memory";
 import graphRouter from "./graph";
+import relationshipsRouter from "./relationships";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(schedulerRouter);
 router.use(governanceRouter);
 router.use(memoryRouter);
 router.use(graphRouter);
+router.use(relationshipsRouter);
 
 export default router;

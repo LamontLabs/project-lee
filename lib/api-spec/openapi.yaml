@@ -28,6 +28,8 @@ tags:
     description: Epistemic memory retrieval and consolidation
   - name: graph
     description: Typed knowledge graph nodes, edges, and traversal
+  - name: relationships
+    description: People, interactions, relationship health, and cadence
 paths:
   /healthz:
     get:
@@ -416,6 +418,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GraphTraversalResult"
+  /relationships/people:
+    post:
+      operationId: createPerson
+      tags: [relationships]
+      summary: Create or update a person identity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonInput"
+      responses:
+        "201":
+          description: Person created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+    get:
+      operationId: listPeople
+      tags: [relationships]
+      summary: List relationship records
+      responses:
+        "200":
+          description: People
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Person"
+  /relationships/people/{id}/interactions:
+    post:
+      operationId: recordRelationshipInteraction
+      tags: [relationships]
+      summary: Record a person interaction and refresh relationship health
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipInteractionInput"
+      responses:
+        "201":
+          description: Interaction recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InteractionResult"
 components:
   schemas:
     HealthStatus:
@@ -1096,4 +1154,93 @@ components:
             type: object
             additionalProperties: true
       required: [root, nodes, edges]
+    PersonInput:
+      type: object
+      properties:
+        identityKey:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        expertise:
+          type: array
+          items:
+            type: string
+        projects:
+          type: array
+          items:
+            type: string
+        communicationRhythm:
+          type: string
+        trustScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        currentState:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [identityKey, displayName]
+    Person:
+      allOf:
+        - $ref: "#/components/schemas/PersonInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            relationshipHealth:
+              type: string
+            recommendedCadenceDays:
+              type: integer
+            lastInteractionAt:
+              type: string
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required: [id, relationshipHealth, recommendedCadenceDays, createdAt, updatedAt]
+    RelationshipInteractionInput:
+      type: object
+      properties:
+        normalizedEventId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound, bidirectional, unknown]
+        summary:
+          type: string
+        sourceRef:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [summary, sourceRef, occurredAt]
+    InteractionResult:
+      type: object
+      properties:
+        person:
+          $ref: "#/components/schemas/Person"
+        interaction:
+          type: object
+          additionalProperties: true
+        eventId:
+          type: string
+          format: uuid
+      required: [person, interaction, eventId]
 

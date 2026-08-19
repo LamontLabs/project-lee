@@ -339,7 +339,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "2",
     dependsOn: [1, 6, 13],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Models people in the owner's operational world — their relationship attributes, communication history, open commitments, trust evolution, and organizational roles.",
     description: "Each person record includes: communication rhythm, shared history, open commitments, trust evolution over time, decision influence, areas of expertise, projects together, interaction timeline, current relationship state, relationship health, and recommended cadence. Organizational roles (investor, advisor, pilot partner, client) are tagged and linked to Organizational Memory.",
     responsibilities: [

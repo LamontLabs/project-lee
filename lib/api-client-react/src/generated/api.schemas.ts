@@ -493,6 +493,64 @@ export interface GraphTraversalResult {
   edges: GraphTraversalResultEdgesItem[];
 }
 
+export type PersonInputMetadata = { [key: string]: unknown };
+
+export interface PersonInput {
+  identityKey: string;
+  displayName: string;
+  email?: string;
+  roles?: string[];
+  expertise?: string[];
+  projects?: string[];
+  communicationRhythm?: string;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  trustScore?: number;
+  currentState?: string;
+  metadata?: PersonInputMetadata;
+}
+
+export type Person = PersonInput & {
+  id: string;
+  relationshipHealth: string;
+  recommendedCadenceDays: number;
+  lastInteractionAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RelationshipInteractionInputDirection = typeof RelationshipInteractionInputDirection[keyof typeof RelationshipInteractionInputDirection];
+
+
+export const RelationshipInteractionInputDirection = {
+  inbound: 'inbound',
+  outbound: 'outbound',
+  bidirectional: 'bidirectional',
+  unknown: 'unknown',
+} as const;
+
+export type RelationshipInteractionInputMetadata = { [key: string]: unknown };
+
+export interface RelationshipInteractionInput {
+  normalizedEventId?: string;
+  provider?: string;
+  direction?: RelationshipInteractionInputDirection;
+  summary: string;
+  sourceRef: string;
+  occurredAt: string;
+  metadata?: RelationshipInteractionInputMetadata;
+}
+
+export type InteractionResultInteraction = { [key: string]: unknown };
+
+export interface InteractionResult {
+  person: Person;
+  interaction: InteractionResultInteraction;
+  eventId: string;
+}
+
 export type SearchMemoryParams = {
 tag?: string;
 projectId?: string;

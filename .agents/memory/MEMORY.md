@@ -9,3 +9,4 @@
 - [Governance fail-closed boundary](governance-fail-closed-boundary.md) — only CerbaSeal ALLOW can release action; unavailable, HOLD, REJECT, and replayed requests never execute.
 - [Epistemic memory separation](epistemic-memory-separation.md) — retrieval metadata and conflict records extend, but never collapse, separate fact and interpretation ledgers.
 - [Polymorphic graph boundary](polymorphic-graph-boundary.md) — graph nodes reference typed knowledge objects by type and UUID, allowing future ledgers to connect without foreign-key coupling.
+- [Relationship provider boundary](relationship-provider-boundary.md) — person health and cadence use normalized interactions, not provider-specific payloads.

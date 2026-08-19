@@ -1,0 +1,15 @@
+import React, { useState } from 'react';
+import { Feather } from '@expo/vector-icons';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Screen, Card, Eyebrow, Title } from '@/components/Screen';
+import { useColors } from '@/hooks/useColors';
+
+export default function AskTab() {
+  const colors = useColors();
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [loading, setLoading] = useState(false);
+  async function ask() { if (!question.trim()) return; setLoading(true); await new Promise((resolve) => setTimeout(resolve, 650)); setAnswer(`Lee’s first read: ${question.trim()} deserves a focused answer grounded in the current brief and source evidence. Capture any missing context before turning this into a decision.`); setLoading(false); }
+  return <Screen><Eyebrow>Low-cost mode</Eyebrow><Title subtitle="A fast question is often enough to unblock the next move.">Ask Lee.</Title><Card><TextInput testID="ask-input" value={question} onChangeText={setQuestion} multiline placeholder="What do you need to understand?" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground }]} /><View style={styles.bottom}><Text style={[styles.mode, { color: colors.mutedForeground }]}>T1 · evidence first</Text><Pressable testID="ask-button" onPress={ask} style={[styles.send, { backgroundColor: colors.primary }]}>{loading ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="arrow-up" size={18} color={colors.primaryForeground} />}</Pressable></View></Card>{answer ? <Card style={{ borderColor: colors.primary }}><View style={styles.answerHead}><Text style={[styles.answerLabel, { color: colors.primary }]}>LEE · T1</Text><Text style={[styles.confidence, { color: colors.mutedForeground }]}>Confidence 0.72</Text></View><Text style={[styles.answer, { color: colors.foreground }]}>{answer}</Text><Text style={[styles.evidence, { color: colors.mutedForeground }]}>Evidence links will appear here when the device is paired to a live reasoning session.</Text></Card> : null}</Screen>;
+}
+const styles = StyleSheet.create({ input: { minHeight: 110, fontSize: 16, lineHeight: 23, fontFamily: 'Inter_400Regular', textAlignVertical: 'top' }, bottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, mode: { fontSize: 11, fontFamily: 'Inter_600SemiBold' }, send: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' }, answerHead: { flexDirection: 'row', justifyContent: 'space-between' }, answerLabel: { fontSize: 11, letterSpacing: 1, fontFamily: 'Inter_700Bold' }, confidence: { fontSize: 11, fontFamily: 'Inter_500Medium' }, answer: { fontSize: 15, lineHeight: 23, fontFamily: 'Inter_500Medium' }, evidence: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_400Regular' } });

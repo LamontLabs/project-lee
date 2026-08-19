@@ -14,6 +14,7 @@ import reviewsRouter from "./reviews";
 import institutionalKnowledgeRouter from "./institutional-knowledge";
 import selfImprovementRouter from "./self-improvement";
 import systemEconomicsRouter from "./system-economics";
+import identityRouter from "./identity";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(reviewsRouter);
 router.use(institutionalKnowledgeRouter);
 router.use(selfImprovementRouter);
 router.use(systemEconomicsRouter);
+router.use(identityRouter);
 
 export default router;

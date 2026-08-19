@@ -276,6 +276,23 @@ export const identityProfile = pgTable("identity_profile", {
     .notNull(),
 });
 
+export const identityProfileVersion = pgTable(
+  "identity_profile_version",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id").notNull(),
+    version: integer("version").notNull(),
+    values: jsonb("values").$type<Record<string, unknown>>().notNull(),
+    changeReason: text("change_reason").notNull(),
+    confirmedByOwner: boolean("confirmed_by_owner").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("identity_profile_version_profile_idx").on(table.profileId, table.version),
+    index("identity_profile_version_created_idx").on(table.createdAt),
+  ],
+);
+
 export const executiveObjective = pgTable(
   "executive_objective",
   {
@@ -331,6 +348,9 @@ export const insertOperationalAdaptationSchema = createInsertSchema(operationalA
 });
 export const insertAssumptionSchema = createInsertSchema(assumptionLedger);
 export const insertIdentityProfileSchema = createInsertSchema(identityProfile, {
+  values: jsonRecord,
+});
+export const insertIdentityProfileVersionSchema = createInsertSchema(identityProfileVersion, {
   values: jsonRecord,
 });
 export const insertExecutiveObjectiveSchema = createInsertSchema(

@@ -1199,7 +1199,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "0",
     dependsOn: [1, 19, 29],
     versionIntroduced: "11.0",
-    status: "proposed",
+    status: "complete",
     purpose: "The center. Layer 0 — the first thing consulted on every request. Maintains the versioned Identity Profile with 12 behavioral dimensions. Everything asks Identity before Constitution.",
     description: "Identity and Constitution are distinct responsibilities. Identity answers 'what kind of operating partner am I?' Constitution answers 'what am I allowed to do?'. The 12 dimensions: who am I, why do I exist, responsibilities, what I'll never do, what I must protect, priorities order, success definition, interrupt_threshold, silence_threshold, escalate_threshold, ask_threshold, observe_threshold. Profile changes require owner confirmation and create new versions in the Why Chain.",
     responsibilities: ["Identity Profile management (versioned)", "Request pipeline Identity consultation", "Identity onboarding conversation (new installations)", "Profile version history", "Owner confirmation enforcement for profile changes"],

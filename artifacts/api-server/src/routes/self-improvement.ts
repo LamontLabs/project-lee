@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { listSelfImprovement, resetSelfImprovement, runSelfImprovementCycle } from "../lib/self-improvement";
+import { getCurrentIdentity } from "../lib/identity";
 
 const router: IRouter = Router();
 
@@ -13,7 +14,15 @@ router.get("/self-improvement", async (_req, res): Promise<void> => {
 
 router.get("/system-manifest", async (_req, res): Promise<void> => {
   const adaptations = await listSelfImprovement();
+  const identity = await getCurrentIdentity();
   res.json({
+    identity: {
+      profileId: identity.id,
+      displayName: identity.displayName,
+      role: identity.values.role,
+      versioned: true,
+      dimensions: Object.keys(identity.values).length,
+    },
     operationalSelfImprovement: {
       minimumEvidence: 5,
       adaptations: adaptations.map((item) => ({

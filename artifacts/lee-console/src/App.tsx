@@ -120,6 +120,7 @@ const navItems = [
   { href: '/institutional', label: 'Institutional', icon: Sparkles },
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },
+  { href: '/settings/identity', label: 'Identity', icon: BrainCircuit },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
   { href: '/health', label: 'System health', icon: Gauge },
@@ -193,7 +194,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
   const pageTitle = pageTitles[location] ?? 'Console';
   return (
     <div className="lee-noise min-h-[100dvh] bg-background text-foreground">
@@ -410,6 +411,33 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
   return <div className="rounded-xl border border-border bg-card p-4"><p className="lee-label text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>;
 }
 
+function IdentityPage() {
+  const [profile, setProfile] = useState<any>(null);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [reason, setReason] = useState('');
+  const [confirm, setConfirm] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const load = async () => {
+    const [profileResponse, versionsResponse] = await Promise.all([fetch('/api/identity'), fetch('/api/identity/versions')]);
+    if (!profileResponse.ok) throw new Error('Unable to load Identity Profile.');
+    const current = await profileResponse.json();
+    setProfile(current); setValues(current.values); setVersions(await versionsResponse.json());
+  };
+  useEffect(() => { void load().catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load Identity Profile.')); }, []);
+  const save = async () => {
+    setNotice(''); setError('');
+    const response = await fetch('/api/identity/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ values, changeReason: reason, confirm }) });
+    const result = await response.json();
+    if (!response.ok) { setError(result.error ?? 'Identity update failed.'); return; }
+    setNotice(`Identity Profile updated to version ${result.profileVersion.version}.`); setReason(''); setConfirm(false); await load();
+  };
+  const setValue = (key: string, value: string) => setValues((current) => ({ ...current, [key]: ['responsibilities', 'nonNegotiables', 'protects', 'priorities', 'successCriteria'].includes(key) ? value.split('\n').filter(Boolean) : value }));
+  if (!profile) return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Layer 0 · identity" title="Identity" detail="The operating partner LEE is." /><Panel><SkeletonRows /></Panel></div>;
+  return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Layer 0 · identity engine" title="Identity" detail="Who LEE is, what she protects, and when she speaks. Identity is distinct from Constitution and never sent to external reasoning services." />{notice && <div className="mb-4 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary">{notice}</div>}{error && <div className="mb-4 rounded-xl border border-destructive/25 bg-destructive/10 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}<div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Panel><div className="mb-5"><p className="lee-label text-primary">Current profile · {profile.values.role}</p><h3 className="mt-1 text-lg font-semibold">Twelve behavioral dimensions</h3></div><div className="space-y-4">{(profile.dimensions as string[]).map((key) => { const isArray = Array.isArray(values[key]); const enumValues = profile.enums?.[key] as string[] | undefined; return <label className="block" key={key}><span className="lee-label text-muted-foreground">{key}</span>{enumValues ? <select value={String(values[key] ?? '')} onChange={(event) => setValue(key, event.target.value)} className="mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary">{enumValues.map((option) => <option key={option}>{option}</option>)}</select> : <textarea value={isArray ? (values[key] as string[]).join('\n') : String(values[key] ?? '')} onChange={(event) => setValue(key, event.target.value)} className="mt-2 min-h-16 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary" />}</label>; })}</div><div className="mt-5 border-t border-border pt-5"><label className="lee-label text-muted-foreground">Why is this changing?</label><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Owner-confirmed reason" className="mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /><label className="mt-4 flex items-start gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={confirm} onChange={(event) => setConfirm(event.target.checked)} className="mt-0.5" />I confirm this Identity Profile change as the owner.</label><button onClick={() => void save()} disabled={!confirm || !reason.trim()} className="mt-4 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">Save confirmed profile</button></div></Panel><Panel><p className="lee-label text-primary">Why Chain · version history</p><h3 className="mt-1 text-lg font-semibold">Profile versions</h3><div className="mt-5 space-y-3">{versions.map((version) => <div className="rounded-xl border border-border bg-muted/35 p-3.5" key={version.id}><div className="flex items-center justify-between"><span className="text-sm font-semibold">Version {version.version}</span><span className="lee-label text-primary">{version.confirmedByOwner ? 'owner confirmed' : 'onboarding'}</span></div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{version.changeReason}</p><p className="mt-2 text-[11px] text-muted-foreground">{formatDate(version.createdAt)}</p></div>)}</div></Panel></div></div>;
+}
+
 function KnowledgePage() {
   const [items, setItems] = useState(KNOWLEDGE);
   const [query, setQuery] = useState('');
@@ -550,7 +578,7 @@ function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function Router({ onAsk, onLock }: { onAsk: () => void; onLock: () => void }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/institutional" component={() => <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Knowledge layer" title="Institutional Knowledge" detail="Operational patterns reality has reinforced across independent experiences." /><InstitutionalKnowledgePanel /></div>} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/settings/self-improvement" component={SelfImprovementPage} /><Route path="/settings/system-economics" component={SystemEconomicsPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
+  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/institutional" component={() => <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Knowledge layer" title="Institutional Knowledge" detail="Operational patterns reality has reinforced across independent experiences." /><InstitutionalKnowledgePanel /></div>} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/settings/self-improvement" component={SelfImprovementPage} /><Route path="/settings/system-economics" component={SystemEconomicsPage} /><Route path="/settings/identity" component={IdentityPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
 }
 
 function App() {

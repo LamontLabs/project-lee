@@ -4,6 +4,7 @@ import { RouteReasoningRequestBody, RouteReasoningRequestResponse } from "@works
 import { costRecord, db, eventLog } from "@workspace/db";
 import { constructContextPacket } from "../lib/context-economy";
 import { routeModelRequest } from "../lib/model-router";
+import { consultIdentity } from "../lib/identity";
 
 const router: IRouter = Router();
 
@@ -18,6 +19,15 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
   const input = parsed.data;
   const correlationId = randomUUID();
   const startedAt = Date.now();
+  const identity = await consultIdentity();
+  await db.insert(eventLog).values({
+    eventType: "IdentityConsulted",
+    aggregateType: "reasoning_request",
+    aggregateId: correlationId,
+    sourceRef: "identity-engine",
+    occurredAt: new Date(),
+    payload: { correlationId, identityProfileId: identity.profileId, pipelineStep: 1 },
+  });
   const packet = constructContextPacket(
     input.queryText,
     input.contextItems,
@@ -54,6 +64,7 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
           occurredAt: new Date(),
           payload: {
             correlationId,
+            identityProfileId: identity.profileId,
             contextTokens: packet.tokens,
             contextBudgetTokens: input.contextBudgetTokens,
             contextAssetRefs: packet.items.map((item) => item.id),
@@ -72,6 +83,7 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
             contextTokens: packet.tokens,
             estimatedCostUsd: routed.estimatedCostUsd,
             semanticDomain: input.semanticDomain,
+            identityConsulted: true,
           },
         },
       ])

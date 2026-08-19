@@ -27,7 +27,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "1",
     dependsOn: [],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "The non-negotiable base. Establishes the database schema, the connection infrastructure, and the data models that every engine depends on. Nothing can be built until this exists.",
     description: "Defines the core PostgreSQL schema including the Event Log table (append-only, enforced at DB level), the Fact Ledger, the Interpretation Ledger, the Anchor Ledger, the Decision Heuristic Ledger, the Institutional Knowledge Ledger, the Assumption Ledger, the Identity Profile table, and the Executive Objective table. Also provisions the database and establishes the core DB connection library.",
     responsibilities: [

@@ -81,3 +81,88 @@ export type UnderstandingRunResult = UnderstandingRunSummary & {
   eventId: string;
 };
 
+export interface ReasoningContextItem {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  text: string;
+  /** @minLength 1 */
+  kind: string;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  /** @minimum 0 */
+  recencyDays: number;
+  strategicAnchor: boolean;
+}
+
+export type ReasoningRequestInputRiskClassification = typeof ReasoningRequestInputRiskClassification[keyof typeof ReasoningRequestInputRiskClassification];
+
+
+export const ReasoningRequestInputRiskClassification = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  CRITICAL: 'CRITICAL',
+} as const;
+
+export type ReasoningRequestInputPreferredTier = typeof ReasoningRequestInputPreferredTier[keyof typeof ReasoningRequestInputPreferredTier];
+
+
+export const ReasoningRequestInputPreferredTier = {
+  auto: 'auto',
+  T1: 'T1',
+  T2: 'T2',
+  T3: 'T3',
+} as const;
+
+export interface ReasoningRequestInput {
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  queryText: string;
+  /** @minLength 1 */
+  semanticDomain: string;
+  /** @minLength 1 */
+  intentType: string;
+  riskClassification: ReasoningRequestInputRiskClassification;
+  contextItems: ReasoningContextItem[];
+  /**
+     * @minimum 128
+     * @maximum 32000
+     */
+  contextBudgetTokens?: number;
+  /** @minimum 0 */
+  costCeilingUsd?: number;
+  preferredTier?: ReasoningRequestInputPreferredTier;
+}
+
+export type SelectedContextItem = ReasoningContextItem & {
+  score: number;
+  estimatedTokens: number;
+};
+
+export type ReasoningRouteResultResolutionTier = typeof ReasoningRouteResultResolutionTier[keyof typeof ReasoningRouteResultResolutionTier];
+
+
+export const ReasoningRouteResultResolutionTier = {
+  T1: 'T1',
+  T2: 'T2',
+  T3: 'T3',
+} as const;
+
+export interface ReasoningRouteResult {
+  correlationId: string;
+  resolutionTier: ReasoningRouteResultResolutionTier;
+  model: string;
+  answer: string;
+  contextPacket: SelectedContextItem[];
+  contextTokens: number;
+  contextBudgetTokens: number;
+  estimatedCostUsd: number;
+  eventId: string;
+}
+

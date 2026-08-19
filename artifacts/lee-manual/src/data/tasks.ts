@@ -137,7 +137,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "7",
     dependsOn: [1],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "in-progress",
     purpose: "Routes reasoning requests to the appropriate model tier. Manages the Context Economy — scoring and selecting the most relevant context for each request given a fixed budget.",
     description: "The Model Router decides whether to use CIL (T1/T2/T3) or local reasoning for each request. The Context Economy scores knowledge objects by relevance, recency, and confidence, then fills the context window within the defined budget. Strategic Anchors are always included regardless of score.",
     responsibilities: [

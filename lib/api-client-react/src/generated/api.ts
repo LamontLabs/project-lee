@@ -22,6 +22,8 @@ import type {
 import type {
   ErrorResponse,
   HealthStatus,
+  ReasoningRequestInput,
+  ReasoningRouteResult,
   UnderstandingRunInput,
   UnderstandingRunResult,
   UnderstandingRunSummary
@@ -278,4 +280,74 @@ export function useListUnderstandingRuns<TData = Awaited<ReturnType<typeof listU
 
 
 
+
+export const getRouteReasoningRequestUrl = () => {
+
+
+
+
+  return `/api/reasoning/route`
+}
+
+/**
+ * @summary Route a reasoning request through the context economy
+ */
+export const routeReasoningRequest = async (reasoningRequestInput: ReasoningRequestInput, options?: RequestInit): Promise<ReasoningRouteResult> => {
+
+  return customFetch<ReasoningRouteResult>(getRouteReasoningRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reasoningRequestInput)
+  }
+);}
+
+
+
+
+export const getRouteReasoningRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof routeReasoningRequest>>, TError,{data: BodyType<ReasoningRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof routeReasoningRequest>>, TError,{data: BodyType<ReasoningRequestInput>}, TContext> => {
+
+const mutationKey = ['routeReasoningRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof routeReasoningRequest>>, {data: BodyType<ReasoningRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  routeReasoningRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RouteReasoningRequestMutationResult = NonNullable<Awaited<ReturnType<typeof routeReasoningRequest>>>
+    export type RouteReasoningRequestMutationBody = BodyType<ReasoningRequestInput>
+    export type RouteReasoningRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Route a reasoning request through the context economy
+ */
+export const useRouteReasoningRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof routeReasoningRequest>>, TError,{data: BodyType<ReasoningRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof routeReasoningRequest>>,
+        TError,
+        {data: BodyType<ReasoningRequestInput>},
+        TContext
+      > => {
+      return useMutation(getRouteReasoningRequestMutationOptions(options));
+    }
 

@@ -83,3 +83,77 @@ export const ListUnderstandingRunsResponseItem = zod.object({
 export const ListUnderstandingRunsResponse = zod.array(ListUnderstandingRunsResponseItem)
 
 
+/**
+ * @summary Route a reasoning request through the context economy
+ */
+export const routeReasoningRequestBodyQueryTextMax = 20000;
+
+
+
+
+
+
+export const routeReasoningRequestBodyContextItemsItemConfidenceMin = 0;
+export const routeReasoningRequestBodyContextItemsItemConfidenceMax = 1;
+
+export const routeReasoningRequestBodyContextItemsItemRecencyDaysMin = 0;
+
+export const routeReasoningRequestBodyContextBudgetTokensDefault = 2000;
+export const routeReasoningRequestBodyContextBudgetTokensMin = 128;
+export const routeReasoningRequestBodyContextBudgetTokensMax = 32000;
+
+export const routeReasoningRequestBodyCostCeilingUsdMin = 0;
+
+export const routeReasoningRequestBodyPreferredTierDefault = `auto`;
+
+export const RouteReasoningRequestBody = zod.object({
+  "queryText": zod.string().min(1).max(routeReasoningRequestBodyQueryTextMax),
+  "semanticDomain": zod.string().min(1),
+  "intentType": zod.string().min(1),
+  "riskClassification": zod.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  "contextItems": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "text": zod.string().min(1),
+  "kind": zod.string().min(1),
+  "confidence": zod.number().min(routeReasoningRequestBodyContextItemsItemConfidenceMin).max(routeReasoningRequestBodyContextItemsItemConfidenceMax),
+  "recencyDays": zod.number().min(routeReasoningRequestBodyContextItemsItemRecencyDaysMin),
+  "strategicAnchor": zod.boolean()
+})),
+  "contextBudgetTokens": zod.number().min(routeReasoningRequestBodyContextBudgetTokensMin).max(routeReasoningRequestBodyContextBudgetTokensMax).default(routeReasoningRequestBodyContextBudgetTokensDefault),
+  "costCeilingUsd": zod.number().min(routeReasoningRequestBodyCostCeilingUsdMin).optional(),
+  "preferredTier": zod.enum(['auto', 'T1', 'T2', 'T3']).default(routeReasoningRequestBodyPreferredTierDefault)
+})
+
+
+
+
+export const routeReasoningRequestResponseContextPacketItemOneConfidenceMin = 0;
+export const routeReasoningRequestResponseContextPacketItemOneConfidenceMax = 1;
+
+export const routeReasoningRequestResponseContextPacketItemOneRecencyDaysMin = 0;
+
+
+
+export const RouteReasoningRequestResponse = zod.object({
+  "correlationId": zod.string().uuid(),
+  "resolutionTier": zod.enum(['T1', 'T2', 'T3']),
+  "model": zod.string(),
+  "answer": zod.string(),
+  "contextPacket": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "text": zod.string().min(1),
+  "kind": zod.string().min(1),
+  "confidence": zod.number().min(routeReasoningRequestResponseContextPacketItemOneConfidenceMin).max(routeReasoningRequestResponseContextPacketItemOneConfidenceMax),
+  "recencyDays": zod.number().min(routeReasoningRequestResponseContextPacketItemOneRecencyDaysMin),
+  "strategicAnchor": zod.boolean()
+}).and(zod.object({
+  "score": zod.number(),
+  "estimatedTokens": zod.number()
+}))),
+  "contextTokens": zod.number(),
+  "contextBudgetTokens": zod.number(),
+  "estimatedCostUsd": zod.number(),
+  "eventId": zod.string().uuid()
+})
+
+

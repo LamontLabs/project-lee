@@ -1,6 +1,8 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import GovernancePage from './GovernancePage';
 import BackupsPage from './BackupsPage';
+import { OrchestrationPanel } from './OrchestrationPanel';
+import SchedulePage from './SchedulePage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
@@ -53,7 +55,12 @@ import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import NotFound from '@/pages/not-found';
+import NotFoundPage from '@/pages/not-found';
+
+function NotFound() {
+  const [path] = useLocation();
+  return path === '/schedule' ? <SchedulePage /> : <NotFoundPage />;
+}
 
 const queryClient = new QueryClient();
 
@@ -139,6 +146,7 @@ const navItems = [
   { href: '/costs', label: 'Costs', icon: WalletCards },
   { href: '/governance', label: 'Governance', icon: ShieldAlert },
   { href: '/backups', label: 'Backups', icon: Archive },
+  { href: '/schedule', label: 'Schedule', icon: CalendarClock },
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/organization', label: 'Organization', icon: Building2 },
   { href: '/strategy/decision-patterns', label: 'Decision patterns', icon: GitBranch },
@@ -561,13 +569,15 @@ function EventsPage() {
   return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Append-only record" title="Event history" detail="A chronological trail of meaningful changes across the operating layer." action={<button onClick={exportLog} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-export-events"><FileText size={14} /> Export log</button>} />{notice && <div className="mb-4 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary" data-testid="status-event-notice">{notice}</div>}<Panel><div className="mb-5 flex flex-col gap-3 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search event type, source, or aggregate" className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary" data-testid="input-search-events" /></label><select value={type} onChange={(event) => setType(event.target.value)} className="h-11 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" data-testid="select-filter-events"><option value="all">All aggregates</option><option value="objective">Objectives</option><option value="knowledge">Knowledge</option><option value="service">Services</option><option value="brief">Briefs</option><option value="access">Access</option></select></div>{filtered.length ? <div className="overflow-x-auto"><div className="min-w-[680px]"><div className="grid grid-cols-[1.3fr_.7fr_.8fr_1fr] gap-4 border-b border-border px-3 pb-3"><span className="lee-label text-muted-foreground">Event</span><span className="lee-label text-muted-foreground">Aggregate</span><span className="lee-label text-muted-foreground">Occurred</span><span className="lee-label text-muted-foreground">Source</span></div>{filtered.map((event) => <div className="group grid grid-cols-[1.3fr_.7fr_.8fr_1fr] items-center gap-4 border-b border-border/70 px-3 py-4 last:border-0 hover:bg-muted/50" key={event.id} data-testid={`row-event-${event.id}`}><div className="flex items-center gap-3"><span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary"><GitBranch size={14} /></span><div><p className="text-sm font-medium">{event.eventType}</p><p className="lee-label mt-1 text-muted-foreground">{event.id}</p></div></div><div><p className="text-xs font-medium capitalize">{event.aggregateType}</p><p className="lee-label mt-1 text-muted-foreground">{event.aggregateId}</p></div><p className="text-xs text-muted-foreground">{formatDate(event.occurredAt)} · {formatTime(event.occurredAt)}</p><p className="truncate text-xs text-muted-foreground">{event.sourceRef}</p></div>)}</div></div> : <EmptyState title="The log is quiet here" detail="No append-only events match this filter." />}</Panel></div>;
 }
 
-function HealthPage() {
+function HealthDetailPage() {
   const [items, setItems] = useState(HEALTH);
   const [checking, setChecking] = useState(false);
   const [notice, setNotice] = useState('');
   const runChecks = () => { setChecking(true); setNotice(''); window.setTimeout(() => { setItems((current) => current.map((item) => ({ ...item, lastChecked: 'just now' }))); setChecking(false); setNotice('Checks complete · one connector still needs attention.'); }, 900); };
   return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="System posture" title="Health & readiness" detail="A calm view of whether the foundation can be trusted right now." action={<button onClick={runChecks} disabled={checking} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60" data-testid="button-run-health-checks"><RefreshCw size={14} className={checking ? 'animate-spin' : ''} /> {checking ? 'Running checks' : 'Run checks'}</button>} />{notice && <div className="mb-4 rounded-xl border border-accent/35 bg-accent/15 px-4 py-3 text-sm" data-testid="status-health-notice">{notice}</div>}<div className="grid gap-5 md:grid-cols-3"><Panel className="md:col-span-2"><div className="flex items-start justify-between"><div><p className="lee-label text-primary">Readiness score</p><p className="mt-3 lee-display text-5xl font-bold">86<span className="text-2xl text-muted-foreground">/100</span></p><p className="mt-2 text-sm text-muted-foreground">Safe for daily operation with one degraded edge.</p></div><div className="relative grid h-20 w-20 place-items-center rounded-full border-[7px] border-primary/20"><div className="absolute inset-0 rounded-full border-[7px] border-transparent border-l-primary border-t-primary rotate-[35deg]" /><ShieldCheck className="text-primary" size={24} /></div></div><div className="mt-7 h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full w-[86%] rounded-full bg-primary" /></div><div className="mt-3 flex justify-between text-[11px] text-muted-foreground"><span>Foundation ready</span><span>1 attention item</span></div></Panel><Panel><p className="lee-label text-primary">Readiness gates</p><div className="mt-5 space-y-4"><div className="flex gap-3"><Database className="shrink-0 text-primary" size={17} /><div><p className="text-sm font-medium">Data integrity</p><p className="mt-1 text-xs text-muted-foreground">Passed · 100%</p></div></div><div className="flex gap-3"><KeyRound className="shrink-0 text-primary" size={17} /><div><p className="text-sm font-medium">Private access</p><p className="mt-1 text-xs text-muted-foreground">Founder session verified</p></div></div><div className="flex gap-3"><Zap className="shrink-0 text-accent" size={17} /><div><p className="text-sm font-medium">Connectors</p><p className="mt-1 text-xs text-muted-foreground">1 degraded edge</p></div></div></div></Panel></div><div className="mt-5"><Panel><div className="mb-4 flex items-center justify-between"><div><p className="lee-label text-primary">Service detail</p><h3 className="mt-1 text-lg font-semibold">Foundation components</h3></div><span className="lee-label text-muted-foreground">{items.length} checks</span></div><div className="divide-y divide-border">{items.map((item) => <div className="flex flex-col gap-3 py-4 first:pt-1 sm:flex-row sm:items-center" key={item.name} data-testid={`row-health-${item.name.toLowerCase().replace(/\s/g, '-')}`}><span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', item.status === 'operational' ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-foreground')}>{item.name === 'Local session' ? <LockKeyhole size={16} /> : item.name === 'Knowledge index' ? <Network size={16} /> : item.name === 'GitHub connector' ? <GitBranch size={16} /> : <Server size={16} />}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold">{item.name}</p><StatusPill status={item.status} /></div><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.detail}</p></div><p className="lee-label shrink-0 text-muted-foreground">Checked {item.lastChecked}</p></div>)}</div></Panel></div></div>;
 }
+
+function HealthPage() { return <><HealthDetailPage /><OrchestrationPanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

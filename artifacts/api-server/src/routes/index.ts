@@ -25,6 +25,7 @@ import timeRouter from "./time";
 import aiRouter from "./ai";
 import androidRouter from "./android";
 import backupsRouter from "./backups";
+import orchestrationRouter from "./orchestration";
 
 const router: IRouter = Router();
 
@@ -53,6 +54,7 @@ router.use(timeRouter);
 router.use(aiRouter);
 router.use(androidRouter);
 router.use(backupsRouter);
+router.use(orchestrationRouter);
 router.use(foundationRouter);
 
 export default router;

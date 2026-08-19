@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runDueJobs } from "./lib/scheduler";
+import { orchestrationTick } from "./lib/orchestration";
 
 const rawPort = process.env["PORT"];
 
@@ -24,6 +25,7 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   const scheduler = setInterval(() => {
+    orchestrationTick().catch((err) => logger.error({ err }, "Orchestration tick failed"));
     runDueJobs().catch((err) => logger.error({ err }, "Scheduler tick failed"));
   }, 30_000);
   scheduler.unref();

@@ -208,7 +208,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "9",
     dependsOn: [1, 5],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Tracks language model API costs per request and per engine. Superseded by System Economics (Task #69) — all Task #8 capabilities are preserved and extended.",
     description: "Establishes the cost data model used by System Economics. Tracks CIL tier usage (T1/T2/T3), token consumption per request, and cost per engine call. System Economics (Task #69) extends this into a full unified economic accounting layer.",
     responsibilities: ["Cost data model", "CIL tier usage tracking", "Per-request cost recording"],

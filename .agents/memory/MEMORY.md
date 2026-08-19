@@ -3,3 +3,4 @@
 - [Model routing boundary](model-routing-boundary.md) — context is budgeted before routing, with optional HMAC-signed CIL and managed-model fallback.
 - [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.
 - [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.
+- [Cost ledger boundary](cost-ledger-boundary.md) — every reasoning resolution records tier, model, token counts, provider, and estimated cost in an additive ledger.

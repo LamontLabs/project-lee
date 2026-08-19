@@ -24,6 +24,7 @@ import importsRouter from "./imports";
 import timeRouter from "./time";
 import aiRouter from "./ai";
 import androidRouter from "./android";
+import backupsRouter from "./backups";
 
 const router: IRouter = Router();
 
@@ -51,6 +52,7 @@ router.use(importsRouter);
 router.use(timeRouter);
 router.use(aiRouter);
 router.use(androidRouter);
+router.use(backupsRouter);
 router.use(foundationRouter);
 
 export default router;

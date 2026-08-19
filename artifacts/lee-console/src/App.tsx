@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
@@ -118,6 +118,7 @@ const navItems = [
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { href: '/events', label: 'Events', icon: Radio },
+  { href: '/reviews', label: 'Reviews', icon: FileText },
   { href: '/health', label: 'System health', icon: Gauge },
 ];
 
@@ -189,7 +190,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/events': 'Event history', '/health': 'System health', '/settings': 'Settings' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings' };
   const pageTitle = pageTitles[location] ?? 'Console';
   return (
     <div className="lee-noise min-h-[100dvh] bg-background text-foreground">
@@ -343,6 +344,90 @@ function SettingsPage({ onLock }: { onLock: () => void }) {
   return <div className="mx-auto max-w-[960px]"><SectionHeading eyebrow="Boundaries & preferences" title="Settings" detail="The quiet controls behind a private operating console." /><div className="space-y-5"><Panel><div className="flex flex-col gap-5 sm:flex-row sm:items-center"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck size={23} /></div><div className="flex-1"><p className="lee-label text-primary">Private access</p><h3 className="mt-1 text-lg font-semibold">Founder session is active</h3><p className="mt-1 text-sm text-muted-foreground">This console has no invited members and no public share surface.</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> Verified</span></div></Panel><Panel><div className="flex items-center gap-3"><Settings2 className="text-primary" size={18} /><div><p className="lee-label text-primary">Session preferences</p><h3 className="mt-1 text-lg font-semibold">How Lee should meet you</h3></div></div><div className="mt-5 divide-y divide-border"><SettingToggle title="Opening brief" detail="Prepare the daily signal when the console opens." value={briefs} onChange={() => setBriefs(!briefs)} testId="toggle-opening-brief" /><SettingToggle title="Quiet system notices" detail="Show meaningful state changes without interrupting the work surface." value={notifications} onChange={() => setNotifications(!notifications)} testId="toggle-system-notices" /></div></Panel><Panel><div className="flex items-center gap-3"><Clock3 className="text-primary" size={18} /><div><p className="lee-label text-primary">Current session</p><h3 className="mt-1 text-lg font-semibold">Local session-22</h3></div></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Started</p><p className="mt-2 text-sm font-semibold">Today, 07:28</p></div><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Location</p><p className="mt-2 text-sm font-semibold">Founder device</p></div><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Access</p><p className="mt-2 text-sm font-semibold">Full console</p></div></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setNotice('Other sessions revoked. This device remains active.')} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-revoke-sessions">Revoke other sessions</button><button onClick={onLock} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10" data-testid="button-lock-console-settings">Lock console</button></div>{notice && <p className="mt-4 text-xs text-primary" data-testid="status-settings-notice">{notice}</p>}</Panel></div></div>;
 }
 
+type OperationalReview = {
+  id: string;
+  cadence: string;
+  periodStart: string;
+  periodEnd: string;
+  title: string;
+  summaryNarrative: string;
+  sections: Record<string, { narrative?: string; sourceRefs?: string[]; [key: string]: unknown }>;
+  sourceRefs: string[];
+  keyThemes: string[];
+  generatedAt: string;
+};
+
+function ReviewsPage() {
+  const [reviews, setReviews] = useState<OperationalReview[]>([]);
+  const [selected, setSelected] = useState<OperationalReview | null>(null);
+  const [cadence, setCadence] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const loadReviews = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/reviews${cadence === 'all' ? '' : `?cadence=${cadence}`}`);
+      if (!response.ok) throw new Error(`Reviews request failed (${response.status}).`);
+      const data = await response.json() as OperationalReview[];
+      setReviews(data);
+      if (selected) {
+        const refreshed = data.find((review) => review.id === selected.id);
+        if (refreshed) setSelected(refreshed);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load operational reviews.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadReviews(); }, [cadence]);
+
+  const generate = async () => {
+    setGenerating(true);
+    setError('');
+    setNotice('');
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (cadence === 'annual' ? 365 : cadence === 'quarterly' ? 90 : cadence === 'monthly' ? 30 : 7));
+    try {
+      const response = await fetch('/api/reviews/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ cadence: cadence === 'all' ? 'weekly' : cadence, periodStart: start.toISOString(), periodEnd: end.toISOString() }),
+      });
+      if (!response.ok) throw new Error(`Review generation failed (${response.status}).`);
+      const review = await response.json() as OperationalReview;
+      setSelected(review);
+      setNotice('Review generated and stored permanently.');
+      await loadReviews();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to generate an operational review.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return <div className="mx-auto max-w-[1280px]">
+    <SectionHeading eyebrow="Institutional history" title="Operational reviews" detail="Permanent retrospectives grounded in events, objectives, and assumptions." action={<div className="flex gap-2"><select value={cadence} onChange={(event) => setCadence(event.target.value)} className="rounded-xl border border-input bg-card px-3 py-2.5 text-xs font-semibold outline-none focus:border-primary" aria-label="Filter reviews by cadence"><option value="all">All cadences</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select><button onClick={() => void generate()} disabled={generating} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50" data-testid="button-generate-review"><Sparkles size={14} /> {generating ? 'Generating…' : 'Generate review'}</button></div>} />
+    {notice && <div className="mb-4 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary" role="status">{notice}</div>}
+    {error && <div className="mb-4 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}<button onClick={() => void loadReviews()} className="ml-3 font-semibold underline">Retry</button></div>}
+    <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+      <Panel>
+        <div className="mb-4 flex items-center justify-between"><div><p className="lee-label text-primary">Archive</p><h3 className="mt-1 text-lg font-semibold">Review history</h3></div><span className="lee-label text-muted-foreground">{reviews.length} stored</span></div>
+        {loading ? <SkeletonRows /> : reviews.length === 0 ? <EmptyState title="No reviews yet" detail="Generate the first retrospective to begin LEE's institutional history." /> : <div className="space-y-2">{reviews.map((review) => <button key={review.id} onClick={() => setSelected(review)} className={cn('w-full rounded-xl border px-4 py-3 text-left transition-colors', selected?.id === review.id ? 'border-primary/35 bg-primary/10' : 'border-transparent bg-muted/55 hover:border-primary/20')}><div className="flex items-center justify-between gap-3"><span className="lee-label text-primary">{review.cadence}</span><span className="text-[11px] text-muted-foreground">{formatDate(review.generatedAt)}</span></div><p className="mt-2 text-sm font-semibold">{review.title}</p><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{review.summaryNarrative}</p></button>)}</div>}
+      </Panel>
+      <Panel>
+        {!selected ? <EmptyState title="Select a review" detail="Choose a retrospective from the archive to inspect its narrative and evidence sections." /> : <div><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="lee-label text-primary">{selected.cadence} · {formatDate(selected.periodStart)} — {formatDate(selected.periodEnd)}</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{selected.title}</h3></div><span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><CircleCheck size={13} /> Stored</span></div><div className="mt-6 rounded-xl border border-primary/20 bg-primary/[0.06] p-4"><p className="lee-label text-primary">Summary narrative</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground/85">{selected.summaryNarrative}</p></div><div className="mt-5 grid gap-3 sm:grid-cols-2">{Object.entries(selected.sections).map(([key, section]) => <div key={key} className="rounded-xl bg-muted/55 p-4"><p className="lee-label text-muted-foreground">{key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase())}</p>{section.narrative && <p className="mt-2 text-sm leading-relaxed">{section.narrative}</p>}<p className="mt-2 text-xs text-muted-foreground">{section.sourceRefs?.length ?? 0} source references</p></div>)}</div><div className="mt-5 border-t border-border pt-4"><p className="lee-label text-muted-foreground">Key themes</p><div className="mt-2 flex flex-wrap gap-2">{selected.keyThemes.map((theme) => <span key={theme} className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{theme}</span>)}</div><p className="mt-4 text-xs text-muted-foreground">{selected.sourceRefs.length} event/objective references indexed in the Intelligence Graph.</p></div></div>}
+      </Panel>
+    </div>
+  </div>;
+}
+
 function SettingToggle({ title, detail, value, onChange, testId }: { title: string; detail: string; value: boolean; onChange: () => void; testId: string }) {
   return <div className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"><div><p className="text-sm font-medium">{title}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div><button onClick={onChange} role="switch" aria-checked={value} className={cn('relative h-6 w-11 shrink-0 rounded-full', value ? 'bg-primary' : 'bg-secondary')} data-testid={testId}><span className={cn('absolute top-1 h-4 w-4 rounded-full bg-card shadow-sm', value ? 'left-6' : 'left-1')} /></button></div>;
 }
@@ -360,7 +445,7 @@ function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function Router({ onAsk, onLock }: { onAsk: () => void; onLock: () => void }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/events" component={EventsPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
+  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
 }
 
 function App() {

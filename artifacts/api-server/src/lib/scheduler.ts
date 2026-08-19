@@ -1,5 +1,6 @@
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { db, eventLog, scheduledJob } from "@workspace/db";
+import { generateOperationalReview } from "./operational-review";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -39,14 +40,43 @@ export async function executeScheduledJob(id: string) {
     .set({ status: "running", attempts: job.attempts + 1, updatedAt: new Date() })
     .where(eq(scheduledJob.id, id))
     .returning();
-  const supported = job.jobType === "maintenance" || job.jobType === "health_check";
+  let handlerError: string | null = null;
+  if (job.jobType === "operational_review") {
+    try {
+      const cadence = job.payload.cadence;
+      const periodStart = job.payload.periodStart;
+      const periodEnd = job.payload.periodEnd;
+      if (
+        cadence !== "weekly" &&
+        cadence !== "monthly" &&
+        cadence !== "quarterly" &&
+        cadence !== "annual"
+      ) {
+        throw new Error("Operational review job requires a valid cadence.");
+      }
+      if (typeof periodStart !== "string" || typeof periodEnd !== "string") {
+        throw new Error("Operational review job requires periodStart and periodEnd.");
+      }
+      await generateOperationalReview({
+        cadence,
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+      });
+    } catch (error) {
+      handlerError = error instanceof Error ? error.message : "Operational review handler failed.";
+    }
+  }
+  const supported =
+    job.jobType === "maintenance" ||
+    job.jobType === "health_check" ||
+    job.jobType === "operational_review";
   const now = new Date();
-  if (!supported) {
+  if (!supported || handlerError) {
     const [failed] = await db
       .update(scheduledJob)
       .set({
         status: "failed",
-        lastError: `No registered handler for job type "${job.jobType}".`,
+        lastError: handlerError ?? `No registered handler for job type "${job.jobType}".`,
         updatedAt: now,
       })
       .where(eq(scheduledJob.id, id))
@@ -59,7 +89,7 @@ export async function executeScheduledJob(id: string) {
       occurredAt: now,
       payload: { jobId: id, jobType: job.jobType, reason: failed.lastError },
     }).returning();
-    return { job: failed, eventId: event.id, message: "Job failed: no registered handler." };
+    return { job: failed, eventId: event.id, message: handlerError ?? "Job failed: no registered handler." };
   }
 
   const [completed] = await db

@@ -54,6 +54,8 @@ export async function generateOperationalReview(input: ReviewInput) {
     confidence: 0.8,
     recencyDays: dayAge(event.occurredAt, now),
     strategicAnchor: false,
+    score: 1,
+    estimatedTokens: Math.ceil(JSON.stringify(event.payload).length / 4),
   }));
   const objectiveContext = objectives.map((objective) => ({
     id: objective.id,
@@ -62,6 +64,8 @@ export async function generateOperationalReview(input: ReviewInput) {
     confidence: objective.confidence,
     recencyDays: dayAge(objective.updatedAt, now),
     strategicAnchor: false,
+    score: objective.confidence,
+    estimatedTokens: Math.ceil((objective.title.length + (objective.description?.length ?? 0)) / 4),
   }));
   const routed = await routeModelRequest({
     correlationId: randomUUID(),

@@ -1419,7 +1419,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "6",
     dependsOn: [25, 35, 45, 49, 57],
     versionIntroduced: "12.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Produces structured retrospective reviews automatically on a defined schedule. The institutional historian. Weekly, monthly, quarterly, and annual. Stored permanently. Never deleted.",
     description: "Each review: summary narrative, improvement/regression analysis, assumption performance, opportunity recap, effort vs. value analysis, decision retrospective, strategic observations, portfolio health. Generated via CIL. Cost tracked by System Economics. Reviews feed Institutional Knowledge — lessons appearing consistently across reviews become candidates for promotion.",
     responsibilities: ["Scheduled review generation (weekly/monthly/quarterly/annual)", "CIL-powered narrative generation", "Intelligence Graph indexing of reviews", "Experience engine candidate surfacing"],

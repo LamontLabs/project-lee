@@ -17,6 +17,7 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
 
   const input = parsed.data;
   const correlationId = randomUUID();
+  const startedAt = Date.now();
   const packet = constructContextPacket(
     input.queryText,
     input.contextItems,
@@ -87,9 +88,12 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
         completionTokens: routed.completionTokens,
         totalTokens: routed.totalTokens,
         estimatedCostUsd: routed.estimatedCostUsd,
+         latencyMs: Date.now() - startedAt,
+         cacheHit: routed.model === "CIL" && (routed.tier === "T1" || routed.tier === "T2"),
         metadata: {
           semanticDomain: input.semanticDomain,
           contextTokens: packet.tokens,
+           category: routed.model === "CIL" ? "cil" : "model-router",
         },
       })
       .returning();

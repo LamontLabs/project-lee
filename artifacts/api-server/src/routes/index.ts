@@ -13,6 +13,7 @@ import relationshipsRouter from "./relationships";
 import reviewsRouter from "./reviews";
 import institutionalKnowledgeRouter from "./institutional-knowledge";
 import selfImprovementRouter from "./self-improvement";
+import systemEconomicsRouter from "./system-economics";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(relationshipsRouter);
 router.use(reviewsRouter);
 router.use(institutionalKnowledgeRouter);
 router.use(selfImprovementRouter);
+router.use(systemEconomicsRouter);
 
 export default router;

@@ -1489,7 +1489,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "9",
     dependsOn: [5, 8, 35, 48],
     versionIntroduced: "12.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Unified operational cost and value accounting. Supersedes the Cost Engine (Task #8). Every capability has a measurable cost. Value ratios show whether the cost is justified.",
     description: "Measures: CIL tier distribution and reuse rate, Model Router cost per call, embedding generation cost, database storage growth, background processing CPU/memory, network volume, per-stage request latency, and value ratios (cost per accepted recommendation, per Brief item completed, per simulation, per Institutional Knowledge item established). System Budget: monthly cost by category with projections. Threshold alerts before cost exceeds ceiling.",
     responsibilities: ["Unified cost attribution (per engine per call)", "CIL reuse rate tracking", "Value ratio computation", "System Budget and projection", "Unusual cost concentration alerts"],

@@ -2,6 +2,7 @@ import { and, eq, lte, inArray } from "drizzle-orm";
 import { db, eventLog, scheduledJob } from "@workspace/db";
 import { generateOperationalReview } from "./operational-review";
 import { runSelfImprovementCycle } from "./self-improvement";
+import { runSystemEconomicsCycle } from "./system-economics";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -74,12 +75,19 @@ export async function executeScheduledJob(id: string) {
       handlerError = error instanceof Error ? error.message : "Self-improvement handler failed.";
     }
   }
+  if (job.jobType === "system_economics") {
+    try {
+      await runSystemEconomicsCycle();
+    } catch (error) {
+      handlerError = error instanceof Error ? error.message : "System economics handler failed.";
+    }
+  }
   const supported =
     job.jobType === "maintenance" ||
     job.jobType === "health_check" ||
     job.jobType === "operational_review" ||
-    job.jobType === "self_improvement";
-    job.jobType === "self_improvement";
+    job.jobType === "self_improvement" ||
+    job.jobType === "system_economics";
   const now = new Date();
   if (!supported || handlerError) {
     const [failed] = await db

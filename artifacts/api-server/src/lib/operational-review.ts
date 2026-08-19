@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { routeModelRequest } from "./model-router";
 import { processExperiences } from "./experience";
+import { getSystemEconomicsSummary } from "./system-economics";
 
 type ReviewCadence = "weekly" | "monthly" | "quarterly" | "annual";
 
@@ -35,6 +36,7 @@ export async function generateOperationalReview(input: ReviewInput) {
     db.select().from(executiveObjective),
     db.select().from(assumptionLedger),
   ]);
+  const economics = await getSystemEconomicsSummary();
 
   const now = new Date();
   const sourceRefs = events.map((event) => event.id);
@@ -118,6 +120,13 @@ export async function generateOperationalReview(input: ReviewInput) {
     portfolioHealth: {
       objectives: objectives.map((objective) => ({ id: objective.id, title: objective.title, status: objective.status, confidence: objective.confidence })),
       sourceRefs: objectives.map((objective) => objective.id),
+    },
+    systemEconomics: {
+      totalCostUsd: economics.totalCostUsd,
+      projectedMonthlyCostUsd: economics.projectedMonthlyCostUsd,
+      summary: economics.summary,
+      alerts: economics.alerts,
+      sourceRefs: [economics.id],
     },
   };
   const title = `${input.cadence[0].toUpperCase()}${input.cadence.slice(1)} operational review · ${input.periodStart.toISOString().slice(0, 10)}`;

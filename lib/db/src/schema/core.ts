@@ -109,10 +109,12 @@ export const impactNode = pgTable("impact_node", {
   label: text("label").notNull(),
   outcome: varchar("outcome", { length: 32 }),
   confidence: real("confidence").notNull().default(0.5),
+  impactScore: real("impact_score").notNull().default(0),
+  status: varchar("status", { length: 24 }).notNull().default("active"),
   sourceRefs: jsonb("source_refs").$type<string[]>().notNull().default([]),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("impact_node_type_idx").on(table.nodeType), index("impact_node_object_idx").on(table.objectId)]);
+}, (table) => [index("impact_node_type_idx").on(table.nodeType), index("impact_node_object_idx").on(table.objectId), index("impact_node_score_idx").on(table.impactScore)]);
 
 export const impactEdge = pgTable("impact_edge", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -120,8 +122,13 @@ export const impactEdge = pgTable("impact_edge", {
   targetNodeId: uuid("target_node_id").notNull(),
   edgeType: varchar("edge_type", { length: 64 }).notNull(),
   strength: real("strength").notNull().default(0.5),
+  confidence: real("confidence").notNull().default(0.5),
   lagDays: integer("lag_days"),
   evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
+  evidenceSource: text("evidence_source"),
+  createdBy: varchar("created_by", { length: 24 }).notNull().default("engine"),
+  status: varchar("status", { length: 24 }).notNull().default("needs-review"),
+  observedAt: timestamp("observed_at", { withTimezone: true }),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("impact_edge_unique").on(table.sourceNodeId, table.targetNodeId, table.edgeType), index("impact_edge_source_idx").on(table.sourceNodeId), index("impact_edge_target_idx").on(table.targetNodeId)]);

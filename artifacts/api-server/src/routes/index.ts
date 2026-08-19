@@ -38,6 +38,7 @@ import confidenceRouter from "./confidence";
 import ledgersRouter from "./ledgers";
 import whyProvenanceRouter from "./why-provenance";
 import assumptionsRouter from "./assumptions";
+import impactRouter from "./impact";
 
 const router: IRouter = Router();
 
@@ -79,6 +80,7 @@ router.use(confidenceRouter);
 router.use(ledgersRouter);
 router.use(whyProvenanceRouter);
 router.use(assumptionsRouter);
+router.use(impactRouter);
 router.use(foundationRouter);
 
 export default router;

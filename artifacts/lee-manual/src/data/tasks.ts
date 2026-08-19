@@ -254,7 +254,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "5",
     dependsOn: [1],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Manages scheduling of all engine runs, background jobs, connector syncs, and scheduled reviews. The Scheduler Calendar tracks all pending and recurring work.",
     description: "Cron-based scheduling with dependency-aware execution order. The Scheduler Calendar is queryable — any engine can inspect the upcoming schedule. Job failures are caught and escalated through the Engine Lifecycle engine.",
     responsibilities: ["Engine run scheduling", "Connector sync scheduling", "Review scheduling", "Job failure handling"],

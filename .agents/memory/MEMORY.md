@@ -5,3 +5,4 @@
 - [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.
 - [Cost ledger boundary](cost-ledger-boundary.md) — every reasoning resolution records tier, model, token counts, provider, and estimated cost in an additive ledger.
 - [Brain snapshot integrity](brain-snapshot-integrity.md) — snapshots use canonical sorted-key JSON with Date normalization before SHA-256 verification.
+- [Persisted scheduler boundary](persisted-scheduler-boundary.md) — scheduled jobs, dependencies, attempts, and lifecycle events survive restarts; unknown handlers fail visibly.

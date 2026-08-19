@@ -551,6 +551,42 @@ export interface InteractionResult {
   eventId: string;
 }
 
+export type GenerateReviewInputCadence = typeof GenerateReviewInputCadence[keyof typeof GenerateReviewInputCadence];
+
+
+export const GenerateReviewInputCadence = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  annual: 'annual',
+} as const;
+
+export interface GenerateReviewInput {
+  cadence: GenerateReviewInputCadence;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export interface OperationalReviewSummary {
+  id: string;
+  cadence: string;
+  periodStart: string;
+  periodEnd: string;
+  title: string;
+  keyThemes: string[];
+  generatedAt: string;
+}
+
+export type OperationalReviewSections = { [key: string]: unknown };
+
+export type OperationalReview = OperationalReviewSummary & {
+  summaryNarrative: string;
+  sections: OperationalReviewSections;
+  sourceRefs: string[];
+  reasoningCorrelationId?: string;
+  reasoningCostUsd?: number;
+};
+
 export type SearchMemoryParams = {
 tag?: string;
 projectId?: string;
@@ -558,4 +594,18 @@ entityId?: string;
 from?: string;
 to?: string;
 };
+
+export type ListOperationalReviewsParams = {
+cadence?: ListOperationalReviewsCadence;
+};
+
+export type ListOperationalReviewsCadence = typeof ListOperationalReviewsCadence[keyof typeof ListOperationalReviewsCadence];
+
+
+export const ListOperationalReviewsCadence = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  annual: 'annual',
+} as const;
 

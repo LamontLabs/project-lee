@@ -10,6 +10,7 @@ import governanceRouter from "./governance";
 import memoryRouter from "./memory";
 import graphRouter from "./graph";
 import relationshipsRouter from "./relationships";
+import reviewsRouter from "./reviews";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(governanceRouter);
 router.use(memoryRouter);
 router.use(graphRouter);
 router.use(relationshipsRouter);
+router.use(reviewsRouter);
 
 export default router;

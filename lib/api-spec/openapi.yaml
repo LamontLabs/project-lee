@@ -30,6 +30,8 @@ tags:
     description: Typed knowledge graph nodes, edges, and traversal
   - name: relationships
     description: People, interactions, relationship health, and cadence
+  - name: reviews
+    description: Permanent operational review narratives
 paths:
   /healthz:
     get:
@@ -474,6 +476,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InteractionResult"
+  /reviews/generate:
+    post:
+      operationId: generateOperationalReview
+      tags: [reviews]
+      summary: Generate a permanent operational review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateReviewInput"
+      responses:
+        "201":
+          description: Generated operational review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalReview"
+  /reviews:
+    get:
+      operationId: listOperationalReviews
+      tags: [reviews]
+      summary: Browse operational reviews
+      parameters:
+        - name: cadence
+          in: query
+          schema:
+            type: string
+            enum: [weekly, monthly, quarterly, annual]
+      responses:
+        "200":
+          description: Operational reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OperationalReviewSummary"
+  /reviews/{id}:
+    get:
+      operationId: getOperationalReview
+      tags: [reviews]
+      summary: Retrieve an operational review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Operational review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalReview"
 components:
   schemas:
     HealthStatus:
@@ -1243,4 +1302,60 @@ components:
           type: string
           format: uuid
       required: [person, interaction, eventId]
+    GenerateReviewInput:
+      type: object
+      properties:
+        cadence:
+          type: string
+          enum: [weekly, monthly, quarterly, annual]
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+      required: [cadence, periodStart, periodEnd]
+    OperationalReviewSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        cadence:
+          type: string
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        title:
+          type: string
+        keyThemes:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required: [id, cadence, periodStart, periodEnd, title, keyThemes, generatedAt]
+    OperationalReview:
+      allOf:
+        - $ref: "#/components/schemas/OperationalReviewSummary"
+        - type: object
+          properties:
+            summaryNarrative:
+              type: string
+            sections:
+              type: object
+              additionalProperties: true
+            sourceRefs:
+              type: array
+              items:
+                type: string
+            reasoningCorrelationId:
+              type: string
+            reasoningCostUsd:
+              type: number
+          required: [summaryNarrative, sections, sourceRefs]
 

@@ -658,3 +658,72 @@ export const RecordRelationshipInteractionResponse = zod.object({
 })
 
 
+/**
+ * @summary Generate a permanent operational review
+ */
+export const GenerateOperationalReviewBody = zod.object({
+  "cadence": zod.enum(['weekly', 'monthly', 'quarterly', 'annual']),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date()
+})
+
+export const GenerateOperationalReviewResponse = zod.object({
+  "id": zod.string().uuid(),
+  "cadence": zod.string(),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "title": zod.string(),
+  "keyThemes": zod.array(zod.string()),
+  "generatedAt": zod.coerce.date()
+}).and(zod.object({
+  "summaryNarrative": zod.string(),
+  "sections": zod.record(zod.string(), zod.unknown()),
+  "sourceRefs": zod.array(zod.string()),
+  "reasoningCorrelationId": zod.string().optional(),
+  "reasoningCostUsd": zod.number().optional()
+}))
+
+
+/**
+ * @summary Browse operational reviews
+ */
+export const ListOperationalReviewsQueryParams = zod.object({
+  "cadence": zod.enum(['weekly', 'monthly', 'quarterly', 'annual']).optional()
+})
+
+export const ListOperationalReviewsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "cadence": zod.string(),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "title": zod.string(),
+  "keyThemes": zod.array(zod.string()),
+  "generatedAt": zod.coerce.date()
+})
+export const ListOperationalReviewsResponse = zod.array(ListOperationalReviewsResponseItem)
+
+
+/**
+ * @summary Retrieve an operational review
+ */
+export const GetOperationalReviewParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetOperationalReviewResponse = zod.object({
+  "id": zod.string().uuid(),
+  "cadence": zod.string(),
+  "periodStart": zod.coerce.date(),
+  "periodEnd": zod.coerce.date(),
+  "title": zod.string(),
+  "keyThemes": zod.array(zod.string()),
+  "generatedAt": zod.coerce.date()
+}).and(zod.object({
+  "summaryNarrative": zod.string(),
+  "sections": zod.record(zod.string(), zod.unknown()),
+  "sourceRefs": zod.array(zod.string()),
+  "reasoningCorrelationId": zod.string().optional(),
+  "reasoningCostUsd": zod.number().optional()
+}))
+
+

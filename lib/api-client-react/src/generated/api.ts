@@ -28,6 +28,7 @@ import type {
   CostSummary,
   CreateBrainVersionInput,
   ErrorResponse,
+  GenerateReviewInput,
   GovernedRequest,
   GovernedResponse,
   GraphEdge,
@@ -35,9 +36,12 @@ import type {
   GraphTraversalResult,
   HealthStatus,
   InteractionResult,
+  ListOperationalReviewsParams,
   MemoryConsolidationResult,
   MemoryIndex,
   MemoryIndexInput,
+  OperationalReview,
+  OperationalReviewSummary,
   Person,
   PersonInput,
   ReasoningRequestInput,
@@ -1698,4 +1702,235 @@ export const useRecordRelationshipInteraction = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRecordRelationshipInteractionMutationOptions(options));
     }
+
+export const getGenerateOperationalReviewUrl = () => {
+
+
+
+
+  return `/api/reviews/generate`
+}
+
+/**
+ * @summary Generate a permanent operational review
+ */
+export const generateOperationalReview = async (generateReviewInput: GenerateReviewInput, options?: RequestInit): Promise<OperationalReview> => {
+
+  return customFetch<OperationalReview>(getGenerateOperationalReviewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateReviewInput)
+  }
+);}
+
+
+
+
+export const getGenerateOperationalReviewMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateOperationalReview>>, TError,{data: BodyType<GenerateReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateOperationalReview>>, TError,{data: BodyType<GenerateReviewInput>}, TContext> => {
+
+const mutationKey = ['generateOperationalReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateOperationalReview>>, {data: BodyType<GenerateReviewInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateOperationalReview(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateOperationalReviewMutationResult = NonNullable<Awaited<ReturnType<typeof generateOperationalReview>>>
+    export type GenerateOperationalReviewMutationBody = BodyType<GenerateReviewInput>
+    export type GenerateOperationalReviewMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a permanent operational review
+ */
+export const useGenerateOperationalReview = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateOperationalReview>>, TError,{data: BodyType<GenerateReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateOperationalReview>>,
+        TError,
+        {data: BodyType<GenerateReviewInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateOperationalReviewMutationOptions(options));
+    }
+
+export const getListOperationalReviewsUrl = (params?: ListOperationalReviewsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reviews?${stringifiedParams}` : `/api/reviews`
+}
+
+/**
+ * @summary Browse operational reviews
+ */
+export const listOperationalReviews = async (params?: ListOperationalReviewsParams, options?: RequestInit): Promise<OperationalReviewSummary[]> => {
+
+  return customFetch<OperationalReviewSummary[]>(getListOperationalReviewsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOperationalReviewsQueryKey = (params?: ListOperationalReviewsParams,) => {
+    return [
+    `/api/reviews`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOperationalReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listOperationalReviews>>, TError = ErrorType<unknown>>(params?: ListOperationalReviewsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOperationalReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOperationalReviewsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOperationalReviews>>> = ({ signal }) => listOperationalReviews(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOperationalReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOperationalReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listOperationalReviews>>>
+export type ListOperationalReviewsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Browse operational reviews
+ */
+
+export function useListOperationalReviews<TData = Awaited<ReturnType<typeof listOperationalReviews>>, TError = ErrorType<unknown>>(
+ params?: ListOperationalReviewsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOperationalReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOperationalReviewsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOperationalReviewUrl = (id: string,) => {
+
+
+
+
+  return `/api/reviews/${id}`
+}
+
+/**
+ * @summary Retrieve an operational review
+ */
+export const getOperationalReview = async (id: string, options?: RequestInit): Promise<OperationalReview> => {
+
+  return customFetch<OperationalReview>(getGetOperationalReviewUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationalReviewQueryKey = (id: string,) => {
+    return [
+    `/api/reviews/${id}`
+    ] as const;
+    }
+
+
+export const getGetOperationalReviewQueryOptions = <TData = Awaited<ReturnType<typeof getOperationalReview>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationalReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationalReviewQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationalReview>>> = ({ signal }) => getOperationalReview(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationalReview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOperationalReviewQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationalReview>>>
+export type GetOperationalReviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Retrieve an operational review
+ */
+
+export function useGetOperationalReview<TData = Awaited<ReturnType<typeof getOperationalReview>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationalReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOperationalReviewQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

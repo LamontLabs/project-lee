@@ -1,1 +1,2 @@
 - [Foundation event immutability](foundation-event-immutability.md) — event history is protected by a PostgreSQL trigger, not only application conventions.
+- [Understanding output contract](understanding-output-contract.md) — extraction always returns source-backed facts, interpretations, provenance, and a completion event.

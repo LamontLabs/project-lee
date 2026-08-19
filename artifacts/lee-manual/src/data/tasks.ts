@@ -84,7 +84,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "4",
     dependsOn: [1],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "The ingestion engine. Processes all external information — documents, emails, messages, imports — into structured facts and interpretations. Always separates what was observed from what LEE concluded.",
     description: "Accepts raw text, documents, and structured data. Extracts entities, relationships, and temporal markers. Separates observable facts from inferred interpretations. Assigns confidence scores. Creates provenance records. Emits structured knowledge to the Fact Ledger and Interpretation Ledger via the Why Chain.",
     responsibilities: [

@@ -5,6 +5,7 @@ import { constructContextPacket, type SelectedContext } from "./context-economy"
 import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
 import { queryEngine } from "./query-engine";
+import { checkPolicy } from "./policy";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
@@ -27,7 +28,9 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const interpretations = interpretationResults.map((item) => item.object as any);
   const events = eventResults.map((item) => item.object as any);
   const queryText = query.toLowerCase();
-  const memoryItems = objects.filter((item) => !["archived", "dormant"].includes(item.memoryTier) || `${item.name} ${item.description ?? ""}`.toLowerCase().includes(queryText));
+  const privacyAllowed = await Promise.all(objects.map(async (item) => ({ item, policy: await checkPolicy("privacy", "context_include", { objectType: item.objectType, sourceType: item.sourceType }, "Context Engine") })));
+  const excludedByPolicy = privacyAllowed.filter((entry) => !entry.policy.permitted).map((entry) => entry.item.id);
+  const memoryItems = privacyAllowed.filter((entry) => entry.policy.permitted).map((entry) => entry.item).filter((item) => !["archived", "dormant"].includes(item.memoryTier) || `${item.name} ${item.description ?? ""}`.toLowerCase().includes(queryText));
   const items = [
     ...memoryItems.map((item) => {
       const protectedTier = ["canonical", "evergreen", "foundational", "working"].includes(item.memoryTier);
@@ -50,6 +53,6 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const trustAdvisory = { subsystem: "Context Engine", score: trustScoreValue, lowTrust: trustScoreValue < 60 };
   if (cached && cached.expiresAt > new Date()) return { id: cached.id, fingerprint, reused: true, items: (cached.packet.items as SelectedContext[]) ?? [], tokens: cached.tokenEstimate, excludedRefs: cached.excludedRefs, trustAdvisory };
   const selected = constructContextPacket(query, items, budgetTokens);
-  const excludedRefs = items.filter((item) => !selected.items.some((chosen) => chosen.id === item.id)).map((item) => item.id);
+  const excludedRefs = [...new Set([...excludedByPolicy, ...items.filter((item) => !selected.items.some((chosen) => chosen.id === item.id)).map((item) => item.id)])];
   return { id: null, fingerprint, reused: false, items: selected.items, tokens: selected.tokens, excludedRefs, trustAdvisory };
 }

@@ -43,6 +43,7 @@ import timelineRouter from "./timeline";
 import queryRouter from "./query";
 import explanationsRouter from "./explanations";
 import semanticRouter from "./semantic";
+import policyRouter from "./policy";
 
 const router: IRouter = Router();
 
@@ -89,6 +90,7 @@ router.use(timelineRouter);
 router.use(queryRouter);
 router.use(explanationsRouter);
 router.use(semanticRouter);
+router.use(policyRouter);
 router.use(foundationRouter);
 
 export default router;

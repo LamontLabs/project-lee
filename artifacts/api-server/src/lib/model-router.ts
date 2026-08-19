@@ -1,6 +1,7 @@
 import { createHash, createHmac } from "node:crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { SelectedContext } from "./context-economy";
+import { checkPolicy } from "./policy";
 
 type RiskClassification = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type PreferredTier = "auto" | "T1" | "T2" | "T3";
@@ -98,6 +99,8 @@ export async function routeModelRequest(input: RouteInput): Promise<{
   completionTokens: number;
   totalTokens: number;
 }> {
+  const costPolicy = await checkPolicy("cost", "model_call", { estimatedCostUsd: input.costCeilingUsd ?? 0, tier: input.preferredTier }, "Model Router");
+  if (!costPolicy.permitted) throw new Error(`Model call blocked by Cost Policy: ${costPolicy.constraints.join(" ")}`);
   const cil = await tryCIL(input);
   if (cil) {
     const tier = cil.resolution_tier === "T1_TRIGRAM"

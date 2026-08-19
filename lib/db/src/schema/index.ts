@@ -11,3 +11,4 @@ export * from "./relationships";
 export * from "./reviews";
 export * from "./core";
 export { sourceChunk, understandingReviewItem } from "./core";
+export * from "./ai";

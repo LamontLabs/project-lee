@@ -4,6 +4,7 @@ import { enqueueWork } from "./orchestration";
 import { computeConfidence } from "./confidence";
 import { WhyChainBuilder } from "./why-chain";
 import { recordProvenance } from "./provenance";
+import { createOrReference, linkAssumption } from "./assumptions";
 
 export async function listStrategy() { return db.select().from(strategicObjective).orderBy(desc(strategicObjective.updatedAt)); }
 export async function createStrategy(input: { objective: string; horizon?: string; blockers?: string[]; nextAction?: string }) {
@@ -22,11 +23,13 @@ export async function reviewStrategy() {
 export async function runSimulation(question: string, simulationType = "general") {
   const [objectives, facts, waiting] = await Promise.all([listStrategy(), db.select().from(factLedger).limit(12), db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).limit(12)]);
   const evidenceLinks = [...facts.map((item) => item.id), ...waiting.map((item) => item.id)].slice(0, 10);
-  const assumptions = [{ statement: "Current ledger records are an adequate basis for this first-pass simulation.", confidence: evidenceLinks.length ? 0.65 : 0.35 }];
+  const assumption = await createOrReference("Current ledger records are an adequate basis for this first-pass simulation.", "technical", evidenceLinks.length ? 0.65 : 0.35, evidenceLinks, "Simulation Engine", new Date(Date.now() + 30 * 86400000));
+  const assumptions = [{ assumptionId: assumption.id, statement: assumption.statement, confidence: assumption.confidence }];
   const lineage = await computeConfidence(evidenceLinks.map((id) => ({ id, confidence: 0.65 })), "simulation");
   const whyChain = new WhyChainBuilder().addStep("fact_confirmed", `${facts.length} facts were available to ground this simulation.`, facts.length ? 0.7 : 0.35, "Simulation Engine", facts[0]?.id).addStep("strategy_alignment", `${objectives.length} active strategic objectives were compared.`, objectives.length ? 0.8 : 0.5, "Simulation Engine", objectives[0]?.id).buildNonTrivial();
   const [item] = await db.insert(simulation).values({ question, simulationType, assumptions, ...lineage, whyChain, reasoningChain: [`Classify the question as ${simulationType}.`, `Compare it against ${objectives.length} active strategic objectives.`, `Check ${waiting.length} open waiting loops for timing risk.`, "Separate likely, possible, and unlikely outcomes before recommending a decision."], likelyOutcomes: objectives.length ? ["The decision changes sequencing against at least one active objective."] : ["The immediate effect is bounded to the requested area."], possibleOutcomes: ["A new blocker or opportunity appears after implementation details are clarified."], unlikelyOutcomes: ["All downstream effects are materialized immediately without new evidence."], risks: waiting.length ? ["Open waiting loops may age while the decision is executed."] : [], opportunities: objectives.length ? ["Align the next action to an existing strategic objective."] : [], recommendedDecision: "Use this as a structured pre-decision review and confirm assumptions before acting.", evidenceLinks }).returning();
   await recordProvenance("simulation", item.id, evidenceLinks, item.propagatedConfidence ?? 0.5);
+  await linkAssumption(assumption.id, "simulation", item.id);
   return item;
 }
 export async function generateReflection(period = "current", reportType = "weekly") {

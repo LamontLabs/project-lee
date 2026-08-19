@@ -1,0 +1,13 @@
+import { desc, eq } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import { assumptionLedger, assumptionUse, db, simulation, strategicObjective } from "@workspace/db";
+import { createOrReference, expireStale, invalidate, linkAssumption, markValidated } from "../lib/assumptions";
+const router: IRouter = Router();
+router.get("/assumptions", async (req, res) => res.json(await db.select().from(assumptionLedger).where(typeof req.query.status === "string" ? eq(assumptionLedger.status, req.query.status) : undefined).orderBy(desc(assumptionLedger.updatedAt)).limit(500)));
+router.get("/assumptions/:id", async (req, res): Promise<void> => { const [item] = await db.select().from(assumptionLedger).where(eq(assumptionLedger.id, req.params.id)).limit(1); if (!item) { res.status(404).json({ error: "Assumption not found." }); return; } res.json({ ...item, uses: await db.select().from(assumptionUse).where(eq(assumptionUse.assumptionId, item.id)) }); });
+router.post("/assumptions", async (req, res): Promise<void> => { try { const input = req.body ?? {}; if (!input.statement || !input.assumptionType) { res.status(400).json({ error: "statement and assumptionType are required." }); return; } res.status(201).json(await createOrReference(String(input.statement), String(input.assumptionType), Number(input.confidence ?? 0.5), Array.isArray(input.evidenceBasis) ? input.evidenceBasis : [], String(input.createdByEngine ?? "founder"), input.reviewDate ? new Date(input.reviewDate) : undefined, input.rationale)); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Unable to create assumption." }); } });
+router.post("/assumptions/:id/validate", async (req, res) => res.json(await markValidated(req.params.id, String(req.body?.source ?? "owner confirmation"))));
+router.post("/assumptions/:id/invalidate", async (req, res) => { const item = await invalidate(req.params.id, String(req.body?.source ?? "owner review")); if (!item) { res.status(404).json({ error: "Assumption not found." }); return; } res.json(item); });
+router.post("/assumptions/expire", async (_req, res) => res.json(await expireStale()));
+router.post("/assumptions/:id/link", async (req, res) => { await linkAssumption(req.params.id, String(req.body?.conclusionType ?? "simulation"), String(req.body?.conclusionId)); res.status(204).send(); });
+export default router;

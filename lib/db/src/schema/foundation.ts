@@ -8,6 +8,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -277,8 +278,16 @@ export const assumptionLedger = pgTable(
     statement: text("statement").notNull(),
     rationale: text("rationale"),
     sourceRef: text("source_ref").notNull(),
+    assumptionType: varchar("assumption_type", { length: 24 }).notNull().default("structural"),
+    evidenceBasis: jsonb("evidence_basis").$type<string[]>().notNull().default([]),
     confidence: real("confidence").notNull().default(0.5),
     status: varchar("status", { length: 32 }).notNull().default("active"),
+    createdByEngine: varchar("created_by_engine", { length: 120 }).notNull().default("unknown"),
+    usedIn: jsonb("used_in").$type<string[]>().notNull().default([]),
+    validatedAt: timestamp("validated_at", { withTimezone: true }),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+    invalidationSource: text("invalidation_source"),
+    supersededBy: uuid("superseded_by"),
     reviewAt: timestamp("review_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -292,6 +301,13 @@ export const assumptionLedger = pgTable(
     index("assumption_source_idx").on(table.sourceRef),
   ],
 );
+export const assumptionUse = pgTable("assumption_use", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assumptionId: uuid("assumption_id").notNull(),
+  conclusionType: varchar("conclusion_type", { length: 32 }).notNull(),
+  conclusionId: uuid("conclusion_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("assumption_use_unique").on(table.assumptionId, table.conclusionType, table.conclusionId), index("assumption_use_conclusion_idx").on(table.conclusionType, table.conclusionId)]);
 
 export const identityProfile = pgTable("identity_profile", {
   id: uuid("id").defaultRandom().primaryKey(),

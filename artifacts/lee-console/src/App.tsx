@@ -16,6 +16,7 @@ import WorkspacePage from './WorkspacePage';
 import ConstitutionPage from './ConstitutionPage';
 import ConfidencePage from './ConfidencePage';
 import EvidenceLedgerPage from './EvidenceLedgerPage';
+import AssumptionsPage from './AssumptionsPage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -76,7 +77,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : path === '/assumptions' ? <AssumptionsPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -158,6 +159,7 @@ const navItems = [
   { href: '/workspace', label: 'Workspace', icon: Settings2 },
   { href: '/constitution', label: 'Constitution', icon: ShieldCheck },
   { href: '/confidence', label: 'Confidence', icon: Gauge },
+  { href: '/assumptions', label: 'Assumptions', icon: BrainCircuit },
   { href: '/decisions', label: 'Decisions', icon: Scale },
   { href: '/waiting', label: 'Waiting', icon: Clock3 },
   { href: '/evidence', label: 'Evidence', icon: FileText },

@@ -14,3 +14,4 @@
 - [Understanding pipeline schema](understanding-pipeline-schema.md) — raw sources, chunks, runs, and uncertain extractions remain separately auditable.
 - [Managed provider URL roots](managed-provider-url-roots.md) — managed AI base URLs already include the provider root; don't append public API version prefixes blindly.
 - [Fact and interpretation separation](fact-interpretation-separation.md) — source-backed facts and Lee-generated reasoning require distinct ledgers, validation, labels, and promotion rules.
+- [Assumption ledger](assumption-ledger.md) — named premises are reused while active and lifecycle changes must surface affected conclusions.

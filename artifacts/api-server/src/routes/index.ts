@@ -37,6 +37,7 @@ import constitutionRouter from "./constitution";
 import confidenceRouter from "./confidence";
 import ledgersRouter from "./ledgers";
 import whyProvenanceRouter from "./why-provenance";
+import assumptionsRouter from "./assumptions";
 
 const router: IRouter = Router();
 
@@ -77,6 +78,7 @@ router.use(constitutionRouter);
 router.use(confidenceRouter);
 router.use(ledgersRouter);
 router.use(whyProvenanceRouter);
+router.use(assumptionsRouter);
 router.use(foundationRouter);
 
 export default router;

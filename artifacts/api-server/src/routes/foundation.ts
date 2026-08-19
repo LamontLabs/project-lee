@@ -1,0 +1,55 @@
+import { and, asc, desc, eq } from "drizzle-orm";
+import { Router, type IRouter } from "express";
+import { auditLog, constitutionProvision, constitutionVersion, db, eventLog, impactEdge, impactNode, sourceVault, universalObject } from "@workspace/db";
+import { emitEvent } from "../lib/foundation-events";
+import { replayFrom } from "../lib/projector";
+
+const router: IRouter = Router();
+
+router.get("/events", async (req, res): Promise<void> => {
+  const limit = Math.min(Number(req.query.limit ?? 100), 500);
+  const events = await db.select().from(eventLog).orderBy(desc(eventLog.createdAt)).limit(Number.isFinite(limit) ? limit : 100);
+  res.json(events);
+});
+
+router.post("/objects", async (req, res): Promise<void> => {
+  const input = req.body ?? {};
+  if (typeof input.name !== "string" || typeof input.objectType !== "string") { res.status(400).json({ error: "objectType and name are required." }); return; }
+  const id = input.id ?? crypto.randomUUID();
+  const event = await emitEvent({ eventType: "UniversalObjectCreated", aggregateType: "universal_object", aggregateId: id, actor: input.actor, payload: input });
+  const [object] = await db.insert(universalObject).values({ id, objectType: input.objectType, name: input.name, description: input.description ?? null, sourceRefs: input.sourceRefs ?? [], status: input.status ?? "active", version: event.sequenceNumber }).returning();
+  res.status(201).json(object);
+});
+
+router.patch("/objects/:id", async (req, res): Promise<void> => {
+  const existing = await db.select().from(universalObject).where(eq(universalObject.id, req.params.id)).limit(1);
+  if (!existing[0]) { res.status(404).json({ error: "Object not found." }); return; }
+  const event = await emitEvent({ eventType: "UniversalObjectUpdated", aggregateType: "universal_object", aggregateId: req.params.id, actor: req.body?.actor, payload: req.body ?? {} });
+  const [object] = await db.update(universalObject).set({ ...(typeof req.body?.name === "string" ? { name: req.body.name } : {}), ...(typeof req.body?.description === "string" ? { description: req.body.description } : {}), ...(typeof req.body?.status === "string" ? { status: req.body.status } : {}), version: event.sequenceNumber, updatedAt: new Date() }).where(eq(universalObject.id, req.params.id)).returning();
+  res.json(object);
+});
+
+router.get("/objects", async (req, res): Promise<void> => {
+  const query = typeof req.query.type === "string" ? eq(universalObject.objectType, req.query.type) : undefined;
+  res.json(await db.select().from(universalObject).where(query).orderBy(desc(universalObject.updatedAt)).limit(500));
+});
+
+router.post("/sources", async (req, res): Promise<void> => {
+  const input = req.body ?? {};
+  if (typeof input.originalFilename !== "string" || typeof input.mimeType !== "string" || typeof input.checksum !== "string") { res.status(400).json({ error: "originalFilename, mimeType, and checksum are required." }); return; }
+  const [source] = await db.insert(sourceVault).values({ originalFilename: input.originalFilename, mimeType: input.mimeType, checksum: input.checksum, storagePath: input.storagePath ?? `sources/${input.checksum}`, byteSize: input.byteSize, metadata: input.metadata ?? {} }).returning();
+  await emitEvent({ eventType: "SourceVaultRecordCreated", aggregateType: "source_vault", aggregateId: source.id, payload: { sourceId: source.id, checksum: source.checksum } });
+  res.status(201).json(source);
+});
+
+router.get("/impact/nodes", async (_req, res): Promise<void> => { res.json(await db.select().from(impactNode).orderBy(desc(impactNode.createdAt))); });
+router.post("/impact/nodes", async (req, res): Promise<void> => { const input = req.body ?? {}; if (typeof input.nodeType !== "string" || typeof input.label !== "string") { res.status(400).json({ error: "nodeType and label are required." }); return; } const [node] = await db.insert(impactNode).values({ nodeType: input.nodeType, label: input.label, objectId: input.objectId, outcome: input.outcome, sourceRefs: input.sourceRefs ?? [], metadata: input.metadata ?? {} }).returning(); await emitEvent({ eventType: "ImpactNodeCreated", aggregateType: "impact_node", aggregateId: node.id, payload: { nodeId: node.id, nodeType: node.nodeType } }); res.status(201).json(node); });
+router.post("/impact/edges", async (req, res): Promise<void> => { const input = req.body ?? {}; if (typeof input.sourceNodeId !== "string" || typeof input.targetNodeId !== "string" || typeof input.edgeType !== "string") { res.status(400).json({ error: "sourceNodeId, targetNodeId, and edgeType are required." }); return; } const [edge] = await db.insert(impactEdge).values({ sourceNodeId: input.sourceNodeId, targetNodeId: input.targetNodeId, edgeType: input.edgeType, strength: input.strength ?? 0.5, lagDays: input.lagDays, evidenceRefs: input.evidenceRefs ?? [], metadata: input.metadata ?? {} }).returning(); await emitEvent({ eventType: "ImpactEdgeCreated", aggregateType: "impact_edge", aggregateId: edge.id, payload: { edgeId: edge.id, edgeType: edge.edgeType } }); res.status(201).json(edge); });
+
+router.post("/projection/replay", async (req, res): Promise<void> => { res.json(await replayFrom(typeof req.body?.afterCreatedAt === "string" ? req.body.afterCreatedAt : undefined)); });
+router.get("/audit", async (_req, res): Promise<void> => { res.json(await db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(500)); });
+router.get("/constitution/provisions", async (_req, res): Promise<void> => { res.json(await db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true)).orderBy(asc(constitutionProvision.key))); });
+router.post("/constitution/provisions", async (req, res): Promise<void> => { const input = req.body ?? {}; if (typeof input.key !== "string" || typeof input.title !== "string" || !["ABSOLUTE", "GOVERNED", "CONFIGURABLE"].includes(input.tier)) { res.status(400).json({ error: "key, title, and a valid tier are required." }); return; } const [provision] = await db.insert(constitutionProvision).values({ key: input.key, title: input.title, tier: input.tier, machineReadableRule: input.machineReadableRule ?? {}, appliesToEngines: input.appliesToEngines ?? [] }).returning(); await emitEvent({ eventType: "ConstitutionProvisionCreated", aggregateType: "constitution_provision", aggregateId: provision.id, payload: { key: provision.key, tier: provision.tier } }); res.status(201).json(provision); });
+router.get("/constitution/versions", async (_req, res): Promise<void> => { res.json(await db.select().from(constitutionVersion).orderBy(desc(constitutionVersion.createdAt))); });
+
+export default router;

@@ -1,0 +1,136 @@
+import { createInsertSchema } from "drizzle-zod";
+import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uuid, varchar, uniqueIndex } from "drizzle-orm/pg-core";
+import { z } from "zod/v4";
+
+const jsonRecord = z.record(z.string(), z.unknown());
+const jsonArray = z.array(z.string());
+
+export const universalObject = pgTable("universal_object", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  objectType: varchar("object_type", { length: 64 }).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 48 }).notNull().default("active"),
+  confidence: real("confidence").notNull().default(0.5),
+  propagatedConfidence: real("propagated_confidence"),
+  freshness: real("freshness").notNull().default(1),
+  importance: real("importance").notNull().default(0.5),
+  sourceRefs: jsonb("source_refs").$type<string[]>().notNull().default([]),
+  relatedObjects: jsonb("related_objects").$type<string[]>().notNull().default([]),
+  history: jsonb("history").$type<Record<string, unknown>[]>().notNull().default([]),
+  permissions: jsonb("permissions").$type<Record<string, unknown>>().notNull().default({}),
+  version: integer("version").notNull().default(1),
+  canonLevel: varchar("canon_level", { length: 16 }).notNull().default("working"),
+  confidenceLineage: jsonb("confidence_lineage").$type<Record<string, unknown>>().notNull().default({}),
+  whyChain: jsonb("why_chain").$type<Record<string, unknown>[]>().notNull().default([]),
+  memoryTier: varchar("memory_tier", { length: 24 }).notNull().default("working"),
+  lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+  accessCount: integer("access_count").notNull().default(0),
+  relevanceScore: real("relevance_score").notNull().default(0.5),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+}, (table) => [index("universal_object_type_status_idx").on(table.objectType, table.status), index("universal_object_memory_idx").on(table.memoryTier, table.relevanceScore)]);
+
+export const sourceVault = pgTable("source_vault", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  originalFilename: text("original_filename").notNull(),
+  mimeType: varchar("mime_type", { length: 160 }).notNull(),
+  byteSize: integer("byte_size"),
+  checksum: varchar("checksum", { length: 128 }).notNull().unique(),
+  storagePath: text("storage_path").notNull(),
+  processingStatus: varchar("processing_status", { length: 32 }).notNull().default("pending"),
+  evidenceQuality: real("evidence_quality").notNull().default(0.5),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("source_vault_status_idx").on(table.processingStatus)]);
+
+export const constitutionProvision = pgTable("constitution_provision", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  key: varchar("key", { length: 120 }).notNull().unique(),
+  title: text("title").notNull(),
+  tier: varchar("tier", { length: 16 }).notNull(),
+  machineReadableRule: jsonb("machine_readable_rule").$type<Record<string, unknown>>().notNull().default({}),
+  appliesToEngines: jsonb("applies_to_engines").$type<string[]>().notNull().default([]),
+  consultationCount: integer("consultation_count").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const constitutionVersion = pgTable("constitution_version", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  version: varchar("version", { length: 32 }).notNull().unique(),
+  provisions: jsonb("provisions").$type<Record<string, unknown>[]>().notNull().default([]),
+  amendmentReason: text("amendment_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const impactNode = pgTable("impact_node", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nodeType: varchar("node_type", { length: 64 }).notNull(),
+  objectId: uuid("object_id"),
+  label: text("label").notNull(),
+  outcome: varchar("outcome", { length: 32 }),
+  confidence: real("confidence").notNull().default(0.5),
+  sourceRefs: jsonb("source_refs").$type<string[]>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("impact_node_type_idx").on(table.nodeType), index("impact_node_object_idx").on(table.objectId)]);
+
+export const impactEdge = pgTable("impact_edge", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceNodeId: uuid("source_node_id").notNull(),
+  targetNodeId: uuid("target_node_id").notNull(),
+  edgeType: varchar("edge_type", { length: 64 }).notNull(),
+  strength: real("strength").notNull().default(0.5),
+  lagDays: integer("lag_days"),
+  evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("impact_edge_unique").on(table.sourceNodeId, table.targetNodeId, table.edgeType), index("impact_edge_source_idx").on(table.sourceNodeId), index("impact_edge_target_idx").on(table.targetNodeId)]);
+
+export const auditLog = pgTable("audit_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  action: varchar("action", { length: 120 }).notNull(),
+  actor: text("actor").notNull(),
+  targetType: varchar("target_type", { length: 64 }),
+  targetId: text("target_id"),
+  outcome: varchar("outcome", { length: 32 }).notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("audit_log_created_idx").on(table.createdAt), index("audit_log_target_idx").on(table.targetType, table.targetId)]);
+
+export const waitingLoop = pgTable("waiting_loop", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  subject: text("subject").notNull(),
+  owner: text("owner"),
+  status: varchar("status", { length: 32 }).notNull().default("open"),
+  waitingSince: timestamp("waiting_since", { withTimezone: true }).defaultNow().notNull(),
+  nextCheckAt: timestamp("next_check_at", { withTimezone: true }),
+  sourceRefs: jsonb("source_refs").$type<string[]>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("waiting_loop_status_check_idx").on(table.status, table.nextCheckAt)]);
+
+export const notification = pgTable("notification", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  kind: varchar("kind", { length: 64 }).notNull(),
+  title: text("title").notNull(),
+  body: text("body"),
+  severity: varchar("severity", { length: 16 }).notNull().default("info"),
+  status: varchar("status", { length: 16 }).notNull().default("unread"),
+  targetRef: text("target_ref"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+}, (table) => [index("notification_status_created_idx").on(table.status, table.createdAt)]);
+
+export const insertUniversalObjectSchema = createInsertSchema(universalObject, { sourceRefs: jsonArray, relatedObjects: jsonArray, history: z.array(jsonRecord), permissions: jsonRecord, confidenceLineage: jsonRecord, whyChain: z.array(jsonRecord) });
+export const insertSourceVaultSchema = createInsertSchema(sourceVault, { metadata: jsonRecord });
+export const insertImpactNodeSchema = createInsertSchema(impactNode, { sourceRefs: jsonArray, metadata: jsonRecord });
+export const insertImpactEdgeSchema = createInsertSchema(impactEdge, { evidenceRefs: jsonArray, metadata: jsonRecord });
+export const insertAuditLogSchema = createInsertSchema(auditLog, { metadata: jsonRecord });
+export const insertWaitingLoopSchema = createInsertSchema(waitingLoop, { sourceRefs: jsonArray, metadata: jsonRecord });
+export const insertNotificationSchema = createInsertSchema(notification);

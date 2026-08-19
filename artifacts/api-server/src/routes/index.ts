@@ -18,6 +18,8 @@ import identityRouter from "./identity";
 import executiveObjectivesRouter from "./executive-objectives";
 import organizationalMemoryRouter from "./organizational-memory";
 import decisionMemoryRouter from "./decision-memory";
+import foundationRouter from "./foundation";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
@@ -40,5 +42,7 @@ router.use(identityRouter);
 router.use(executiveObjectivesRouter);
 router.use(organizationalMemoryRouter);
 router.use(decisionMemoryRouter);
+router.use(authRouter);
+router.use(foundationRouter);
 
 export default router;

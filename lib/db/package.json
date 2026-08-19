@@ -10,6 +10,7 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts && node ./src/ensure-append-only.mjs",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts && node ./src/ensure-append-only.mjs"
+    ,"seed": "node ./src/seed-foundation.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

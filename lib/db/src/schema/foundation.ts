@@ -28,7 +28,11 @@ export const eventLog = pgTable(
     aggregateType: varchar("aggregate_type", { length: 160 }).notNull(),
     aggregateId: text("aggregate_id").notNull(),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    actor: text("actor").notNull().default("lee"),
     sourceRef: text("source_ref"),
+    sequenceNumber: integer("sequence_number").notNull().default(1),
+    causationId: uuid("causation_id"),
+    correlationId: uuid("correlation_id"),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -55,6 +59,10 @@ export const factLedger = pgTable(
     object: text("object").notNull(),
     sourceRef: text("source_ref").notNull(),
     confidence: real("confidence").notNull().default(0.5),
+    propagatedConfidence: real("propagated_confidence"),
+    confidenceLineage: jsonb("confidence_lineage").$type<Record<string, unknown>>().notNull().default({}),
+    canonLevel: varchar("canon_level", { length: 16 }).notNull().default("working"),
+    status: varchar("status", { length: 32 }).notNull().default("active"),
     observedAt: timestamp("observed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -77,6 +85,10 @@ export const interpretationLedger = pgTable(
     basis: text("basis").notNull(),
     sourceRef: text("source_ref").notNull(),
     confidence: real("confidence").notNull().default(0.5),
+    propagatedConfidence: real("propagated_confidence"),
+    confidenceLineage: jsonb("confidence_lineage").$type<Record<string, unknown>>().notNull().default({}),
+    canonLevel: varchar("canon_level", { length: 16 }).notNull().default("working"),
+    status: varchar("status", { length: 32 }).notNull().default("active"),
     validFrom: timestamp("valid_from", { withTimezone: true }),
     validUntil: timestamp("valid_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })

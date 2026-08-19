@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { contextPacket, conversation, conversationMessage, costRecord, db, eventLog, governanceRequest, modelRouteDecision } from "@workspace/db";
+import { contextPacket, conversation, conversationMessage, costRecord, db, eventLog, modelRouteDecision } from "@workspace/db";
 import { buildContextPacket, type ConversationMode } from "../lib/context-engine";
 import { callProvider, estimateCost, MODEL_PRICING } from "../lib/ai-providers";
+import { registerAction } from "../lib/governance-engine";
 
 const router: IRouter = Router();
 const modes = ["normal", "deep_think", "build", "write", "review", "pilot", "low_cost", "private", "no_model", "governed_action"] as const;
@@ -84,10 +85,15 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
     await db.insert(eventLog).values({ eventType: "ModelRouteSelected", aggregateType: "conversation", aggregateId: item.id, sourceRef: "model-router", correlationId, occurredAt: new Date(), payload: { correlationId, route: route.route, model: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd, reason: route.reason } });
   }
   if (mode === "governed_action" || (route.estimatedCostUsd > Number(process.env.LEE_STRONG_MODEL_GATE_USD ?? 0.05) && mode !== "deep_think")) {
-    const [hold] = await db.insert(governanceRequest).values({ leeRequestId: correlationId, actionClass: "model_call", targetSystem: "lee-model-router", status: "HOLD", reasonCodes: ["MODEL_APPROVAL_REQUIRED"], requestPayload: { conversationId: item.id, message, mode, model: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd }, createdAt: new Date() }).returning();
+    const gate = await registerAction({ actionType: "model_call", payload: { conversationId: item.id, message, mode, model: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd, targetSystem: "lee-model-router" }, reason: "Model call exceeds the configured reasoning threshold or was explicitly governed.", evidenceRefs: route.packet.items.map((entry) => entry.id), affectedObject: item.id });
+    if (gate.verdict === "ALLOW") {
+      // A standing rule may release the call; otherwise the default is HOLD.
+    } else {
+      const hold = gate.record;
     await db.insert(eventLog).values({ eventType: "ModelCallHeld", aggregateType: "governance_request", aggregateId: hold.id, sourceRef: "model-router", correlationId, occurredAt: new Date(), payload: { estimatedCostUsd: route.estimatedCostUsd, model: route.selectedModel } });
     res.status(202).json({ held: true, governanceRequestId: hold.id, correlationId, contextPacket: route.packet, estimatedCostUsd: route.estimatedCostUsd, reason: "Human approval is required before this model call." });
     return;
+    }
   }
   const [userMessage] = mode === "private"
     ? [undefined]

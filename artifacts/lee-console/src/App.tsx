@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import GovernancePage from './GovernancePage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
@@ -710,6 +711,7 @@ function LiveCollectionPage({ eyebrow, title, detail, endpoint, emptyTitle, empt
   const [error, setError] = useState('');
   useEffect(() => { void fetch(endpoint).then(async (response) => { if (!response.ok) throw new Error('This live surface is not available yet.'); return response.json(); }).then((value) => setItems(Array.isArray(value) ? value : value?.items ?? [])).catch((cause) => { setItems([]); setError(cause instanceof Error ? cause.message : 'Unable to load this surface.'); }); }, [endpoint]);
   if (endpoint === '/api/understanding/runs') return <ImportsPage />;
+  if (endpoint === '/api/governance/requests') return <GovernancePage />;
   return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow={eyebrow} title={title} detail={detail} /><Panel>{error && <div className="mb-5 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-muted-foreground">{error}</div>}{items === null ? <SkeletonRows /> : items.length ? <div className="grid gap-3 md:grid-cols-2">{items.map((item, index) => <div key={item.id ?? index} className="rounded-xl border border-border bg-muted/40 p-4"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon size={16} /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.name ?? item.title ?? item.subject ?? item.originalFilename ?? item.eventType ?? `Record ${index + 1}`}</p><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description ?? item.body ?? item.status ?? item.sourceRef ?? 'Live record from the Lee API.'}</p></div><span className="lee-label text-muted-foreground">{item.status ?? 'live'}</span></div></div>)}</div> : <EmptyState title={emptyTitle} detail={emptyDetail} />}</Panel></div>;
 }
 

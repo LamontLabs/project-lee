@@ -157,6 +157,17 @@ export const notification = pgTable("notification", {
   readAt: timestamp("read_at", { withTimezone: true }),
 }, (table) => [index("notification_status_created_idx").on(table.status, table.createdAt)]);
 
+export const brief = pgTable("brief", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  briefType: varchar("brief_type", { length: 48 }).notNull(),
+  title: text("title").notNull(),
+  content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+  sourcesUsed: jsonb("sources_used").$type<string[]>().notNull().default([]),
+  confidence: real("confidence").notNull().default(0.5),
+  version: integer("version").notNull().default(1),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("brief_type_generated_idx").on(table.briefType, table.generatedAt)]);
+
 export const insertUniversalObjectSchema = createInsertSchema(universalObject, { sourceRefs: jsonArray, relatedObjects: jsonArray, history: z.array(jsonRecord), permissions: jsonRecord, confidenceLineage: jsonRecord, whyChain: z.array(jsonRecord) });
 export const insertSourceVaultSchema = createInsertSchema(sourceVault, { metadata: jsonRecord });
 export const insertImpactNodeSchema = createInsertSchema(impactNode, { sourceRefs: jsonArray, metadata: jsonRecord });
@@ -164,3 +175,4 @@ export const insertImpactEdgeSchema = createInsertSchema(impactEdge, { evidenceR
 export const insertAuditLogSchema = createInsertSchema(auditLog, { metadata: jsonRecord });
 export const insertWaitingLoopSchema = createInsertSchema(waitingLoop, { sourceRefs: jsonArray, metadata: jsonRecord });
 export const insertNotificationSchema = createInsertSchema(notification);
+export const insertBriefSchema = createInsertSchema(brief, { content: jsonRecord, sourcesUsed: jsonArray });

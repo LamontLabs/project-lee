@@ -21,6 +21,7 @@ import decisionMemoryRouter from "./decision-memory";
 import foundationRouter from "./foundation";
 import authRouter from "./auth";
 import importsRouter from "./imports";
+import timeRouter from "./time";
 
 const router: IRouter = Router();
 
@@ -45,6 +46,7 @@ router.use(organizationalMemoryRouter);
 router.use(decisionMemoryRouter);
 router.use(authRouter);
 router.use(importsRouter);
+router.use(timeRouter);
 router.use(foundationRouter);
 
 export default router;

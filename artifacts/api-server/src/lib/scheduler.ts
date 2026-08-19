@@ -3,6 +3,7 @@ import { db, eventLog, scheduledJob } from "@workspace/db";
 import { generateOperationalReview } from "./operational-review";
 import { runSelfImprovementCycle } from "./self-improvement";
 import { runSystemEconomicsCycle } from "./system-economics";
+import { generateBrief, scanFreshness } from "./time-engine";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -82,12 +83,25 @@ export async function executeScheduledJob(id: string) {
       handlerError = error instanceof Error ? error.message : "System economics handler failed.";
     }
   }
+  if (job.jobType === "freshness_scan") {
+    try { await scanFreshness(); } catch (error) { handlerError = error instanceof Error ? error.message : "Freshness scan failed."; }
+  }
+  if (job.jobType === "morning_brief" || job.jobType === "evening_reflection" || job.jobType === "weekly_review") {
+    try {
+      const briefType = job.jobType === "morning_brief" ? "today" : job.jobType === "evening_reflection" ? "evening" : "weekly";
+      await generateBrief(briefType);
+    } catch (error) { handlerError = error instanceof Error ? error.message : "Brief generation failed."; }
+  }
   const supported =
     job.jobType === "maintenance" ||
     job.jobType === "health_check" ||
     job.jobType === "operational_review" ||
     job.jobType === "self_improvement" ||
-    job.jobType === "system_economics";
+    job.jobType === "system_economics" ||
+    job.jobType === "freshness_scan" ||
+    job.jobType === "morning_brief" ||
+    job.jobType === "evening_reflection" ||
+    job.jobType === "weekly_review";
   const now = new Date();
   if (!supported || handlerError) {
     const [failed] = await db

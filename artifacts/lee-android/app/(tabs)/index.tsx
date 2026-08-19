@@ -1,31 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen, Card, Eyebrow, SectionLabel, Title } from '@/components/Screen';
 import { useColors } from '@/hooks/useColors';
+import { useLee } from '@/context/LeeContext';
+import { getBrief, saveBrief } from '@/lib/storage';
+import type { Brief } from '@/lib/types';
 
 export default function BriefTab() {
   const colors = useColors();
+  const { api } = useLee();
+  const [brief, setBrief] = useState<Brief | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  async function refresh() { setRefreshing(true); await new Promise((resolve) => setTimeout(resolve, 500)); setRefreshing(false); }
+  const [offline, setOffline] = useState(false);
+  useEffect(() => { void (async () => { const cached = await getBrief(); if (cached) setBrief(cached); if (api) try { const live = await api.brief(); setBrief(live); await saveBrief(live); setOffline(false); } catch { setOffline(true); } })(); }, [api]);
+  async function refresh() { if (!api) return; setRefreshing(true); try { const live = await api.brief(); setBrief(live); await saveBrief(live); setOffline(false); } catch { setOffline(true); } finally { setRefreshing(false); } }
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
-      <View style={styles.headerRow}><View><Eyebrow>Wednesday · 19 Aug</Eyebrow><Title subtitle="A calm start to the operating day.">Good morning.</Title></View><View style={[styles.status, { backgroundColor: colors.accent }]}><View style={[styles.dot, { backgroundColor: colors.primary }]} /><Text style={[styles.statusText, { color: colors.accentForeground }]}>SYNCED</Text></View></View>
+      <View style={styles.headerRow}><View><Eyebrow>{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}</Eyebrow><Title subtitle={offline ? 'Showing your last saved brief.' : 'A calm start to the operating day.'}>Good morning.</Title></View><View style={[styles.status, { backgroundColor: offline ? colors.secondary : colors.accent }]}><View style={[styles.dot, { backgroundColor: offline ? colors.secondaryForeground : colors.primary }]} /><Text style={[styles.statusText, { color: offline ? colors.secondaryForeground : colors.accentForeground }]}>{offline ? 'OFFLINE' : 'SYNCED'}</Text></View></View>
       <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
         <Text style={[styles.kicker, { color: colors.primaryForeground }]}>TOP PRIORITY</Text>
-        <Text style={[styles.priority, { color: colors.primaryForeground }]}>Protect the founder’s attention before optimizing throughput.</Text>
-        <Text style={[styles.body, { color: colors.primaryForeground, opacity: 0.78 }]}>One focused block today will create more leverage than another round of system tuning.</Text>
+        <Text style={[styles.priority, { color: colors.primaryForeground }]}>{brief?.alerts[0]?.title ?? 'No priority has been raised yet.'}</Text>
+        <Text style={[styles.body, { color: colors.primaryForeground, opacity: 0.78 }]}>{brief?.alerts[0]?.body ?? 'Capture context or ask Lee for the next grounded move.'}</Text>
         <Pressable style={styles.arrow}><Feather name="arrow-up-right" size={20} color={colors.primaryForeground} /></Pressable>
       </Card>
       <SectionLabel>At a glance</SectionLabel>
       <View style={styles.grid}>
-        <Card style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>3</Text><Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Open loops</Text><Text style={[styles.statHint, { color: colors.destructive }]}>1 needs attention</Text></Card>
-        <Card style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>2</Text><Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Meetings today</Text><Text style={[styles.statHint, { color: colors.mutedForeground }]}>First at 10:30</Text></Card>
+         <Card style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>{brief?.unreadAlerts ?? 0}</Text><Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Active alerts</Text><Text style={[styles.statHint, { color: colors.destructive }]}>{brief?.unreadAlerts ? 'Needs attention' : 'Quiet signal'}</Text></Card>
+         <Card style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>{brief?.alerts.length ?? 0}</Text><Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Brief signals</Text><Text style={[styles.statHint, { color: colors.mutedForeground }]}>Source-backed</Text></Card>
       </View>
       <SectionLabel>Recommended focus</SectionLabel>
       <Card><View style={styles.row}><View style={[styles.iconCircle, { backgroundColor: colors.accent }]}><Feather name="crosshair" size={18} color={colors.primary} /></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Finish the pilot decision brief</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>The strongest next move is already visible. Give it a clean decision window.</Text></View></View></Card>
       <SectionLabel>Changed since yesterday</SectionLabel>
-      <Card><Text style={[styles.body, { color: colors.foreground }]}>A new founder note was captured and is waiting for understanding. One approval is ready for review.</Text></Card>
+       <Card><Text style={[styles.body, { color: colors.foreground }]}>{brief?.alerts.length ? brief.alerts.map((alert) => alert.title).join(' · ') : 'No changes requiring your attention have been recorded.'}</Text></Card>
     </Screen>
   );
 }

@@ -8,7 +8,8 @@ import { callProvider, estimateCost } from "../lib/ai-providers";
 const router: IRouter = Router();
 function paired(req: any) {
   const expected = process.env.LEE_ANDROID_PAIRING_TOKEN;
-  return Boolean(expected && req.headers["x-lee-device-token"] === expected);
+  const supplied = req.headers["x-lee-device-token"] ?? String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+  return Boolean(expected && supplied === expected);
 }
 function rejectPairing(req: any, res: any) {
   if (!paired(req)) { res.status(401).json({ error: "Android device pairing is required." }); return true; }
@@ -44,19 +45,40 @@ router.get("/android/waiting", async (req, res): Promise<void> => {
   res.json(await db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).orderBy(waitingLoop.nextCheckAt));
 });
 
+router.post("/android/waiting/:id/action", async (req, res): Promise<void> => {
+  if (rejectPairing(req, res)) return;
+  const action = req.body?.action;
+  const nextCheckAt = action === "snooze" ? new Date(Date.now() + Number(req.body?.hours ?? 24) * 3600000) : null;
+  const [updated] = await db.update(waitingLoop).set({ status: action === "resolve" ? "resolved" : "open", nextCheckAt, updatedAt: new Date() }).where(eq(waitingLoop.id, req.params.id)).returning();
+  if (!updated) { res.status(404).json({ error: "Waiting loop not found." }); return; }
+  res.json(updated);
+});
+
 router.get("/android/alerts", async (req, res): Promise<void> => {
   if (rejectPairing(req, res)) return;
   res.json(await db.select().from(notification).where(and(eq(notification.status, "unread"), gt(notification.severity, "info"))).orderBy(desc(notification.createdAt)));
 });
 
+router.post("/android/alerts/:id/action", async (req, res): Promise<void> => {
+  if (rejectPairing(req, res)) return;
+  const [updated] = await db.update(notification).set({ status: req.body?.action === "dismiss" ? "dismissed" : "read", readAt: new Date() }).where(eq(notification.id, req.params.id)).returning();
+  if (!updated) { res.status(404).json({ error: "Alert not found." }); return; }
+  res.json(updated);
+});
+
 router.post("/android/approve", async (req, res): Promise<void> => {
   if (rejectPairing(req, res)) return;
   const id = String(req.body?.governanceRequestId ?? "");
-  const decision = req.body?.decision === "approve" ? "approved" : req.body?.decision === "reject" ? "rejected" : null;
+  const decision = req.body?.decision === "approve" ? "approved" : req.body?.decision === "reject" ? "rejected" : req.body?.decision === "hold" ? "hold" : null;
   if (!id || !decision) { res.status(400).json({ error: "governanceRequestId and decision are required." }); return; }
   const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), resolvedAt: new Date(), responsePayload: { source: "android", decision } }).where(eq(governanceRequest.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Governance request not found." }); return; }
   res.json({ id: updated.id, status: updated.status });
+});
+
+router.get("/android/approvals", async (req, res): Promise<void> => {
+  if (rejectPairing(req, res)) return;
+  res.json(await db.select().from(governanceRequest).where(eq(governanceRequest.status, "HOLD")).orderBy(desc(governanceRequest.createdAt)));
 });
 
 export default router;

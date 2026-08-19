@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen, Card, Eyebrow, SectionLabel, Title } from '@/components/Screen';
 import { useColors } from '@/hooks/useColors';
@@ -12,10 +13,24 @@ export default function CaptureTab() {
   const [text, setText] = useState('');
   const [tag, setTag] = useState('Untagged');
   const [notice, setNotice] = useState('');
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   async function submit() { if (!text.trim()) return; await addCapture(text, tag); setText(''); setNotice('Queued for understanding'); setTimeout(() => setNotice(''), 2400); }
   async function photo() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled) { await addCapture(`Image capture: ${result.assets[0].fileName ?? 'screenshot'}`, 'Image'); setNotice('Image queued for Source Vault'); }
+    if (!result.canceled) { await addCapture(`Image capture: ${result.assets[0].fileName ?? 'screenshot'} · ${result.assets[0].uri}`, 'Image'); setNotice('Image queued for Source Vault'); }
+  }
+  async function voice() {
+    if (!recorder.isRecording) {
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) { setNotice('Microphone permission is required for voice capture.'); return; }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      recorder.record();
+      setNotice('Recording… tap Voice note again to stop.');
+    } else {
+      await recorder.stop();
+      await addCapture(`Voice capture queued${recorder.uri ? ` · ${recorder.uri}` : ''}`, 'Voice');
+      setNotice('Voice note queued for Source Vault');
+    }
   }
   return (
     <Screen>
@@ -24,7 +39,7 @@ export default function CaptureTab() {
         <TextInput testID="capture-input" value={text} onChangeText={setText} multiline placeholder="A fact, observation, or loose thread…" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground }]} />
         <View style={styles.tools}><View style={styles.tags}>{['Untagged', 'Project', 'Person'].map((item) => <Pressable key={item} onPress={() => setTag(item)} style={[styles.tag, { backgroundColor: tag === item ? colors.accent : colors.secondary }]}><Text style={[styles.tagText, { color: tag === item ? colors.accentForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}</View><Pressable testID="submit-capture" onPress={submit} style={[styles.send, { backgroundColor: colors.primary }]}><Feather name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable></View>
       </Card>
-      <View style={styles.actionRow}><Pressable onPress={() => setNotice('Voice capture is ready for the next audio upload')} style={[styles.action, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="mic" size={18} color={colors.primary} /><Text style={[styles.actionText, { color: colors.foreground }]}>Voice note</Text></Pressable><Pressable onPress={photo} style={[styles.action, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="image" size={18} color={colors.primary} /><Text style={[styles.actionText, { color: colors.foreground }]}>Photo</Text></Pressable></View>
+       <View style={styles.actionRow}><Pressable onPress={() => void voice()} style={[styles.action, { backgroundColor: recorder.isRecording ? colors.destructive : colors.card, borderColor: colors.border }]}><Feather name="mic" size={18} color={recorder.isRecording ? colors.destructiveForeground : colors.primary} /><Text style={[styles.actionText, { color: recorder.isRecording ? colors.destructiveForeground : colors.foreground }]}>{recorder.isRecording ? 'Stop recording' : 'Voice note'}</Text></Pressable><Pressable onPress={photo} style={[styles.action, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="image" size={18} color={colors.primary} /><Text style={[styles.actionText, { color: colors.foreground }]}>Photo</Text></Pressable></View>
       {notice ? <Text style={[styles.notice, { color: colors.primary }]}>{notice}</Text> : null}
       <SectionLabel>Recent captures · {captures.length}</SectionLabel>
       {captures.length === 0 ? <Card><Text style={[styles.empty, { color: colors.mutedForeground }]}>Your next useful observation belongs here.</Text></Card> : captures.slice(0, 5).map((capture) => <Card key={capture.id}><View style={styles.captureRow}><View style={styles.captureCopy}><Text style={[styles.captureText, { color: colors.foreground }]}>{capture.text}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{capture.tag} · {capture.status === 'queued' ? 'Queued locally' : 'Synced'}</Text></View><Feather name={capture.status === 'queued' ? 'clock' : 'check-circle'} size={17} color={capture.status === 'queued' ? colors.mutedForeground : colors.primary} /></View></Card>)}

@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Capture } from './types';
+import type { Brief, Capture, WaitingLoop } from './types';
 
 const PAIRING_KEY = '@lee/pairing';
 const CAPTURES_KEY = '@lee/captures';
+const BRIEF_KEY = '@lee/brief';
+const WAITING_KEY = '@lee/waiting';
 
 export type Pairing = { apiUrl: string; token: string; pairedAt: string };
 
@@ -27,6 +29,17 @@ export async function getCaptures(): Promise<Capture[]> {
 export async function saveCaptures(captures: Capture[]): Promise<void> {
   await AsyncStorage.setItem(CAPTURES_KEY, JSON.stringify(captures));
 }
+
+export async function getBrief(): Promise<Brief | null> {
+  const value = await AsyncStorage.getItem(BRIEF_KEY);
+  return value ? (JSON.parse(value) as Brief) : null;
+}
+export async function saveBrief(brief: Brief): Promise<void> { await AsyncStorage.setItem(BRIEF_KEY, JSON.stringify(brief)); }
+export async function getWaitingCache(): Promise<WaitingLoop[]> {
+  const value = await AsyncStorage.getItem(WAITING_KEY);
+  return value ? (JSON.parse(value) as WaitingLoop[]) : [];
+}
+export async function saveWaitingCache(items: WaitingLoop[]): Promise<void> { await AsyncStorage.setItem(WAITING_KEY, JSON.stringify(items)); }
 
 export async function pairedHealthCheck(apiUrl: string, token: string): Promise<boolean> {
   try {

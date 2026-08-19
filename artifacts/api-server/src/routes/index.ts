@@ -42,6 +42,7 @@ import impactRouter from "./impact";
 import timelineRouter from "./timeline";
 import queryRouter from "./query";
 import explanationsRouter from "./explanations";
+import semanticRouter from "./semantic";
 
 const router: IRouter = Router();
 
@@ -87,6 +88,7 @@ router.use(impactRouter);
 router.use(timelineRouter);
 router.use(queryRouter);
 router.use(explanationsRouter);
+router.use(semanticRouter);
 router.use(foundationRouter);
 
 export default router;

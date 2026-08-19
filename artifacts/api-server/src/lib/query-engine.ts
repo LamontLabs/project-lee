@@ -3,6 +3,7 @@ import { and, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { assumptionLedger, db, eventLog, factLedger, interpretationLedger, queryCache, queryLog, universalObject } from "@workspace/db";
 import { checkConstitution } from "./constitution";
+import { searchSemantic } from "./semantic-index";
 export const querySpecSchema = z.object({
   sources: z.array(z.enum(["universal_objects", "facts", "interpretations", "assumptions", "events"])).min(1),
   filters: z.object({ objectType: z.string().optional(), status: z.string().optional(), start: z.coerce.date().optional(), end: z.coerce.date().optional(), project: z.string().optional(), person: z.string().optional(), memoryTier: z.string().optional(), text: z.string().optional() }).default({}),
@@ -38,7 +39,10 @@ export class QueryEngine {
         const conditions = [...date(eventLog.occurredAt), f.text ? ilike(eventLog.eventType, `%${f.text}%`) : undefined].filter(Boolean) as any[];
         rows.push(...(await db.select().from(eventLog).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(eventLog.occurredAt)).limit(spec.limit)).map((row) => rank(row, "event", spec)));
       }
-      results = rows.filter((item) => item.confidence >= spec.confidenceThreshold).sort((a, b) => b.why_included.base_score - a.why_included.base_score).slice(0, spec.limit);
+      const structured = rows.filter((item) => item.confidence >= spec.confidenceThreshold);
+      const semantic = spec.purpose === "discovery" && f.text ? await searchSemantic(f.text, { objectType: f.objectType, start: f.start, end: f.end }, spec.limit, spec.requester) : [];
+      const semanticResults = semantic.map((item) => ({ object_id: item.object_id, object_type: item.object_type, object: { excerpt: item.excerpt, similarityScore: item.similarity_score }, confidence: item.similarity_score, propagated_confidence: item.similarity_score, why_included: { importance: 0.5, freshness: 1, confidence: item.similarity_score, relevance: item.similarity_score, base_score: item.similarity_score }, source_refs: [], memory_tier: null, age_score: 1, importance_score: 0.5 }));
+      results = [...structured, ...semanticResults].sort((a, b) => b.why_included.base_score - a.why_included.base_score).slice(0, spec.limit);
       await db.insert(queryCache).values({ cacheKey: key, result: results, ttlSeconds: ttl, cachedAt: new Date(), invalidatedAt: null }).onConflictDoUpdate({ target: queryCache.cacheKey, set: { result: results, cachedAt: new Date(), ttlSeconds: ttl, invalidatedAt: null } });
     }
     await db.insert(queryLog).values({ queryId: randomUUID(), requesterEngine: spec.requester, purpose: spec.purpose, sources: spec.sources, filterSpec: spec.filters, rankingPolicy: spec.rankingPolicy, resultCount: results.length, cacheHit: hit, executionMs: Date.now() - started });

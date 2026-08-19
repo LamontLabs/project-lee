@@ -96,6 +96,16 @@ export const explanationAudienceProfile = pgTable("explanation_audience_profile"
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+export const semanticIndex = pgTable("semantic_index", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  objectId: text("object_id").notNull(),
+  objectType: varchar("object_type", { length: 64 }).notNull(),
+  embedding: jsonb("embedding").$type<number[]>().notNull().default([]),
+  indexedAt: timestamp("indexed_at", { withTimezone: true }).defaultNow().notNull(),
+  sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }).notNull(),
+  modelVersion: varchar("model_version", { length: 64 }).notNull().default("local-hash-v1"),
+  excerpt: text("excerpt").notNull(),
+}, (table) => [uniqueIndex("semantic_index_object_unique").on(table.objectId, table.objectType), index("semantic_index_object_idx").on(table.objectId), index("semantic_index_indexed_idx").on(table.indexedAt)]);
 
 export const factLedger = pgTable(
   "fact_ledger",

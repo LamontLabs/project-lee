@@ -19,3 +19,4 @@
 - [Digital Twin timeline](digital-twin-timeline.md) — chronological history is a significance-filtered projection of the immutable Event Log, with milestones stored separately.
 - [Query Engine boundary](query-engine-boundary.md) — shared retrieval centralizes Constitution checks, ranking, cache policy, confidence, and telemetry.
 - [Explanation Engine boundary](explanation-engine-boundary.md) — audience-calibrated explanations remain interpretations with source IDs, Why Chain, provenance, and feedback.
+- [Semantic Index boundary](semantic-index-boundary.md) — local eventual-consistency embeddings improve discovery without replacing canonical ledgers or structured confidence.

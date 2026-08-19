@@ -7,7 +7,7 @@ import {
   RecordRelationshipInteractionParams,
   RecordRelationshipInteractionResponse,
 } from "@workspace/api-zod";
-import { db, eventLog, person, relationshipInteraction } from "@workspace/db";
+import { db, eventLog, person, relationshipInteraction, relationshipPromise, relationshipQuestion, relationshipHealthScore } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
 const router: IRouter = Router();
@@ -95,6 +95,35 @@ router.post("/relationships/people", async (req, res): Promise<void> => {
 router.get("/relationships/people", async (_req, res): Promise<void> => {
   const people = await db.select().from(person).orderBy(desc(person.updatedAt));
   res.json(ListPeopleResponse.parse(people.map(serializePerson)));
+});
+
+router.get("/relationships/people/:id/intelligence", async (req, res): Promise<void> => {
+  const [entry] = await db.select().from(person).where(eq(person.id, req.params.id)).limit(1);
+  if (!entry) { res.status(404).json({ error: "Person not found." }); return; }
+  const [interactions, promises, questions, scores] = await Promise.all([
+    db.select().from(relationshipInteraction).where(eq(relationshipInteraction.personId, entry.id)).orderBy(desc(relationshipInteraction.occurredAt)).limit(50),
+    db.select().from(relationshipPromise).where(eq(relationshipPromise.personId, entry.id)).orderBy(desc(relationshipPromise.createdAt)),
+    db.select().from(relationshipQuestion).where(eq(relationshipQuestion.personId, entry.id)).orderBy(desc(relationshipQuestion.createdAt)),
+    db.select().from(relationshipHealthScore).where(eq(relationshipHealthScore.personId, entry.id)).orderBy(desc(relationshipHealthScore.calculatedAt)).limit(20),
+  ]);
+  const overdue = promises.filter((item) => item.status === "open" && item.dueAt && item.dueAt < new Date()).length;
+  const openQuestions = questions.filter((item) => item.status === "open").length;
+  const score = Math.max(0, Math.min(100, 70 - overdue * 15 - openQuestions * 5 + Math.min(interactions.length, 6) * 5));
+  const momentum = interactions.length >= 3 ? "active" : interactions.length ? "warming" : "dormant";
+  const [health] = await db.insert(relationshipHealthScore).values({ personId: entry.id, score, momentum, rationale: `${overdue} overdue promises, ${openQuestions} open questions, ${interactions.length} recent interactions.` }).returning();
+  res.json({ person: serializePerson(entry), interactions, promises, questions, health, healthHistory: scores });
+});
+router.post("/relationships/people/:id/promises", async (req, res): Promise<void> => {
+  const [entry] = await db.select().from(person).where(eq(person.id, req.params.id)).limit(1);
+  if (!entry || typeof req.body?.statement !== "string") { res.status(400).json({ error: "Person and promise statement are required." }); return; }
+  const [item] = await db.insert(relationshipPromise).values({ personId: entry.id, direction: req.body.direction ?? "outgoing", statement: req.body.statement, dueAt: req.body.dueAt ? new Date(req.body.dueAt) : null, sourceRef: req.body.sourceRef ?? "relationship-console" }).returning();
+  res.status(201).json(item);
+});
+router.post("/relationships/people/:id/questions", async (req, res): Promise<void> => {
+  const [entry] = await db.select().from(person).where(eq(person.id, req.params.id)).limit(1);
+  if (!entry || typeof req.body?.question !== "string") { res.status(400).json({ error: "Person and question are required." }); return; }
+  const [item] = await db.insert(relationshipQuestion).values({ personId: entry.id, question: req.body.question, sourceRef: req.body.sourceRef ?? "relationship-console" }).returning();
+  res.status(201).json(item);
 });
 
 router.post("/relationships/people/:id/interactions", async (req, res): Promise<void> => {

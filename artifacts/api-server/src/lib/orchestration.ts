@@ -13,6 +13,7 @@ const defaults = [
   ["Simulation Engine", ["run", "compare"], "NORMAL", "on request"],
   ["Reflection Engine", ["generate", "metrics"], "NORMAL", "weekly/monthly/annual"],
   ["Learning Engine", ["capture", "detect_patterns"], "LOW", "daily"],
+  ["Workspace Context Engine", ["evaluate_mode"], "LOW", "every 15 minutes"],
   ["Brief Engine", ["morning_brief", "reflection"], "HIGH", "daily"],
   ["Connector Engine", ["sync"], "HIGH", "staggered"],
   ["Freshness Engine", ["scan"], "NORMAL", "hourly"],

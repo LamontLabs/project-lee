@@ -45,6 +45,12 @@ import {
   correction,
   standingCorrectionRule,
   learningAsset,
+  modeConfig,
+  modeHistory,
+  workspaceState,
+  relationshipPromise,
+  relationshipQuestion,
+  relationshipHealthScore,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -86,6 +92,12 @@ const snapshotTables = {
   correction,
   standingCorrectionRule,
   learningAsset,
+  modeConfig,
+  modeHistory,
+  workspaceState,
+  relationshipPromise,
+  relationshipQuestion,
+  relationshipHealthScore,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

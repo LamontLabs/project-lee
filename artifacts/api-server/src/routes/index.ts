@@ -32,6 +32,7 @@ import curiosityRouter from "./curiosity";
 import trustRouter from "./trust";
 import strategyRouter from "./strategy";
 import learningRouter from "./learning";
+import workspaceRouter from "./workspace";
 
 const router: IRouter = Router();
 
@@ -67,6 +68,7 @@ router.use(curiosityRouter);
 router.use(trustRouter);
 router.use(strategyRouter);
 router.use(learningRouter);
+router.use(workspaceRouter);
 router.use(foundationRouter);
 
 export default router;

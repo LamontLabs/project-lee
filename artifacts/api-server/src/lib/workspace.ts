@@ -1,0 +1,19 @@
+import { desc, eq } from "drizzle-orm";
+import { db, eventLog, modeConfig, modeHistory, workspaceState } from "@workspace/db";
+import { enqueueWork } from "./orchestration";
+const MODES: Record<string, { notificationThreshold: string; modelRoutingOverride: string; governanceStrictnessOverride: string; graphTraversalDepth: number }> = {
+  morning: { notificationThreshold: "normal", modelRoutingOverride: "cheap_first", governanceStrictnessOverride: "standard", graphTraversalDepth: 2 },
+  deep_work: { notificationThreshold: "critical_only", modelRoutingOverride: "mid_tier", governanceStrictnessOverride: "standard", graphTraversalDepth: 4 },
+  pilot: { notificationThreshold: "high_sensitivity", modelRoutingOverride: "mid_tier", governanceStrictnessOverride: "strict", graphTraversalDepth: 3 },
+  deployment: { notificationThreshold: "high_sensitivity", modelRoutingOverride: "cheap_first", governanceStrictnessOverride: "faster_internal", graphTraversalDepth: 3 },
+  writing: { notificationThreshold: "normal", modelRoutingOverride: "mid_tier", governanceStrictnessOverride: "standard", graphTraversalDepth: 2 },
+  travel: { notificationThreshold: "critical_only", modelRoutingOverride: "cheap_only", governanceStrictnessOverride: "strict", graphTraversalDepth: 2 },
+  budget: { notificationThreshold: "normal", modelRoutingOverride: "cheap_only", governanceStrictnessOverride: "strict_cost", graphTraversalDepth: 2 },
+  research: { notificationThreshold: "normal", modelRoutingOverride: "mid_or_strong", governanceStrictnessOverride: "standard", graphTraversalDepth: 5 },
+  evening: { notificationThreshold: "critical_only", modelRoutingOverride: "cheap_first", governanceStrictnessOverride: "standard", graphTraversalDepth: 2 },
+  review: { notificationThreshold: "normal", modelRoutingOverride: "cheap_first", governanceStrictnessOverride: "standard", graphTraversalDepth: 3 },
+};
+export async function ensureModes() { for (const [modeName, config] of Object.entries(MODES)) await db.insert(modeConfig).values({ modeName, ...config }).onConflictDoUpdate({ target: modeConfig.modeName, set: config }); }
+export async function workspaceStatus() { await ensureModes(); let [state] = await db.select().from(workspaceState).where(eq(workspaceState.stateKey, "primary")); if (!state) [state] = await db.insert(workspaceState).values({}).returning(); const [config] = await db.select().from(modeConfig).where(eq(modeConfig.modeName, state.currentMode)); const history = await db.select().from(modeHistory).orderBy(desc(modeHistory.activatedAt)).limit(30); return { state, config, history, modes: Object.keys(MODES) }; }
+export async function setMode(modeName: string, reason: string, manualOverride = true) { await ensureModes(); if (!MODES[modeName]) throw new Error("Unknown operating mode."); const now = new Date(); const [state] = await db.update(workspaceState).set({ currentMode: modeName, manualOverride, lastChangedAt: now }).where(eq(workspaceState.stateKey, "primary")).returning(); const updated = state ?? (await db.insert(workspaceState).values({ currentMode: modeName, manualOverride, lastChangedAt: now }).returning())[0]; await db.insert(modeHistory).values({ modeName, activationReason: reason, activatedAt: now }); await db.insert(eventLog).values({ eventType: "OperatingModeChanged", aggregateType: "workspace", aggregateId: updated.id, sourceRef: "workspace-context-engine", occurredAt: now, payload: { modeName, reason, manualOverride } }); return updated; }
+export async function queueWorkspaceEvaluation() { return enqueueWork({ engineName: "Workspace Context Engine", action: "evaluate_mode", priority: "LOW", payload: { cadence: "15 minutes" } }); }

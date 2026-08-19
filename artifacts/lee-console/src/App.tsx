@@ -11,6 +11,8 @@ import StrategyPage from './StrategyPage';
 import SimulationPage from './SimulationPage';
 import ReflectionPage from './ReflectionPage';
 import LearningPage from './LearningPage';
+import RelationshipsPage from './RelationshipsPage';
+import WorkspacePage from './WorkspacePage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -71,7 +73,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -150,6 +152,7 @@ const navItems = [
   { href: '/ask', label: 'Ask Lee', icon: MessageSquareText },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/people', label: 'People', icon: Users },
+  { href: '/workspace', label: 'Workspace', icon: Settings2 },
   { href: '/decisions', label: 'Decisions', icon: Scale },
   { href: '/waiting', label: 'Waiting', icon: Clock3 },
   { href: '/evidence', label: 'Evidence', icon: FileText },
@@ -229,16 +232,17 @@ function Panel({ children, className = '' }: { children: ReactNode; className?: 
 }
 
 function ConsoleStatusBar() {
-  const [data, setData] = useState({ cost: '—', approvals: '—', notifications: '—', backup: '—' });
+  const [data, setData] = useState({ cost: '—', approvals: '—', notifications: '—', backup: '—', mode: 'morning' });
   useEffect(() => {
-    void Promise.all([fetch('/api/economics/summary'), fetch('/api/events?limit=20'), fetch('/api/brain-versions')]).then(async ([economics, events, backups]) => {
+    void Promise.all([fetch('/api/economics/summary'), fetch('/api/events?limit=20'), fetch('/api/brain-versions'), fetch('/api/workspace')]).then(async ([economics, events, backups, workspace]) => {
       const economicsData = economics.ok ? await economics.json() : null;
       const eventsData = events.ok ? await events.json() : [];
       const backupsData = backups.ok ? await backups.json() : [];
-      setData({ cost: economicsData?.totalCostUsd != null ? `$${Number(economicsData.totalCostUsd).toFixed(2)}` : 'No ledger', approvals: `${eventsData.filter((item: any) => /held|approval/i.test(item.eventType)).length}`, notifications: `${eventsData.filter((item: any) => /alert|notification/i.test(item.eventType)).length}`, backup: backupsData[0]?.status ?? 'Not run' });
+      const workspaceData = workspace.ok ? await workspace.json() : null;
+      setData({ cost: economicsData?.totalCostUsd != null ? `$${Number(economicsData.totalCostUsd).toFixed(2)}` : 'No ledger', approvals: `${eventsData.filter((item: any) => /held|approval/i.test(item.eventType)).length}`, notifications: `${eventsData.filter((item: any) => /alert|notification/i.test(item.eventType)).length}`, backup: backupsData[0]?.status ?? 'Not run', mode: workspaceData?.state?.currentMode ?? 'morning' });
     }).catch(() => undefined);
   }, []);
-  return <div className="hidden items-center gap-2 xl:flex"><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Health nominal</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><span className="lee-label text-muted-foreground">Mode private</span></div>;
+  return <div className="hidden items-center gap-2 xl:flex"><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Health nominal</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
 }
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {

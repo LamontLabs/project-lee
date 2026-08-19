@@ -19,3 +19,4 @@ export * from "./curiosity";
 export * from "./trust";
 export * from "./strategy";
 export * from "./learning";
+export * from "./workspace";

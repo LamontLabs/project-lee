@@ -61,6 +61,32 @@ export const relationshipInteraction = pgTable(
     index("relationship_interaction_event_idx").on(table.normalizedEventId),
   ],
 );
+export const relationshipPromise = pgTable("relationship_promise", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  personId: uuid("person_id").notNull(),
+  direction: varchar("direction", { length: 16 }).notNull().default("outgoing"),
+  statement: text("statement").notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("open"),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  sourceRef: text("source_ref").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export const relationshipQuestion = pgTable("relationship_question", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  personId: uuid("person_id").notNull(),
+  question: text("question").notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("open"),
+  sourceRef: text("source_ref").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export const relationshipHealthScore = pgTable("relationship_health_score", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  personId: uuid("person_id").notNull(),
+  score: real("score").notNull().default(50),
+  momentum: varchar("momentum", { length: 16 }).notNull().default("dormant"),
+  rationale: text("rationale").notNull(),
+  calculatedAt: timestamp("calculated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const insertPersonSchema = createInsertSchema(person, {
   roles: z.array(z.string()),

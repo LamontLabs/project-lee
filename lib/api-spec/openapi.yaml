@@ -26,6 +26,8 @@ tags:
     description: Fail-closed CerbaSeal authorization boundary
   - name: memory
     description: Epistemic memory retrieval and consolidation
+  - name: graph
+    description: Typed knowledge graph nodes, edges, and traversal
 paths:
   /healthz:
     get:
@@ -366,6 +368,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MemoryConsolidationResult"
+  /graph/edges:
+    post:
+      operationId: createGraphEdge
+      tags: [graph]
+      summary: Create a validated typed graph edge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraphEdgeInput"
+      responses:
+        "201":
+          description: Graph edge created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphEdge"
+        "400":
+          description: Invalid edge type or request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /graph/traverse/{objectType}/{objectId}:
+    get:
+      operationId: traverseGraph
+      tags: [graph]
+      summary: Traverse outgoing graph edges
+      parameters:
+        - name: objectType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: objectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+            default: 1
+      responses:
+        "200":
+          description: Traversal result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphTraversalResult"
 components:
   schemas:
     HealthStatus:
@@ -991,4 +1048,59 @@ components:
           type: string
           format: uuid
       required: [factCount, conflictCount, conflicts, eventId]
+    GraphEdgeInput:
+      type: object
+      properties:
+        sourceType:
+          type: string
+        sourceId:
+          type: string
+          format: uuid
+        targetType:
+          type: string
+        targetId:
+          type: string
+          format: uuid
+        edgeType:
+          type: string
+          enum: [SUPPORTS, CONTRADICTS, DERIVED_FROM, RELATES_TO, OWNED_BY, PART_OF, DEPENDS_ON_PORTFOLIO]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        sourceRef:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [sourceType, sourceId, targetType, targetId, edgeType, sourceRef]
+    GraphEdge:
+      allOf:
+        - $ref: "#/components/schemas/GraphEdgeInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+          required: [id, createdAt]
+    GraphTraversalResult:
+      type: object
+      properties:
+        root:
+          type: object
+          additionalProperties: true
+        nodes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        edges:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required: [root, nodes, edges]
 

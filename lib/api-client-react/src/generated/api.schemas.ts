@@ -446,11 +446,66 @@ export interface MemoryConsolidationResult {
   eventId: string;
 }
 
+export type GraphEdgeInputEdgeType = typeof GraphEdgeInputEdgeType[keyof typeof GraphEdgeInputEdgeType];
+
+
+export const GraphEdgeInputEdgeType = {
+  SUPPORTS: 'SUPPORTS',
+  CONTRADICTS: 'CONTRADICTS',
+  DERIVED_FROM: 'DERIVED_FROM',
+  RELATES_TO: 'RELATES_TO',
+  OWNED_BY: 'OWNED_BY',
+  PART_OF: 'PART_OF',
+  DEPENDS_ON_PORTFOLIO: 'DEPENDS_ON_PORTFOLIO',
+} as const;
+
+export type GraphEdgeInputMetadata = { [key: string]: unknown };
+
+export interface GraphEdgeInput {
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+  edgeType: GraphEdgeInputEdgeType;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence?: number;
+  sourceRef: string;
+  metadata?: GraphEdgeInputMetadata;
+}
+
+export type GraphEdge = GraphEdgeInput & {
+  id: string;
+  createdAt: string;
+};
+
+export type GraphTraversalResultRoot = { [key: string]: unknown };
+
+export type GraphTraversalResultNodesItem = { [key: string]: unknown };
+
+export type GraphTraversalResultEdgesItem = { [key: string]: unknown };
+
+export interface GraphTraversalResult {
+  root: GraphTraversalResultRoot;
+  nodes: GraphTraversalResultNodesItem[];
+  edges: GraphTraversalResultEdgesItem[];
+}
+
 export type SearchMemoryParams = {
 tag?: string;
 projectId?: string;
 entityId?: string;
 from?: string;
 to?: string;
+};
+
+export type TraverseGraphParams = {
+/**
+ * @minimum 1
+ * @maximum 5
+ */
+depth?: number;
 };
 

@@ -480,3 +480,66 @@ export const ConsolidateMemoryResponse = zod.object({
 })
 
 
+/**
+ * @summary Create a validated typed graph edge
+ */
+export const createGraphEdgeBodyConfidenceMin = 0;
+export const createGraphEdgeBodyConfidenceMax = 1;
+
+
+
+export const CreateGraphEdgeBody = zod.object({
+  "sourceType": zod.string(),
+  "sourceId": zod.string().uuid(),
+  "targetType": zod.string(),
+  "targetId": zod.string().uuid(),
+  "edgeType": zod.enum(['SUPPORTS', 'CONTRADICTS', 'DERIVED_FROM', 'RELATES_TO', 'OWNED_BY', 'PART_OF', 'DEPENDS_ON_PORTFOLIO']),
+  "confidence": zod.number().min(createGraphEdgeBodyConfidenceMin).max(createGraphEdgeBodyConfidenceMax).optional(),
+  "sourceRef": zod.string(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const createGraphEdgeResponseOneConfidenceMin = 0;
+export const createGraphEdgeResponseOneConfidenceMax = 1;
+
+
+
+export const CreateGraphEdgeResponse = zod.object({
+  "sourceType": zod.string(),
+  "sourceId": zod.string().uuid(),
+  "targetType": zod.string(),
+  "targetId": zod.string().uuid(),
+  "edgeType": zod.enum(['SUPPORTS', 'CONTRADICTS', 'DERIVED_FROM', 'RELATES_TO', 'OWNED_BY', 'PART_OF', 'DEPENDS_ON_PORTFOLIO']),
+  "confidence": zod.number().min(createGraphEdgeResponseOneConfidenceMin).max(createGraphEdgeResponseOneConfidenceMax).optional(),
+  "sourceRef": zod.string(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+}))
+
+
+/**
+ * @summary Traverse outgoing graph edges
+ */
+export const TraverseGraphParams = zod.object({
+  "objectType": zod.coerce.string(),
+  "objectId": zod.coerce.string().uuid()
+})
+
+export const traverseGraphQueryDepthDefault = 1;
+export const traverseGraphQueryDepthMax = 5;
+
+
+
+export const TraverseGraphQueryParams = zod.object({
+  "depth": zod.coerce.number().min(1).max(traverseGraphQueryDepthMax).default(traverseGraphQueryDepthDefault)
+})
+
+export const TraverseGraphResponse = zod.object({
+  "root": zod.record(zod.string(), zod.unknown()),
+  "nodes": zod.array(zod.record(zod.string(), zod.unknown())),
+  "edges": zod.array(zod.record(zod.string(), zod.unknown()))
+})
+
+

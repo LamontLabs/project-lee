@@ -30,6 +30,9 @@ import type {
   ErrorResponse,
   GovernedRequest,
   GovernedResponse,
+  GraphEdge,
+  GraphEdgeInput,
+  GraphTraversalResult,
   HealthStatus,
   MemoryConsolidationResult,
   MemoryIndex,
@@ -42,6 +45,7 @@ import type {
   ScheduledJob,
   ScheduledJobRunResult,
   SearchMemoryParams,
+  TraverseGraphParams,
   UnderstandingRunInput,
   UnderstandingRunResult,
   UnderstandingRunSummary
@@ -1321,4 +1325,168 @@ export const useConsolidateMemory = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getConsolidateMemoryMutationOptions(options));
     }
+
+export const getCreateGraphEdgeUrl = () => {
+
+
+
+
+  return `/api/graph/edges`
+}
+
+/**
+ * @summary Create a validated typed graph edge
+ */
+export const createGraphEdge = async (graphEdgeInput: GraphEdgeInput, options?: RequestInit): Promise<GraphEdge> => {
+
+  return customFetch<GraphEdge>(getCreateGraphEdgeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(graphEdgeInput)
+  }
+);}
+
+
+
+
+export const getCreateGraphEdgeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGraphEdge>>, TError,{data: BodyType<GraphEdgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGraphEdge>>, TError,{data: BodyType<GraphEdgeInput>}, TContext> => {
+
+const mutationKey = ['createGraphEdge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGraphEdge>>, {data: BodyType<GraphEdgeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createGraphEdge(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGraphEdgeMutationResult = NonNullable<Awaited<ReturnType<typeof createGraphEdge>>>
+    export type CreateGraphEdgeMutationBody = BodyType<GraphEdgeInput>
+    export type CreateGraphEdgeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a validated typed graph edge
+ */
+export const useCreateGraphEdge = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGraphEdge>>, TError,{data: BodyType<GraphEdgeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGraphEdge>>,
+        TError,
+        {data: BodyType<GraphEdgeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateGraphEdgeMutationOptions(options));
+    }
+
+export const getTraverseGraphUrl = (objectType: string,
+    objectId: string,
+    params?: TraverseGraphParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/graph/traverse/${objectType}/${objectId}?${stringifiedParams}` : `/api/graph/traverse/${objectType}/${objectId}`
+}
+
+/**
+ * @summary Traverse outgoing graph edges
+ */
+export const traverseGraph = async (objectType: string,
+    objectId: string,
+    params?: TraverseGraphParams, options?: RequestInit): Promise<GraphTraversalResult> => {
+
+  return customFetch<GraphTraversalResult>(getTraverseGraphUrl(objectType,objectId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getTraverseGraphQueryKey = (objectType: string,
+    objectId: string,
+    params?: TraverseGraphParams,) => {
+    return [
+    `/api/graph/traverse/${objectType}/${objectId}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getTraverseGraphQueryOptions = <TData = Awaited<ReturnType<typeof traverseGraph>>, TError = ErrorType<unknown>>(objectType: string,
+    objectId: string,
+    params?: TraverseGraphParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getTraverseGraphQueryKey(objectType,objectId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof traverseGraph>>> = ({ signal }) => traverseGraph(objectType,objectId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: objectType !== null && objectType !== undefined && objectId !== null && objectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type TraverseGraphQueryResult = NonNullable<Awaited<ReturnType<typeof traverseGraph>>>
+export type TraverseGraphQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Traverse outgoing graph edges
+ */
+
+export function useTraverseGraph<TData = Awaited<ReturnType<typeof traverseGraph>>, TError = ErrorType<unknown>>(
+ objectType: string,
+    objectId: string,
+    params?: TraverseGraphParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traverseGraph>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getTraverseGraphQueryOptions(objectType,objectId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

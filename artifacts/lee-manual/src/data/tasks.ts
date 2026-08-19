@@ -228,7 +228,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "1",
     dependsOn: [1],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Complete Brain backup, restoration, and versioned snapshot system. A Brain Version is a complete operational state snapshot that can be restored.",
     description: "Brain Versions include: full knowledge graph, all ledgers, Identity Profile, all active objectives, all assumptions, all configuration. Backups run on schedule. Restoration is a tested, documented procedure. Migration tooling handles schema evolution.",
     responsibilities: [

@@ -20,14 +20,19 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BrainVersion,
+  BrainVersionSummary,
   ConnectorHealth,
   ConnectorSyncInput,
   ConnectorSyncResult,
   CostSummary,
+  CreateBrainVersionInput,
   ErrorResponse,
   HealthStatus,
   ReasoningRequestInput,
   ReasoningRouteResult,
+  RestoreBrainVersionInput,
+  RestoreBrainVersionResult,
   UnderstandingRunInput,
   UnderstandingRunResult,
   UnderstandingRunSummary
@@ -578,4 +583,222 @@ export function useGetCostSummary<TData = Awaited<ReturnType<typeof getCostSumma
 
 
 
+
+export const getCreateBrainVersionUrl = () => {
+
+
+
+
+  return `/api/brain-versions`
+}
+
+/**
+ * @summary Create and verify a checksummed brain snapshot
+ */
+export const createBrainVersion = async (createBrainVersionInput?: CreateBrainVersionInput, options?: RequestInit): Promise<BrainVersion> => {
+
+  return customFetch<BrainVersion>(getCreateBrainVersionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createBrainVersionInput)
+  }
+);}
+
+
+
+
+export const getCreateBrainVersionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBrainVersion>>, TError,{data?: BodyType<CreateBrainVersionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBrainVersion>>, TError,{data?: BodyType<CreateBrainVersionInput>}, TContext> => {
+
+const mutationKey = ['createBrainVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBrainVersion>>, {data?: BodyType<CreateBrainVersionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBrainVersion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBrainVersionMutationResult = NonNullable<Awaited<ReturnType<typeof createBrainVersion>>>
+    export type CreateBrainVersionMutationBody = BodyType<CreateBrainVersionInput> | undefined
+    export type CreateBrainVersionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create and verify a checksummed brain snapshot
+ */
+export const useCreateBrainVersion = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBrainVersion>>, TError,{data?: BodyType<CreateBrainVersionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBrainVersion>>,
+        TError,
+        {data?: BodyType<CreateBrainVersionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBrainVersionMutationOptions(options));
+    }
+
+export const getListBrainVersionsUrl = () => {
+
+
+
+
+  return `/api/brain-versions`
+}
+
+/**
+ * @summary List brain snapshots
+ */
+export const listBrainVersions = async ( options?: RequestInit): Promise<BrainVersionSummary[]> => {
+
+  return customFetch<BrainVersionSummary[]>(getListBrainVersionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBrainVersionsQueryKey = () => {
+    return [
+    `/api/brain-versions`
+    ] as const;
+    }
+
+
+export const getListBrainVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listBrainVersions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBrainVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBrainVersionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBrainVersions>>> = ({ signal }) => listBrainVersions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBrainVersions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBrainVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listBrainVersions>>>
+export type ListBrainVersionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List brain snapshots
+ */
+
+export function useListBrainVersions<TData = Awaited<ReturnType<typeof listBrainVersions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBrainVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBrainVersionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRestoreBrainVersionUrl = (id: string,) => {
+
+
+
+
+  return `/api/brain-versions/${id}/restore`
+}
+
+/**
+ * @summary Verify a snapshot and initiate a restore preflight
+ */
+export const restoreBrainVersion = async (id: string,
+    restoreBrainVersionInput?: RestoreBrainVersionInput, options?: RequestInit): Promise<RestoreBrainVersionResult> => {
+
+  return customFetch<RestoreBrainVersionResult>(getRestoreBrainVersionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(restoreBrainVersionInput)
+  }
+);}
+
+
+
+
+export const getRestoreBrainVersionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBrainVersion>>, TError,{id: string;data?: BodyType<RestoreBrainVersionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreBrainVersion>>, TError,{id: string;data?: BodyType<RestoreBrainVersionInput>}, TContext> => {
+
+const mutationKey = ['restoreBrainVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreBrainVersion>>, {id: string;data?: BodyType<RestoreBrainVersionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  restoreBrainVersion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreBrainVersionMutationResult = NonNullable<Awaited<ReturnType<typeof restoreBrainVersion>>>
+    export type RestoreBrainVersionMutationBody = BodyType<RestoreBrainVersionInput> | undefined
+    export type RestoreBrainVersionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Verify a snapshot and initiate a restore preflight
+ */
+export const useRestoreBrainVersion = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreBrainVersion>>, TError,{id: string;data?: BodyType<RestoreBrainVersionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreBrainVersion>>,
+        TError,
+        {id: string;data?: BodyType<RestoreBrainVersionInput>},
+        TContext
+      > => {
+      return useMutation(getRestoreBrainVersionMutationOptions(options));
+    }
 

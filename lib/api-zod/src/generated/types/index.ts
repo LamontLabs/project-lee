@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './brainVersion';
+export * from './brainVersionPayload';
+export * from './brainVersionRecordCounts';
+export * from './brainVersionSummary';
 export * from './connectorEventInput';
 export * from './connectorEventInputPayload';
 export * from './connectorHealth';
@@ -15,6 +19,7 @@ export * from './connectorSyncInputMode';
 export * from './connectorSyncResult';
 export * from './costSummary';
 export * from './costTierSummary';
+export * from './createBrainVersionInput';
 export * from './errorResponse';
 export * from './extractedFact';
 export * from './extractedInterpretation';
@@ -25,6 +30,8 @@ export * from './reasoningRequestInputPreferredTier';
 export * from './reasoningRequestInputRiskClassification';
 export * from './reasoningRouteResult';
 export * from './reasoningRouteResultResolutionTier';
+export * from './restoreBrainVersionInput';
+export * from './restoreBrainVersionResult';
 export * from './selectedContextItem';
 export * from './understandingRunInput';
 export * from './understandingRunInputMetadata';

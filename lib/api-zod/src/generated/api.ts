@@ -221,3 +221,68 @@ export const GetCostSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary Create and verify a checksummed brain snapshot
+ */
+export const createBrainVersionBodyVersionNameMax = 160;
+
+
+
+export const CreateBrainVersionBody = zod.object({
+  "versionName": zod.string().min(1).max(createBrainVersionBodyVersionNameMax).optional()
+})
+
+export const CreateBrainVersionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "versionName": zod.string(),
+  "schemaVersion": zod.string(),
+  "status": zod.string(),
+  "checksum": zod.string(),
+  "totalRecords": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "verifiedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "recordCounts": zod.record(zod.string(), zod.number()),
+  "payload": zod.record(zod.string(), zod.unknown())
+}))
+
+
+/**
+ * @summary List brain snapshots
+ */
+export const ListBrainVersionsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "versionName": zod.string(),
+  "schemaVersion": zod.string(),
+  "status": zod.string(),
+  "checksum": zod.string(),
+  "totalRecords": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "verifiedAt": zod.coerce.date().optional()
+})
+export const ListBrainVersionsResponse = zod.array(ListBrainVersionsResponseItem)
+
+
+/**
+ * @summary Verify a snapshot and initiate a restore preflight
+ */
+export const RestoreBrainVersionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const restoreBrainVersionBodyConfirmDefault = false;
+
+export const RestoreBrainVersionBody = zod.object({
+  "confirm": zod.boolean().default(restoreBrainVersionBodyConfirmDefault)
+})
+
+export const RestoreBrainVersionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "checksumValid": zod.boolean(),
+  "status": zod.string(),
+  "dryRun": zod.boolean(),
+  "message": zod.string(),
+  "eventId": zod.string().uuid()
+})
+
+

@@ -18,6 +18,8 @@ tags:
     description: Read-only provider synchronization and normalization
   - name: costs
     description: Reasoning usage and cost accounting
+  - name: brain-versions
+    description: Checksummed brain snapshots and restore verification
 paths:
   /healthz:
     get:
@@ -149,6 +151,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CostSummary"
+  /brain-versions:
+    post:
+      operationId: createBrainVersion
+      tags: [brain-versions]
+      summary: Create and verify a checksummed brain snapshot
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrainVersionInput"
+      responses:
+        "201":
+          description: Brain snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrainVersion"
+    get:
+      operationId: listBrainVersions
+      tags: [brain-versions]
+      summary: List brain snapshots
+      responses:
+        "200":
+          description: Brain snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrainVersionSummary"
+  /brain-versions/{id}/restore:
+    post:
+      operationId: restoreBrainVersion
+      tags: [brain-versions]
+      summary: Verify a snapshot and initiate a restore preflight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreBrainVersionInput"
+      responses:
+        "200":
+          description: Restore verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreBrainVersionResult"
+        "404":
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -463,4 +527,71 @@ components:
           items:
             $ref: "#/components/schemas/CostTierSummary"
       required: [requestCount, promptTokens, completionTokens, totalTokens, estimatedCostUsd, byTier]
+    CreateBrainVersionInput:
+      type: object
+      properties:
+        versionName:
+          type: string
+          minLength: 1
+          maxLength: 160
+    BrainVersionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionName:
+          type: string
+        schemaVersion:
+          type: string
+        status:
+          type: string
+        checksum:
+          type: string
+        totalRecords:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        verifiedAt:
+          type: string
+          format: date-time
+      required: [id, versionName, schemaVersion, status, checksum, totalRecords, createdAt]
+    BrainVersion:
+      allOf:
+        - $ref: "#/components/schemas/BrainVersionSummary"
+        - type: object
+          properties:
+            recordCounts:
+              type: object
+              additionalProperties:
+                type: integer
+            payload:
+              type: object
+              additionalProperties: true
+          required: [recordCounts, payload]
+    RestoreBrainVersionInput:
+      type: object
+      properties:
+        confirm:
+          type: boolean
+          default: false
+    RestoreBrainVersionResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        checksumValid:
+          type: boolean
+        status:
+          type: string
+        dryRun:
+          type: boolean
+        message:
+          type: string
+        eventId:
+          type: string
+          format: uuid
+      required: [id, checksumValid, status, dryRun, message, eventId]
 

@@ -239,3 +239,44 @@ export interface CostSummary {
   byTier: CostTierSummary[];
 }
 
+export interface CreateBrainVersionInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  versionName?: string;
+}
+
+export interface BrainVersionSummary {
+  id: string;
+  versionName: string;
+  schemaVersion: string;
+  status: string;
+  checksum: string;
+  totalRecords: number;
+  createdAt: string;
+  verifiedAt?: string;
+}
+
+export type BrainVersionRecordCounts = {[key: string]: number};
+
+export type BrainVersionPayload = { [key: string]: unknown };
+
+export type BrainVersion = BrainVersionSummary & {
+  recordCounts: BrainVersionRecordCounts;
+  payload: BrainVersionPayload;
+};
+
+export interface RestoreBrainVersionInput {
+  confirm?: boolean;
+}
+
+export interface RestoreBrainVersionResult {
+  id: string;
+  checksumValid: boolean;
+  status: string;
+  dryRun: boolean;
+  message: string;
+  eventId: string;
+}
+

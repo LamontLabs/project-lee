@@ -1223,7 +1223,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "6",
     dependsOn: [16, 26, 44, 45],
     versionIntroduced: "11.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Manages ongoing operational goals that span projects, people, and time. Not projects (deliverables). Not OKRs (planning documents). Operational intelligence objects that shape all recommendations and surfaced items.",
     description: "Each objective: purpose, priority (CRITICAL/HIGH/NORMAL/LOW), progress (computed, not manual), evidence_refs, current_blockers (auto-detected), success_metrics, related_projects, expected_completion, confidence, current_owner. Health states: On Track / At Risk / Stalled / Achieved / Abandoned. Every recommendation, observation, and surfaced item is weighted against active objectives.",
     responsibilities: ["Objective creation and management", "Progress computation from Event Log signals", "Health state machine", "Blocker auto-detection", "OIE weighting integration"],

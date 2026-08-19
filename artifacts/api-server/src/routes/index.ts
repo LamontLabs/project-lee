@@ -15,6 +15,7 @@ import institutionalKnowledgeRouter from "./institutional-knowledge";
 import selfImprovementRouter from "./self-improvement";
 import systemEconomicsRouter from "./system-economics";
 import identityRouter from "./identity";
+import executiveObjectivesRouter from "./executive-objectives";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(institutionalKnowledgeRouter);
 router.use(selfImprovementRouter);
 router.use(systemEconomicsRouter);
 router.use(identityRouter);
+router.use(executiveObjectivesRouter);
 
 export default router;

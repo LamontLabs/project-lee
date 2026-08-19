@@ -299,9 +299,17 @@ export const executiveObjective = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     title: varchar("title", { length: 240 }).notNull(),
     description: text("description"),
+    purpose: text("purpose").notNull().default(""),
     sourceRef: text("source_ref").notNull(),
     confidence: real("confidence").notNull().default(0.5),
     status: varchar("status", { length: 32 }).notNull().default("active"),
+    healthStatus: varchar("health_status", { length: 32 }).notNull().default("ON_TRACK"),
+    progressNarrative: text("progress_narrative").notNull().default("No progress evidence has been recorded yet."),
+    currentBlockers: jsonb("current_blockers").$type<string[]>().notNull().default([]),
+    successMetrics: jsonb("success_metrics").$type<string[]>().notNull().default([]),
+    relatedProjects: jsonb("related_projects").$type<string[]>().notNull().default([]),
+    expectedCompletion: text("expected_completion"),
+    currentOwner: text("current_owner").notNull().default("Founder"),
     priority: integer("priority").notNull().default(0),
     targetDate: timestamp("target_date", { withTimezone: true }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
@@ -318,6 +326,23 @@ export const executiveObjective = pgTable(
       table.priority,
     ),
     index("executive_objective_source_idx").on(table.sourceRef),
+  ],
+);
+
+export const executiveObjectiveEvidence = pgTable(
+  "executive_objective_evidence",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    objectiveId: uuid("objective_id").notNull(),
+    eventId: uuid("event_id"),
+    evidenceType: varchar("evidence_type", { length: 64 }).notNull(),
+    direction: varchar("direction", { length: 16 }).notNull().default("neutral"),
+    summary: text("summary").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("executive_objective_evidence_objective_idx").on(table.objectiveId, table.createdAt),
+    index("executive_objective_evidence_event_idx").on(table.eventId),
   ],
 );
 
@@ -357,8 +382,12 @@ export const insertExecutiveObjectiveSchema = createInsertSchema(
   executiveObjective,
   {
     metadata: jsonRecord,
+    currentBlockers: z.array(z.string()),
+    successMetrics: z.array(z.string()),
+    relatedProjects: z.array(z.string()),
   },
 );
+export const insertExecutiveObjectiveEvidenceSchema = createInsertSchema(executiveObjectiveEvidence);
 
 export type EventLog = typeof eventLog.$inferSelect;
 export type InsertEventLog = z.infer<typeof insertEventLogSchema>;

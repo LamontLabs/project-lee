@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { eq } from "drizzle-orm";
 import {
   EvaluateGovernedRequestBody,
@@ -10,8 +10,9 @@ import { Router, type IRouter } from "express";
 const router: IRouter = Router();
 
 type Verdict = "ALLOW" | "HOLD" | "REJECT";
+type GovernedRequest = typeof EvaluateGovernedRequestBody["_output"];
 
-function unavailableResponse(request: EvaluateGovernedRequestBody, reason: string) {
+function unavailableResponse(request: GovernedRequest, reason: string) {
   return {
     lee_request_id: request.lee_request_id,
     decision_id: `hold-${request.lee_request_id}`,
@@ -28,7 +29,7 @@ function unavailableResponse(request: EvaluateGovernedRequestBody, reason: strin
   };
 }
 
-async function evaluateWithCerbaSeal(request: EvaluateGovernedRequestBody) {
+async function evaluateWithCerbaSeal(request: GovernedRequest) {
   const baseUrl = process.env.CERBASEAL_BASE_URL;
   if (!baseUrl) {
     return {

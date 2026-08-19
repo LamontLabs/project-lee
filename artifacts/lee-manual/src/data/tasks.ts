@@ -274,7 +274,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "5",
     dependsOn: [1, 10],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "The local governance layer. Constructs GovernedRequest objects, calls CerbaSeal, interprets the response, and routes ALLOW/HOLD/REJECT outcomes to the appropriate engine.",
     description: "When any engine needs to execute a consequential action, it calls the Governance Engine. The Governance Engine assembles the GovernedRequest, calls CerbaSeal with HMAC authentication, and routes the outcome. HOLD outcomes queue for retry. REJECT outcomes are surfaced to the owner with reason codes.",
     responsibilities: [

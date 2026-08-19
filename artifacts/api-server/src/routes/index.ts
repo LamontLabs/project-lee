@@ -39,6 +39,7 @@ import ledgersRouter from "./ledgers";
 import whyProvenanceRouter from "./why-provenance";
 import assumptionsRouter from "./assumptions";
 import impactRouter from "./impact";
+import timelineRouter from "./timeline";
 
 const router: IRouter = Router();
 
@@ -81,6 +82,7 @@ router.use(ledgersRouter);
 router.use(whyProvenanceRouter);
 router.use(assumptionsRouter);
 router.use(impactRouter);
+router.use(timelineRouter);
 router.use(foundationRouter);
 
 export default router;

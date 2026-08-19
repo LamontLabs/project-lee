@@ -50,6 +50,20 @@ export const eventLog = pgTable(
     ),
   ],
 );
+export const timelineEventConfig = pgTable("timeline_event_config", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventType: varchar("event_type", { length: 160 }).notNull().unique(),
+  timelineType: varchar("timeline_type", { length: 48 }).notNull(),
+  visible: boolean("visible").notNull().default(true),
+  significance: real("significance").notNull().default(0.5),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export const milestoneMarker = pgTable("milestone_marker", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventId: uuid("event_id").notNull().unique(),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const factLedger = pgTable(
   "fact_ledger",

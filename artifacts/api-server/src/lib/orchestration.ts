@@ -12,6 +12,7 @@ const defaults = [
   ["Strategy Engine", ["weekly_review", "evaluate"], "HIGH", "weekly"],
   ["Simulation Engine", ["run", "compare"], "NORMAL", "on request"],
   ["Reflection Engine", ["generate", "metrics"], "NORMAL", "weekly/monthly/annual"],
+  ["Learning Engine", ["capture", "detect_patterns"], "LOW", "daily"],
   ["Brief Engine", ["morning_brief", "reflection"], "HIGH", "daily"],
   ["Connector Engine", ["sync"], "HIGH", "staggered"],
   ["Freshness Engine", ["scan"], "NORMAL", "hourly"],

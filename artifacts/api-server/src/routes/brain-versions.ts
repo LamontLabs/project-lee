@@ -42,6 +42,9 @@ import {
   simulation,
   reflectionReport,
   reflectionMetric,
+  correction,
+  standingCorrectionRule,
+  learningAsset,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -80,6 +83,9 @@ const snapshotTables = {
   simulation,
   reflectionReport,
   reflectionMetric,
+  correction,
+  standingCorrectionRule,
+  learningAsset,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

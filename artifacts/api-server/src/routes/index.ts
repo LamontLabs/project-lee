@@ -31,6 +31,7 @@ import memoryArchitectureRouter from "./memory-architecture";
 import curiosityRouter from "./curiosity";
 import trustRouter from "./trust";
 import strategyRouter from "./strategy";
+import learningRouter from "./learning";
 
 const router: IRouter = Router();
 
@@ -65,6 +66,7 @@ router.use(memoryArchitectureRouter);
 router.use(curiosityRouter);
 router.use(trustRouter);
 router.use(strategyRouter);
+router.use(learningRouter);
 router.use(foundationRouter);
 
 export default router;

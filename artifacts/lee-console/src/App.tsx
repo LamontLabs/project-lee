@@ -10,6 +10,7 @@ import ObservationsPage from './ObservationsPage';
 import StrategyPage from './StrategyPage';
 import SimulationPage from './SimulationPage';
 import ReflectionPage from './ReflectionPage';
+import LearningPage from './LearningPage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -70,7 +71,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -167,6 +168,7 @@ const navItems = [
   { href: '/strategy', label: 'Strategy', icon: Target },
   { href: '/simulations', label: 'Simulations', icon: FlaskConical },
   { href: '/reflections', label: 'Reflections', icon: BarChart3 },
+  { href: '/learning', label: 'Learning', icon: BrainCircuit },
   { href: '/institutional', label: 'Institutional', icon: Sparkles },
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },

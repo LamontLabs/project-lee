@@ -166,3 +166,60 @@ export interface ReasoningRouteResult {
   eventId: string;
 }
 
+export type ConnectorProvider = typeof ConnectorProvider[keyof typeof ConnectorProvider];
+
+
+export const ConnectorProvider = {
+  gmail: 'gmail',
+  proton: 'proton',
+  github: 'github',
+  google_drive: 'google_drive',
+  google_calendar: 'google_calendar',
+} as const;
+
+export type ConnectorEventInputPayload = { [key: string]: unknown };
+
+export interface ConnectorEventInput {
+  /** @minLength 1 */
+  externalId: string;
+  /** @minLength 1 */
+  eventType: string;
+  /** @minLength 1 */
+  sourceRef: string;
+  occurredAt: string;
+  payload: ConnectorEventInputPayload;
+}
+
+export type ConnectorSyncInputMode = typeof ConnectorSyncInputMode[keyof typeof ConnectorSyncInputMode];
+
+
+export const ConnectorSyncInputMode = {
+  read: 'read',
+  write: 'write',
+} as const;
+
+export interface ConnectorSyncInput {
+  provider: ConnectorProvider;
+  mode?: ConnectorSyncInputMode;
+  /** @maxItems 1000 */
+  events: ConnectorEventInput[];
+}
+
+export interface ConnectorSyncResult {
+  syncId: string;
+  provider: ConnectorProvider;
+  status: string;
+  receivedCount: number;
+  normalizedCount: number;
+  eventIds: string[];
+  domainEventId: string;
+}
+
+export interface ConnectorHealth {
+  provider: ConnectorProvider;
+  accessMode: string;
+  status: string;
+  lastSyncAt?: string;
+  lastError?: string;
+}
+

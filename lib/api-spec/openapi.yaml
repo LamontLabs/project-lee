@@ -14,6 +14,8 @@ tags:
     description: Source ingestion and knowledge extraction
   - name: reasoning
     description: Context budgeting and model routing
+  - name: connectors
+    description: Read-only provider synchronization and normalization
 paths:
   /healthz:
     get:
@@ -89,6 +91,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /connectors/sync:
+    post:
+      operationId: syncConnector
+      tags: [connectors]
+      summary: Normalize a read-only provider sync batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorSyncInput"
+      responses:
+        "201":
+          description: Connector sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorSyncResult"
+        "400":
+          description: Invalid connector payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Write operation requires CerbaSeal authorization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /connectors/health:
+    get:
+      operationId: listConnectorHealth
+      tags: [connectors]
+      summary: List connector health
+      responses:
+        "200":
+          description: Connector health signals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConnectorHealth"
 components:
   schemas:
     HealthStatus:
@@ -298,4 +344,79 @@ components:
           type: string
           format: uuid
       required: [correlationId, resolutionTier, model, answer, contextPacket, contextTokens, contextBudgetTokens, estimatedCostUsd, eventId]
+    ConnectorProvider:
+      type: string
+      enum: [gmail, proton, github, google_drive, google_calendar]
+    ConnectorEventInput:
+      type: object
+      properties:
+        externalId:
+          type: string
+          minLength: 1
+        eventType:
+          type: string
+          minLength: 1
+        sourceRef:
+          type: string
+          minLength: 1
+        occurredAt:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+      required: [externalId, eventType, sourceRef, occurredAt, payload]
+    ConnectorSyncInput:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/ConnectorProvider"
+        mode:
+          type: string
+          enum: [read, write]
+          default: read
+        events:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/ConnectorEventInput"
+      required: [provider, events]
+    ConnectorSyncResult:
+      type: object
+      properties:
+        syncId:
+          type: string
+          format: uuid
+        provider:
+          $ref: "#/components/schemas/ConnectorProvider"
+        status:
+          type: string
+        receivedCount:
+          type: integer
+        normalizedCount:
+          type: integer
+        eventIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        domainEventId:
+          type: string
+          format: uuid
+      required: [syncId, provider, status, receivedCount, normalizedCount, eventIds, domainEventId]
+    ConnectorHealth:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/ConnectorProvider"
+        accessMode:
+          type: string
+        status:
+          type: string
+        lastSyncAt:
+          type: string
+          format: date-time
+        lastError:
+          type: string
+      required: [provider, accessMode, status]
 

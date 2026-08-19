@@ -20,6 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ConnectorHealth,
+  ConnectorSyncInput,
+  ConnectorSyncResult,
   ErrorResponse,
   HealthStatus,
   ReasoningRequestInput,
@@ -350,4 +353,151 @@ export const useRouteReasoningRequest = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getRouteReasoningRequestMutationOptions(options));
     }
+
+export const getSyncConnectorUrl = () => {
+
+
+
+
+  return `/api/connectors/sync`
+}
+
+/**
+ * @summary Normalize a read-only provider sync batch
+ */
+export const syncConnector = async (connectorSyncInput: ConnectorSyncInput, options?: RequestInit): Promise<ConnectorSyncResult> => {
+
+  return customFetch<ConnectorSyncResult>(getSyncConnectorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(connectorSyncInput)
+  }
+);}
+
+
+
+
+export const getSyncConnectorMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncConnector>>, TError,{data: BodyType<ConnectorSyncInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncConnector>>, TError,{data: BodyType<ConnectorSyncInput>}, TContext> => {
+
+const mutationKey = ['syncConnector'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncConnector>>, {data: BodyType<ConnectorSyncInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncConnector(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncConnectorMutationResult = NonNullable<Awaited<ReturnType<typeof syncConnector>>>
+    export type SyncConnectorMutationBody = BodyType<ConnectorSyncInput>
+    export type SyncConnectorMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Normalize a read-only provider sync batch
+ */
+export const useSyncConnector = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncConnector>>, TError,{data: BodyType<ConnectorSyncInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncConnector>>,
+        TError,
+        {data: BodyType<ConnectorSyncInput>},
+        TContext
+      > => {
+      return useMutation(getSyncConnectorMutationOptions(options));
+    }
+
+export const getListConnectorHealthUrl = () => {
+
+
+
+
+  return `/api/connectors/health`
+}
+
+/**
+ * @summary List connector health
+ */
+export const listConnectorHealth = async ( options?: RequestInit): Promise<ConnectorHealth[]> => {
+
+  return customFetch<ConnectorHealth[]>(getListConnectorHealthUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListConnectorHealthQueryKey = () => {
+    return [
+    `/api/connectors/health`
+    ] as const;
+    }
+
+
+export const getListConnectorHealthQueryOptions = <TData = Awaited<ReturnType<typeof listConnectorHealth>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConnectorHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListConnectorHealthQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConnectorHealth>>> = ({ signal }) => listConnectorHealth({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConnectorHealth>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListConnectorHealthQueryResult = NonNullable<Awaited<ReturnType<typeof listConnectorHealth>>>
+export type ListConnectorHealthQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List connector health
+ */
+
+export function useListConnectorHealth<TData = Awaited<ReturnType<typeof listConnectorHealth>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConnectorHealth>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListConnectorHealthQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

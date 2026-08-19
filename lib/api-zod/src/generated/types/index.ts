@@ -6,6 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './connectorEventInput';
+export * from './connectorEventInputPayload';
+export * from './connectorHealth';
+export * from './connectorProvider';
+export * from './connectorSyncInput';
+export * from './connectorSyncInputMode';
+export * from './connectorSyncResult';
 export * from './errorResponse';
 export * from './extractedFact';
 export * from './extractedInterpretation';

@@ -157,3 +157,49 @@ export const RouteReasoningRequestResponse = zod.object({
 })
 
 
+/**
+ * @summary Normalize a read-only provider sync batch
+ */
+export const syncConnectorBodyModeDefault = `read`;
+
+
+export const syncConnectorBodyEventsMax = 1000;
+
+
+
+export const SyncConnectorBody = zod.object({
+  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar']),
+  "mode": zod.enum(['read', 'write']).default(syncConnectorBodyModeDefault),
+  "events": zod.array(zod.object({
+  "externalId": zod.string().min(1),
+  "eventType": zod.string().min(1),
+  "sourceRef": zod.string().min(1),
+  "occurredAt": zod.coerce.date(),
+  "payload": zod.record(zod.string(), zod.unknown())
+})).max(syncConnectorBodyEventsMax)
+})
+
+export const SyncConnectorResponse = zod.object({
+  "syncId": zod.string().uuid(),
+  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar']),
+  "status": zod.string(),
+  "receivedCount": zod.number(),
+  "normalizedCount": zod.number(),
+  "eventIds": zod.array(zod.string().uuid()),
+  "domainEventId": zod.string().uuid()
+})
+
+
+/**
+ * @summary List connector health
+ */
+export const ListConnectorHealthResponseItem = zod.object({
+  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar']),
+  "accessMode": zod.string(),
+  "status": zod.string(),
+  "lastSyncAt": zod.coerce.date().optional(),
+  "lastError": zod.string().optional()
+})
+export const ListConnectorHealthResponse = zod.array(ListConnectorHealthResponseItem)
+
+

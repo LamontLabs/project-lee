@@ -8,6 +8,7 @@ export const POLICY_DEFAULTS: Record<string, { description: string; values: Reco
   relationship: { description: "Controls follow-up sensitivity and relationship escalation defaults.", values: { highStakesCategories: ["investor", "partner", "legal"], followUpWindowDays: { default: 7, highStakes: 3 }, waitingLoopEscalationDays: 14 } },
   backup: { description: "Controls Brain backup cadence, retention, encryption, and verification.", values: { schedule: "daily 02:00", dailyRetention: 7, weeklyRetention: 4, monthlyRetention: 12, encryptionRequired: true, verificationCadence: "every backup", restoreTestCadence: "monthly" } },
   connector: { description: "Controls connector cadence, error tolerance, and freshness.", values: { syncFrequencyMinutes: 30, errorTolerance: 3, freshnessRequirementHours: 24 } },
+  resource: { description: "Controls thresholds used to classify compute, disk, token, cost, network, quota, and battery pressure.", values: { cpuConstrainedPercent: 75, cpuCriticalPercent: 90, memoryConstrainedPercent: 80, memoryCriticalPercent: 92, diskConstrainedPercent: 80, diskCriticalPercent: 92, tokenConstrainedPercent: 75, tokenCriticalPercent: 90, batteryConstrainedPercent: 25, batteryCriticalPercent: 10 } },
 };
 export async function ensurePolicies() {
   for (const [policyType, definition] of Object.entries(POLICY_DEFAULTS)) {

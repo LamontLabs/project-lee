@@ -3,6 +3,7 @@ import { and, desc, eq, gt } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
 import { buildContextPacket } from "../lib/context-engine";
+import { sampleResources } from "../lib/resource";
 import { callProvider, estimateCost } from "../lib/ai-providers";
 
 const router: IRouter = Router();
@@ -23,6 +24,10 @@ router.post("/android/capture", async (req, res): Promise<void> => {
   const checksum = createHash("sha256").update(content).digest("hex");
   const [source] = await db.insert(sourceVault).values({ originalFilename: String(req.body?.filename ?? `android-capture-${Date.now()}.txt`), mimeType: String(req.body?.mimeType ?? "text/plain"), byteSize: Buffer.byteLength(content), checksum, storagePath: `android://${randomUUID()}`, rawContent: content, processingStatus: "pending", metadata: { device: "android", tag: req.body?.tag ?? null, capturedAt: new Date().toISOString() } }).onConflictDoNothing({ target: sourceVault.checksum }).returning();
   res.status(201).json({ sourceId: source?.id ?? null, duplicate: !source, status: source ? "captured" : "duplicate" });
+});
+router.post("/android/battery", async (req, res): Promise<void> => {
+  if (rejectPairing(req, res)) return;
+  res.json(await sampleResources({ batteryLevel: Number(req.body?.batteryLevel), charging: Boolean(req.body?.charging) }));
 });
 
 router.post("/android/ask", async (req, res): Promise<void> => {

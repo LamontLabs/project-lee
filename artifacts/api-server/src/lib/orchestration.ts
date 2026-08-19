@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
 import { db, engineHealth, engineRegistry, eventLog, orchestrationWorkItem } from "@workspace/db";
+import { getResourceState } from "./resource";
 
 export type Priority = "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
 const priorities: Record<Priority, number> = { CRITICAL: 4, HIGH: 3, NORMAL: 2, LOW: 1 };
@@ -48,6 +49,13 @@ export async function orchestrationTick() {
   await registerDefaultEngines();
   const [next] = await db.select().from(orchestrationWorkItem).where(eq(orchestrationWorkItem.status, "queued")).orderBy(desc(orchestrationWorkItem.priority), desc(orchestrationWorkItem.urgencyScore), asc(orchestrationWorkItem.createdAt)).limit(1);
   if (!next) return null;
+  const resources = await getResourceState();
+  if ((resources.overallState === "CRITICAL" && next.priority !== "CRITICAL") || (resources.overallState === "CONSTRAINED" && ["LOW", "NORMAL"].includes(next.priority))) {
+    const reason = `Resource Engine reports ${resources.overallState}; ${next.priority} work is deferred.`;
+    const [delayed] = await db.update(orchestrationWorkItem).set({ status: "delayed", delayReason: reason }).where(eq(orchestrationWorkItem.id, next.id)).returning();
+    await db.insert(eventLog).values({ eventType: "ResourceWorkDeferred", aggregateType: "orchestration_work_item", aggregateId: next.id, sourceRef: "resource-engine", occurredAt: new Date(), payload: { reason, overallState: resources.overallState, priority: next.priority, dimensions: resources.dimensions } });
+    return delayed;
+  }
   if (next.estimatedCostUsd > 0.05 && next.priority !== "CRITICAL") {
     const [delayed] = await db.update(orchestrationWorkItem).set({ status: "delayed", delayReason: "Cost-aware gate: estimated model spend exceeds the daily threshold.", }).where(eq(orchestrationWorkItem.id, next.id)).returning();
     await db.insert(eventLog).values({ eventType: "OrchestrationWorkDelayed", aggregateType: "orchestration_work_item", aggregateId: next.id, sourceRef: "orchestration-engine", occurredAt: new Date(), payload: { reason: delayed.delayReason, priority: next.priority } });

@@ -21,3 +21,4 @@
 - [Explanation Engine boundary](explanation-engine-boundary.md) — audience-calibrated explanations remain interpretations with source IDs, Why Chain, provenance, and feedback.
 - [Semantic Index boundary](semantic-index-boundary.md) — local eventual-consistency embeddings improve discovery without replacing canonical ledgers or structured confidence.
 - [Policy Engine boundary](policy-engine-boundary.md) — mutable, versioned operational rules sit between Constitution and case-by-case Governance.
+- [Resource Engine boundary](resource-engine-boundary.md) — live capacity state gates orchestration dispatch across compute, budgets, quotas, network, disk, and battery.

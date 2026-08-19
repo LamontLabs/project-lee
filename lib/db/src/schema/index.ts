@@ -20,5 +20,6 @@ export * from "./trust";
 export * from "./strategy";
 export * from "./learning";
 export * from "./policy";
+export * from "./resources";
 export * from "./workspace";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

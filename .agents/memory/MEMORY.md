@@ -7,3 +7,4 @@
 - [Brain snapshot integrity](brain-snapshot-integrity.md) — snapshots use canonical sorted-key JSON with Date normalization before SHA-256 verification.
 - [Persisted scheduler boundary](persisted-scheduler-boundary.md) — scheduled jobs, dependencies, attempts, and lifecycle events survive restarts; unknown handlers fail visibly.
 - [Governance fail-closed boundary](governance-fail-closed-boundary.md) — only CerbaSeal ALLOW can release action; unavailable, HOLD, REJECT, and replayed requests never execute.
+- [Epistemic memory separation](epistemic-memory-separation.md) — retrieval metadata and conflict records extend, but never collapse, separate fact and interpretation ledgers.

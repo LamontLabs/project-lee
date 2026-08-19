@@ -299,7 +299,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "2",
     dependsOn: [1, 3],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Establishes the core memory architecture: how knowledge is stored, tagged, retrieved, and related. The schema and access patterns for the Fact Ledger, Interpretation Ledger, and Intelligence Graph.",
     description: "Defines the storage patterns, tagging taxonomy, relationship types, and retrieval access patterns for the core knowledge stores. Establishes the memory consolidation process — how new knowledge is integrated with existing knowledge without contradiction.",
     responsibilities: ["Memory storage patterns", "Tagging taxonomy", "Memory consolidation logic", "Conflict detection"],

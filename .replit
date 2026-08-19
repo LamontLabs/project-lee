@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -28,3 +28,6 @@ CERBASEAL_POLICY_PACK_VERSION = "2026.7.1"
 CERBASEAL_EVALUATE_ENDPOINT = "https://cerbaseal.replit.app/govern/evaluate"
 CERBASEAL_POLICY_VERSION_ENDPOINT = "https://cerbaseal.replit.app/policy/current-version"
 CERBASEAL_HEALTH_ENDPOINT = "https://cerbaseal.replit.app/health"
+
+[nix]
+channel = "stable-25_05"

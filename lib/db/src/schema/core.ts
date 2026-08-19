@@ -168,6 +168,7 @@ export const brief = pgTable("brief", {
   title: text("title").notNull(),
   content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
   sourcesUsed: jsonb("sources_used").$type<string[]>().notNull().default([]),
+  whyChain: jsonb("why_chain").$type<Record<string, unknown>[]>().notNull().default([]),
   confidence: real("confidence").notNull().default(0.5),
   version: integer("version").notNull().default(1),
   generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -180,4 +181,4 @@ export const insertImpactEdgeSchema = createInsertSchema(impactEdge, { evidenceR
 export const insertAuditLogSchema = createInsertSchema(auditLog, { metadata: jsonRecord });
 export const insertWaitingLoopSchema = createInsertSchema(waitingLoop, { sourceRefs: jsonArray, metadata: jsonRecord });
 export const insertNotificationSchema = createInsertSchema(notification);
-export const insertBriefSchema = createInsertSchema(brief, { content: jsonRecord, sourcesUsed: jsonArray });
+export const insertBriefSchema = createInsertSchema(brief, { content: jsonRecord, sourcesUsed: jsonArray, whyChain: z.array(jsonRecord) });

@@ -22,11 +22,16 @@ const STARTER = [
   ["explanation", "Recommendations show reasoning", "Recommendations expose evidence, uncertainty, and constraints.", "GOVERNED", ["Explanation Engine", "Brief Engine"]],
   ["continuity", "History is retained", "Constitution versions and consultation history are never pruned automatically.", "ABSOLUTE", ["Backup Engine"]],
   ["precedence", "Constitution outranks configuration", "Runtime settings and engine heuristics cannot contradict ABSOLUTE provisions.", "ABSOLUTE", ["All Engines"]],
+  ["provenance", "No object appears without provenance", "Nothing appears in the Lee console without a provenance link; unverified legacy records are explicitly flagged.", "ABSOLUTE", ["All Engines"]],
 ] as const;
 export async function ensureConstitution() {
   const existing = await db.select().from(constitutionProvision);
   const legacyCategories: Record<string, string> = { working_memory_decay: "memory", internal_namespace_private: "privacy", event_log_append_only: "audit", anchors_not_contradicted: "strategy", embeddings_local: "models", recommendations_explainable: "explanation", provenance_non_negotiable: "evidence", session_timeout: "privacy", owner_confirmation: "owner", service_databases_private: "privacy", identity_first: "precedence", no_silent_failures: "safety", facts_interpretations_separate: "truth", external_writes_authorized: "connectors", provider_abstraction: "models", brief_item_limit: "context", connector_sync_interval: "connectors", governance_fail_closed: "governance", credentials_never_logged: "security", bootstrap_no_secrets: "security" };
   if (existing.length) {
+    if (!existing.some((row) => row.key === "provenance.no_object_without_source")) {
+      const provision = STARTER.find((item) => item[0] === "provenance");
+      if (provision) await db.insert(constitutionProvision).values({ key: "provenance.no_object_without_source", title: provision[1], tier: provision[3], appliesToEngines: [...provision[4]], machineReadableRule: { category: provision[0], ruleText: provision[2], actionTags: ["provenance"], blocksIf: true } }).onConflictDoNothing();
+    }
     for (const row of existing) {
       if (Object.keys(row.machineReadableRule).length === 0) {
         const category = legacyCategories[row.key] ?? "general";

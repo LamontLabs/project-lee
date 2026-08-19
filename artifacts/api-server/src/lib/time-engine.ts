@@ -1,5 +1,7 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 import { db, brief, eventLog, factLedger, notification, universalObject, waitingLoop } from "@workspace/db";
+import { WhyChainBuilder } from "./why-chain";
+import { recordProvenance } from "./provenance";
 
 const DAY = 86_400_000;
 const decay: Record<string, { halfLife: number; stale: number }> = {
@@ -42,7 +44,10 @@ export async function generateBrief(briefType: "today" | "evening" | "weekly") {
     unreadNotifications: overview.notifications.length, changes: await db.select().from(eventLog).orderBy(desc(eventLog.occurredAt)).limit(10),
     factCount: (await db.select().from(factLedger).limit(500)).length,
   };
-  const [saved] = await db.insert(brief).values({ briefType, title: briefType === "today" ? "Today's Brief" : briefType === "evening" ? "Evening Reflection" : "Weekly Review", content, sourcesUsed: ["event_log", "universal_object", "waiting_loop"], confidence: stale.length ? 0.72 : 0.86 }).returning();
+  const sourcesUsed = ["event_log", "universal_object", "waiting_loop"];
+  const whyChain = new WhyChainBuilder().addStep("freshness_threshold", `${stale.length} active objects crossed a freshness threshold.`, stale.length ? 0.8 : 0.6, "Brief Engine", stale[0]?.id).addStep("fact_confirmed", `${overview.notifications.length} notifications and ${overview.waitingLoops.length} waiting loops shaped this brief.`, 0.75, "Brief Engine", "event_log").buildNonTrivial();
+  const [saved] = await db.insert(brief).values({ briefType, title: briefType === "today" ? "Today's Brief" : briefType === "evening" ? "Evening Reflection" : "Weekly Review", content, sourcesUsed, whyChain, confidence: stale.length ? 0.72 : 0.86 }).returning();
+  await recordProvenance("brief", saved.id, sourcesUsed, saved.confidence);
   await db.insert(eventLog).values({ eventType: "BriefGenerated", aggregateType: "brief", aggregateId: saved.id, sourceRef: "time-engine", occurredAt: new Date(), payload: { briefId: saved.id, briefType, staleCount: stale.length } });
   return saved;
 }

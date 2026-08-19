@@ -36,6 +36,7 @@ import workspaceRouter from "./workspace";
 import constitutionRouter from "./constitution";
 import confidenceRouter from "./confidence";
 import ledgersRouter from "./ledgers";
+import whyProvenanceRouter from "./why-provenance";
 
 const router: IRouter = Router();
 
@@ -75,6 +76,7 @@ router.use(workspaceRouter);
 router.use(constitutionRouter);
 router.use(confidenceRouter);
 router.use(ledgersRouter);
+router.use(whyProvenanceRouter);
 router.use(foundationRouter);
 
 export default router;

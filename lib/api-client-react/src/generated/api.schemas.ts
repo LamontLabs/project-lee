@@ -314,3 +314,110 @@ export interface ScheduledJobRunResult {
   message: string;
 }
 
+export interface ApprovalSpec {
+  approver_role: string;
+  required: boolean;
+  reason: string;
+}
+
+export type ApprovalApprovalMethod = typeof ApprovalApprovalMethod[keyof typeof ApprovalApprovalMethod];
+
+
+export const ApprovalApprovalMethod = {
+  explicit: 'explicit',
+  implicit: 'implicit',
+  delegated: 'delegated',
+} as const;
+
+export interface Approval {
+  approver_role: string;
+  approver_identity: string;
+  approved_at: string;
+  approval_method: ApprovalApprovalMethod;
+}
+
+export type GovernedRequestReversibility = typeof GovernedRequestReversibility[keyof typeof GovernedRequestReversibility];
+
+
+export const GovernedRequestReversibility = {
+  reversible: 'reversible',
+  partially_reversible: 'partially_reversible',
+  irreversible: 'irreversible',
+} as const;
+
+export type GovernedRequestDataSensitivity = typeof GovernedRequestDataSensitivity[keyof typeof GovernedRequestDataSensitivity];
+
+
+export const GovernedRequestDataSensitivity = {
+  public: 'public',
+  internal: 'internal',
+  confidential: 'confidential',
+  restricted: 'restricted',
+} as const;
+
+export type GovernedRequestTrustState = typeof GovernedRequestTrustState[keyof typeof GovernedRequestTrustState];
+
+
+export const GovernedRequestTrustState = {
+  verified: 'verified',
+  nominal: 'nominal',
+  degraded: 'degraded',
+} as const;
+
+export type GovernedRequestRequestedExecutionWindow = {
+  not_before: string;
+  not_after: string;
+};
+
+export interface GovernedRequest {
+  lee_request_id: string;
+  policy_pack_version: string;
+  proposed_action: string;
+  action_class: string;
+  workflow_class: string;
+  actor_identity: string;
+  target_system: string;
+  affected_project_id?: string;
+  authority_class: string;
+  required_approvals: ApprovalSpec[];
+  approvals_present: Approval[];
+  reversibility: GovernedRequestReversibility;
+  data_sensitivity: GovernedRequestDataSensitivity;
+  expected_downstream_effect: string;
+  communication_recipient?: string;
+  intent_record_id: string;
+  source_provenance: string;
+  context_checksum: string;
+  evidence_refs: string[];
+  trust_state: GovernedRequestTrustState;
+  requested_execution_window?: GovernedRequestRequestedExecutionWindow;
+}
+
+export type GovernedResponseVerdict = typeof GovernedResponseVerdict[keyof typeof GovernedResponseVerdict];
+
+
+export const GovernedResponseVerdict = {
+  ALLOW: 'ALLOW',
+  HOLD: 'HOLD',
+  REJECT: 'REJECT',
+} as const;
+
+export type GovernedResponseCheckedInvariantsItem = { [key: string]: unknown };
+
+export interface GovernedResponse {
+  lee_request_id: string;
+  decision_id: string;
+  verdict: GovernedResponseVerdict;
+  reason_codes: string[];
+  checked_invariants: GovernedResponseCheckedInvariantsItem[];
+  decision_envelope: string;
+  evidence_bundle_ref: string;
+  audit_entry_ref: string;
+  replay_checksum: string;
+  policy_version: string;
+  timestamp: string;
+  authorization_expiry?: string;
+  human_confirmation_required: boolean;
+  governance_event_id: string;
+}
+

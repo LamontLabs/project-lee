@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './approval';
+export * from './approvalApprovalMethod';
+export * from './approvalSpec';
 export * from './brainVersion';
 export * from './brainVersionPayload';
 export * from './brainVersionRecordCounts';
@@ -23,6 +26,14 @@ export * from './createBrainVersionInput';
 export * from './errorResponse';
 export * from './extractedFact';
 export * from './extractedInterpretation';
+export * from './governedRequest';
+export * from './governedRequestDataSensitivity';
+export * from './governedRequestRequestedExecutionWindow';
+export * from './governedRequestReversibility';
+export * from './governedRequestTrustState';
+export * from './governedResponse';
+export * from './governedResponseCheckedInvariantsItem';
+export * from './governedResponseVerdict';
 export * from './healthStatus';
 export * from './reasoningContextItem';
 export * from './reasoningRequestInput';

@@ -22,6 +22,8 @@ tags:
     description: Checksummed brain snapshots and restore verification
   - name: scheduler
     description: Persisted orchestration jobs and scheduler calendar
+  - name: governance
+    description: Fail-closed CerbaSeal authorization boundary
 paths:
   /healthz:
     get:
@@ -267,6 +269,30 @@ paths:
                 $ref: "#/components/schemas/ScheduledJobRunResult"
         "404":
           description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /governance/evaluate:
+    post:
+      operationId: evaluateGovernedRequest
+      tags: [governance]
+      summary: Submit a consequential action to CerbaSeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GovernedRequest"
+      responses:
+        "200":
+          description: Governance decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GovernedResponse"
+        "400":
+          description: Invalid governed request
           content:
             application/json:
               schema:
@@ -718,4 +744,134 @@ components:
         message:
           type: string
       required: [job, eventId, message]
+    ApprovalSpec:
+      type: object
+      properties:
+        approver_role:
+          type: string
+        required:
+          type: boolean
+        reason:
+          type: string
+      required: [approver_role, required, reason]
+    Approval:
+      type: object
+      properties:
+        approver_role:
+          type: string
+        approver_identity:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        approval_method:
+          type: string
+          enum: [explicit, implicit, delegated]
+      required: [approver_role, approver_identity, approved_at, approval_method]
+    GovernedRequest:
+      type: object
+      properties:
+        lee_request_id:
+          type: string
+          format: uuid
+        policy_pack_version:
+          type: string
+        proposed_action:
+          type: string
+        action_class:
+          type: string
+        workflow_class:
+          type: string
+        actor_identity:
+          type: string
+        target_system:
+          type: string
+        affected_project_id:
+          type: string
+        authority_class:
+          type: string
+        required_approvals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalSpec"
+        approvals_present:
+          type: array
+          items:
+            $ref: "#/components/schemas/Approval"
+        reversibility:
+          type: string
+          enum: [reversible, partially_reversible, irreversible]
+        data_sensitivity:
+          type: string
+          enum: [public, internal, confidential, restricted]
+        expected_downstream_effect:
+          type: string
+        communication_recipient:
+          type: string
+        intent_record_id:
+          type: string
+        source_provenance:
+          type: string
+        context_checksum:
+          type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        trust_state:
+          type: string
+          enum: [verified, nominal, degraded]
+        requested_execution_window:
+          type: object
+          properties:
+            not_before:
+              type: string
+              format: date-time
+            not_after:
+              type: string
+              format: date-time
+          required: [not_before, not_after]
+      required: [lee_request_id, policy_pack_version, proposed_action, action_class, workflow_class, actor_identity, target_system, authority_class, required_approvals, approvals_present, reversibility, data_sensitivity, expected_downstream_effect, intent_record_id, source_provenance, context_checksum, evidence_refs, trust_state]
+    GovernedResponse:
+      type: object
+      properties:
+        lee_request_id:
+          type: string
+          format: uuid
+        decision_id:
+          type: string
+        verdict:
+          type: string
+          enum: [ALLOW, HOLD, REJECT]
+        reason_codes:
+          type: array
+          items:
+            type: string
+        checked_invariants:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        decision_envelope:
+          type: string
+        evidence_bundle_ref:
+          type: string
+        audit_entry_ref:
+          type: string
+        replay_checksum:
+          type: string
+        policy_version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        authorization_expiry:
+          type: string
+          format: date-time
+        human_confirmation_required:
+          type: boolean
+        governance_event_id:
+          type: string
+          format: uuid
+      required: [lee_request_id, decision_id, verdict, reason_codes, checked_invariants, decision_envelope, evidence_bundle_ref, audit_entry_ref, replay_checksum, policy_version, timestamp, human_confirmation_required, governance_event_id]
 

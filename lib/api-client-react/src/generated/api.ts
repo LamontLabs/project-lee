@@ -28,6 +28,8 @@ import type {
   CostSummary,
   CreateBrainVersionInput,
   ErrorResponse,
+  GovernedRequest,
+  GovernedResponse,
   HealthStatus,
   ReasoningRequestInput,
   ReasoningRouteResult,
@@ -1020,5 +1022,75 @@ export const useRunScheduledJob = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getRunScheduledJobMutationOptions(options));
+    }
+
+export const getEvaluateGovernedRequestUrl = () => {
+
+
+
+
+  return `/api/governance/evaluate`
+}
+
+/**
+ * @summary Submit a consequential action to CerbaSeal
+ */
+export const evaluateGovernedRequest = async (governedRequest: GovernedRequest, options?: RequestInit): Promise<GovernedResponse> => {
+
+  return customFetch<GovernedResponse>(getEvaluateGovernedRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(governedRequest)
+  }
+);}
+
+
+
+
+export const getEvaluateGovernedRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateGovernedRequest>>, TError,{data: BodyType<GovernedRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof evaluateGovernedRequest>>, TError,{data: BodyType<GovernedRequest>}, TContext> => {
+
+const mutationKey = ['evaluateGovernedRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof evaluateGovernedRequest>>, {data: BodyType<GovernedRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  evaluateGovernedRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EvaluateGovernedRequestMutationResult = NonNullable<Awaited<ReturnType<typeof evaluateGovernedRequest>>>
+    export type EvaluateGovernedRequestMutationBody = BodyType<GovernedRequest>
+    export type EvaluateGovernedRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Submit a consequential action to CerbaSeal
+ */
+export const useEvaluateGovernedRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateGovernedRequest>>, TError,{data: BodyType<GovernedRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof evaluateGovernedRequest>>,
+        TError,
+        {data: BodyType<GovernedRequest>},
+        TContext
+      > => {
+      return useMutation(getEvaluateGovernedRequestMutationOptions(options));
     }
 

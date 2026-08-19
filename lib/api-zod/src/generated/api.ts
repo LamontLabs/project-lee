@@ -361,3 +361,60 @@ export const RunScheduledJobResponse = zod.object({
 })
 
 
+/**
+ * @summary Submit a consequential action to CerbaSeal
+ */
+export const EvaluateGovernedRequestBody = zod.object({
+  "lee_request_id": zod.string().uuid(),
+  "policy_pack_version": zod.string(),
+  "proposed_action": zod.string(),
+  "action_class": zod.string(),
+  "workflow_class": zod.string(),
+  "actor_identity": zod.string(),
+  "target_system": zod.string(),
+  "affected_project_id": zod.string().optional(),
+  "authority_class": zod.string(),
+  "required_approvals": zod.array(zod.object({
+  "approver_role": zod.string(),
+  "required": zod.boolean(),
+  "reason": zod.string()
+})),
+  "approvals_present": zod.array(zod.object({
+  "approver_role": zod.string(),
+  "approver_identity": zod.string(),
+  "approved_at": zod.coerce.date(),
+  "approval_method": zod.enum(['explicit', 'implicit', 'delegated'])
+})),
+  "reversibility": zod.enum(['reversible', 'partially_reversible', 'irreversible']),
+  "data_sensitivity": zod.enum(['public', 'internal', 'confidential', 'restricted']),
+  "expected_downstream_effect": zod.string(),
+  "communication_recipient": zod.string().optional(),
+  "intent_record_id": zod.string(),
+  "source_provenance": zod.string(),
+  "context_checksum": zod.string(),
+  "evidence_refs": zod.array(zod.string()),
+  "trust_state": zod.enum(['verified', 'nominal', 'degraded']),
+  "requested_execution_window": zod.object({
+  "not_before": zod.coerce.date(),
+  "not_after": zod.coerce.date()
+}).optional()
+})
+
+export const EvaluateGovernedRequestResponse = zod.object({
+  "lee_request_id": zod.string().uuid(),
+  "decision_id": zod.string(),
+  "verdict": zod.enum(['ALLOW', 'HOLD', 'REJECT']),
+  "reason_codes": zod.array(zod.string()),
+  "checked_invariants": zod.array(zod.record(zod.string(), zod.unknown())),
+  "decision_envelope": zod.string(),
+  "evidence_bundle_ref": zod.string(),
+  "audit_entry_ref": zod.string(),
+  "replay_checksum": zod.string(),
+  "policy_version": zod.string(),
+  "timestamp": zod.coerce.date(),
+  "authorization_expiry": zod.coerce.date().optional(),
+  "human_confirmation_required": zod.boolean(),
+  "governance_event_id": zod.string().uuid()
+})
+
+

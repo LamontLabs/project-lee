@@ -16,6 +16,8 @@ tags:
     description: Context budgeting and model routing
   - name: connectors
     description: Read-only provider synchronization and normalization
+  - name: costs
+    description: Reasoning usage and cost accounting
 paths:
   /healthz:
     get:
@@ -135,6 +137,18 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ConnectorHealth"
+  /costs/summary:
+    get:
+      operationId: getCostSummary
+      tags: [costs]
+      summary: Summarize recorded reasoning costs
+      responses:
+        "200":
+          description: Cost summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostSummary"
 components:
   schemas:
     HealthStatus:
@@ -419,4 +433,34 @@ components:
         lastError:
           type: string
       required: [provider, accessMode, status]
+    CostTierSummary:
+      type: object
+      properties:
+        tier:
+          type: string
+        requestCount:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+      required: [tier, requestCount, totalTokens, estimatedCostUsd]
+    CostSummary:
+      type: object
+      properties:
+        requestCount:
+          type: integer
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+        byTier:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostTierSummary"
+      required: [requestCount, promptTokens, completionTokens, totalTokens, estimatedCostUsd, byTier]
 

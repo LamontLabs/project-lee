@@ -94,6 +94,9 @@ export async function routeModelRequest(input: RouteInput): Promise<{
   model: string;
   answer: string;
   estimatedCostUsd: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 }> {
   const cil = await tryCIL(input);
   if (cil) {
@@ -107,6 +110,9 @@ export async function routeModelRequest(input: RouteInput): Promise<{
       model: "CIL",
       answer: cil.answer,
       estimatedCostUsd: cil.cost_usd,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
     };
   }
 
@@ -135,5 +141,13 @@ export async function routeModelRequest(input: RouteInput): Promise<{
   const completionTokens = response.usage?.completion_tokens ?? 0;
   const promptTokens = response.usage?.prompt_tokens ?? 0;
   const estimatedCostUsd = (promptTokens * 0.0000002) + (completionTokens * 0.000001);
-  return { tier, model, answer, estimatedCostUsd };
+  return {
+    tier,
+    model,
+    answer,
+    estimatedCostUsd,
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+  };
 }

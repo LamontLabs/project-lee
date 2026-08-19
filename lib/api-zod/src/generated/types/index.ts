@@ -13,6 +13,8 @@ export * from './connectorProvider';
 export * from './connectorSyncInput';
 export * from './connectorSyncInputMode';
 export * from './connectorSyncResult';
+export * from './costSummary';
+export * from './costTierSummary';
 export * from './errorResponse';
 export * from './extractedFact';
 export * from './extractedInterpretation';

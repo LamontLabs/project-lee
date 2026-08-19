@@ -23,6 +23,7 @@ import type {
   ConnectorHealth,
   ConnectorSyncInput,
   ConnectorSyncResult,
+  CostSummary,
   ErrorResponse,
   HealthStatus,
   ReasoningRequestInput,
@@ -489,6 +490,83 @@ export function useListConnectorHealth<TData = Awaited<ReturnType<typeof listCon
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListConnectorHealthQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCostSummaryUrl = () => {
+
+
+
+
+  return `/api/costs/summary`
+}
+
+/**
+ * @summary Summarize recorded reasoning costs
+ */
+export const getCostSummary = async ( options?: RequestInit): Promise<CostSummary> => {
+
+  return customFetch<CostSummary>(getGetCostSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCostSummaryQueryKey = () => {
+    return [
+    `/api/costs/summary`
+    ] as const;
+    }
+
+
+export const getGetCostSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getCostSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCostSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCostSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCostSummary>>> = ({ signal }) => getCostSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCostSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCostSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getCostSummary>>>
+export type GetCostSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Summarize recorded reasoning costs
+ */
+
+export function useGetCostSummary<TData = Awaited<ReturnType<typeof getCostSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCostSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCostSummaryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

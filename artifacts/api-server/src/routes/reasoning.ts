@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router, type IRouter } from "express";
 import { RouteReasoningRequestBody, RouteReasoningRequestResponse } from "@workspace/api-zod";
-import { db, eventLog } from "@workspace/db";
+import { costRecord, db, eventLog } from "@workspace/db";
 import { constructContextPacket } from "../lib/context-economy";
 import { routeModelRequest } from "../lib/model-router";
 
@@ -41,39 +41,73 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
     return;
   }
 
-  const [contextEvent, resolvedEvent] = await db
-    .insert(eventLog)
-    .values([
-      {
-        eventType: "ContextPacketConstructed",
-        aggregateType: "reasoning_request",
-        aggregateId: correlationId,
-        sourceRef: "context-economy",
-        occurredAt: new Date(),
-        payload: {
-          correlationId,
-          contextTokens: packet.tokens,
-          contextBudgetTokens: input.contextBudgetTokens,
-          contextAssetRefs: packet.items.map((item) => item.id),
+  const [resolvedEvent] = await db.transaction(async (tx) => {
+    const [contextEvent, resolutionEvent] = await tx
+      .insert(eventLog)
+      .values([
+        {
+          eventType: "ContextPacketConstructed",
+          aggregateType: "reasoning_request",
+          aggregateId: correlationId,
+          sourceRef: "context-economy",
+          occurredAt: new Date(),
+          payload: {
+            correlationId,
+            contextTokens: packet.tokens,
+            contextBudgetTokens: input.contextBudgetTokens,
+            contextAssetRefs: packet.items.map((item) => item.id),
+          },
         },
-      },
-      {
-        eventType: "CILQueryResolved",
-        aggregateType: "reasoning_request",
-        aggregateId: correlationId,
-        sourceRef: "model-router",
-        occurredAt: new Date(),
-        payload: {
-          correlationId,
-          resolutionTier: routed.tier,
-          model: routed.model,
-          contextTokens: packet.tokens,
-          estimatedCostUsd: routed.estimatedCostUsd,
+        {
+          eventType: "CILQueryResolved",
+          aggregateType: "reasoning_request",
+          aggregateId: correlationId,
+          sourceRef: "model-router",
+          occurredAt: new Date(),
+          payload: {
+            correlationId,
+            resolutionTier: routed.tier,
+            model: routed.model,
+            contextTokens: packet.tokens,
+            estimatedCostUsd: routed.estimatedCostUsd,
+            semanticDomain: input.semanticDomain,
+          },
+        },
+      ])
+      .returning();
+    const [cost] = await tx
+      .insert(costRecord)
+      .values({
+        correlationId,
+        engine: "model-router",
+        provider: routed.model === "CIL" ? "cil" : "openai-managed",
+        tier: routed.tier,
+        model: routed.model,
+        promptTokens: routed.promptTokens,
+        completionTokens: routed.completionTokens,
+        totalTokens: routed.totalTokens,
+        estimatedCostUsd: routed.estimatedCostUsd,
+        metadata: {
           semanticDomain: input.semanticDomain,
+          contextTokens: packet.tokens,
         },
+      })
+      .returning();
+    await tx.insert(eventLog).values({
+      eventType: "CostRecordCreated",
+      aggregateType: "cost_record",
+      aggregateId: cost.id,
+      sourceRef: correlationId,
+      occurredAt: new Date(),
+      payload: {
+        correlationId,
+        tier: routed.tier,
+        totalTokens: routed.totalTokens,
+        estimatedCostUsd: routed.estimatedCostUsd,
       },
-    ])
-    .returning();
+    });
+    return [resolutionEvent];
+  });
 
   const response = RouteReasoningRequestResponse.parse({
     correlationId,

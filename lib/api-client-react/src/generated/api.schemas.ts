@@ -223,3 +223,19 @@ export interface ConnectorHealth {
   lastError?: string;
 }
 
+export interface CostTierSummary {
+  tier: string;
+  requestCount: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+}
+
+export interface CostSummary {
+  requestCount: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  byTier: CostTierSummary[];
+}
+

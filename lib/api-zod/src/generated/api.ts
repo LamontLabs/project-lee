@@ -203,3 +203,21 @@ export const ListConnectorHealthResponseItem = zod.object({
 export const ListConnectorHealthResponse = zod.array(ListConnectorHealthResponseItem)
 
 
+/**
+ * @summary Summarize recorded reasoning costs
+ */
+export const GetCostSummaryResponse = zod.object({
+  "requestCount": zod.number(),
+  "promptTokens": zod.number(),
+  "completionTokens": zod.number(),
+  "totalTokens": zod.number(),
+  "estimatedCostUsd": zod.number(),
+  "byTier": zod.array(zod.object({
+  "tier": zod.string(),
+  "requestCount": zod.number(),
+  "totalTokens": zod.number(),
+  "estimatedCostUsd": zod.number()
+}))
+})
+
+

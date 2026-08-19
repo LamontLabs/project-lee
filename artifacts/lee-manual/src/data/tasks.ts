@@ -56,7 +56,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "9",
     dependsOn: [1],
     versionIntroduced: "9.0",
-    status: "in-progress",
+    status: "complete",
     purpose: "The primary owner-facing interface. All interaction with LEE happens through the Console. Must support every page and state defined in the UI/UX specification.",
     description: "React + Vite web application serving the complete LEE owner interface. Navigation includes: Today, Ask Lee, Projects, Portfolio, People, Objectives, Timeline, Evidence, Facts, Interpretations, Assumptions, Strategic Anchors, Institutional Knowledge, Opportunities, Simulations, Reviews, Connectors, Internal Services, Governance, System Economics, Health, Backups, Manifest, Settings. Dark mode first. No emojis.",
     responsibilities: [

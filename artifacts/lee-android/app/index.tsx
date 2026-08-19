@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -12,11 +12,11 @@ export default function PairingScreen() {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (pairing) router.replace('/(tabs)');
+  }, [pairing]);
   if (isLoading) return <View style={[styles.loading, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
-  if (pairing) {
-    router.replace('/(tabs)');
-    return null;
-  }
+  if (pairing) return null;
 
   async function handlePair() {
     const ok = await pair(apiUrl, token);

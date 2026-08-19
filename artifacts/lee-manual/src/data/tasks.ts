@@ -188,7 +188,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "9",
     dependsOn: [2, 4],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "in-progress",
     purpose: "Capture-optimized mobile interface for quick input on the go. Not a full Console — optimized for quickly capturing facts, notes, and observations that are then processed by the Understanding Pipeline.",
     description: "Expo React Native app with: Quick capture (voice or text), Morning Brief viewer, Priority notification, Waiting loop status. Dark mode first. Minimal interface — capture is the primary function.",
     responsibilities: ["Quick fact/observation capture", "Morning Brief notification and viewing", "Priority item notifications"],

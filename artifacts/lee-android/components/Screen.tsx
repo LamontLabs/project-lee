@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 
@@ -18,8 +18,7 @@ export function Screen({ children, refreshing = false, onRefresh }: {
         { paddingTop: insets.top + 20, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 94) },
       ]}
       showsVerticalScrollIndicator={false}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
+      refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
     >
       {children}
     </ScrollView>

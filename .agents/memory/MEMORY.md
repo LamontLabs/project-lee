@@ -2,3 +2,4 @@
 - [Understanding output contract](understanding-output-contract.md) — extraction always returns source-backed facts, interpretations, provenance, and a completion event.
 - [Model routing boundary](model-routing-boundary.md) — context is budgeted before routing, with optional HMAC-signed CIL and managed-model fallback.
 - [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.
+- [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.

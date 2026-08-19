@@ -16,6 +16,7 @@ import selfImprovementRouter from "./self-improvement";
 import systemEconomicsRouter from "./system-economics";
 import identityRouter from "./identity";
 import executiveObjectivesRouter from "./executive-objectives";
+import organizationalMemoryRouter from "./organizational-memory";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(selfImprovementRouter);
 router.use(systemEconomicsRouter);
 router.use(identityRouter);
 router.use(executiveObjectivesRouter);
+router.use(organizationalMemoryRouter);
 
 export default router;

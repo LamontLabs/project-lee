@@ -1245,7 +1245,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "2",
     dependsOn: [1, 3, 13, 14],
     versionIntroduced: "11.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Models Lamont Labs as a first-class entity — not a project, not a person. Organizational structure, infrastructure ownership, technology ownership, people categories, revenue model, and legal footprint.",
     description: "Organizational Memory answers: 'How does this affect the organization?' not just 'How does this affect this project?'. People categories: employees, partners, investors, advisors, clients, pilot partners, competitors. Infrastructure map updated automatically from Bootstrap Engine discoveries. Shared services map shows CIL/CerbaSeal/hosting dependencies.",
     responsibilities: ["Organizational Profile management", "People category tagging (linked from Relationship Engine)", "Infrastructure and technology ownership maps", "Auto-update from Relationship Engine and Bootstrap Engine"],

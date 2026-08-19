@@ -346,6 +346,48 @@ export const executiveObjectiveEvidence = pgTable(
   ],
 );
 
+export const organizationalProfile = pgTable(
+  "organizational_profile",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileKey: varchar("profile_key", { length: 64 }).notNull().unique(),
+    legalName: varchar("legal_name", { length: 240 }).notNull(),
+    structure: jsonb("structure").$type<Record<string, unknown>>().notNull().default({}),
+    peopleCategories: jsonb("people_categories").$type<Record<string, unknown>>().notNull().default({}),
+    infrastructureOwnership: jsonb("infrastructure_ownership").$type<Record<string, unknown>>().notNull().default({}),
+    technologyOwnership: jsonb("technology_ownership").$type<Record<string, unknown>>().notNull().default({}),
+    revenueModel: jsonb("revenue_model").$type<Record<string, unknown>>().notNull().default({}),
+    legalCompliance: jsonb("legal_compliance").$type<Record<string, unknown>>().notNull().default({}),
+    sharedServices: jsonb("shared_services").$type<Record<string, unknown>>().notNull().default({}),
+    sourceRef: text("source_ref").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("organizational_profile_source_idx").on(table.sourceRef)],
+);
+
+export const organizationalResource = pgTable(
+  "organizational_resource",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id").notNull(),
+    resourceType: varchar("resource_type", { length: 48 }).notNull(),
+    name: varchar("name", { length: 240 }).notNull(),
+    ownerRef: text("owner_ref").notNull(),
+    projectRefs: jsonb("project_refs").$type<string[]>().notNull().default([]),
+    dependencyRefs: jsonb("dependency_refs").$type<string[]>().notNull().default([]),
+    status: varchar("status", { length: 32 }).notNull().default("active"),
+    sourceRef: text("source_ref").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("organizational_resource_profile_idx").on(table.profileId, table.resourceType),
+    index("organizational_resource_owner_idx").on(table.ownerRef),
+  ],
+);
+
 export const insertEventLogSchema = createInsertSchema(eventLog, {
   payload: jsonRecord,
 });
@@ -388,6 +430,20 @@ export const insertExecutiveObjectiveSchema = createInsertSchema(
   },
 );
 export const insertExecutiveObjectiveEvidenceSchema = createInsertSchema(executiveObjectiveEvidence);
+export const insertOrganizationalProfileSchema = createInsertSchema(organizationalProfile, {
+  structure: jsonRecord,
+  peopleCategories: jsonRecord,
+  infrastructureOwnership: jsonRecord,
+  technologyOwnership: jsonRecord,
+  revenueModel: jsonRecord,
+  legalCompliance: jsonRecord,
+  sharedServices: jsonRecord,
+});
+export const insertOrganizationalResourceSchema = createInsertSchema(organizationalResource, {
+  projectRefs: z.array(z.string()),
+  dependencyRefs: z.array(z.string()),
+  metadata: jsonRecord,
+});
 
 export type EventLog = typeof eventLog.$inferSelect;
 export type InsertEventLog = z.infer<typeof insertEventLogSchema>;

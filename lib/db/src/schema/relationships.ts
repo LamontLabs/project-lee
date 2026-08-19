@@ -22,6 +22,7 @@ export const person = pgTable(
     displayName: varchar("display_name", { length: 200 }).notNull(),
     email: varchar("email", { length: 320 }),
     roles: jsonb("roles").$type<string[]>().notNull().default([]),
+    organizationalRole: varchar("organizational_role", { length: 64 }),
     expertise: jsonb("expertise").$type<string[]>().notNull().default([]),
     projects: jsonb("projects").$type<string[]>().notNull().default([]),
     communicationRhythm: varchar("communication_rhythm", { length: 32 }).notNull().default("monthly"),

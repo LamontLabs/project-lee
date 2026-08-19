@@ -1,5 +1,6 @@
 import { createInsertSchema } from "drizzle-zod";
 import {
+  boolean,
   index,
   jsonb,
   pgTable,
@@ -21,6 +22,7 @@ export const graphNode = pgTable(
     objectType: varchar("object_type", { length: 64 }).notNull(),
     objectId: uuid("object_id").notNull(),
     label: text("label"),
+    importanceScore: real("importance_score").notNull().default(0.5),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -38,14 +40,19 @@ export const graphEdge = pgTable(
     targetNodeId: uuid("target_node_id").notNull(),
     edgeType: varchar("edge_type", { length: 64 }).notNull(),
     confidence: real("confidence").notNull().default(0.5),
+    weight: real("weight").notNull().default(0.5),
+    freshnessScore: real("freshness_score").notNull().default(1),
     sourceRef: text("source_ref").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+    isHistorical: boolean("is_historical").notNull().default(false),
   },
   (table) => [
     uniqueIndex("graph_edge_unique").on(table.sourceNodeId, table.targetNodeId, table.edgeType),
     index("graph_edge_source_idx").on(table.sourceNodeId, table.edgeType),
     index("graph_edge_target_idx").on(table.targetNodeId, table.edgeType),
+    index("graph_edge_type_idx").on(table.edgeType),
   ],
 );
 

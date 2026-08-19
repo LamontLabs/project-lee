@@ -33,6 +33,8 @@ import {
   founderProfileHistory,
   founderProfileCorrection,
   universalObject,
+  graphNode,
+  graphEdge,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -62,6 +64,8 @@ const snapshotTables = {
   founderProfileHistory,
   founderProfileCorrection,
   universalObject,
+  graphNode,
+  graphEdge,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

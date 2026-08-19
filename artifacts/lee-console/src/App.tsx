@@ -5,6 +5,7 @@ import { OrchestrationPanel } from './OrchestrationPanel';
 import SchedulePage from './SchedulePage';
 import FounderProfilePanel from './FounderProfilePanel';
 import MemoryHealthPanel from './MemoryHealthPanel';
+import KnowledgeMapPage from './KnowledgeMapPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
@@ -61,7 +62,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -153,6 +154,7 @@ const navItems = [
   { href: '/organization', label: 'Organization', icon: Building2 },
   { href: '/strategy/decision-patterns', label: 'Decision patterns', icon: GitBranch },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
+  { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
   { href: '/institutional', label: 'Institutional', icon: Sparkles },
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },

@@ -35,6 +35,8 @@ import {
   universalObject,
   graphNode,
   graphEdge,
+  trustScore,
+  trustEvent,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -66,6 +68,8 @@ const snapshotTables = {
   universalObject,
   graphNode,
   graphEdge,
+  trustScore,
+  trustEvent,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

@@ -1,0 +1,13 @@
+import { Router, type IRouter } from "express";
+import { db, trustEvent } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
+import { applyTrustDecay, getTrustScores, queueTrustDecay, recordTrustEvent, trustStatus } from "../lib/trust";
+const router: IRouter = Router();
+router.get("/health", (_req, res) => res.json({ status: "ok", service: "lee-health-engine" }));
+router.get("/health/detail", async (_req, res) => res.json(await trustStatus()));
+router.get("/health/trust", async (_req, res) => res.json(await trustStatus()));
+router.get("/health/trust/:subsystem", async (req, res) => res.json(await db.select().from(trustEvent).where(eq(trustEvent.subsystemName, req.params.subsystem)).orderBy(desc(trustEvent.timestamp)).limit(100)));
+router.post("/health/trust/event", async (req, res) => res.status(201).json(await recordTrustEvent(String(req.body?.subsystemName), String(req.body?.eventType), String(req.body?.reason ?? "Owner signal"))));
+router.post("/health/trust/decay", async (_req, res) => res.json({ decayed: await applyTrustDecay() }));
+router.post("/health/trust/queue-decay", async (_req, res) => res.status(202).json(await queueTrustDecay()));
+export default router;

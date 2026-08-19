@@ -16,3 +16,4 @@ export * from "./backups";
 export * from "./orchestration";
 export * from "./founder-profile";
 export * from "./curiosity";
+export * from "./trust";

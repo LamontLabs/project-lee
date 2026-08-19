@@ -17,3 +17,4 @@ export * from "./orchestration";
 export * from "./founder-profile";
 export * from "./curiosity";
 export * from "./trust";
+export * from "./strategy";

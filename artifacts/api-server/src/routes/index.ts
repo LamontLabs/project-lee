@@ -30,6 +30,7 @@ import founderProfileRouter from "./founder-profile";
 import memoryArchitectureRouter from "./memory-architecture";
 import curiosityRouter from "./curiosity";
 import trustRouter from "./trust";
+import strategyRouter from "./strategy";
 
 const router: IRouter = Router();
 
@@ -63,6 +64,7 @@ router.use(founderProfileRouter);
 router.use(memoryArchitectureRouter);
 router.use(curiosityRouter);
 router.use(trustRouter);
+router.use(strategyRouter);
 router.use(foundationRouter);
 
 export default router;

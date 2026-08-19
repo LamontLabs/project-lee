@@ -7,10 +7,14 @@ import FounderProfilePanel from './FounderProfilePanel';
 import MemoryHealthPanel from './MemoryHealthPanel';
 import KnowledgeMapPage from './KnowledgeMapPage';
 import ObservationsPage from './ObservationsPage';
+import StrategyPage from './StrategyPage';
+import SimulationPage from './SimulationPage';
+import ReflectionPage from './ReflectionPage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
+  BarChart3,
   ArrowUpRight,
   BookOpen,
   BrainCircuit,
@@ -24,6 +28,7 @@ import {
   Command,
   Database,
   FileText,
+  FlaskConical,
   Filter,
   Gauge,
   GitBranch,
@@ -65,7 +70,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -159,6 +164,9 @@ const navItems = [
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
   { href: '/observations', label: 'Observations', icon: Eye },
+  { href: '/strategy', label: 'Strategy', icon: Target },
+  { href: '/simulations', label: 'Simulations', icon: FlaskConical },
+  { href: '/reflections', label: 'Reflections', icon: BarChart3 },
   { href: '/institutional', label: 'Institutional', icon: Sparkles },
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },

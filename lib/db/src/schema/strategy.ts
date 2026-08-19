@@ -1,0 +1,56 @@
+import { index, jsonb, pgTable, real, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+export const strategicObjective = pgTable("strategic_objective", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  objective: text("objective").notNull(),
+  horizon: varchar("horizon", { length: 24 }).notNull().default("quarter"),
+  status: varchar("status", { length: 24 }).notNull().default("active"),
+  progressEvidence: jsonb("progress_evidence").$type<string[]>().notNull().default([]),
+  blockers: jsonb("blockers").$type<string[]>().notNull().default([]),
+  relatedProjectIds: jsonb("related_project_ids").$type<string[]>().notNull().default([]),
+  keyDecisionIds: jsonb("key_decision_ids").$type<string[]>().notNull().default([]),
+  nextAction: text("next_action"),
+  lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("strategic_objective_horizon_status_idx").on(table.horizon, table.status)]);
+export const strategyReview = pgTable("strategy_review", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
+  prompt: text("prompt").notNull(),
+  summary: text("summary").notNull(),
+  objectiveIds: jsonb("objective_ids").$type<string[]>().notNull().default([]),
+});
+export const simulation = pgTable("simulation", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  question: text("question").notNull(),
+  simulationType: varchar("simulation_type", { length: 32 }).notNull(),
+  assumptions: jsonb("assumptions").$type<Array<{ statement: string; confidence: number }>>().notNull().default([]),
+  reasoningChain: jsonb("reasoning_chain").$type<string[]>().notNull().default([]),
+  likelyOutcomes: jsonb("likely_outcomes").$type<string[]>().notNull().default([]),
+  possibleOutcomes: jsonb("possible_outcomes").$type<string[]>().notNull().default([]),
+  unlikelyOutcomes: jsonb("unlikely_outcomes").$type<string[]>().notNull().default([]),
+  risks: jsonb("risks").$type<string[]>().notNull().default([]),
+  opportunities: jsonb("opportunities").$type<string[]>().notNull().default([]),
+  recommendedDecision: text("recommended_decision"),
+  evidenceLinks: jsonb("evidence_links").$type<string[]>().notNull().default([]),
+  modelUsed: varchar("model_used", { length: 120 }).notNull().default("structured-ledger"),
+  estimatedCostUsd: real("estimated_cost_usd").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export const reflectionReport = pgTable("reflection_report", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  period: varchar("period", { length: 24 }).notNull(),
+  reportType: varchar("report_type", { length: 24 }).notNull(),
+  dimensions: jsonb("dimensions").$type<Record<string, unknown>>().notNull().default({}),
+  narrative: text("narrative").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
+  modelUsed: varchar("model_used", { length: 120 }).notNull().default("structured-ledger"),
+  sourcesUsed: jsonb("sources_used").$type<string[]>().notNull().default([]),
+});
+export const reflectionMetric = pgTable("reflection_metric", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  dimension: varchar("dimension", { length: 80 }).notNull(),
+  value: real("value").notNull(),
+  period: varchar("period", { length: 24 }).notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("reflection_metric_dimension_period_idx").on(table.dimension, table.period)]);

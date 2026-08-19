@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runDueJobs } from "./lib/scheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,8 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  const scheduler = setInterval(() => {
+    runDueJobs().catch((err) => logger.error({ err }, "Scheduler tick failed"));
+  }, 30_000);
+  scheduler.unref();
 });

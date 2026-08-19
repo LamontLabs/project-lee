@@ -33,6 +33,9 @@ import type {
   ReasoningRouteResult,
   RestoreBrainVersionInput,
   RestoreBrainVersionResult,
+  ScheduleJobInput,
+  ScheduledJob,
+  ScheduledJobRunResult,
   UnderstandingRunInput,
   UnderstandingRunResult,
   UnderstandingRunSummary
@@ -800,5 +803,222 @@ export const useRestoreBrainVersion = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getRestoreBrainVersionMutationOptions(options));
+    }
+
+export const getScheduleJobUrl = () => {
+
+
+
+
+  return `/api/scheduler/jobs`
+}
+
+/**
+ * @summary Schedule a persisted orchestration job
+ */
+export const scheduleJob = async (scheduleJobInput: ScheduleJobInput, options?: RequestInit): Promise<ScheduledJob> => {
+
+  return customFetch<ScheduledJob>(getScheduleJobUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(scheduleJobInput)
+  }
+);}
+
+
+
+
+export const getScheduleJobMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scheduleJob>>, TError,{data: BodyType<ScheduleJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scheduleJob>>, TError,{data: BodyType<ScheduleJobInput>}, TContext> => {
+
+const mutationKey = ['scheduleJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scheduleJob>>, {data: BodyType<ScheduleJobInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  scheduleJob(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScheduleJobMutationResult = NonNullable<Awaited<ReturnType<typeof scheduleJob>>>
+    export type ScheduleJobMutationBody = BodyType<ScheduleJobInput>
+    export type ScheduleJobMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Schedule a persisted orchestration job
+ */
+export const useScheduleJob = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scheduleJob>>, TError,{data: BodyType<ScheduleJobInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof scheduleJob>>,
+        TError,
+        {data: BodyType<ScheduleJobInput>},
+        TContext
+      > => {
+      return useMutation(getScheduleJobMutationOptions(options));
+    }
+
+export const getListScheduledJobsUrl = () => {
+
+
+
+
+  return `/api/scheduler/jobs`
+}
+
+/**
+ * @summary Query the scheduler calendar
+ */
+export const listScheduledJobs = async ( options?: RequestInit): Promise<ScheduledJob[]> => {
+
+  return customFetch<ScheduledJob[]>(getListScheduledJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListScheduledJobsQueryKey = () => {
+    return [
+    `/api/scheduler/jobs`
+    ] as const;
+    }
+
+
+export const getListScheduledJobsQueryOptions = <TData = Awaited<ReturnType<typeof listScheduledJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listScheduledJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListScheduledJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listScheduledJobs>>> = ({ signal }) => listScheduledJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listScheduledJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListScheduledJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listScheduledJobs>>>
+export type ListScheduledJobsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Query the scheduler calendar
+ */
+
+export function useListScheduledJobs<TData = Awaited<ReturnType<typeof listScheduledJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listScheduledJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListScheduledJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRunScheduledJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/scheduler/jobs/${id}/run`
+}
+
+/**
+ * @summary Run a scheduled job and record its lifecycle
+ */
+export const runScheduledJob = async (id: string, options?: RequestInit): Promise<ScheduledJobRunResult> => {
+
+  return customFetch<ScheduledJobRunResult>(getRunScheduledJobUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRunScheduledJobMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runScheduledJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runScheduledJob>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['runScheduledJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runScheduledJob>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  runScheduledJob(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunScheduledJobMutationResult = NonNullable<Awaited<ReturnType<typeof runScheduledJob>>>
+
+    export type RunScheduledJobMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Run a scheduled job and record its lifecycle
+ */
+export const useRunScheduledJob = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runScheduledJob>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runScheduledJob>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRunScheduledJobMutationOptions(options));
     }
 

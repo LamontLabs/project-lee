@@ -5,6 +5,7 @@ import reasoningRouter from "./reasoning";
 import connectorsRouter from "./connectors";
 import costsRouter from "./costs";
 import brainVersionsRouter from "./brain-versions";
+import schedulerRouter from "./scheduler";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(reasoningRouter);
 router.use(connectorsRouter);
 router.use(costsRouter);
 router.use(brainVersionsRouter);
+router.use(schedulerRouter);
 
 export default router;

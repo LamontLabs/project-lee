@@ -20,6 +20,8 @@ tags:
     description: Reasoning usage and cost accounting
   - name: brain-versions
     description: Checksummed brain snapshots and restore verification
+  - name: scheduler
+    description: Persisted orchestration jobs and scheduler calendar
 paths:
   /healthz:
     get:
@@ -209,6 +211,62 @@ paths:
                 $ref: "#/components/schemas/RestoreBrainVersionResult"
         "404":
           description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /scheduler/jobs:
+    post:
+      operationId: scheduleJob
+      tags: [scheduler]
+      summary: Schedule a persisted orchestration job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleJobInput"
+      responses:
+        "201":
+          description: Job scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledJob"
+    get:
+      operationId: listScheduledJobs
+      tags: [scheduler]
+      summary: Query the scheduler calendar
+      responses:
+        "200":
+          description: Scheduled jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduledJob"
+  /scheduler/jobs/{id}/run:
+    post:
+      operationId: runScheduledJob
+      tags: [scheduler]
+      summary: Run a scheduled job and record its lifecycle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Job completed or failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledJobRunResult"
+        "404":
+          description: Job not found
           content:
             application/json:
               schema:
@@ -594,4 +652,70 @@ components:
           type: string
           format: uuid
       required: [id, checksumValid, status, dryRun, message, eventId]
+    ScheduleJobInput:
+      type: object
+      properties:
+        jobType:
+          type: string
+          minLength: 1
+          maxLength: 96
+        runAt:
+          type: string
+          format: date-time
+        recurrence:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+            format: uuid
+        payload:
+          type: object
+          additionalProperties: true
+      required: [jobType, runAt]
+    ScheduledJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        jobType:
+          type: string
+        status:
+          type: string
+        runAt:
+          type: string
+          format: date-time
+        recurrence:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+            format: uuid
+        attempts:
+          type: integer
+        lastError:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required: [id, jobType, status, runAt, dependencies, attempts, createdAt, updatedAt]
+    ScheduledJobRunResult:
+      type: object
+      properties:
+        job:
+          $ref: "#/components/schemas/ScheduledJob"
+        eventId:
+          type: string
+          format: uuid
+        message:
+          type: string
+      required: [job, eventId, message]
 

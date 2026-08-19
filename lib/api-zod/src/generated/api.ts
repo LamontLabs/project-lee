@@ -286,3 +286,78 @@ export const RestoreBrainVersionResponse = zod.object({
 })
 
 
+/**
+ * @summary Schedule a persisted orchestration job
+ */
+export const scheduleJobBodyJobTypeMax = 96;
+
+
+
+export const ScheduleJobBody = zod.object({
+  "jobType": zod.string().min(1).max(scheduleJobBodyJobTypeMax),
+  "runAt": zod.coerce.date(),
+  "recurrence": zod.string().optional(),
+  "dependencies": zod.array(zod.string().uuid()).optional(),
+  "payload": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const ScheduleJobResponse = zod.object({
+  "id": zod.string().uuid(),
+  "jobType": zod.string(),
+  "status": zod.string(),
+  "runAt": zod.coerce.date(),
+  "recurrence": zod.string().optional(),
+  "dependencies": zod.array(zod.string().uuid()),
+  "attempts": zod.number(),
+  "lastError": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Query the scheduler calendar
+ */
+export const ListScheduledJobsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "jobType": zod.string(),
+  "status": zod.string(),
+  "runAt": zod.coerce.date(),
+  "recurrence": zod.string().optional(),
+  "dependencies": zod.array(zod.string().uuid()),
+  "attempts": zod.number(),
+  "lastError": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().optional()
+})
+export const ListScheduledJobsResponse = zod.array(ListScheduledJobsResponseItem)
+
+
+/**
+ * @summary Run a scheduled job and record its lifecycle
+ */
+export const RunScheduledJobParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RunScheduledJobResponse = zod.object({
+  "job": zod.object({
+  "id": zod.string().uuid(),
+  "jobType": zod.string(),
+  "status": zod.string(),
+  "runAt": zod.coerce.date(),
+  "recurrence": zod.string().optional(),
+  "dependencies": zod.array(zod.string().uuid()),
+  "attempts": zod.number(),
+  "lastError": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().optional()
+}),
+  "eventId": zod.string().uuid(),
+  "message": zod.string()
+})
+
+

@@ -280,3 +280,37 @@ export interface RestoreBrainVersionResult {
   eventId: string;
 }
 
+export type ScheduleJobInputPayload = { [key: string]: unknown };
+
+export interface ScheduleJobInput {
+  /**
+     * @minLength 1
+     * @maxLength 96
+     */
+  jobType: string;
+  runAt: string;
+  recurrence?: string;
+  dependencies?: string[];
+  payload?: ScheduleJobInputPayload;
+}
+
+export interface ScheduledJob {
+  id: string;
+  jobType: string;
+  status: string;
+  runAt: string;
+  recurrence?: string;
+  dependencies: string[];
+  attempts: number;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}
+
+export interface ScheduledJobRunResult {
+  job: ScheduledJob;
+  eventId: string;
+  message: string;
+}
+

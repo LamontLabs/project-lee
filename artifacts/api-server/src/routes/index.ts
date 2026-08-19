@@ -17,6 +17,7 @@ import systemEconomicsRouter from "./system-economics";
 import identityRouter from "./identity";
 import executiveObjectivesRouter from "./executive-objectives";
 import organizationalMemoryRouter from "./organizational-memory";
+import decisionMemoryRouter from "./decision-memory";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(systemEconomicsRouter);
 router.use(identityRouter);
 router.use(executiveObjectivesRouter);
 router.use(organizationalMemoryRouter);
+router.use(decisionMemoryRouter);
 
 export default router;

@@ -122,6 +122,11 @@ export const decisionHeuristicLedger = pgTable(
     sourceRef: text("source_ref").notNull(),
     confidence: real("confidence").notNull().default(0.5),
     evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
+    exceptionCount: integer("exception_count").notNull().default(0),
+    firstObserved: timestamp("first_observed", { withTimezone: true }),
+    lastReinforced: timestamp("last_reinforced", { withTimezone: true }),
+    status: varchar("status", { length: 32 }).notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -396,6 +401,7 @@ export const insertInterpretationSchema = createInsertSchema(interpretationLedge
 export const insertAnchorSchema = createInsertSchema(anchorLedger);
 export const insertDecisionHeuristicSchema = createInsertSchema(
   decisionHeuristicLedger,
+  { evidence: jsonRecord, evidenceRefs: z.array(z.string()) },
 );
 export const insertInstitutionalKnowledgeSchema = createInsertSchema(
   institutionalKnowledgeLedger,

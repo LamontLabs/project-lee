@@ -3,6 +3,7 @@ import { listSelfImprovement, resetSelfImprovement, runSelfImprovementCycle } fr
 import { getCurrentIdentity } from "../lib/identity";
 import { listObjectives } from "../lib/executive-objectives";
 import { getOrganization } from "../lib/organizational-memory";
+import { listDecisionHeuristics } from "../lib/decision-memory";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.get("/system-manifest", async (_req, res): Promise<void> => {
   const identity = await getCurrentIdentity();
   const objectives = await listObjectives();
   const organization = await getOrganization();
+  const heuristics = await listDecisionHeuristics();
   res.json({
     identity: {
       profileId: identity.id,
@@ -38,6 +40,10 @@ router.get("/system-manifest", async (_req, res): Promise<void> => {
       peopleCount: organization.people.length,
       sharedServices: Object.keys(organization.sharedServices),
       resourceCount: organization.resources.length,
+    },
+    decisionMemory: {
+      heuristicCount: heuristics.length,
+      heuristics: heuristics.map((item) => ({ id: item.id, statement: item.rule, confidence: item.confidence, exceptionCount: item.exceptionCount, evidenceRefs: item.evidenceRefs })),
     },
     operationalSelfImprovement: {
       minimumEvidence: 5,

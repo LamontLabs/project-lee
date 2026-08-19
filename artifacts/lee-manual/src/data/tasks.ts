@@ -1266,7 +1266,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "2",
     dependsOn: [16, 22, 24],
     versionIntroduced: "11.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Infers operational heuristics from observed decision patterns — not self-reported preferences. Different from Strategic Anchors (declared) and Institutional Knowledge (reality-validated).",
     description: "Decision Heuristic Ledger entries: statement, evidence_refs (decisions supporting it), confidence (0–1), exception_count, first_observed, last_reinforced. Sources: Decision Impact Graph entries, rejected Strategy recommendations, deferred governance actions. Strategy Engine adds Pattern Alignment field to all recommendations. When a recommendation contradicts a high-confidence heuristic, LEE surfaces it: 'I think you'll probably reject this.'",
     responsibilities: ["Heuristic inference from observed decisions", "Confidence lifecycle (rises with reinforcement, decays with exceptions)", "Strategy Engine Pattern Alignment field", "Proactive conflict surfacing"],

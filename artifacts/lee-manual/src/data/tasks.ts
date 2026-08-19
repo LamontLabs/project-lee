@@ -162,7 +162,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "8",
     dependsOn: [1, 3],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Manages all connections to external services through the Provider Abstraction Layer. Schedules syncs, handles rate limits, normalizes events, and maintains connector health.",
     description: "Manages adapters for: Gmail/Proton (CommunicationProvider), GitHub (DevelopmentProvider), Google Drive (DocumentProvider), Google Calendar (SchedulingProvider). All adapters are read-only by default. Write operations require CerbaSeal authorization. Rate limiting and retry backoff are built in.",
     responsibilities: [

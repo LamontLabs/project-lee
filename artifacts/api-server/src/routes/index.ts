@@ -12,6 +12,7 @@ import graphRouter from "./graph";
 import relationshipsRouter from "./relationships";
 import reviewsRouter from "./reviews";
 import institutionalKnowledgeRouter from "./institutional-knowledge";
+import selfImprovementRouter from "./self-improvement";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(graphRouter);
 router.use(relationshipsRouter);
 router.use(reviewsRouter);
 router.use(institutionalKnowledgeRouter);
+router.use(selfImprovementRouter);
 
 export default router;

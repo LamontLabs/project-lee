@@ -195,6 +195,45 @@ export const lessonRecord = pgTable(
   ],
 );
 
+export const operationalMetric = pgTable(
+  "operational_metric",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    category: varchar("category", { length: 48 }).notNull(),
+    observationType: varchar("observation_type", { length: 80 }).notNull(),
+    value: real("value").notNull(),
+    sourceEventId: uuid("source_event_id"),
+    context: jsonb("context").$type<Record<string, unknown>>().notNull().default({}),
+    observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("operational_metric_category_observed_idx").on(table.category, table.observedAt),
+    index("operational_metric_source_idx").on(table.sourceEventId),
+  ],
+);
+
+export const operationalAdaptation = pgTable(
+  "operational_adaptation",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    category: varchar("category", { length: 48 }).notNull(),
+    parameter: varchar("parameter", { length: 120 }).notNull(),
+    previousValue: text("previous_value").notNull(),
+    currentValue: text("current_value").notNull(),
+    defaultValue: text("default_value").notNull(),
+    evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
+    observationCount: integer("observation_count").notNull().default(0),
+    reason: text("reason").notNull(),
+    status: varchar("status", { length: 24 }).notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("operational_adaptation_status_idx").on(table.status),
+    index("operational_adaptation_parameter_idx").on(table.parameter),
+  ],
+);
+
 export const assumptionLedger = pgTable(
   "assumption_ledger",
   {
@@ -283,6 +322,12 @@ export const insertExperienceSchema = createInsertSchema(experienceRecord, {
 });
 export const insertLessonSchema = createInsertSchema(lessonRecord, {
   experienceRefs: z.array(z.string()),
+});
+export const insertOperationalMetricSchema = createInsertSchema(operationalMetric, {
+  context: jsonRecord,
+});
+export const insertOperationalAdaptationSchema = createInsertSchema(operationalAdaptation, {
+  evidenceRefs: z.array(z.string()),
 });
 export const insertAssumptionSchema = createInsertSchema(assumptionLedger);
 export const insertIdentityProfileSchema = createInsertSchema(identityProfile, {

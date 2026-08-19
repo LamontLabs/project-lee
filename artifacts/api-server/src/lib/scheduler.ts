@@ -1,6 +1,7 @@
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { db, eventLog, scheduledJob } from "@workspace/db";
 import { generateOperationalReview } from "./operational-review";
+import { runSelfImprovementCycle } from "./self-improvement";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -66,10 +67,19 @@ export async function executeScheduledJob(id: string) {
       handlerError = error instanceof Error ? error.message : "Operational review handler failed.";
     }
   }
+  if (job.jobType === "self_improvement") {
+    try {
+      await runSelfImprovementCycle();
+    } catch (error) {
+      handlerError = error instanceof Error ? error.message : "Self-improvement handler failed.";
+    }
+  }
   const supported =
     job.jobType === "maintenance" ||
     job.jobType === "health_check" ||
-    job.jobType === "operational_review";
+    job.jobType === "operational_review" ||
+    job.jobType === "self_improvement";
+    job.jobType === "self_improvement";
   const now = new Date();
   if (!supported || handlerError) {
     const [failed] = await db

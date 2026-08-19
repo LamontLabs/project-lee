@@ -111,7 +111,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "9",
     dependsOn: [3, 5],
     versionIntroduced: "9.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Produces the Morning Brief and situational briefs. Reads from the Operational Intelligence Engine, the Identity Profile, active Executive Objectives, and high-uncertainty items.",
     description: "Generates structured briefs on schedule and on demand. After Identity Engine is built (#56), briefs respect Identity Profile behavioral dimensions (item ceiling, format preference). After Executive Objectives (#57), briefs include active objectives summary. After Uncertainty Tracking (#62), high-uncertainty items are flagged distinctly.",
     responsibilities: [

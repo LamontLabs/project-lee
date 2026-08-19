@@ -118,6 +118,7 @@ const navItems = [
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { href: '/institutional', label: 'Institutional', icon: Sparkles },
+  { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
   { href: '/health', label: 'System health', icon: Gauge },
@@ -191,7 +192,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/self-improvement': 'Self-improvement' };
   const pageTitle = pageTitles[location] ?? 'Console';
   return (
     <div className="lee-noise min-h-[100dvh] bg-background text-foreground">
@@ -336,6 +337,61 @@ function InstitutionalKnowledgePanel() {
   return <Panel className="mb-5 border-primary/20 bg-primary/[0.04]"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="lee-label text-primary">Reality-tested knowledge</p><h3 className="mt-1 text-lg font-semibold">Institutional</h3><p className="mt-1 text-sm text-muted-foreground">Lessons promoted only after three independent supporting experiences.</p></div><span className="lee-label text-muted-foreground">{items.length} patterns</span></div>{error && <p className="mt-4 text-xs text-destructive">{error}</p>}{items.length === 0 && !error && <p className="mt-5 text-sm text-muted-foreground">No patterns established yet. Process the event history as experiences accumulate.</p>}<div className="mt-4 grid gap-3 lg:grid-cols-2">{items.map((item) => <div key={item.id} className="rounded-xl border border-border bg-card/80 p-4"><div className="flex items-center justify-between gap-3"><span className="lee-label text-primary">{item.confidenceTier} · {item.status.replace('_', ' ')}</span><span className="text-xs text-muted-foreground">{item.evidenceCount} evidence</span></div><p className="mt-3 text-sm font-medium leading-relaxed">{item.statement}</p><div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{Math.round(item.confidence * 100)}% confidence</span>{item.status === 'pending_owner_review' && <span className="flex gap-2"><button onClick={() => void review(item.id, true)} className="font-semibold text-primary hover:underline">Approve</button><button onClick={() => void review(item.id, false)} className="font-semibold text-destructive hover:underline">Reject</button></span>}</div></div>)}</div></Panel>;
 }
 
+type Adaptation = {
+  id: string;
+  category: string;
+  parameter: string;
+  previousValue: string;
+  currentValue: string;
+  defaultValue: string;
+  evidenceRefs: string[];
+  observationCount: number;
+  reason: string;
+  status: string;
+  updatedAt: string;
+};
+
+function SelfImprovementPage() {
+  const [items, setItems] = useState<Adaptation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const load = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/self-improvement');
+      if (!response.ok) throw new Error(`Self-improvement request failed (${response.status}).`);
+      setItems(await response.json() as Adaptation[]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load adaptations.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { void load(); }, []);
+  const runCycle = async () => {
+    setWorking(true); setNotice(''); setError('');
+    try {
+      const response = await fetch('/api/self-improvement/cycle', { method: 'POST' });
+      if (!response.ok) throw new Error(`Self-improvement cycle failed (${response.status}).`);
+      const result = await response.json() as { adaptations: Adaptation[] };
+      setNotice(result.adaptations.length ? `${result.adaptations.length} adaptation applied and logged.` : 'Cycle complete · no new adaptation met the evidence threshold.');
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to run self-improvement cycle.');
+    } finally { setWorking(false); }
+  };
+  const reset = async (id?: string) => {
+    setWorking(true);
+    await fetch('/api/self-improvement/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(id ? { id } : {}) });
+    setNotice(id ? 'Adaptation reset to its default.' : 'All adaptations reset to defaults.');
+    await load();
+    setWorking(false);
+  };
+  return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Reflection engine · bounded adaptation" title="Self-improvement" detail="LEE can adjust output parameters, never identity, values, facts, or constitutional boundaries." action={<button onClick={() => void runCycle()} disabled={working} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50" data-testid="button-run-self-improvement"><RefreshCw size={14} className={working ? 'animate-spin' : ''} /> Run effectiveness cycle</button>} />{notice && <div className="mb-4 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary" role="status">{notice}</div>}{error && <div className="mb-4 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div>}<Panel><div className="mb-5 flex items-center justify-between"><div><p className="lee-label text-primary">Operational adaptation log</p><h3 className="mt-1 text-lg font-semibold">Current behaviors</h3></div><button onClick={() => void reset()} disabled={working || items.length === 0} className="rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50">Reset all to defaults</button></div>{loading ? <SkeletonRows /> : items.length === 0 ? <EmptyState title="No adaptations yet" detail="LEE needs at least five observations in a category before changing an output parameter." /> : <div className="space-y-3">{items.map((item) => <div key={item.id} className="rounded-xl border border-border bg-muted/35 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="lee-label text-primary">{item.category} · {item.status}</p><h4 className="mt-1 text-sm font-semibold">{item.parameter}</h4></div><button onClick={() => void reset(item.id)} disabled={working || item.status !== 'active'} className="text-xs font-semibold text-muted-foreground hover:text-destructive disabled:opacity-40">Reset</button></div><div className="mt-4 grid gap-3 sm:grid-cols-3"><div><p className="lee-label text-muted-foreground">Current</p><p className="mt-1 text-sm font-semibold">{item.currentValue}</p></div><div><p className="lee-label text-muted-foreground">Default</p><p className="mt-1 text-sm">{item.defaultValue}</p></div><div><p className="lee-label text-muted-foreground">Evidence</p><p className="mt-1 text-sm">{item.observationCount} observations</p></div></div><p className="mt-3 text-xs leading-relaxed text-muted-foreground">{item.reason}</p></div>)}</div>}</Panel><div className="mt-5 rounded-xl border border-border bg-muted/40 p-4 text-xs leading-relaxed text-muted-foreground">Safety boundary: adaptations are reversible and event-logged. They can change surfacing thresholds and presentation ceilings only; they cannot alter the Identity Profile, Constitution, Knowledge Layer records, Strategic Anchors, or governance rules.</div></div>;
+}
+
 function KnowledgePage() {
   const [items, setItems] = useState(KNOWLEDGE);
   const [query, setQuery] = useState('');
@@ -476,7 +532,7 @@ function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function Router({ onAsk, onLock }: { onAsk: () => void; onLock: () => void }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/institutional" component={() => <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Knowledge layer" title="Institutional Knowledge" detail="Operational patterns reality has reinforced across independent experiences." /><InstitutionalKnowledgePanel /></div>} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
+  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/institutional" component={() => <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Knowledge layer" title="Institutional Knowledge" detail="Operational patterns reality has reinforced across independent experiences." /><InstitutionalKnowledgePanel /></div>} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/settings/self-improvement" component={SelfImprovementPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
 }
 
 function App() {

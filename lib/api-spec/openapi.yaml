@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: understanding
     description: Source ingestion and knowledge extraction
+  - name: reasoning
+    description: Context budgeting and model routing
 paths:
   /healthz:
     get:
@@ -63,6 +65,30 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UnderstandingRunSummary"
+  /reasoning/route:
+    post:
+      operationId: routeReasoningRequest
+      tags: [reasoning]
+      summary: Route a reasoning request through the context economy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasoningRequestInput"
+      responses:
+        "200":
+          description: Routed reasoning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReasoningRouteResult"
+        "400":
+          description: Invalid reasoning request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -180,4 +206,96 @@ components:
               type: string
               format: uuid
           required: [facts, interpretations, eventId]
+    ReasoningContextItem:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        text:
+          type: string
+          minLength: 1
+        kind:
+          type: string
+          minLength: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        recencyDays:
+          type: number
+          minimum: 0
+        strategicAnchor:
+          type: boolean
+      required: [id, text, kind, confidence, recencyDays, strategicAnchor]
+    ReasoningRequestInput:
+      type: object
+      properties:
+        queryText:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        semanticDomain:
+          type: string
+          minLength: 1
+        intentType:
+          type: string
+          minLength: 1
+        riskClassification:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        contextItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReasoningContextItem"
+        contextBudgetTokens:
+          type: integer
+          minimum: 128
+          maximum: 32000
+          default: 2000
+        costCeilingUsd:
+          type: number
+          minimum: 0
+        preferredTier:
+          type: string
+          enum: [auto, T1, T2, T3]
+          default: auto
+      required: [queryText, semanticDomain, intentType, riskClassification, contextItems]
+    SelectedContextItem:
+      allOf:
+        - $ref: "#/components/schemas/ReasoningContextItem"
+        - type: object
+          properties:
+            score:
+              type: number
+            estimatedTokens:
+              type: integer
+          required: [score, estimatedTokens]
+    ReasoningRouteResult:
+      type: object
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+        resolutionTier:
+          type: string
+          enum: [T1, T2, T3]
+        model:
+          type: string
+        answer:
+          type: string
+        contextPacket:
+          type: array
+          items:
+            $ref: "#/components/schemas/SelectedContextItem"
+        contextTokens:
+          type: integer
+        contextBudgetTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+        eventId:
+          type: string
+          format: uuid
+      required: [correlationId, resolutionTier, model, answer, contextPacket, contextTokens, contextBudgetTokens, estimatedCostUsd, eventId]
 

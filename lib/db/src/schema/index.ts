@@ -14,3 +14,4 @@ export { sourceChunk, understandingReviewItem } from "./core";
 export * from "./ai";
 export * from "./backups";
 export * from "./orchestration";
+export * from "./founder-profile";

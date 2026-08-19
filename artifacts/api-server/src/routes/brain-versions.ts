@@ -29,6 +29,9 @@ import {
   normalizedConnectorEvent,
   provenanceRecord,
   understandingRun,
+  founderProfile,
+  founderProfileHistory,
+  founderProfileCorrection,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -54,6 +57,9 @@ const snapshotTables = {
   normalizedConnectorEvent,
   provenanceRecord,
   understandingRun,
+  founderProfile,
+  founderProfileHistory,
+  founderProfileCorrection,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

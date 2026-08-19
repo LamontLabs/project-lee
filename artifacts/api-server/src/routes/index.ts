@@ -7,6 +7,7 @@ import costsRouter from "./costs";
 import brainVersionsRouter from "./brain-versions";
 import schedulerRouter from "./scheduler";
 import governanceRouter from "./governance";
+import memoryRouter from "./memory";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(costsRouter);
 router.use(brainVersionsRouter);
 router.use(schedulerRouter);
 router.use(governanceRouter);
+router.use(memoryRouter);
 
 export default router;

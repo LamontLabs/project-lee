@@ -24,6 +24,8 @@ tags:
     description: Persisted orchestration jobs and scheduler calendar
   - name: governance
     description: Fail-closed CerbaSeal authorization boundary
+  - name: memory
+    description: Epistemic memory retrieval and consolidation
 paths:
   /healthz:
     get:
@@ -297,6 +299,73 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /memory/index:
+    post:
+      operationId: indexMemoryObject
+      tags: [memory]
+      summary: Add retrieval metadata for a knowledge object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryIndexInput"
+      responses:
+        "201":
+          description: Indexed memory object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryIndex"
+  /memory/search:
+    get:
+      operationId: searchMemory
+      tags: [memory]
+      summary: Search indexed memory by tag, project, entity, and time
+      parameters:
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Matching memory index entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryIndex"
+  /memory/consolidate:
+    post:
+      operationId: consolidateMemory
+      tags: [memory]
+      summary: Detect contradictions across fact records
+      responses:
+        "200":
+          description: Consolidation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryConsolidationResult"
 components:
   schemas:
     HealthStatus:
@@ -874,4 +943,52 @@ components:
           type: string
           format: uuid
       required: [lee_request_id, decision_id, verdict, reason_codes, checked_invariants, decision_envelope, evidence_bundle_ref, audit_entry_ref, replay_checksum, policy_version, timestamp, human_confirmation_required, governance_event_id]
+    MemoryIndexInput:
+      type: object
+      properties:
+        objectType:
+          type: string
+        objectId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        projectId:
+          type: string
+        entityId:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [objectType, objectId, tags]
+    MemoryIndex:
+      allOf:
+        - $ref: "#/components/schemas/MemoryIndexInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+          required: [id]
+    MemoryConsolidationResult:
+      type: object
+      properties:
+        factCount:
+          type: integer
+        conflictCount:
+          type: integer
+        conflicts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        eventId:
+          type: string
+          format: uuid
+      required: [factCount, conflictCount, conflicts, eventId]
 

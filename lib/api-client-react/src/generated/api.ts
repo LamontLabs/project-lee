@@ -31,6 +31,9 @@ import type {
   GovernedRequest,
   GovernedResponse,
   HealthStatus,
+  MemoryConsolidationResult,
+  MemoryIndex,
+  MemoryIndexInput,
   ReasoningRequestInput,
   ReasoningRouteResult,
   RestoreBrainVersionInput,
@@ -38,6 +41,7 @@ import type {
   ScheduleJobInput,
   ScheduledJob,
   ScheduledJobRunResult,
+  SearchMemoryParams,
   UnderstandingRunInput,
   UnderstandingRunResult,
   UnderstandingRunSummary
@@ -1092,5 +1096,229 @@ export const useEvaluateGovernedRequest = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getEvaluateGovernedRequestMutationOptions(options));
+    }
+
+export const getIndexMemoryObjectUrl = () => {
+
+
+
+
+  return `/api/memory/index`
+}
+
+/**
+ * @summary Add retrieval metadata for a knowledge object
+ */
+export const indexMemoryObject = async (memoryIndexInput: MemoryIndexInput, options?: RequestInit): Promise<MemoryIndex> => {
+
+  return customFetch<MemoryIndex>(getIndexMemoryObjectUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(memoryIndexInput)
+  }
+);}
+
+
+
+
+export const getIndexMemoryObjectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof indexMemoryObject>>, TError,{data: BodyType<MemoryIndexInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof indexMemoryObject>>, TError,{data: BodyType<MemoryIndexInput>}, TContext> => {
+
+const mutationKey = ['indexMemoryObject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof indexMemoryObject>>, {data: BodyType<MemoryIndexInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  indexMemoryObject(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IndexMemoryObjectMutationResult = NonNullable<Awaited<ReturnType<typeof indexMemoryObject>>>
+    export type IndexMemoryObjectMutationBody = BodyType<MemoryIndexInput>
+    export type IndexMemoryObjectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add retrieval metadata for a knowledge object
+ */
+export const useIndexMemoryObject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof indexMemoryObject>>, TError,{data: BodyType<MemoryIndexInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof indexMemoryObject>>,
+        TError,
+        {data: BodyType<MemoryIndexInput>},
+        TContext
+      > => {
+      return useMutation(getIndexMemoryObjectMutationOptions(options));
+    }
+
+export const getSearchMemoryUrl = (params?: SearchMemoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/memory/search?${stringifiedParams}` : `/api/memory/search`
+}
+
+/**
+ * @summary Search indexed memory by tag, project, entity, and time
+ */
+export const searchMemory = async (params?: SearchMemoryParams, options?: RequestInit): Promise<MemoryIndex[]> => {
+
+  return customFetch<MemoryIndex[]>(getSearchMemoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchMemoryQueryKey = (params?: SearchMemoryParams,) => {
+    return [
+    `/api/memory/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchMemoryQueryOptions = <TData = Awaited<ReturnType<typeof searchMemory>>, TError = ErrorType<unknown>>(params?: SearchMemoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchMemory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchMemoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchMemory>>> = ({ signal }) => searchMemory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchMemory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchMemoryQueryResult = NonNullable<Awaited<ReturnType<typeof searchMemory>>>
+export type SearchMemoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search indexed memory by tag, project, entity, and time
+ */
+
+export function useSearchMemory<TData = Awaited<ReturnType<typeof searchMemory>>, TError = ErrorType<unknown>>(
+ params?: SearchMemoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchMemory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchMemoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConsolidateMemoryUrl = () => {
+
+
+
+
+  return `/api/memory/consolidate`
+}
+
+/**
+ * @summary Detect contradictions across fact records
+ */
+export const consolidateMemory = async ( options?: RequestInit): Promise<MemoryConsolidationResult> => {
+
+  return customFetch<MemoryConsolidationResult>(getConsolidateMemoryUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getConsolidateMemoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof consolidateMemory>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof consolidateMemory>>, TError,void, TContext> => {
+
+const mutationKey = ['consolidateMemory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof consolidateMemory>>, void> = () => {
+
+
+          return  consolidateMemory(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConsolidateMemoryMutationResult = NonNullable<Awaited<ReturnType<typeof consolidateMemory>>>
+
+    export type ConsolidateMemoryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Detect contradictions across fact records
+ */
+export const useConsolidateMemory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof consolidateMemory>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof consolidateMemory>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getConsolidateMemoryMutationOptions(options));
     }
 

@@ -418,3 +418,65 @@ export const EvaluateGovernedRequestResponse = zod.object({
 })
 
 
+/**
+ * @summary Add retrieval metadata for a knowledge object
+ */
+export const IndexMemoryObjectBody = zod.object({
+  "objectType": zod.string(),
+  "objectId": zod.string().uuid(),
+  "tags": zod.array(zod.string()),
+  "projectId": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "recordedAt": zod.coerce.date().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const IndexMemoryObjectResponse = zod.object({
+  "objectType": zod.string(),
+  "objectId": zod.string().uuid(),
+  "tags": zod.array(zod.string()),
+  "projectId": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "recordedAt": zod.coerce.date().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string().uuid()
+}))
+
+
+/**
+ * @summary Search indexed memory by tag, project, entity, and time
+ */
+export const SearchMemoryQueryParams = zod.object({
+  "tag": zod.coerce.string().optional(),
+  "projectId": zod.coerce.string().optional(),
+  "entityId": zod.coerce.string().optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const SearchMemoryResponseItem = zod.object({
+  "objectType": zod.string(),
+  "objectId": zod.string().uuid(),
+  "tags": zod.array(zod.string()),
+  "projectId": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "recordedAt": zod.coerce.date().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}).and(zod.object({
+  "id": zod.string().uuid()
+}))
+export const SearchMemoryResponse = zod.array(SearchMemoryResponseItem)
+
+
+/**
+ * @summary Detect contradictions across fact records
+ */
+export const ConsolidateMemoryResponse = zod.object({
+  "factCount": zod.number(),
+  "conflictCount": zod.number(),
+  "conflicts": zod.array(zod.record(zod.string(), zod.unknown())),
+  "eventId": zod.string().uuid()
+})
+
+

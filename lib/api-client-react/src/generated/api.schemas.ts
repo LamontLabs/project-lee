@@ -421,3 +421,36 @@ export interface GovernedResponse {
   governance_event_id: string;
 }
 
+export type MemoryIndexInputMetadata = { [key: string]: unknown };
+
+export interface MemoryIndexInput {
+  objectType: string;
+  objectId: string;
+  tags: string[];
+  projectId?: string;
+  entityId?: string;
+  recordedAt?: string;
+  metadata?: MemoryIndexInputMetadata;
+}
+
+export type MemoryIndex = MemoryIndexInput & {
+  id: string;
+};
+
+export type MemoryConsolidationResultConflictsItem = { [key: string]: unknown };
+
+export interface MemoryConsolidationResult {
+  factCount: number;
+  conflictCount: number;
+  conflicts: MemoryConsolidationResultConflictsItem[];
+  eventId: string;
+}
+
+export type SearchMemoryParams = {
+tag?: string;
+projectId?: string;
+entityId?: string;
+from?: string;
+to?: string;
+};
+

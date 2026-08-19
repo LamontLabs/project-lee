@@ -13,4 +13,7 @@ export interface ConnectorHealth {
   status: string;
   lastSyncAt?: Date;
   lastError?: string;
+  authStatus?: string;
+  consecutiveFailureCount?: number;
+  eventCount?: number;
 }

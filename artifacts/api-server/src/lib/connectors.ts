@@ -4,6 +4,7 @@ export const connectorProviders = [
   "github",
   "google_drive",
   "google_calendar",
+  "replit",
 ] as const;
 
 export type ConnectorProvider = (typeof connectorProviders)[number];
@@ -53,4 +54,5 @@ export const providerAdapters: Record<ConnectorProvider, ProviderAdapter> = {
   github: createAdapter("github"),
   google_drive: createAdapter("google_drive"),
   google_calendar: createAdapter("google_calendar"),
+  replit: createAdapter("replit"),
 };

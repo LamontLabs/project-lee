@@ -175,6 +175,7 @@ export const ConnectorProvider = {
   github: 'github',
   google_drive: 'google_drive',
   google_calendar: 'google_calendar',
+  replit: 'replit',
 } as const;
 
 export type ConnectorEventInputPayload = { [key: string]: unknown };
@@ -221,6 +222,9 @@ export interface ConnectorHealth {
   status: string;
   lastSyncAt?: string;
   lastError?: string;
+  authStatus?: string;
+  consecutiveFailureCount?: number;
+  eventCount?: number;
 }
 
 export interface CostTierSummary {

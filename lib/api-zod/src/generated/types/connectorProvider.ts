@@ -15,4 +15,5 @@ export const ConnectorProvider = {
   github: 'github',
   google_drive: 'google_drive',
   google_calendar: 'google_calendar',
+  replit: 'replit',
 } as const;

@@ -168,7 +168,7 @@ export const syncConnectorBodyEventsMax = 1000;
 
 
 export const SyncConnectorBody = zod.object({
-  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar']),
+  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar', 'replit']),
   "mode": zod.enum(['read', 'write']).default(syncConnectorBodyModeDefault),
   "events": zod.array(zod.object({
   "externalId": zod.string().min(1),
@@ -181,7 +181,7 @@ export const SyncConnectorBody = zod.object({
 
 export const SyncConnectorResponse = zod.object({
   "syncId": zod.string().uuid(),
-  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar']),
+  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar', 'replit']),
   "status": zod.string(),
   "receivedCount": zod.number(),
   "normalizedCount": zod.number(),
@@ -194,11 +194,14 @@ export const SyncConnectorResponse = zod.object({
  * @summary List connector health
  */
 export const ListConnectorHealthResponseItem = zod.object({
-  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar']),
+  "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar', 'replit']),
   "accessMode": zod.string(),
   "status": zod.string(),
   "lastSyncAt": zod.coerce.date().optional(),
-  "lastError": zod.string().optional()
+  "lastError": zod.string().optional(),
+  "authStatus": zod.string().optional(),
+  "consecutiveFailureCount": zod.number().optional(),
+  "eventCount": zod.number().optional()
 })
 export const ListConnectorHealthResponse = zod.array(ListConnectorHealthResponseItem)
 

@@ -23,6 +23,7 @@ import authRouter from "./auth";
 import importsRouter from "./imports";
 import timeRouter from "./time";
 import aiRouter from "./ai";
+import androidRouter from "./android";
 
 const router: IRouter = Router();
 
@@ -49,6 +50,7 @@ router.use(authRouter);
 router.use(importsRouter);
 router.use(timeRouter);
 router.use(aiRouter);
+router.use(androidRouter);
 router.use(foundationRouter);
 
 export default router;

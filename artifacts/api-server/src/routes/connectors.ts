@@ -9,6 +9,7 @@ import {
   normalizedConnectorEvent,
 } from "@workspace/db";
 import { connectorProviders, providerAdapters, type ConnectorProvider } from "../lib/connectors";
+import { connectorHealthScan, syncLiveConnector } from "../lib/connector-engine";
 
 const router: IRouter = Router();
 
@@ -166,12 +167,26 @@ router.get("/connectors/health", async (_req, res): Promise<void> => {
           provider,
           accessMode: row?.accessMode ?? "read",
           status: row?.status ?? "unconfigured",
+          authStatus: row?.authStatus ?? "not_connected",
           lastSyncAt: row?.lastSyncAt ?? undefined,
           lastError: row?.lastError ?? undefined,
+          consecutiveFailureCount: row?.consecutiveFailureCount ?? 0,
+          eventCount: row?.eventCount ?? 0,
         };
       }),
     ),
   );
+});
+
+router.post("/connectors/:provider/sync-live", async (req, res): Promise<void> => {
+  const provider = req.params.provider as ConnectorProvider;
+  if (!connectorProviders.includes(provider)) { res.status(400).json({ error: "Unsupported connector provider." }); return; }
+  const result = await syncLiveConnector(provider, req.body?.configuration ?? {});
+  res.status(result.status === "failed" ? 502 : 201).json(result);
+});
+
+router.post("/connectors/health-scan", async (_req, res): Promise<void> => {
+  res.json({ results: await connectorHealthScan() });
 });
 
 export default router;

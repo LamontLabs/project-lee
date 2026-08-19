@@ -21,8 +21,14 @@ export const connector = pgTable(
     provider: varchar("provider", { length: 64 }).notNull().unique(),
     accessMode: varchar("access_mode", { length: 16 }).notNull().default("read"),
     status: varchar("status", { length: 32 }).notNull().default("unconfigured"),
+    authStatus: varchar("auth_status", { length: 32 }).notNull().default("not_connected"),
+    scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     lastError: text("last_error"),
+    consecutiveFailureCount: integer("consecutive_failure_count").notNull().default(0),
+    eventCount: integer("event_count").notNull().default(0),
+    errorHistory: jsonb("error_history").$type<Record<string, unknown>[]>().notNull().default([]),
+    configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull().default({}),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -74,6 +80,9 @@ export const normalizedConnectorEvent = pgTable(
 
 export const insertConnectorSchema = createInsertSchema(connector, {
   provider: z.string().min(1),
+  scopes: z.array(z.string()),
+  errorHistory: z.array(jsonRecord),
+  configuration: jsonRecord,
 });
 export const insertConnectorSyncSchema = createInsertSchema(connectorSync);
 export const insertNormalizedConnectorEventSchema = createInsertSchema(

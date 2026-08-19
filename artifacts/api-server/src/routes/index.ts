@@ -40,6 +40,7 @@ import whyProvenanceRouter from "./why-provenance";
 import assumptionsRouter from "./assumptions";
 import impactRouter from "./impact";
 import timelineRouter from "./timeline";
+import queryRouter from "./query";
 
 const router: IRouter = Router();
 
@@ -83,6 +84,7 @@ router.use(whyProvenanceRouter);
 router.use(assumptionsRouter);
 router.use(impactRouter);
 router.use(timelineRouter);
+router.use(queryRouter);
 router.use(foundationRouter);
 
 export default router;

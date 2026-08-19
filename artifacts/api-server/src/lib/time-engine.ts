@@ -2,6 +2,7 @@ import { and, desc, eq, lte } from "drizzle-orm";
 import { db, brief, eventLog, factLedger, notification, universalObject, waitingLoop } from "@workspace/db";
 import { WhyChainBuilder } from "./why-chain";
 import { recordProvenance } from "./provenance";
+import { queryEngine } from "./query-engine";
 
 const DAY = 86_400_000;
 const decay: Record<string, { halfLife: number; stale: number }> = {
@@ -20,12 +21,13 @@ export function temporalFields(input: { createdAt: Date; updatedAt?: Date | null
 
 export async function timeOverview() {
   const now = new Date();
-  const [objects, loops, notifications, latestBrief] = await Promise.all([
-    db.select().from(universalObject).orderBy(desc(universalObject.updatedAt)).limit(500),
+  const [objectResults, loops, notifications, latestBrief] = await Promise.all([
+    queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "brief_generation", confidenceThreshold: 0, limit: 200, requester: "Brief Engine", purpose: "brief_generation" }),
     db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).orderBy(waitingLoop.waitingSince),
     db.select().from(notification).where(eq(notification.status, "unread")).orderBy(desc(notification.createdAt)).limit(50),
     db.select().from(brief).where(eq(brief.briefType, "today")).orderBy(desc(brief.generatedAt)).limit(1),
   ]);
+  const objects = objectResults.map((item) => item.object as any);
   return {
     now: now.toISOString(),
     objects: objects.map((object) => ({ ...object, temporal: temporalFields({ createdAt: object.createdAt, updatedAt: object.updatedAt, lastConfirmedAt: object.lastConfirmedAt, objectType: object.objectType }) })),
@@ -41,8 +43,8 @@ export async function generateBrief(briefType: "today" | "evening" | "weekly") {
   const content = {
     generatedAt: overview.now, focus: overview.objects.filter((item) => item.status === "active").slice(0, 5).map((item) => item.name),
     waiting: overview.waitingLoops, staleContext: stale.map((item) => ({ id: item.id, name: item.name, freshness: item.temporal.freshnessScore })),
-    unreadNotifications: overview.notifications.length, changes: await db.select().from(eventLog).orderBy(desc(eventLog.occurredAt)).limit(10),
-    factCount: (await db.select().from(factLedger).limit(500)).length,
+    unreadNotifications: overview.notifications.length, changes: (await queryEngine.query({ sources: ["events"], filters: {}, rankingPolicy: "brief_generation", confidenceThreshold: 0, limit: 10, requester: "Brief Engine", purpose: "brief_generation" })).map((item) => item.object),
+    factCount: (await queryEngine.query({ sources: ["facts"], filters: {}, rankingPolicy: "brief_generation", confidenceThreshold: 0, limit: 200, requester: "Brief Engine", purpose: "brief_generation" })).length,
   };
   const sourcesUsed = ["event_log", "universal_object", "waiting_loop"];
   const whyChain = new WhyChainBuilder().addStep("freshness_threshold", `${stale.length} active objects crossed a freshness threshold.`, stale.length ? 0.8 : 0.6, "Brief Engine", stale[0]?.id).addStep("fact_confirmed", `${overview.notifications.length} notifications and ${overview.waitingLoops.length} waiting loops shaped this brief.`, 0.75, "Brief Engine", "event_log").buildNonTrivial();

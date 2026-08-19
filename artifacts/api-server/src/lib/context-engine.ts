@@ -4,16 +4,17 @@ import { assumptionLedger, contextPacket, db, eventLog, factLedger, interpretati
 import { constructContextPacket, type SelectedContext } from "./context-economy";
 import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
+import { queryEngine } from "./query-engine";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
 export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000) {
-  const [objects, facts, interpretations, waiting, events, founder, trust, objectives, learningRules, constitution, assumptions] = await Promise.all([
-    db.select().from(universalObject).orderBy(desc(universalObject.updatedAt)).limit(40),
-    db.select().from(factLedger).orderBy(desc(factLedger.updatedAt)).limit(30),
-    db.select().from(interpretationLedger).orderBy(desc(interpretationLedger.updatedAt)).limit(20),
+  const [objectResults, factResults, interpretationResults, waiting, eventResults, founder, trust, objectives, learningRules, constitution, assumptions] = await Promise.all([
+    queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: "context_assembly" }),
+    queryEngine.query({ sources: ["facts"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: "context_assembly" }),
+    queryEngine.query({ sources: ["interpretations"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: "context_assembly" }),
     db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).limit(20),
-    db.select().from(eventLog).orderBy(desc(eventLog.occurredAt)).limit(20),
+    queryEngine.query({ sources: ["events"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: "context_assembly" }),
     founderContext(),
     db.select({ score: avg(trustScore.score) }).from(trustScore),
     db.select().from(strategicObjective).where(eq(strategicObjective.status, "active")).limit(12),
@@ -21,6 +22,10 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true)).limit(20),
     db.select().from(assumptionLedger).where(eq(assumptionLedger.status, "active")).limit(20),
   ]);
+  const objects = objectResults.map((item) => item.object as any);
+  const facts = factResults.map((item) => item.object as any);
+  const interpretations = interpretationResults.map((item) => item.object as any);
+  const events = eventResults.map((item) => item.object as any);
   const queryText = query.toLowerCase();
   const memoryItems = objects.filter((item) => !["archived", "dormant"].includes(item.memoryTier) || `${item.name} ${item.description ?? ""}`.toLowerCase().includes(queryText));
   const items = [

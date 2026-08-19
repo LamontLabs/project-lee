@@ -64,6 +64,27 @@ export const milestoneMarker = pgTable("milestone_marker", {
   label: text("label").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+export const queryLog = pgTable("query_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  queryId: uuid("query_id").notNull(),
+  requesterEngine: varchar("requester_engine", { length: 120 }).notNull(),
+  purpose: varchar("purpose", { length: 80 }).notNull(),
+  sources: jsonb("sources").$type<string[]>().notNull().default([]),
+  filterSpec: jsonb("filter_spec").$type<Record<string, unknown>>().notNull().default({}),
+  rankingPolicy: varchar("ranking_policy", { length: 80 }).notNull(),
+  resultCount: integer("result_count").notNull().default(0),
+  cacheHit: boolean("cache_hit").notNull().default(false),
+  executionMs: integer("execution_ms").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("query_log_purpose_idx").on(table.purpose, table.createdAt)]);
+export const queryCache = pgTable("query_cache", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  cacheKey: text("cache_key").notNull().unique(),
+  result: jsonb("result").$type<unknown[]>().notNull().default([]),
+  cachedAt: timestamp("cached_at", { withTimezone: true }).defaultNow().notNull(),
+  ttlSeconds: integer("ttl_seconds").notNull(),
+  invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+});
 
 export const factLedger = pgTable(
   "fact_ledger",

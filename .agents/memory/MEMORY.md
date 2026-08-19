@@ -17,3 +17,4 @@
 - [Assumption ledger](assumption-ledger.md) — named premises are reused while active and lifecycle changes must surface affected conclusions.
 - [Decision impact graph](decision-impact-graph.md) — causal consequences stay separate from object relationships; only approved directional edges affect impact scores.
 - [Digital Twin timeline](digital-twin-timeline.md) — chronological history is a significance-filtered projection of the immutable Event Log, with milestones stored separately.
+- [Query Engine boundary](query-engine-boundary.md) — shared retrieval centralizes Constitution checks, ranking, cache policy, confidence, and telemetry.

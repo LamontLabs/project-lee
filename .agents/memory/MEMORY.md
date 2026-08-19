@@ -12,3 +12,4 @@
 - [Relationship provider boundary](relationship-provider-boundary.md) — person health and cadence use normalized interactions, not provider-specific payloads.
 - [Event sequence migration](event-sequence-migration.md) — legacy events may share default sequence values, so sequence uniqueness requires backfill before a database constraint.
 - [Understanding pipeline schema](understanding-pipeline-schema.md) — raw sources, chunks, runs, and uncertain extractions remain separately auditable.
+- [Managed provider URL roots](managed-provider-url-roots.md) — managed AI base URLs already include the provider root; don't append public API version prefixes blindly.

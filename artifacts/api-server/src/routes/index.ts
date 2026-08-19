@@ -22,6 +22,7 @@ import foundationRouter from "./foundation";
 import authRouter from "./auth";
 import importsRouter from "./imports";
 import timeRouter from "./time";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -47,6 +48,7 @@ router.use(decisionMemoryRouter);
 router.use(authRouter);
 router.use(importsRouter);
 router.use(timeRouter);
+router.use(aiRouter);
 router.use(foundationRouter);
 
 export default router;

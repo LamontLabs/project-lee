@@ -71,7 +71,7 @@ async function callGemini(model: string, messages: ChatMessage[]): Promise<Provi
   }));
   const system = messages.find((message) => message.role === "system")?.content;
   const response = await withRetry(async () => {
-    const result = await fetch(`${process.env.AI_INTEGRATIONS_GEMINI_BASE_URL}/v1beta/models/${model}:generateContent`, {
+    const result = await fetch(`${process.env.AI_INTEGRATIONS_GEMINI_BASE_URL}/models/${model}:generateContent`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": process.env.AI_INTEGRATIONS_GEMINI_API_KEY ?? "" },
       body: JSON.stringify({ systemInstruction: system ? { parts: [{ text: system }] } : undefined, contents, generationConfig: { maxOutputTokens: 8192 } }),

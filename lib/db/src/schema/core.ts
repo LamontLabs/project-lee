@@ -42,6 +42,7 @@ export const sourceVault = pgTable("source_vault", {
   processingStatus: varchar("processing_status", { length: 32 }).notNull().default("pending"),
   evidenceQuality: real("evidence_quality").notNull().default(0.5),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  rawContent: text("raw_content"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("source_vault_status_idx").on(table.processingStatus)]);
@@ -58,6 +59,35 @@ export const constitutionProvision = pgTable("constitution_provision", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const sourceChunk = pgTable("source_chunk", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceId: uuid("source_id").notNull(),
+  runId: uuid("run_id"),
+  chunkIndex: integer("chunk_index").notNull(),
+  content: text("content").notNull(),
+  startChar: integer("start_char").notNull(),
+  endChar: integer("end_char").notNull(),
+  tokenEstimate: integer("token_estimate").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  checksum: varchar("checksum", { length: 128 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("source_chunk_source_index_unique").on(table.sourceId, table.chunkIndex), uniqueIndex("source_chunk_checksum_unique").on(table.sourceId, table.checksum), index("source_chunk_run_idx").on(table.runId)]);
+
+export const understandingReviewItem = pgTable("understanding_review_item", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceId: uuid("source_id").notNull(),
+  runId: uuid("run_id"),
+  chunkId: uuid("chunk_id"),
+  itemType: varchar("item_type", { length: 48 }).notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("needs_review"),
+  confidence: real("confidence").notNull().default(0.5),
+  proposedValue: jsonb("proposed_value").$type<Record<string, unknown>>().notNull().default({}),
+  evidenceExcerpt: text("evidence_excerpt"),
+  resolution: text("resolution"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+}, (table) => [index("understanding_review_status_created_idx").on(table.status, table.createdAt), index("understanding_review_source_idx").on(table.sourceId)]);
 
 export const constitutionVersion = pgTable("constitution_version", {
   id: uuid("id").defaultRandom().primaryKey(),

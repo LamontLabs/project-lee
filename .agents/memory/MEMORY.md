@@ -11,3 +11,4 @@
 - [Polymorphic graph boundary](polymorphic-graph-boundary.md) — graph nodes reference typed knowledge objects by type and UUID, allowing future ledgers to connect without foreign-key coupling.
 - [Relationship provider boundary](relationship-provider-boundary.md) — person health and cadence use normalized interactions, not provider-specific payloads.
 - [Event sequence migration](event-sequence-migration.md) — legacy events may share default sequence values, so sequence uniqueness requires backfill before a database constraint.
+- [Understanding pipeline schema](understanding-pipeline-schema.md) — raw sources, chunks, runs, and uncertain extractions remain separately auditable.

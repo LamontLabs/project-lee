@@ -85,6 +85,17 @@ export const queryCache = pgTable("query_cache", {
   ttlSeconds: integer("ttl_seconds").notNull(),
   invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
 });
+export const explanationAudienceProfile = pgTable("explanation_audience_profile", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 32 }).notNull().unique(),
+  vocabularyLevel: varchar("vocabulary_level", { length: 32 }).notNull(),
+  depth: varchar("depth", { length: 32 }).notNull(),
+  tone: varchar("tone", { length: 48 }).notNull(),
+  emphasis: jsonb("emphasis").$type<string[]>().notNull().default([]),
+  sentenceLengthPreference: varchar("sentence_length_preference", { length: 32 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const factLedger = pgTable(
   "fact_ledger",
@@ -146,6 +157,11 @@ export const interpretationLedger = pgTable(
     dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
     promotedTo: uuid("promoted_to"),
     needsReview: boolean("needs_review").notNull().default(false),
+    audienceProfile: varchar("audience_profile", { length: 32 }),
+    explanationType: varchar("explanation_type", { length: 32 }),
+    sourceObjectIds: jsonb("source_object_ids").$type<string[]>().notNull().default([]),
+    explanationBrief: jsonb("explanation_brief").$type<Record<string, unknown>>().notNull().default({}),
+    qualityFeedback: varchar("quality_feedback", { length: 24 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

@@ -19,6 +19,7 @@ import EvidenceLedgerPage from './EvidenceLedgerPage';
 import AssumptionsPage from './AssumptionsPage';
 import ImpactPage from './ImpactPage';
 import TimelinePage from './TimelinePage';
+import ExplanationPage from './ExplanationPage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -80,7 +81,7 @@ import NotFoundPage from '@/pages/not-found';
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : path === '/assumptions' ? <AssumptionsPage /> : path === '/impact' ? <ImpactPage /> : path === '/timeline' ? <TimelinePage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : path === '/assumptions' ? <AssumptionsPage /> : path === '/impact' ? <ImpactPage /> : path === '/timeline' ? <TimelinePage /> : path === '/explain' ? <ExplanationPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -165,6 +166,7 @@ const navItems = [
   { href: '/assumptions', label: 'Assumptions', icon: BrainCircuit },
   { href: '/impact', label: 'Decision impact', icon: GitBranch },
   { href: '/timeline', label: 'Timeline', icon: CalendarDays },
+  { href: '/explain', label: 'Explain', icon: BookOpen },
   { href: '/decisions', label: 'Decisions', icon: Scale },
   { href: '/waiting', label: 'Waiting', icon: Clock3 },
   { href: '/evidence', label: 'Evidence', icon: FileText },

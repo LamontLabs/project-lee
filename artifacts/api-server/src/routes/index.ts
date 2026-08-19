@@ -41,6 +41,7 @@ import assumptionsRouter from "./assumptions";
 import impactRouter from "./impact";
 import timelineRouter from "./timeline";
 import queryRouter from "./query";
+import explanationsRouter from "./explanations";
 
 const router: IRouter = Router();
 
@@ -85,6 +86,7 @@ router.use(assumptionsRouter);
 router.use(impactRouter);
 router.use(timelineRouter);
 router.use(queryRouter);
+router.use(explanationsRouter);
 router.use(foundationRouter);
 
 export default router;

@@ -8,6 +8,7 @@ import { auditLog, db, eventLog, governanceRequest, governanceRule } from "@work
 import { Router, type IRouter } from "express";
 import { registerAction } from "../lib/governance-engine";
 import { callProvider } from "../lib/ai-providers";
+import { checkConstitution } from "../lib/constitution";
 
 const router: IRouter = Router();
 
@@ -94,6 +95,11 @@ router.post("/governance/evaluate", async (req, res): Promise<void> => {
     return;
   }
   const request = parsed.data;
+  const constitutional = await checkConstitution(request.action_class, request as unknown as Record<string, unknown>, "Governance Engine");
+  if (!constitutional.permitted) {
+    res.status(403).json({ error: "Constitution blocked this action.", constitutional });
+    return;
+  }
   const [existing] = await db
     .select({ id: governanceRequest.id })
     .from(governanceRequest)
@@ -205,6 +211,8 @@ router.post("/governance/actions", async (req, res): Promise<void> => {
   const actionType = String(req.body?.actionType ?? "").trim();
   const payload = req.body?.payload && typeof req.body.payload === "object" ? req.body.payload : {};
   if (!actionType || !req.body?.reason) { res.status(400).json({ error: "actionType, payload, and reason are required." }); return; }
+  const constitutional = await checkConstitution(actionType, payload, "Governance Engine");
+  if (!constitutional.permitted) { res.status(403).json({ error: "Constitution blocked this action.", constitutional }); return; }
   const result = await registerAction({ actionType, payload, reason: String(req.body.reason), evidenceRefs: Array.isArray(req.body.evidenceRefs) ? req.body.evidenceRefs : [], affectedObject: req.body.affectedObject, actor: req.body.actor });
   res.status(result.verdict === "HOLD" ? 202 : 200).json(result);
 });

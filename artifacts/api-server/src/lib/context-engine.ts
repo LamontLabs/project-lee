@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { avg, desc, eq } from "drizzle-orm";
-import { contextPacket, db, eventLog, factLedger, interpretationLedger, universalObject, waitingLoop, trustScore, strategicObjective } from "@workspace/db";
+import { contextPacket, db, eventLog, factLedger, interpretationLedger, universalObject, waitingLoop, trustScore, strategicObjective, constitutionProvision } from "@workspace/db";
 import { constructContextPacket, type SelectedContext } from "./context-economy";
 import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
@@ -8,7 +8,7 @@ import { applyLearning } from "./learning";
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
 export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000) {
-  const [objects, facts, interpretations, waiting, events, founder, trust, objectives, learningRules] = await Promise.all([
+  const [objects, facts, interpretations, waiting, events, founder, trust, objectives, learningRules, constitution] = await Promise.all([
     db.select().from(universalObject).orderBy(desc(universalObject.updatedAt)).limit(40),
     db.select().from(factLedger).orderBy(desc(factLedger.updatedAt)).limit(30),
     db.select().from(interpretationLedger).orderBy(desc(interpretationLedger.updatedAt)).limit(20),
@@ -18,6 +18,7 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     db.select({ score: avg(trustScore.score) }).from(trustScore),
     db.select().from(strategicObjective).where(eq(strategicObjective.status, "active")).limit(12),
     applyLearning(query),
+    db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true)).limit(20),
   ]);
   const queryText = query.toLowerCase();
   const memoryItems = objects.filter((item) => !["archived", "dormant"].includes(item.memoryTier) || `${item.name} ${item.description ?? ""}`.toLowerCase().includes(queryText));
@@ -34,6 +35,7 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     ...Object.entries(founder).map(([dimension, record]: [string, any]) => ({ id: `founder-${dimension}`, text: `Founder preference · ${dimension}: ${JSON.stringify(record.value)}`, kind: "founder_profile", confidence: record.confidence === "confirmed" ? 1 : 0.85, recencyDays: 0, strategicAnchor: true })),
     ...objectives.map((item) => ({ id: item.id, text: `Strategy objective · ${item.horizon}: ${item.objective}. Blockers: ${item.blockers.join(", ") || "none"}`, kind: "strategy", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
     ...learningRules.map((rule) => ({ id: `learning-${rule.id}`, text: `Standing correction rule · ${rule.category}: ${rule.correction}`, kind: "learning_rule", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
+    ...constitution.map((item) => ({ id: `constitution-${item.id}`, text: `Constitution · ${item.title}: ${String(item.machineReadableRule.ruleText ?? item.title)}`, kind: "constitution", confidence: 1, recencyDays: 0, strategicAnchor: true })),
   ];
   const fingerprint = createHash("sha256").update(JSON.stringify({ query: query.trim().toLowerCase(), mode, ids: items.map((item) => item.id) })).digest("hex");
   const [cached] = await db.select().from(contextPacket).where(eq(contextPacket.fingerprint, fingerprint)).orderBy(desc(contextPacket.createdAt)).limit(1);

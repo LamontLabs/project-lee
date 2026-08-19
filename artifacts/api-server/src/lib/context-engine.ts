@@ -15,8 +15,14 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     db.select().from(eventLog).orderBy(desc(eventLog.occurredAt)).limit(20),
     founderContext(),
   ]);
+  const queryText = query.toLowerCase();
+  const memoryItems = objects.filter((item) => !["archived", "dormant"].includes(item.memoryTier) || `${item.name} ${item.description ?? ""}`.toLowerCase().includes(queryText));
   const items = [
-    ...objects.map((item) => ({ id: item.id, text: `${item.name}: ${item.description ?? item.status}`, kind: item.objectType, confidence: item.confidence, recencyDays: Math.max(0, (Date.now() - item.updatedAt.getTime()) / 86400000), strategicAnchor: item.canonLevel === "canonical" })),
+    ...memoryItems.map((item) => {
+      const protectedTier = ["canonical", "evergreen", "foundational", "working"].includes(item.memoryTier);
+      const text = item.compressionStage >= 2 && item.memorySummary ? `${item.name}: ${JSON.stringify(item.memorySummary)}` : `${item.name}: ${item.description ?? item.status}`;
+      return { id: item.id, text, kind: item.objectType, confidence: item.confidence, recencyDays: Math.max(0, (Date.now() - item.updatedAt.getTime()) / 86400000), strategicAnchor: protectedTier, memoryTier: item.memoryTier };
+    }),
     ...facts.map((item) => ({ id: item.id, text: `${item.subject} ${item.predicate} ${item.object}`, kind: "fact", confidence: item.confidence, recencyDays: Math.max(0, item.updatedAt ? (Date.now() - item.updatedAt.getTime()) / 86400000 : 0), strategicAnchor: item.canonLevel === "canonical" })),
     ...interpretations.map((item) => ({ id: item.id, text: item.statement, kind: "interpretation", confidence: item.confidence, recencyDays: Math.max(0, item.updatedAt ? (Date.now() - item.updatedAt.getTime()) / 86400000 : 0), strategicAnchor: item.canonLevel === "canonical" })),
     ...waiting.map((item) => ({ id: item.id, text: `Waiting: ${item.subject} (${item.owner ?? "unassigned"})`, kind: "waiting", confidence: 0.8, recencyDays: Math.max(0, (Date.now() - item.updatedAt.getTime()) / 86400000), strategicAnchor: false })),

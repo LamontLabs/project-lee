@@ -32,6 +32,7 @@ import {
   founderProfile,
   founderProfileHistory,
   founderProfileCorrection,
+  universalObject,
 } from "@workspace/db";
 import { Router, type IRouter } from "express";
 
@@ -60,6 +61,7 @@ const snapshotTables = {
   founderProfile,
   founderProfileHistory,
   founderProfileCorrection,
+  universalObject,
 } as const;
 
 type SnapshotPayload = Record<string, unknown>;

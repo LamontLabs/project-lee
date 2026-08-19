@@ -27,6 +27,7 @@ import androidRouter from "./android";
 import backupsRouter from "./backups";
 import orchestrationRouter from "./orchestration";
 import founderProfileRouter from "./founder-profile";
+import memoryArchitectureRouter from "./memory-architecture";
 
 const router: IRouter = Router();
 
@@ -57,6 +58,7 @@ router.use(androidRouter);
 router.use(backupsRouter);
 router.use(orchestrationRouter);
 router.use(founderProfileRouter);
+router.use(memoryArchitectureRouter);
 router.use(foundationRouter);
 
 export default router;

@@ -23,14 +23,19 @@ export const universalObject = pgTable("universal_object", {
   canonLevel: varchar("canon_level", { length: 16 }).notNull().default("working"),
   confidenceLineage: jsonb("confidence_lineage").$type<Record<string, unknown>>().notNull().default({}),
   whyChain: jsonb("why_chain").$type<Record<string, unknown>[]>().notNull().default([]),
-  memoryTier: varchar("memory_tier", { length: 24 }).notNull().default("working"),
+  memoryTier: varchar("memory_tier", { length: 24 }).notNull().default("recent"),
   lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
   accessCount: integer("access_count").notNull().default(0),
   relevanceScore: real("relevance_score").notNull().default(0.5),
+  consolidatedAt: timestamp("consolidated_at", { withTimezone: true }),
+  compressionStage: integer("compression_stage").notNull().default(1),
+  memorySummary: jsonb("memory_summary").$type<Record<string, unknown>>(),
+  keyEntities: jsonb("key_entities").$type<string[]>().notNull().default([]),
+  manualTierOverride: boolean("manual_tier_override").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
-}, (table) => [index("universal_object_type_status_idx").on(table.objectType, table.status), index("universal_object_memory_idx").on(table.memoryTier, table.relevanceScore)]);
+}, (table) => [index("universal_object_type_status_idx").on(table.objectType, table.status), index("universal_object_memory_idx").on(table.memoryTier, table.relevanceScore), index("universal_object_access_idx").on(table.lastAccessedAt)]);
 
 export const sourceVault = pgTable("source_vault", {
   id: uuid("id").defaultRandom().primaryKey(),

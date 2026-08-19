@@ -6,6 +6,7 @@ const priorities: Record<Priority, number> = { CRITICAL: 4, HIGH: 3, NORMAL: 2, 
 const defaults = [
   ["Understanding Pipeline", ["extract", "classify"], "NORMAL", "on import"],
   ["Identity Engine", ["profile_update", "behavioral_scan"], "LOW", "daily"],
+  ["Memory Architecture Engine", ["reclassify", "consolidate"], "LOW", "daily"],
   ["Brief Engine", ["morning_brief", "reflection"], "HIGH", "daily"],
   ["Connector Engine", ["sync"], "HIGH", "staggered"],
   ["Freshness Engine", ["scan"], "NORMAL", "hourly"],

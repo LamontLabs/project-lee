@@ -1442,7 +1442,7 @@ const ALL_TASKS: Omit<Task, "dependents">[] = [
     layerNumber: "2",
     dependsOn: [17, 22, 24, 35, 66],
     versionIntroduced: "12.0",
-    status: "proposed",
+    status: "complete",
     purpose: "Not a new engine — a new knowledge tier. The Institutional Knowledge Ledger. Reality must test a belief 3+ times before it becomes Institutional Knowledge.",
     description: "Pathway: Event → Experience (flagged by Event Log pipeline) → Lesson (extracted by Reflection Engine) → Pattern (3+ independent confirming events, no significant contradiction) → Institutional Knowledge. Promotion requires: minimum 3 independent events, valid evidence window, no significant contradiction. HIGH confidence items require owner review before promotion. Strategy Engine 'Situational Resemblance' field uses Institutional Knowledge.",
     responsibilities: ["Experience flagging in Event Log pipeline", "Lesson extraction (extends Reflection Engine #17)", "Pattern detection across Lessons", "Institutional Knowledge promotion workflow", "Strategy Engine Situational Resemblance field"],

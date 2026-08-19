@@ -14,6 +14,7 @@ import {
   understandingRun,
 } from "@workspace/db";
 import { extractUnderstanding } from "../lib/understanding";
+import { processExperiences } from "../lib/experience";
 
 const router: IRouter = Router();
 
@@ -152,6 +153,7 @@ router.post("/understanding/runs", async (req, res): Promise<void> => {
     interpretations: result.interpretations,
     eventId: result.eventId,
   });
+  await processExperiences({ since: new Date(now.getTime() - 60_000) });
 
   req.log.info(
     {

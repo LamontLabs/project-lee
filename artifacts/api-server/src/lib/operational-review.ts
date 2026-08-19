@@ -11,6 +11,7 @@ import {
   operationalReview,
 } from "@workspace/db";
 import { routeModelRequest } from "./model-router";
+import { processExperiences } from "./experience";
 
 type ReviewCadence = "weekly" | "monthly" | "quarterly" | "annual";
 
@@ -25,6 +26,7 @@ function dayAge(date: Date, now: Date): number {
 }
 
 export async function generateOperationalReview(input: ReviewInput) {
+  await processExperiences({ since: input.periodStart });
   const [events, objectives, assumptions] = await Promise.all([
     db.select().from(eventLog)
       .where(and(gte(eventLog.occurredAt, input.periodStart), lte(eventLog.occurredAt, input.periodEnd)))

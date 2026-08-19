@@ -140,8 +140,14 @@ export const institutionalKnowledgeLedger = pgTable(
     evidenceCount: integer("evidence_count").notNull().default(0),
     sourceRef: text("source_ref").notNull(),
     confidence: real("confidence").notNull().default(0.5),
+    confidenceTier: varchar("confidence_tier", { length: 16 }).notNull().default("MEDIUM"),
+    evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
     evidenceWindowStart: timestamp("evidence_window_start", { withTimezone: true }),
     evidenceWindowEnd: timestamp("evidence_window_end", { withTimezone: true }),
+    exceptionCount: integer("exception_count").notNull().default(0),
+    firstEstablished: timestamp("first_established", { withTimezone: true }),
+    lastReinforced: timestamp("last_reinforced", { withTimezone: true }),
+    ownerReviewed: boolean("owner_reviewed").notNull().default(false),
     status: varchar("status", { length: 32 }).notNull().default("candidate"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -153,6 +159,39 @@ export const institutionalKnowledgeLedger = pgTable(
   (table) => [
     index("institutional_knowledge_status_idx").on(table.status),
     index("institutional_knowledge_source_idx").on(table.sourceRef),
+  ],
+);
+
+export const experienceRecord = pgTable(
+  "experience_record",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sourceEventId: uuid("source_event_id").notNull().unique(),
+    significanceClassification: varchar("significance_classification", { length: 32 }).notNull(),
+    observation: text("observation").notNull(),
+    domain: varchar("domain", { length: 120 }).notNull().default("operations"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("experience_domain_created_idx").on(table.domain, table.createdAt)],
+);
+
+export const lessonRecord = pgTable(
+  "lesson_record",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    statement: text("statement").notNull(),
+    patternKey: varchar("pattern_key", { length: 200 }).notNull(),
+    experienceRefs: jsonb("experience_refs").$type<string[]>().notNull().default([]),
+    confidence: real("confidence").notNull().default(0.5),
+    status: varchar("status", { length: 32 }).notNull().default("draft"),
+    extractedBy: varchar("extracted_by", { length: 32 }).notNull().default("reflection"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("lesson_pattern_status_idx").on(table.patternKey, table.status),
+    index("lesson_created_idx").on(table.createdAt),
   ],
 );
 
@@ -237,7 +276,14 @@ export const insertDecisionHeuristicSchema = createInsertSchema(
 );
 export const insertInstitutionalKnowledgeSchema = createInsertSchema(
   institutionalKnowledgeLedger,
+  { evidenceRefs: z.array(z.string()) },
 );
+export const insertExperienceSchema = createInsertSchema(experienceRecord, {
+  metadata: jsonRecord,
+});
+export const insertLessonSchema = createInsertSchema(lessonRecord, {
+  experienceRefs: z.array(z.string()),
+});
 export const insertAssumptionSchema = createInsertSchema(assumptionLedger);
 export const insertIdentityProfileSchema = createInsertSchema(identityProfile, {
   values: jsonRecord,

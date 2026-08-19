@@ -11,6 +11,7 @@ import memoryRouter from "./memory";
 import graphRouter from "./graph";
 import relationshipsRouter from "./relationships";
 import reviewsRouter from "./reviews";
+import institutionalKnowledgeRouter from "./institutional-knowledge";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(memoryRouter);
 router.use(graphRouter);
 router.use(relationshipsRouter);
 router.use(reviewsRouter);
+router.use(institutionalKnowledgeRouter);
 
 export default router;

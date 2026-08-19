@@ -117,6 +117,7 @@ const navItems = [
   { href: '/', label: 'Today', icon: Command },
   { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
+  { href: '/institutional', label: 'Institutional', icon: Sparkles },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
   { href: '/health', label: 'System health', icon: Gauge },
@@ -190,7 +191,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/objectives': 'Objectives', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings' };
   const pageTitle = pageTitles[location] ?? 'Console';
   return (
     <div className="lee-noise min-h-[100dvh] bg-background text-foreground">
@@ -303,6 +304,36 @@ function ObjectivesPage() {
     </div>
     {createOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/25 p-5 backdrop-blur-sm"><form onSubmit={addObjective} className="w-full max-w-lg rounded-2xl border border-card-border bg-card p-6 shadow-2xl lee-enter" data-testid="form-create-objective"><div className="flex items-center justify-between"><div><p className="lee-label text-primary">New outcome</p><h3 className="mt-1 text-xl font-semibold">Add an objective</h3></div><button type="button" onClick={() => setCreateOpen(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label="Close add objective" data-testid="button-close-add-objective"><X size={17} /></button></div><div className="mt-6 space-y-4"><input name="title" required placeholder="What needs to become true?" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" data-testid="input-objective-title" /><textarea name="description" required placeholder="Describe the outcome and its proof point." className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-3 py-3 text-sm outline-none focus:border-primary" data-testid="input-objective-description" /><div className="grid gap-4 sm:grid-cols-2"><select name="priority" defaultValue="normal" className="h-11 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" data-testid="select-objective-priority"><option value="critical">Critical priority</option><option value="high">High priority</option><option value="normal">Normal priority</option></select><input name="targetDate" type="date" required defaultValue="2025-05-15" className="h-11 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" data-testid="input-objective-date" /></div></div><button className="mt-6 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90" data-testid="button-submit-objective">Create objective</button></form></div>}
   </div>;
+}
+
+type InstitutionalKnowledgeItem = {
+  id: string;
+  statement: string;
+  confidence: number;
+  confidenceTier: string;
+  evidenceCount: number;
+  status: string;
+  ownerReviewed: boolean;
+};
+
+function InstitutionalKnowledgePanel() {
+  const [items, setItems] = useState<InstitutionalKnowledgeItem[]>([]);
+  const [error, setError] = useState('');
+  const load = async () => {
+    try {
+      const response = await fetch('/api/institutional/knowledge');
+      if (!response.ok) throw new Error(`Institutional Knowledge request failed (${response.status}).`);
+      setItems(await response.json() as InstitutionalKnowledgeItem[]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load Institutional Knowledge.');
+    }
+  };
+  useEffect(() => { void load(); }, []);
+  const review = async (id: string, approved: boolean) => {
+    const response = await fetch(`/api/institutional/knowledge/${id}/review`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ approved }) });
+    if (response.ok) await load();
+  };
+  return <Panel className="mb-5 border-primary/20 bg-primary/[0.04]"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="lee-label text-primary">Reality-tested knowledge</p><h3 className="mt-1 text-lg font-semibold">Institutional</h3><p className="mt-1 text-sm text-muted-foreground">Lessons promoted only after three independent supporting experiences.</p></div><span className="lee-label text-muted-foreground">{items.length} patterns</span></div>{error && <p className="mt-4 text-xs text-destructive">{error}</p>}{items.length === 0 && !error && <p className="mt-5 text-sm text-muted-foreground">No patterns established yet. Process the event history as experiences accumulate.</p>}<div className="mt-4 grid gap-3 lg:grid-cols-2">{items.map((item) => <div key={item.id} className="rounded-xl border border-border bg-card/80 p-4"><div className="flex items-center justify-between gap-3"><span className="lee-label text-primary">{item.confidenceTier} · {item.status.replace('_', ' ')}</span><span className="text-xs text-muted-foreground">{item.evidenceCount} evidence</span></div><p className="mt-3 text-sm font-medium leading-relaxed">{item.statement}</p><div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{Math.round(item.confidence * 100)}% confidence</span>{item.status === 'pending_owner_review' && <span className="flex gap-2"><button onClick={() => void review(item.id, true)} className="font-semibold text-primary hover:underline">Approve</button><button onClick={() => void review(item.id, false)} className="font-semibold text-destructive hover:underline">Reject</button></span>}</div></div>)}</div></Panel>;
 }
 
 function KnowledgePage() {
@@ -445,7 +476,7 @@ function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function Router({ onAsk, onLock }: { onAsk: () => void; onLock: () => void }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
+  return <ErrorBoundary resetKey={location}><AppShell onAsk={onAsk} onLock={onLock}><Switch><Route path="/" component={() => <HomePage onAsk={onAsk} />} /><Route path="/objectives" component={ObjectivesPage} /><Route path="/knowledge" component={KnowledgePage} /><Route path="/institutional" component={() => <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow="Knowledge layer" title="Institutional Knowledge" detail="Operational patterns reality has reinforced across independent experiences." /><InstitutionalKnowledgePanel /></div>} /><Route path="/events" component={EventsPage} /><Route path="/reviews" component={ReviewsPage} /><Route path="/health" component={HealthPage} /><Route path="/settings" component={() => <SettingsPage onLock={onLock} />} /><Route component={NotFound} /></Switch></AppShell></ErrorBoundary>;
 }
 
 function App() {

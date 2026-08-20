@@ -5,6 +5,7 @@ import {
   listInstitutionalKnowledge,
   processExperiences,
   reviewInstitutionalKnowledge,
+  transitionInstitutionalKnowledge,
 } from "../lib/experience";
 
 const router: IRouter = Router();
@@ -17,6 +18,20 @@ router.post("/institutional/experiences/process", async (req, res): Promise<void
   }
   const result = await processExperiences({ since });
   res.status(201).json(result);
+});
+
+router.post("/institutional/knowledge/:id/state", async (req, res): Promise<void> => {
+  const action = req.body?.action;
+  if (!["defer", "reject", "invalidate", "supersede"].includes(action)) {
+    res.status(400).json({ error: "action must be defer, reject, invalidate, or supersede." });
+    return;
+  }
+  const item = await transitionInstitutionalKnowledge(req.params.id, action, typeof req.body?.replacementId === "string" ? req.body.replacementId : undefined);
+  if (!item) {
+    res.status(404).json({ error: "Institutional Knowledge item not found." });
+    return;
+  }
+  res.json(item);
 });
 
 router.get("/institutional/knowledge", async (_req, res): Promise<void> => {

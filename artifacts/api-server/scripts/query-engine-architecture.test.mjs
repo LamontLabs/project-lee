@@ -22,7 +22,9 @@ test("intelligence engines use Query Engine for canonical knowledge reads", asyn
 
 test("institutional retrieval is gateway-backed, not a direct ledger read", async () => {
   const source = await readFile(new URL("experience.ts", root), "utf8");
-  const listBody = source.slice(source.indexOf("export async function listInstitutionalKnowledge"));
+  const listStart = source.indexOf("export async function listInstitutionalKnowledge");
+  const reviewStart = source.indexOf("export async function reviewInstitutionalKnowledge", listStart);
+  const listBody = source.slice(listStart, reviewStart);
   assert.match(listBody, /sources:\s*\["institutional_knowledge"\]/);
   assert.doesNotMatch(listBody, /db\.select\(\)\.from\(institutionalKnowledgeLedger\)/);
 });

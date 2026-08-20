@@ -37,3 +37,10 @@ uri = "file://.agents/outputs/project-lee-v12-audit.pdf"
 type = "pdf"
 title = "Download: Project LEE Version 12.0 Full Audit"
 description = "Complete read-only implementation-verification audit PDF."
+
+[[outputs]]
+id = "hCf8_rttME0DiEaPh_aq-"
+uri = "file://.agents/outputs/project-lee-v12-audit-download.zip"
+type = "unspecified"
+title = "Download Project LEE Audit PDF"
+description = "ZIP download containing the complete Project LEE Version 12.0 audit PDF. Extract the ZIP on your device to open the PDF."

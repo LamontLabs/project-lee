@@ -79,28 +79,49 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
           const synced = next.map((item) => item.id === capture.id ? { ...item, status: 'synced' as const } : item);
           setCaptures(synced);
           await saveCaptures(synced);
-        } catch {
-          // Keep the local queue intact until the next refresh.
+          } catch (error) {
+            const failed = next.map((item) => item.id === capture.id ? { ...item, status: 'failed' as const, lastError: error instanceof Error ? error.message : 'Capture sync failed.', attempts: (item.attempts ?? 0) + 1 } : item);
+            setCaptures(failed);
+            await saveCaptures(failed);
         }
       }
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
     async syncCapture(capture) {
       if (!pairing) return;
-      await createLeeApi(pairing).capture({ text: capture.text, tag: capture.tag });
-      const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'synced' as const } : item);
-      setCaptures(next);
-      await saveCaptures(next);
+      try {
+        await createLeeApi(pairing).capture({ text: capture.text, tag: capture.tag });
+        const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'synced' as const, lastError: undefined, attempts: (item.attempts ?? 0) + 1 } : item);
+        setCaptures(next);
+        await saveCaptures(next);
+      } catch (error) {
+        const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'failed' as const, lastError: error instanceof Error ? error.message : 'Capture sync failed.', attempts: (item.attempts ?? 0) + 1 } : item);
+        setCaptures(next);
+        await saveCaptures(next);
+        throw error;
+      }
     },
     api: pairing ? createLeeApi(pairing) : null,
     async refresh() {
       if (!pairing) return;
-      const queued = captures.filter((capture) => capture.status === 'queued');
+      const queued = captures.filter((capture) => capture.status !== 'synced');
+      const syncedIds = new Set<string>();
+      const failed = new Map<string, string>();
       for (const capture of queued) {
-        try { await createLeeApi(pairing).capture({ text: capture.text, tag: capture.tag }); } catch { break; }
+        try {
+          await createLeeApi(pairing).capture({ text: capture.text, tag: capture.tag });
+          syncedIds.add(capture.id);
+        } catch (error) {
+          failed.set(capture.id, error instanceof Error ? error.message : 'Capture sync failed.');
+          break;
+        }
       }
       if (queued.length) {
-        const next = captures.map((capture) => queued.some((item) => item.id === capture.id) ? { ...capture, status: 'synced' as const } : capture);
+        const next = captures.map((capture) => {
+          if (syncedIds.has(capture.id)) return { ...capture, status: 'synced' as const, lastError: undefined, attempts: (capture.attempts ?? 0) + 1 };
+          if (failed.has(capture.id)) return { ...capture, status: 'failed' as const, lastError: failed.get(capture.id), attempts: (capture.attempts ?? 0) + 1 };
+          return capture;
+        });
         setCaptures(next); await saveCaptures(next);
       }
       try {

@@ -2,8 +2,10 @@ export type Capture = {
   id: string;
   text: string;
   tag: string;
-  status: 'queued' | 'synced';
+  status: 'queued' | 'synced' | 'failed';
   createdAt: string;
+  lastError?: string;
+  attempts?: number;
 };
 
 export type Brief = {

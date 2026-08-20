@@ -1,20 +1,26 @@
-import { desc, eq } from "drizzle-orm";
-import { db, initiativeItem, operationalContextSnapshot, universalObject } from "@workspace/db";
+import { desc } from "drizzle-orm";
+import { db, operationalContextSnapshot } from "@workspace/db";
 import { operationalContext } from "./operational-memory";
 import { currentWorldState } from "./world-state";
 import { emitEvent } from "./foundation-events";
 import { currentProjectMomentum } from "./project-momentum";
 import { currentOperationalCapacity } from "./operational-capacity";
 import { currentPortfolioState } from "./portfolio-intelligence";
+import { queryEngine } from "./query-engine";
 
 const weight: Record<string, number> = { CRITICAL: 100, HIGH: 80, MEDIUM: 50, LOW: 20 };
 export async function generateOperationalContext() {
-  const [initiatives, memory, world, objects, momentum, capacity, portfolio] = await Promise.all([
-    db.select().from(initiativeItem), operationalContext(), currentWorldState(), db.select().from(universalObject), currentProjectMomentum(),
+  const [initiativeResults, memory, world, objectResults, momentum, capacity, portfolio] = await Promise.all([
+    queryEngine.query({ sources: ["initiatives"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Operational Intelligence", purpose: "operational_context" }),
+    operationalContext(), currentWorldState(),
+    queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Operational Intelligence", purpose: "operational_context" }),
+    currentProjectMomentum(),
     currentOperationalCapacity(),
     currentPortfolioState(),
   ]);
-  const active = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt && new Date(item.expiresAt) > new Date()).filter((item) => capacity.state !== "LOW" || item.significance === "CRITICAL").filter((item) => capacity.state !== "RECOVERY" || item.significance === "CRITICAL");
+  const initiatives = initiativeResults.map((item) => item.object as any);
+  const objects = objectResults.map((item) => item.object as any);
+  const active = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt && (!item.expiresAt || new Date(item.expiresAt) > new Date())).filter((item) => capacity.state !== "LOW" || item.significance === "CRITICAL").filter((item) => capacity.state !== "RECOVERY" || item.significance === "CRITICAL");
   const scored = active.map((item) => ({ ...item, score: (weight[item.significance] ?? 10) + (new Date(item.generatedAt).getTime() > Date.now() - 21600000 ? 15 : 0) })).sort((a, b) => b.score - a.score);
   const changedItems = scored.slice(0, capacity.state === "CONSTRAINED" ? 2 : capacity.state === "LOW" || capacity.state === "RECOVERY" ? 1 : 5).map((item) => ({ id: item.id, text: item.observation, score: item.score, evidenceRefs: item.evidenceRefs }));
   const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => ({ id: item.id, text: item.observation, significance: item.significance }));

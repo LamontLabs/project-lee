@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { avg, desc, eq } from "drizzle-orm";
-import { assumptionLedger, contextPacket, db, eventLog, factLedger, interpretationLedger, universalObject, waitingLoop, trustScore, strategicObjective, constitutionProvision } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
+import { contextPacket, db, eventLog } from "@workspace/db";
 import { constructContextPacket, DEFAULT_WEIGHTS, type SelectedContext } from "./context-economy";
 import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
@@ -16,14 +16,14 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     queryEngine.query({ sources: ["universal_objects"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: retrievalPurpose }),
     queryEngine.query({ sources: ["facts"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: retrievalPurpose }),
     queryEngine.query({ sources: ["interpretations"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
-    db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).limit(20),
+    queryEngine.query({ sources: ["waiting_loops"], filters: { status: "open" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
     queryEngine.query({ sources: ["events"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
     founderContext(),
-    db.select({ score: avg(trustScore.score) }).from(trustScore),
-    db.select().from(strategicObjective).where(eq(strategicObjective.status, "active")).limit(12),
+    queryEngine.query({ sources: ["trust_scores"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 200, requester: "Context Engine", purpose: retrievalPurpose }),
+    queryEngine.query({ sources: ["strategic_objectives"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 12, requester: "Context Engine", purpose: retrievalPurpose }),
     applyLearning(query),
-    db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true)).limit(20),
-    db.select().from(assumptionLedger).where(eq(assumptionLedger.status, "active")).limit(20),
+    queryEngine.query({ sources: ["constitution"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    queryEngine.query({ sources: ["assumptions"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
   ]);
   const objects = objectResults.map((item) => item.object as any);
   const facts = factResults.map((item) => item.object as any);
@@ -53,7 +53,7 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   ];
   const fingerprint = createHash("sha256").update(JSON.stringify({ query: query.trim().toLowerCase(), mode, ids: items.map((item) => item.id) })).digest("hex");
   const [cached] = await db.select().from(contextPacket).where(eq(contextPacket.fingerprint, fingerprint)).orderBy(desc(contextPacket.createdAt)).limit(1);
-  const trustScoreValue = Math.round(Number(trust[0]?.score ?? 50));
+  const trustScoreValue = trust.length ? Math.round(trust.reduce((sum, item) => sum + Number((item.object as any).score ?? 50), 0) / trust.length) : 50;
   const trustAdvisory = { subsystem: "Context Engine", score: trustScoreValue, lowTrust: trustScoreValue < 60 };
   if (cached && cached.expiresAt > new Date()) return { id: cached.id, fingerprint, reused: true, items: (cached.packet.items as SelectedContext[]) ?? [], excluded: (cached.packet.excluded as SelectedContext[]) ?? [], tokens: cached.tokenEstimate, excludedRefs: cached.excludedRefs, trustAdvisory };
   const weightsResult = await checkPolicy("context_economy", "weights", {}, "Context Engine");

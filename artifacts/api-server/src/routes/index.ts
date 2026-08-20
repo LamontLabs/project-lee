@@ -66,6 +66,7 @@ import projectMomentumRouter from "./project-momentum";
 import opportunityRouter from "./opportunity";
 import operationalCapacityRouter from "./operational-capacity";
 import strategicAnchorsRouter from "./strategic-anchors";
+import portfolioIntelligenceRouter from "./portfolio-intelligence";
 
 const router: IRouter = Router();
 
@@ -130,6 +131,7 @@ router.use(projectMomentumRouter);
 router.use(opportunityRouter);
 router.use(operationalCapacityRouter);
 router.use(strategicAnchorsRouter);
+router.use(portfolioIntelligenceRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

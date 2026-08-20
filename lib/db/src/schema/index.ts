@@ -40,4 +40,5 @@ export * from "./operational-confidence";
 export * from "./project-momentum";
 export * from "./operational-capacity";
 export * from "./strategic-anchor";
+export * from "./portfolio-intelligence";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

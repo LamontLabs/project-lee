@@ -30,4 +30,5 @@ export * from "./aging";
 export * from "./manifest";
 export * from "./world-state";
 export * from "./operational-memory";
+export * from "./initiative";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

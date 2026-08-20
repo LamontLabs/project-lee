@@ -55,6 +55,7 @@ import agingRouter from "./aging";
 import manifestRouter from "./manifest";
 import worldStateRouter from "./world-state";
 import operationalMemoryRouter from "./operational-memory";
+import initiativeRouter from "./initiative";
 
 const router: IRouter = Router();
 
@@ -108,6 +109,7 @@ router.use(stateRouter);
 router.use(manifestRouter);
 router.use(worldStateRouter);
 router.use(operationalMemoryRouter);
+router.use(initiativeRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

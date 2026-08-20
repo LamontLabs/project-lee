@@ -1,7 +1,18 @@
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, bootstrapRun, executionReadiness, factLedger, initiativeItem, universalObject } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
-const keys = ["architecture","documentation","repository","security","testing"];
+export const READINESS_GOALS = ["launch", "pilot", "raise", "handoff"] as const;
+export type ReadinessGoal = typeof READINESS_GOALS[number];
+const keys = ["architecture","documentation","repository","security","testing"] as const;
+const goalDimensions: Record<ReadinessGoal, readonly string[]> = {
+  launch: keys,
+  pilot: ["architecture", "documentation", "security", "testing"],
+  raise: ["documentation", "repository", "security"],
+  handoff: ["architecture", "documentation", "repository", "testing"],
+};
+export function dimensionsForGoal(goal: string) {
+  return goalDimensions[goal as ReadinessGoal] ?? keys;
+}
 export async function computeExecutionReadiness(goal = "general") {
   const projects = await db.select().from(universalObject).where(eq(universalObject.objectType,"project"));
   const runs = await db.select().from(bootstrapRun).where(eq(bootstrapRun.status,"completed"));
@@ -17,7 +28,7 @@ export async function computeExecutionReadiness(goal = "general") {
       const score = Math.min(100, evidence ? 45 + Math.min(45, evidence * 10) : 20);
       return { key, score, explanation: evidence ? `${evidence} evidence item(s) support this dimension.` : "No supporting evidence has been recorded yet.", sourceRefs };
     });
-    const relevant = goal === "pilot" ? dimensions.filter((d) => ["architecture","documentation","security","testing"].includes(d.key)) : goal === "launch" ? dimensions : dimensions;
+    const relevant = dimensions.filter((dimension) => dimensionsForGoal(goal).includes(dimension.key));
     const overallScore = Math.round(relevant.reduce((s,d)=>s+d.score,0)/Math.max(1,relevant.length));
     const highestGap = [...relevant].sort((a,b)=>a.score-b.score)[0]?.key ?? "documentation";
     const [saved] = await db.insert(executionReadiness).values({ projectId: project.id, goal, overallScore, dimensions: relevant, highestGap }).returning();

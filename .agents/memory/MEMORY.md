@@ -33,3 +33,4 @@
 - [Data Ownership boundary](data-ownership-boundary.md) — Knowledge records carry creator, modifier, verifier, import, generation, and current-owner provenance.
 - [Knowledge Aging boundary](knowledge-aging-boundary.md) — Freshness is an independent, configurable temporal dimension that gates retrieval without deleting knowledge.
 - [System Manifest boundary](system-manifest-boundary.md) — The manifest is a live, read-only description of Lee’s software, brain, policy, capability, connector, storage, and health state.
+- [World State boundary](world-state-boundary.md) — Lee maintains a curated external-context ledger with universal time signals and explicitly configured monitoring topics.

@@ -28,4 +28,5 @@ export * from "./self-test";
 export * from "./recovery";
 export * from "./aging";
 export * from "./manifest";
+export * from "./world-state";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

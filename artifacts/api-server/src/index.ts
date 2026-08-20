@@ -4,6 +4,7 @@ import { runDueJobs } from "./lib/scheduler";
 import { orchestrationTick } from "./lib/orchestration";
 import { startBoot } from "./lib/recovery-modes";
 import { ensureKnowledgeAgingJob } from "./lib/knowledge-aging";
+import { ensureWorldStateJob } from "./lib/world-state";
 
 const rawPort = process.env["PORT"];
 
@@ -21,6 +22,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 startBoot().catch((err) => logger.error({ err }, "Boot mode selection failed"));
 ensureKnowledgeAgingJob().catch((err) => logger.error({ err }, "Knowledge aging job registration failed"));
+ensureWorldStateJob().catch((err) => logger.error({ err }, "World state job registration failed"));
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

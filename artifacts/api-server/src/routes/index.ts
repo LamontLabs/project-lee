@@ -53,6 +53,7 @@ import recoveryRouter from "./recovery";
 import ownershipRouter from "./ownership";
 import agingRouter from "./aging";
 import manifestRouter from "./manifest";
+import worldStateRouter from "./world-state";
 
 const router: IRouter = Router();
 
@@ -104,6 +105,7 @@ router.use(resourcesRouter);
 router.use(intentsRouter);
 router.use(stateRouter);
 router.use(manifestRouter);
+router.use(worldStateRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

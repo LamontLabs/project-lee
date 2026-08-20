@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { RequestHandler } from "express";
+import { getEngine } from "../lib/capability-registry";
 
 const sessions = new Map<string, number>();
 const cookieName = "lee_session";
@@ -23,6 +24,21 @@ export function privateAuth(enabled = Boolean(process.env.LEE_OWNER_USERNAME && 
     next();
   };
   return middleware;
+}
+
+export function internalServiceAuth(): RequestHandler {
+  return async (req, res, next) => {
+    const engineId = String(req.header("x-engine-id") ?? "").trim();
+    const configuredToken = process.env.INTERNAL_API_TOKEN;
+    const suppliedToken = req.header("x-internal-token");
+    const engine = engineId ? await getEngine(engineId) : null;
+    if (!engine || (configuredToken && suppliedToken !== configuredToken)) {
+      res.status(403).json({ error: "Registered engine identity and internal authorization are required." });
+      return;
+    }
+    res.locals.engineIdentity = engine;
+    next();
+  };
 }
 
 export function createSession() {

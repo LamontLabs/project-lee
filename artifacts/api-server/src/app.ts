@@ -6,6 +6,9 @@ import { logger } from "./lib/logger";
 import { privateAuth } from "./middlewares/private-auth";
 import { recoveryModeGuard } from "./middlewares/recovery-mode";
 import { pipelineFailureResponse, runRequestPipeline } from "./lib/request-pipeline";
+import internalRouter from "./routes/internal";
+import internalServicesRouter from "./routes/internal-services";
+import { internalServiceAuth } from "./middlewares/private-auth";
 
 const app: Express = express();
 
@@ -34,7 +37,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(privateAuth());
 app.use(recoveryModeGuard);
-app.use("/api/internal", async (req, res, next) => {
+const internalPipeline = async (req: any, res: any, next: any) => {
   const pipeline = await runRequestPipeline({ text: String(req.body?.message ?? `${req.method} ${req.path}`), origin: "internal", actionType: `${req.method} ${req.path}`, engineName: "Internal API", mode: "normal", budgetTokens: 800 });
   if (!pipeline.ok) {
     res.status(422).json(pipelineFailureResponse(pipeline));
@@ -42,7 +45,14 @@ app.use("/api/internal", async (req, res, next) => {
   }
   (req as any).requestPipeline = pipeline;
   next();
-});
+};
+app.use("/api/internal", internalPipeline);
+app.use("/api/internal-services", internalPipeline);
 app.use("/api", router);
+const privateInternal = [internalServiceAuth()];
+app.use("/api/internal", ...privateInternal);
+app.use("/api/internal-services", ...privateInternal);
+app.use("/api", internalRouter);
+app.use("/api", internalServicesRouter);
 
 export default app;

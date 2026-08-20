@@ -90,3 +90,36 @@ export async function callProvider(model: string, messages: ChatMessage[]): Prom
   if (provider === "gemini") return callGemini(model, messages);
   return callOpenAI(model, messages);
 }
+
+export type ProviderStreamEvent =
+  | { type: "chunk"; text: string }
+  | { type: "usage"; tokensIn: number; tokensOut: number };
+
+/**
+ * Stream provider output when the provider supports it. The fallback keeps the
+ * route usable for providers without a streaming adapter while preserving the
+ * same event contract.
+ */
+export async function* streamProvider(model: string, messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<ProviderStreamEvent> {
+  const provider = MODEL_PRICING[model]?.provider ?? "openai";
+  if (provider !== "openai") {
+    const result = await callProvider(model, messages);
+    yield { type: "chunk", text: result.text };
+    yield { type: "usage", tokensIn: result.tokensIn, tokensOut: result.tokensOut };
+    return;
+  }
+
+  const response = await openai.chat.completions.create({
+    model,
+    max_completion_tokens: 8192,
+    messages,
+    stream: true,
+    stream_options: { include_usage: true },
+  }, { signal });
+  for await (const part of response) {
+    const text = part.choices[0]?.delta?.content;
+    if (text) yield { type: "chunk", text };
+    const usage = part.usage;
+    if (usage) yield { type: "usage", tokensIn: usage.prompt_tokens ?? 0, tokensOut: usage.completion_tokens ?? 0 };
+  }
+}

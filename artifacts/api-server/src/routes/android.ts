@@ -1,11 +1,11 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { androidPairingToken, auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
+import { androidPairing, auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
 import { buildContextPacket } from "../lib/context-engine";
 import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
-import { callProvider, estimateCost } from "../lib/ai-providers";
+import { estimateCost, streamProvider } from "../lib/ai-providers";
 import { verifyAndroidPairing } from "./android-pairing";
 
 const router: IRouter = Router();
@@ -14,9 +14,8 @@ async function paired(req: any) {
   if (typeof supplied !== "string" || supplied.length < 8) return null;
   if (await verifyAndroidPairing(supplied)) return true;
   const hash = createHash("sha256").update(supplied).digest("hex");
-  const [record] = await db.select().from(androidPairingToken).where(and(eq(androidPairingToken.tokenHash, hash), eq(androidPairingToken.status, "active"))).limit(1);
+  const [record] = await db.select().from(androidPairing).where(and(eq(androidPairing.tokenHash, hash), eq(androidPairing.active, true), gt(androidPairing.expiresAt, new Date()))).limit(1);
   if (!record) return null;
-  await db.update(androidPairingToken).set({ lastUsedAt: new Date() }).where(eq(androidPairingToken.id, record.id));
   return record;
 }
 async function rejectPairing(req: any, res: any) {
@@ -28,6 +27,8 @@ function issueToken() {
   const token = randomBytes(32).toString("base64url");
   return { token, tokenHash: createHash("sha256").update(token).digest("hex") };
 }
+router.post("/android/capture", async (req, res): Promise<void> => {
+  if (await rejectPairing(req, res)) return;
   const content = String(req.body?.text ?? req.body?.transcript ?? "").trim();
   if (!content) { res.status(400).json({ error: "text or transcript is required." }); return; }
   const checksum = createHash("sha256").update(content).digest("hex");
@@ -43,9 +44,53 @@ router.post("/android/ask", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   const message = String(req.body?.message ?? "").trim();
   if (!message) { res.status(400).json({ error: "message is required." }); return; }
+  const model = "gpt-5-nano";
   const packet = await buildContextPacket(message, "low_cost", 1800);
-  const result = await callProvider("gpt-5-nano", [{ role: "system", content: "You are Lee on a paired Android companion. Be concise, grounded, and explicit about uncertainty." }, { role: "user", content: `Context:\n${packet.items.map((item) => item.text).join("\n")}\n\nQuestion: ${message}` }]);
-  res.json({ answer: result.text, model: result.model, estimatedCostUsd: estimateCost(result.model, result.tokensIn, result.tokensOut), contextItems: packet.items.length });
+  const controller = new AbortController();
+  res.on("close", () => controller.abort());
+  res.status(200).set({
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+    "x-accel-buffering": "no",
+  });
+  const send = (event: string, data: unknown) => {
+    if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+  send("start", {
+    model,
+    contextItems: packet.items.length,
+    evidence: packet.items.map((item) => ({ id: item.id, kind: item.kind, confidence: item.confidence })),
+  });
+  let answer = "";
+  let tokensIn = 0;
+  let tokensOut = 0;
+  try {
+    for await (const event of streamProvider(model, [
+      { role: "system", content: "You are Lee on a paired Android companion. Be concise, grounded, and explicit about uncertainty." },
+      { role: "user", content: `Context:\n${packet.items.map((item) => item.text).join("\n")}\n\nQuestion: ${message}` },
+    ], controller.signal)) {
+      if (event.type === "chunk") {
+        answer += event.text;
+        send("chunk", { text: event.text });
+      } else {
+        tokensIn = event.tokensIn;
+        tokensOut = event.tokensOut;
+      }
+    }
+    if (!answer.trim()) throw new Error("Lee returned an empty response.");
+    send("complete", {
+      answer,
+      model,
+      estimatedCostUsd: estimateCost(model, tokensIn || Math.ceil(message.length / 4), tokensOut || Math.ceil(answer.length / 4)),
+      contextItems: packet.items.length,
+      evidence: packet.items.map((item) => ({ id: item.id, kind: item.kind, confidence: item.confidence })),
+    });
+  } catch (error) {
+    if (!controller.signal.aborted) send("error", { error: error instanceof Error ? error.message : "Lee could not answer right now." });
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
 });
 
 router.get("/android/brief", async (req, res): Promise<void> => {
@@ -64,7 +109,7 @@ router.post("/android/waiting/:id/action", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   const action = req.body?.action;
   const nextCheckAt = action === "snooze" ? new Date(Date.now() + Number(req.body?.hours ?? 24) * 3600000) : null;
-  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(eq(governanceRequest.id, id)).returning();
+  const [updated] = await db.update(waitingLoop).set({ status: action === "resolve" ? "resolved" : "open", nextCheckAt, updatedAt: new Date() }).where(eq(waitingLoop.id, req.params.id)).returning();
   if (!updated) { res.status(404).json({ error: "Waiting loop not found." }); return; }
   res.json(updated);
 });
@@ -76,7 +121,7 @@ router.get("/android/alerts", async (req, res): Promise<void> => {
 
 router.post("/android/alerts/:id/action", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
-  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(eq(governanceRequest.id, id)).returning();
+  const [updated] = await db.update(notification).set({ status: req.body?.action === "dismiss" ? "dismissed" : "read", readAt: new Date() }).where(eq(notification.id, req.params.id)).returning();
   if (!updated) { res.status(404).json({ error: "Alert not found." }); return; }
   res.json(updated);
 });
@@ -103,11 +148,5 @@ router.get("/android/approvals", async (req, res): Promise<void> => {
 export default router;
 
 async function revokeActiveTokens() {
-  await db.update(androidPairingToken).set({ status: "revoked", revokedAt: new Date() }).where(eq(androidPairingToken.status, "active"));
+  await db.update(androidPairing).set({ active: false, revokedAt: new Date() }).where(eq(androidPairing.active, true));
 }
-
-  const [record] = await db.insert(androidPairingToken).values({ tokenHash }).returning({ id: androidPairingToken.id, createdAt: androidPairingToken.createdAt });
-
-  const { token, tokenHash } = issueToken();
-
-  const record = await paired(req);

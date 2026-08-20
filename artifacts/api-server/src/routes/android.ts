@@ -6,20 +6,21 @@ import { buildContextPacket } from "../lib/context-engine";
 import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
 import { callProvider, estimateCost } from "../lib/ai-providers";
+import { verifyAndroidPairing } from "./android-pairing";
 
 const router: IRouter = Router();
-function paired(req: any) {
+async function paired(req: any) {
   const expected = process.env.LEE_ANDROID_PAIRING_TOKEN;
   const supplied = req.headers["x-lee-device-token"] ?? String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
-  return Boolean(expected && supplied === expected);
+  return await verifyAndroidPairing(supplied);
 }
-function rejectPairing(req: any, res: any) {
-  if (!paired(req)) { res.status(401).json({ error: "Android device pairing is required." }); return true; }
+async function rejectPairing(req: any, res: any) {
+  if (!(await paired(req))) { res.status(401).json({ error: "Android device pairing is required." }); return true; }
   return false;
 }
 
 router.post("/android/capture", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   const content = String(req.body?.text ?? req.body?.transcript ?? "").trim();
   if (!content) { res.status(400).json({ error: "text or transcript is required." }); return; }
   const checksum = createHash("sha256").update(content).digest("hex");
@@ -27,12 +28,12 @@ router.post("/android/capture", async (req, res): Promise<void> => {
   res.status(201).json({ sourceId: source?.id ?? null, duplicate: !source, status: source ? "captured" : "duplicate" });
 });
 router.post("/android/battery", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   res.json(await sampleResources({ batteryLevel: Number(req.body?.batteryLevel), charging: Boolean(req.body?.charging) }));
 });
 
 router.post("/android/ask", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   const message = String(req.body?.message ?? "").trim();
   if (!message) { res.status(400).json({ error: "message is required." }); return; }
   const packet = await buildContextPacket(message, "low_cost", 1800);
@@ -41,19 +42,19 @@ router.post("/android/ask", async (req, res): Promise<void> => {
 });
 
 router.get("/android/brief", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   const rows = await db.select().from(notification).where(eq(notification.status, "unread")).orderBy(desc(notification.createdAt)).limit(10);
   const state = await getState();
   res.json({ title: "Today's Brief", state: state.currentState, stateReason: state.reason, unreadAlerts: rows.length, alerts: rows.map((row) => ({ id: row.id, title: row.title, body: row.body, severity: row.severity })) });
 });
 
 router.get("/android/waiting", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   res.json(await db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).orderBy(waitingLoop.nextCheckAt));
 });
 
 router.post("/android/waiting/:id/action", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   const action = req.body?.action;
   const nextCheckAt = action === "snooze" ? new Date(Date.now() + Number(req.body?.hours ?? 24) * 3600000) : null;
   const [updated] = await db.update(waitingLoop).set({ status: action === "resolve" ? "resolved" : "open", nextCheckAt, updatedAt: new Date() }).where(eq(waitingLoop.id, req.params.id)).returning();
@@ -62,19 +63,19 @@ router.post("/android/waiting/:id/action", async (req, res): Promise<void> => {
 });
 
 router.get("/android/alerts", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   res.json(await db.select().from(notification).where(and(eq(notification.status, "unread"), gt(notification.severity, "info"))).orderBy(desc(notification.createdAt)));
 });
 
 router.post("/android/alerts/:id/action", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   const [updated] = await db.update(notification).set({ status: req.body?.action === "dismiss" ? "dismissed" : "read", readAt: new Date() }).where(eq(notification.id, req.params.id)).returning();
   if (!updated) { res.status(404).json({ error: "Alert not found." }); return; }
   res.json(updated);
 });
 
 router.post("/android/approve", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   const id = String(req.body?.governanceRequestId ?? "");
   const decision = req.body?.decision === "approve" ? "approved" : req.body?.decision === "reject" ? "rejected" : req.body?.decision === "hold" ? "hold" : null;
   if (!id || !decision) { res.status(400).json({ error: "governanceRequestId and decision are required." }); return; }

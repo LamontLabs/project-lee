@@ -45,4 +45,5 @@ export * from "./time-machine";
 export * from "./uncertainty";
 export * from "./resource-allocation";
 export * from "./execution-readiness";
+export * from "./android-pairing";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

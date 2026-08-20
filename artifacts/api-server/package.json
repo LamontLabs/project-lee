@@ -23,6 +23,7 @@
     "test:self-improvement-boundary": "node scripts/self-improvement-boundary.test.mjs",
     "test:operational-intelligence-evidence": "node scripts/operational-intelligence.evidence.test.mjs",
     "test:executive-loop-proof": "node scripts/executive-loop-proof.test.mjs",
+    "test:system-economics-contract": "node scripts/system-economics-contract.test.mjs",
     "test:query-architecture": "node --test scripts/query-engine-architecture.test.mjs",
     "test:ledger-boundary": "node --test scripts/ledger-boundary-hostile.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

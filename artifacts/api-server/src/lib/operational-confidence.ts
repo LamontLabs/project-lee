@@ -2,12 +2,13 @@ import { desc, eq } from "drizzle-orm";
 import { db, assumptionLedger, connector, factLedger, internalCapabilityService, operationalConfidenceSnapshot, semanticIndex, universalObject, initiativeItem } from "@workspace/db";
 import { currentWorldState } from "./world-state";
 import { emitEvent } from "./foundation-events";
+import { currentUncertainty } from "./uncertainty";
 
 type Factor = { key: string; label: string; score: number; weight: number; contribution: number; detail: string };
 const factor = (key: string, label: string, score: number, weight: number, detail: string): Factor => ({ key, label, score, weight, contribution: Math.round(score * weight), detail });
 export async function computeOperationalConfidence() {
-  const [connectors, assumptions, facts, objects, indexRows, services, world] = await Promise.all([
-    db.select().from(connector), db.select().from(assumptionLedger), db.select().from(factLedger), db.select().from(universalObject), db.select().from(semanticIndex), db.select().from(internalCapabilityService), currentWorldState(),
+  const [connectors, assumptions, facts, objects, indexRows, services, world, uncertainty] = await Promise.all([
+    db.select().from(connector), db.select().from(assumptionLedger), db.select().from(factLedger), db.select().from(universalObject), db.select().from(semanticIndex), db.select().from(internalCapabilityService), currentWorldState(), currentUncertainty(),
   ]);
   const now = Date.now();
   const connectorScore = connectors.length ? connectors.reduce((sum, row) => sum + (row.status === "healthy" && row.lastSyncAt && now - new Date(row.lastSyncAt).getTime() < 2 * 86400000 ? 1 : row.status === "healthy" ? .65 : .2), 0) / connectors.length : .5;
@@ -25,7 +26,8 @@ export async function computeOperationalConfidence() {
     factor("cil_cerbaseal_health", "CIL and CerbaSeal health", serviceScore, .18, `${services.filter((item) => item.currentHealth === "healthy").length}/${services.length} internal services healthy.`),
     factor("world_state_freshness", "World state freshness", worldScore, .1, `${world.signals.length} world-state signals available.`),
     factor("semantic_index_freshness", "Semantic Index freshness", indexScore, .1, `${indexRows.length} indexed records, measured over seven days.`),
-    factor("expired_important_objects", "Expired high-importance objects", expiredScore, .15, `${expiredImportant} high-importance objects need fresh verification.`),
+    factor("expired_important_objects", "Expired high-importance objects", expiredScore, .12, `${expiredImportant} high-importance objects need fresh verification.`),
+    factor("situational_uncertainty", "Situational uncertainty", uncertainty.length ? Math.max(0, 1 - uncertainty.reduce((sum: number, item: any) => sum + Number(item.score), 0) / Math.max(1, uncertainty.length * 8)) : 1, .03, `${uncertainty.filter((item: any) => item.level === "HIGH" || item.level === "VERY HIGH").length} objects have high situational uncertainty.`),
   ];
   const score = Math.round(factors.reduce((sum, item) => sum + item.contribution, 0) * 100);
   const lowest = [...factors].sort((a, b) => a.score - b.score)[0];

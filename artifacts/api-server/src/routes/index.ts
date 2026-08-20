@@ -68,6 +68,7 @@ import operationalCapacityRouter from "./operational-capacity";
 import strategicAnchorsRouter from "./strategic-anchors";
 import portfolioIntelligenceRouter from "./portfolio-intelligence";
 import timeMachineRouter from "./time-machine";
+import uncertaintyRouter from "./uncertainty";
 
 const router: IRouter = Router();
 
@@ -134,6 +135,7 @@ router.use(operationalCapacityRouter);
 router.use(strategicAnchorsRouter);
 router.use(portfolioIntelligenceRouter);
 router.use(timeMachineRouter);
+router.use(uncertaintyRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

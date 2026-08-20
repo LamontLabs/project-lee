@@ -35,7 +35,7 @@ export const simulation = pgTable("simulation", {
   id: uuid("id").defaultRandom().primaryKey(),
   question: text("question").notNull(),
   simulationType: varchar("simulation_type", { length: 32 }).notNull(),
-  assumptions: jsonb("assumptions").$type<Array<{ assumptionId?: string; statement: string; confidence: number }>>().notNull().default([]),
+  assumptions: jsonb("assumptions").$type<Array<{ assumptionId?: string; statement: string; confidence: number; uncertaintyLevel?: string }>>().notNull().default([]),
   reasoningChain: jsonb("reasoning_chain").$type<string[]>().notNull().default([]),
   likelyOutcomes: jsonb("likely_outcomes").$type<string[]>().notNull().default([]),
   possibleOutcomes: jsonb("possible_outcomes").$type<string[]>().notNull().default([]),

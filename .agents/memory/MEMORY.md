@@ -10,6 +10,7 @@
 - [Consequential execution boundary](consequential-execution-boundary.md) — provider mutations require owner confirmation and a unique, unexpired CerbaSeal ALLOW immediately before the writer.
 - [Epistemic memory separation](epistemic-memory-separation.md) — retrieval metadata and conflict records extend, but never collapse, separate fact and interpretation ledgers.
 - [Institutional knowledge promotion](institutional-knowledge-promotion.md) — durable knowledge requires three independent supporting outcomes and no unresolved contradiction.
+- [Self-improvement boundary](self-improvement-boundary.md) — only evidence-backed output parameters may adapt; authority, truth, ownership, and safety boundaries are rejected.
 - [Polymorphic graph boundary](polymorphic-graph-boundary.md) — graph nodes reference typed knowledge objects by type and UUID, allowing future ledgers to connect without foreign-key coupling.
 - [Relationship provider boundary](relationship-provider-boundary.md) — person health and cadence use normalized interactions, not provider-specific payloads.
 - [Event sequence migration](event-sequence-migration.md) — legacy events may share default sequence values, so sequence uniqueness requires backfill before a database constraint.

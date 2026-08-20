@@ -417,6 +417,7 @@ export const operationalAdaptation = pgTable(
     evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
     observationCount: integer("observation_count").notNull().default(0),
     reason: text("reason").notNull(),
+    rollbackData: jsonb("rollback_data").$type<Record<string, unknown>>().notNull().default({}),
     status: varchar("status", { length: 24 }).notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

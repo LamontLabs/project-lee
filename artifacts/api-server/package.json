@@ -20,6 +20,7 @@
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",
     "test:institutional-knowledge": "node scripts/institutional-knowledge.test.mjs",
+    "test:self-improvement-boundary": "node scripts/self-improvement-boundary.test.mjs",
     "test:query-architecture": "node --test scripts/query-engine-architecture.test.mjs",
     "test:ledger-boundary": "node --test scripts/ledger-boundary-hostile.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

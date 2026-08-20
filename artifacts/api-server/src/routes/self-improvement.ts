@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { listSelfImprovement, resetSelfImprovement, runSelfImprovementCycle } from "../lib/self-improvement";
+import { APPROVED_ADAPTATION_PARAMETERS, listSelfImprovement, requestAdaptation, resetSelfImprovement, runSelfImprovementCycle } from "../lib/self-improvement";
 import { getCurrentIdentity } from "../lib/identity";
 import { listObjectives } from "../lib/executive-objectives";
 import { getOrganization } from "../lib/organizational-memory";
@@ -13,6 +13,30 @@ router.post("/self-improvement/cycle", async (_req, res): Promise<void> => {
 
 router.get("/self-improvement", async (_req, res): Promise<void> => {
   res.json(await listSelfImprovement());
+});
+
+router.get("/self-improvement/contract", async (_req, res): Promise<void> => {
+  res.json({
+    minimumEvidence: 5,
+    approvedParameters: APPROVED_ADAPTATION_PARAMETERS,
+    protectedTargets: ["identity", "constitution", "facts", "knowledge", "strategic_anchors", "cerbaseal_governance", "owner_permissions", "credentials"],
+    reversible: true,
+    autonomousConsequentialActions: false,
+  });
+});
+
+router.post("/self-improvement/request", async (req, res): Promise<void> => {
+  try {
+    const body = req.body ?? {};
+    if (typeof body.category !== "string" || typeof body.parameter !== "string" || typeof body.newValue !== "string" || !Array.isArray(body.evidenceRefs) || !body.evidenceRefs.every((ref: unknown) => typeof ref === "string") || typeof body.reason !== "string") {
+      res.status(400).json({ error: "category, parameter, newValue, evidenceRefs, and reason are required." });
+      return;
+    }
+    res.status(201).json(await requestAdaptation({ category: body.category, parameter: body.parameter, newValue: body.newValue, evidenceRefs: body.evidenceRefs, observationCount: typeof body.observationCount === "number" ? body.observationCount : undefined, reason: body.reason }));
+  } catch (error) {
+    const statusCode = typeof (error as { statusCode?: unknown }).statusCode === "number" ? (error as { statusCode: number }).statusCode : 500;
+    res.status(statusCode).json({ error: error instanceof Error ? error.message : "Adaptation request failed." });
+  }
 });
 
 router.get("/system-manifest", async (_req, res): Promise<void> => {

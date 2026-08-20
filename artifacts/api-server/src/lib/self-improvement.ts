@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, desc, eq, gte } from "drizzle-orm";
 import {
   db,
   eventLog,
@@ -8,6 +9,16 @@ import {
 
 const MIN_OBSERVATIONS = 5;
 const WINDOW_DAYS = 90;
+export const PROTECTED_ADAPTATION_TARGETS = [
+  "identity",
+  "constitution",
+  "facts",
+  "knowledge",
+  "strategic_anchors",
+  "cerbaseal_governance",
+  "owner_permissions",
+  "credentials",
+] as const;
 
 type Signal = {
   category: string;
@@ -49,6 +60,12 @@ const RULES: Record<string, { parameter: string; defaultValue: string; reason: (
     reason: (rate) => `Recommendation acceptance is ${Math.round(rate * 100)}%; favor high-capacity timing until effectiveness improves.`,
     nextValue: (rate) => rate < 0.5 ? "high_capacity" : null,
   },
+  recommendationTiming: {
+    parameter: "recommendation_timing",
+    defaultValue: "balanced",
+    reason: (rate) => `Recommendation acceptance is ${Math.round(rate * 100)}%; adjust timing toward higher-capacity moments.`,
+    nextValue: (rate) => rate < 0.5 ? "high_capacity" : null,
+  },
   simulations: {
     parameter: "simulation_uncertainty_weight",
     defaultValue: "1.0",
@@ -67,6 +84,12 @@ const RULES: Record<string, { parameter: string; defaultValue: string; reason: (
     reason: (rate) => `Brief completion is ${Math.round(rate * 100)}%; reduce the item ceiling to protect attention.`,
     nextValue: (rate) => rate < 0.5 ? "7" : null,
   },
+  presentationDepth: {
+    parameter: "presentation_depth",
+    defaultValue: "standard",
+    reason: (rate) => `Brief completion is ${Math.round(rate * 100)}%; reduce presentation depth to protect attention.`,
+    nextValue: (rate) => rate < 0.5 ? "concise" : null,
+  },
   curiosity: {
     parameter: "curiosity_question_weight",
     defaultValue: "1.0",
@@ -80,6 +103,69 @@ const RULES: Record<string, { parameter: string; defaultValue: string; reason: (
     nextValue: (rate) => rate < 0.5 ? "high" : null,
   },
 };
+
+export const APPROVED_ADAPTATION_PARAMETERS = Object.freeze(Object.values(RULES).map((rule) => rule.parameter));
+
+function adaptationError(message: string, statusCode: number) {
+  return Object.assign(new Error(message), { statusCode });
+}
+
+function validateAdaptationParameter(parameter: string) {
+  const normalized = parameter.trim().toLowerCase();
+  if (PROTECTED_ADAPTATION_TARGETS.includes(normalized as typeof PROTECTED_ADAPTATION_TARGETS[number])) {
+    throw adaptationError(`Self-improvement cannot modify protected target "${parameter}".`, 403);
+  }
+  if (!APPROVED_ADAPTATION_PARAMETERS.includes(parameter)) {
+    throw adaptationError(`Self-improvement parameter "${parameter}" is not approved for adaptation.`, 400);
+  }
+}
+
+async function recordRejectedAdaptation(parameter: string, reason: string, evidenceRefs: string[] = []) {
+  await db.insert(eventLog).values({
+    eventType: "OperationalAdaptationRejected",
+    aggregateType: "operational_adaptation",
+    aggregateId: randomUUID(),
+    sourceRef: "self-improvement-boundary",
+    occurredAt: new Date(),
+    payload: { parameter, reason, evidenceRefs, protectedTarget: PROTECTED_ADAPTATION_TARGETS.includes(parameter as typeof PROTECTED_ADAPTATION_TARGETS[number]) },
+  });
+}
+
+export async function requestAdaptation(input: { category: string; parameter: string; newValue: string; evidenceRefs: string[]; observationCount?: number; reason: string }) {
+  try {
+    validateAdaptationParameter(input.parameter);
+  } catch (error) {
+    await recordRejectedAdaptation(input.parameter, error instanceof Error ? error.message : "Rejected adaptation.", input.evidenceRefs);
+    throw error;
+  }
+  if (input.evidenceRefs.length < MIN_OBSERVATIONS) {
+    await recordRejectedAdaptation(input.parameter, `At least ${MIN_OBSERVATIONS} evidence references are required.`, input.evidenceRefs);
+    throw adaptationError(`At least ${MIN_OBSERVATIONS} evidence references are required.`, 422);
+  }
+  if (!input.reason.trim()) {
+    await recordRejectedAdaptation(input.parameter, "A reason is required.", input.evidenceRefs);
+    throw adaptationError("A reason is required.", 422);
+  }
+  const [current] = await db.select().from(operationalAdaptation)
+    .where(eq(operationalAdaptation.parameter, input.parameter)).orderBy(desc(operationalAdaptation.updatedAt)).limit(1);
+  if (current?.status === "disabled") throw adaptationError("This adaptation is disabled until explicitly re-enabled by a future owner-controlled policy.", 409);
+  const now = new Date();
+  const defaultValue = current?.defaultValue ?? (input.parameter === "brief_item_ceiling" ? "10" : "normal");
+  const previousValue = current?.currentValue ?? defaultValue;
+  const rollbackData = { previousValue, defaultValue, evidenceRefs: input.evidenceRefs, reason: input.reason, capturedAt: now.toISOString() };
+  const [adaptation] = current
+    ? await db.update(operationalAdaptation).set({ previousValue, currentValue: input.newValue, evidenceRefs: input.evidenceRefs, observationCount: input.observationCount ?? input.evidenceRefs.length, reason: input.reason, rollbackData, status: "active", updatedAt: now }).where(eq(operationalAdaptation.id, current.id)).returning()
+    : await db.insert(operationalAdaptation).values({ category: input.category, parameter: input.parameter, previousValue, currentValue: input.newValue, defaultValue, evidenceRefs: input.evidenceRefs, observationCount: input.observationCount ?? input.evidenceRefs.length, reason: input.reason, rollbackData, status: "active", createdAt: now, updatedAt: now }).returning();
+  await db.insert(eventLog).values({
+    eventType: "OperationalAdaptationApplied",
+    aggregateType: "operational_adaptation",
+    aggregateId: adaptation.id,
+    sourceRef: "self-improvement-owner-request",
+    occurredAt: now,
+    payload: { adaptationId: adaptation.id, category: input.category, parameter: input.parameter, previousValue, newValue: input.newValue, evidenceRefs: input.evidenceRefs, observationCount: input.observationCount ?? input.evidenceRefs.length, reason: input.reason, rollbackData },
+  });
+  return adaptation;
+}
 
 export async function runSelfImprovementCycle() {
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000);
@@ -112,16 +198,17 @@ export async function runSelfImprovementCycle() {
     if (current?.status === "disabled") continue;
     if (current?.currentValue === nextValue) continue;
     const now = new Date();
+    const rollbackData = { previousValue: current?.currentValue ?? rule.defaultValue, defaultValue: current?.defaultValue ?? rule.defaultValue, evidenceRefs, reason: rule.reason(rate), capturedAt: now.toISOString() };
     const [adaptation] = current
-      ? await db.update(operationalAdaptation).set({ previousValue: current.currentValue, currentValue: nextValue, evidenceRefs, observationCount: categoryMetrics.length, reason: rule.reason(rate), updatedAt: now }).where(eq(operationalAdaptation.id, current.id)).returning()
-      : await db.insert(operationalAdaptation).values({ category, parameter: rule.parameter, previousValue: rule.defaultValue, currentValue: nextValue, defaultValue: rule.defaultValue, evidenceRefs, observationCount: categoryMetrics.length, reason: rule.reason(rate), status: "active", createdAt: now, updatedAt: now }).returning();
+      ? await db.update(operationalAdaptation).set({ previousValue: current.currentValue, currentValue: nextValue, evidenceRefs, observationCount: categoryMetrics.length, reason: rule.reason(rate), rollbackData, updatedAt: now }).where(eq(operationalAdaptation.id, current.id)).returning()
+      : await db.insert(operationalAdaptation).values({ category, parameter: rule.parameter, previousValue: rule.defaultValue, currentValue: nextValue, defaultValue: rule.defaultValue, evidenceRefs, observationCount: categoryMetrics.length, reason: rule.reason(rate), rollbackData, status: "active", createdAt: now, updatedAt: now }).returning();
     await db.insert(eventLog).values({
       eventType: "OperationalAdaptationApplied",
       aggregateType: "operational_adaptation",
       aggregateId: adaptation.id,
       sourceRef: "self-improvement-engine",
       occurredAt: now,
-      payload: { adaptationId: adaptation.id, category, parameter: rule.parameter, previousValue: adaptation.previousValue, newValue: nextValue, evidenceRefs, observationCount: categoryMetrics.length },
+      payload: { adaptationId: adaptation.id, category, parameter: rule.parameter, previousValue: adaptation.previousValue, newValue: nextValue, evidenceRefs, observationCount: categoryMetrics.length, reason: rule.reason(rate), rollbackData },
     });
     await db.insert(eventLog).values({
       eventType: "InitiativeCreated",
@@ -150,7 +237,10 @@ export async function resetSelfImprovement(id?: string) {
   const reset = [];
   for (const row of rows) {
     const [updated] = await db.update(operationalAdaptation).set({ previousValue: row.currentValue, currentValue: row.defaultValue, status: "disabled", reason: "Reset by owner to the constitutional default.", updatedAt: new Date() }).where(eq(operationalAdaptation.id, row.id)).returning();
-    await db.insert(eventLog).values({ eventType: "OperationalAdaptationApplied", aggregateType: "operational_adaptation", aggregateId: row.id, sourceRef: "owner-reset", occurredAt: new Date(), payload: { adaptationId: row.id, parameter: row.parameter, previousValue: row.currentValue, newValue: row.defaultValue, evidenceRefs: row.evidenceRefs, reset: true } });
+    const now = new Date();
+    const rollbackData = { previousValue: row.currentValue, defaultValue: row.defaultValue, evidenceRefs: row.evidenceRefs, reason: "Owner reset to default.", capturedAt: now.toISOString() };
+    await db.update(operationalAdaptation).set({ rollbackData, updatedAt: now }).where(eq(operationalAdaptation.id, row.id));
+    await db.insert(eventLog).values({ eventType: "OperationalAdaptationApplied", aggregateType: "operational_adaptation", aggregateId: row.id, sourceRef: "owner-reset", occurredAt: now, payload: { adaptationId: row.id, parameter: row.parameter, previousValue: row.currentValue, newValue: row.defaultValue, evidenceRefs: row.evidenceRefs, reason: "Owner reset to default.", rollbackData, reset: true } });
     reset.push(updated);
   }
   return reset;

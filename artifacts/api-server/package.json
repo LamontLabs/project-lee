@@ -14,6 +14,7 @@
     "test:event-replay": "node --test scripts/event-replay.test.mjs",
     "test:backup-restore": "node --test scripts/backup-restore.test.mjs",
     "test:event-delivery": "node scripts/event-delivery.test.mjs",
+    "test:consequential-execution": "node scripts/consequential-execution.test.mjs",
     "test:query-architecture": "node --test scripts/query-engine-architecture.test.mjs",
     "test:ledger-boundary": "node --test scripts/ledger-boundary-hostile.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

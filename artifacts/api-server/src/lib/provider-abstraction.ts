@@ -18,6 +18,33 @@ export interface DevelopmentProvider { listRepos(): Promise<{ id: string; name: 
 export interface SchedulingProvider { listEvents(from: Date, to: Date): Promise<StandardEvent[]>; getEvent(eventId: string): Promise<StandardEvent>; watchChanges(callback: (event: StandardEvent) => void): Promise<() => void>; }
 export interface StorageProvider { listFiles(folder?: string): Promise<FileRef[]>; getFile(fileId: string): Promise<unknown>; watchChanges(callback: (file: FileRef) => void): Promise<() => void>; }
 
+import { executeConsequentialAction, type ConsequentialActionResult } from "./consequential-execution";
+
+export type ProviderWriteInput<T> = {
+  provider: string;
+  actionType?: string;
+  targetSystem?: string;
+  payload: Record<string, unknown>;
+  reason: string;
+  evidenceRefs?: string[];
+  actor?: string;
+  ownerConfirmed: boolean;
+  humanConfirmed: boolean;
+  intent?: Record<string, unknown>;
+  correlationId?: string;
+  write: () => Promise<T> | T;
+};
+
+/** The only supported entry point for future provider-side mutations. */
+export function executeProviderWrite<T>(input: ProviderWriteInput<T>): Promise<ConsequentialActionResult<T>> {
+  return executeConsequentialAction({
+    ...input,
+    actionType: input.actionType ?? "connector_write",
+    targetSystem: input.targetSystem ?? `provider:${input.provider}`,
+    execute: input.write,
+  });
+}
+
 export type ProviderCategory = "communication" | "document" | "development" | "scheduling" | "storage";
 export type ProviderRegistration = { providerId: string; providerCategory: ProviderCategory; adapterName: string; currentStatus: "HEALTHY" | "DEGRADED" | "UNAVAILABLE"; supportedEvents: string[]; lastSyncedAt?: Date };
 export const providerDefinitions: ProviderRegistration[] = [

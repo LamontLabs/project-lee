@@ -38,4 +38,5 @@ export * from "./internal-services";
 export * from "./executive-loop";
 export * from "./operational-confidence";
 export * from "./project-momentum";
+export * from "./operational-capacity";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

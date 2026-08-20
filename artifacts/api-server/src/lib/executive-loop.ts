@@ -5,6 +5,7 @@ import { generateOperationalContext } from "./operational-intelligence";
 import { computeOperationalConfidence } from "./operational-confidence";
 import { computeProjectMomentum } from "./project-momentum";
 import { detectOpportunities } from "./opportunity";
+import { computeOperationalCapacity } from "./operational-capacity";
 
 export const LOOP_PHASES = ["OBSERVE", "UNDERSTAND", "PRIORITIZE", "DECIDE", "PREPARE", "WAIT", "REVIEW"] as const;
 export type LoopPhase = typeof LOOP_PHASES[number];
@@ -31,6 +32,7 @@ export async function transitionExecutiveLoop(reason = "phase duration elapsed",
   await computeOperationalConfidence();
   await computeProjectMomentum();
   await detectOpportunities();
+  await computeOperationalCapacity();
   return updated;
 }
 export async function interruptExecutiveLoop(eventType: string, eventId?: string) {

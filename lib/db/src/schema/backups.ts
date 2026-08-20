@@ -12,5 +12,6 @@ export const backupArchive = pgTable("backup_archive", {
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   restoreTestedAt: timestamp("restore_tested_at", { withTimezone: true }),
   restoreTestStatus: varchar("restore_test_status", { length: 32 }),
+  restoreEvidence: jsonb("restore_evidence").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("backup_archive_created_idx").on(table.createdAt)]);

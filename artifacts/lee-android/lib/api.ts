@@ -1,5 +1,5 @@
 import { fetch as expoFetch } from 'expo/fetch';
-import type { Alert, Approval, Brief, Capture, WaitingLoop } from './types';
+import type { Alert, Approval, Brief, Capture, UncertaintyRecord, WaitingLoop } from './types';
 
 export type Pairing = { apiUrl: string; token: string; pairedAt: string };
 export type AskStart = { model: string; contextItems: number; evidence: Array<{ id: string; kind: string; confidence: number }> };
@@ -22,6 +22,7 @@ export function createLeeApi(pairing: Pairing) {
   }
   return {
     brief: () => request<Brief>('/android/brief'),
+    uncertainty: () => request<UncertaintyRecord[]>('/uncertainty'),
     waiting: () => request<WaitingLoop[]>('/android/waiting'),
     waitingAction: (id: string, action: 'resolve' | 'snooze') => request(`/android/waiting/${id}/action`, { method: 'POST', body: JSON.stringify({ action, hours: 24 }) }),
     alerts: () => request<Alert[]>('/android/alerts'),

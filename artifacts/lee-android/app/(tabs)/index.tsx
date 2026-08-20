@@ -6,10 +6,11 @@ import { useColors } from '@/hooks/useColors';
 import { useLee } from '@/context/LeeContext';
 import { getBrief, saveBrief } from '@/lib/storage';
 import type { Brief } from '@/lib/types';
+import { highestUncertainty, UncertaintyNotice } from '@/components/UncertaintyNotice';
 
 export default function BriefTab() {
   const colors = useColors();
-  const { api } = useLee();
+  const { api, uncertainty } = useLee();
   const [brief, setBrief] = useState<Brief | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -26,6 +27,7 @@ export default function BriefTab() {
         <Text style={[styles.body, { color: colors.primaryForeground, opacity: 0.78 }]}>{brief?.alerts[0]?.body ?? 'Capture context or ask Lee for the next grounded move.'}</Text>
         <Pressable style={styles.arrow}><Feather name="arrow-up-right" size={20} color={colors.primaryForeground} /></Pressable>
       </Card>
+       {(() => { const item = highestUncertainty(uncertainty); return item ? <UncertaintyNotice item={item} offline={offline} /> : null; })()}
       <SectionLabel>At a glance</SectionLabel>
        <Card><View style={styles.row}><View style={[styles.iconCircle, { backgroundColor: offline ? colors.secondary : colors.accent }]}><Feather name={offline ? 'wifi-off' : 'wifi'} size={18} color={offline ? colors.secondaryForeground : colors.primary} /></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Android connection</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{offline ? 'The API could not verify this device. Cached data remains available.' : `Healthy · verified ${connection ? new Date(connection.lastVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'just now'}`}</Text></View></View></Card>
       {operationalConfidence && <Card><View style={styles.row}><View style={[styles.confidenceCircle, { backgroundColor: colors.accent }]}><Text style={[styles.confidenceScore, { color: colors.primary }]}>{operationalConfidence.score}</Text></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Operational confidence</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{operationalConfidence.explanation}</Text></View></View></Card>}

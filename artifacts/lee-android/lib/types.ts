@@ -12,6 +12,20 @@ export type Brief = {
   alerts: Array<{ id: string; title: string; body: string; severity: string }>;
 };
 
+export type UncertaintyLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY HIGH';
+
+export type UncertaintyRecord = {
+  objectId: string;
+  objectType: string;
+  level: UncertaintyLevel;
+  score: number;
+  outcomeLevel: UncertaintyLevel;
+  timingLevel: UncertaintyLevel;
+  scopeLevel: UncertaintyLevel;
+  signals: string[];
+  computedAt?: string;
+};
+
 export type WaitingLoop = {
   id: string;
   subject: string;

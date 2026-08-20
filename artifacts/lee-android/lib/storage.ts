@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Brief, Capture, WaitingLoop } from './types';
+import type { Brief, Capture, UncertaintyRecord, WaitingLoop } from './types';
 
 const PAIRING_KEY = '@lee/pairing';
 const CAPTURES_KEY = '@lee/captures';
 const BRIEF_KEY = '@lee/brief';
 const WAITING_KEY = '@lee/waiting';
+const UNCERTAINTY_KEY = '@lee/uncertainty';
 
 export type Pairing = { apiUrl: string; token: string; pairedAt: string };
 
@@ -35,6 +36,13 @@ export async function getBrief(): Promise<Brief | null> {
   return value ? (JSON.parse(value) as Brief) : null;
 }
 export async function saveBrief(brief: Brief): Promise<void> { await AsyncStorage.setItem(BRIEF_KEY, JSON.stringify(brief)); }
+export async function getUncertainty(): Promise<UncertaintyRecord[]> {
+  const value = await AsyncStorage.getItem(UNCERTAINTY_KEY);
+  return value ? (JSON.parse(value) as UncertaintyRecord[]) : [];
+}
+export async function saveUncertainty(items: UncertaintyRecord[]): Promise<void> {
+  await AsyncStorage.setItem(UNCERTAINTY_KEY, JSON.stringify(items));
+}
 export async function getWaitingCache(): Promise<WaitingLoop[]> {
   const value = await AsyncStorage.getItem(WAITING_KEY);
   return value ? (JSON.parse(value) as WaitingLoop[]) : [];

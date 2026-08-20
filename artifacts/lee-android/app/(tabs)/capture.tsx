@@ -6,10 +6,11 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen, Card, Eyebrow, SectionLabel, Title } from '@/components/Screen';
 import { useColors } from '@/hooks/useColors';
 import { useLee } from '@/context/LeeContext';
+import { highestUncertainty, UncertaintyNotice } from '@/components/UncertaintyNotice';
 
 export default function CaptureTab() {
   const colors = useColors();
-  const { captures, addCapture } = useLee();
+  const { captures, addCapture, uncertainty, pairing } = useLee();
   const [text, setText] = useState('');
   const [tag, setTag] = useState('Untagged');
   const [notice, setNotice] = useState('');
@@ -35,6 +36,7 @@ export default function CaptureTab() {
   return (
     <Screen>
       <Eyebrow>Quick input</Eyebrow><Title subtitle="Capture first. Lee will make sense of it later.">What’s on your mind?</Title>
+      {(() => { const item = highestUncertainty(uncertainty); return item ? <UncertaintyNotice item={item} offline={!pairing} /> : null; })()}
       <Card style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
         <TextInput testID="capture-input" value={text} onChangeText={setText} multiline placeholder="A fact, observation, or loose thread…" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground }]} />
         <View style={styles.tools}><View style={styles.tags}>{['Untagged', 'Project', 'Person'].map((item) => <Pressable key={item} onPress={() => setTag(item)} style={[styles.tag, { backgroundColor: tag === item ? colors.accent : colors.secondary }]}><Text style={[styles.tagText, { color: tag === item ? colors.accentForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}</View><Pressable testID="submit-capture" onPress={submit} style={[styles.send, { backgroundColor: colors.primary }]}><Feather name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable></View>

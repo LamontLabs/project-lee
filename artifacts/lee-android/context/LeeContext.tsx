@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as Haptics from 'expo-haptics';
-import { clearPairing, getCaptures, getPairing, saveCaptures, savePairing, type Pairing } from '@/lib/storage';
+import { clearPairing, getCaptures, getPairing, getUncertainty, saveCaptures, savePairing, saveUncertainty, type Pairing } from '@/lib/storage';
 import { createLeeApi } from '@/lib/api';
-import type { Capture } from '@/lib/types';
+import type { Capture, UncertaintyRecord } from '@/lib/types';
 
 type LeeContextValue = {
   pairing: Pairing | null;
   captures: Capture[];
+  uncertainty: UncertaintyRecord[];
   isLoading: boolean;
   pair: (apiUrl: string, token: string) => Promise<boolean>;
   unpair: () => void;
@@ -24,16 +25,28 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getPairing(), getCaptures()]).then(([storedPairing, storedCaptures]) => {
+    Promise.all([getPairing(), getCaptures(), getUncertainty()]).then(([storedPairing, storedCaptures, storedUncertainty]) => {
       setPairing(storedPairing);
       setCaptures(storedCaptures);
+      setUncertainty(storedUncertainty);
       setIsLoading(false);
     });
   }, []);
 
+  const [uncertainty, setUncertainty] = useState<UncertaintyRecord[]>([]);
+
+  useEffect(() => {
+    if (!pairing) return;
+    void createLeeApi(pairing).uncertainty().then((items) => {
+      setUncertainty(items);
+      return saveUncertainty(items);
+    }).catch(() => undefined);
+  }, [pairing]);
+
   const value = useMemo<LeeContextValue>(() => ({
     pairing,
     captures,
+    uncertainty,
     isLoading,
     async pair(apiUrl, token) {
       const normalizedUrl = apiUrl.trim().replace(/\/$/, '');
@@ -90,8 +103,13 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
         const next = captures.map((capture) => queued.some((item) => item.id === capture.id) ? { ...capture, status: 'synced' as const } : capture);
         setCaptures(next); await saveCaptures(next);
       }
+      try {
+        const items = await createLeeApi(pairing).uncertainty();
+        setUncertainty(items);
+        await saveUncertainty(items);
+      } catch { /* Cached uncertainty remains available offline. */ }
     },
-  }), [pairing, captures, isLoading]);
+  }), [pairing, captures, uncertainty, isLoading]);
 
   return <LeeContext.Provider value={value}>{children}</LeeContext.Provider>;
 }

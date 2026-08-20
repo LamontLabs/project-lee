@@ -13,11 +13,11 @@ export function ownershipSummary(item: any) {
 }
 export async function verifyObject(type: string, id: string) {
   const now = new Date();
-  if (type === "object") return (await db.update(universalObject).set({ verifiedBy: "owner", verifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now }).where(eq(universalObject.id, id)).returning())[0];
-  if (type === "fact") return (await db.update(factLedger).set({ verifiedBy: "owner", verifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now }).where(eq(factLedger.id, id)).returning())[0];
-  if (type === "interpretation") return (await db.update(interpretationLedger).set({ verifiedBy: "owner", verifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now }).where(eq(interpretationLedger.id, id)).returning())[0];
-  if (type === "person") return (await db.update(person).set({ verifiedBy: "owner", verifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now }).where(eq(person.id, id)).returning())[0];
-  if (type === "source") return (await db.update(sourceVault).set({ verifiedBy: "owner", verifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now }).where(eq(sourceVault.id, id)).returning())[0];
+  if (type === "object") return (await db.update(universalObject).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(universalObject.id, id)).returning())[0];
+  if (type === "fact") return (await db.update(factLedger).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(factLedger.id, id)).returning())[0];
+  if (type === "interpretation") return (await db.update(interpretationLedger).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(interpretationLedger.id, id)).returning())[0];
+  if (type === "person") return (await db.update(person).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(person.id, id)).returning())[0];
+  if (type === "source") return (await db.update(sourceVault).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(sourceVault.id, id)).returning())[0];
   return null;
 }
 export async function getOwnershipObject(type: string, id: string) {

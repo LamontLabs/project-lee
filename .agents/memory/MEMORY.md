@@ -31,3 +31,4 @@
 - [Self-Test boundary](self-test-boundary.md) — Self-Test produces persisted evidence reports across core Lee subsystems and emits a completion event.
 - [Recovery Modes boundary](recovery-modes-boundary.md) — Boot mode selection persists clean shutdowns, recovery agendas, boot history, and write restrictions.
 - [Data Ownership boundary](data-ownership-boundary.md) — Knowledge records carry creator, modifier, verifier, import, generation, and current-owner provenance.
+- [Knowledge Aging boundary](knowledge-aging-boundary.md) — Freshness is an independent, configurable temporal dimension that gates retrieval without deleting knowledge.

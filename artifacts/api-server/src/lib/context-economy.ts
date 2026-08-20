@@ -13,6 +13,7 @@ export type ContextInput = {
   trust?: number;
   modeRelevance?: number;
   goalMatch?: number;
+  ageState?: string;
 };
 
 export type SelectedContext = ContextInput & {
@@ -70,10 +71,10 @@ export function constructContextPacket(
   weights = DEFAULT_WEIGHTS,
   intentId?: string,
 ): { items: SelectedContext[]; excluded: SelectedContext[]; tokens: number } {
-  const scored = items.map((item) => ({
+  const scored = items.filter((item) => item.ageState !== "EXPIRED").map((item) => ({
     ...item,
     score: scoreContextValue(query, item, weights).value,
-    contextValueScore: scoreContextValue(query, item, weights).value,
+    contextValueScore: scoreContextValue(query, item, weights).value * (item.ageState === "STALE" ? 0.5 : 1),
     factorBreakdown: scoreContextValue(query, item, weights).factors,
     estimatedTokens: estimateTokens(item.text),
   }));

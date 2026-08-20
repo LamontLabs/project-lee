@@ -661,7 +661,15 @@ function BootHistoryPanel() {
   return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex items-center justify-between"><div><p className="lee-label text-primary">Recovery modes</p><h3 className="mt-1 text-lg font-semibold">Boot history</h3></div><span className="lee-label text-muted-foreground">{boots.length} boots</span></div><div className="mt-4 divide-y divide-border">{boots.slice(0, 8).map((boot) => <div key={boot.id} className="flex flex-wrap items-center gap-3 py-3"><span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold">{boot.bootMode}</span><span className="text-xs text-muted-foreground">{boot.reason}</span><span className="ml-auto text-xs text-muted-foreground">{boot.success ? 'complete' : 'in progress'} · {formatDate(boot.startedAt)}</span></div>)}</div></Panel></div>;
 }
 
-function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><BootHistoryPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
+function AgingHealthPanel() {
+  const [summary, setSummary] = useState<any>(null);
+  const [scanning, setScanning] = useState(false);
+  useEffect(() => { void fetch('/api/aging/summary', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then(setSummary); }, []);
+  const scan = async () => { setScanning(true); const result = await fetch('/api/aging/scan', { method: 'POST' }).then((response) => response.json()); setSummary(result.summary ?? summary); setScanning(false); };
+  return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="lee-label text-primary">Knowledge freshness</p><h3 className="mt-1 text-lg font-semibold">Knowledge Aging</h3></div><button onClick={() => void scan()} disabled={scanning} className="rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary disabled:opacity-50">{scanning ? 'Scanning…' : 'Run aging scan'}</button></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">{['FRESH','CURRENT','OLD','HISTORICAL','STALE','EXPIRED'].map((state) => <div key={state} className="rounded-xl bg-muted/45 p-3"><p className="lee-label text-muted-foreground">{state}</p><p className="mt-2 text-xl font-semibold">{summary?.counts?.[state] ?? '—'}</p></div>)}</div><p className="mt-4 text-xs text-muted-foreground">{summary?.staleCuriosity ?? 0} stale objects have pending curiosity prompts.</p></Panel></div>;
+}
+
+function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><AgingHealthPanel /><BootHistoryPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

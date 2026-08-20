@@ -39,6 +39,8 @@ export const person = pgTable(
     modifiedAt: timestamp("modified_at", { withTimezone: true }),
     verifiedBy: text("verified_by"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    ageState: varchar("age_state", { length: 16 }).notNull().default("FRESH"),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     importedFrom: jsonb("imported_from").$type<Record<string, unknown>>(),
     generatedBy: jsonb("generated_by").$type<Record<string, unknown>>(),
     currentOwner: text("current_owner").notNull().default("owner"),

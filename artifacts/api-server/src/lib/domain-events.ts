@@ -10,7 +10,7 @@ const EVENT_TYPES = [
   "BriefGenerated","BriefRegenerated","ConnectorSynced","ConnectorFailed","ConnectorResumed",
   "ObjectPromoted","ObjectDemoted","ObjectArchived","ObjectCompressed","ConfidenceChanged","ConfidencePropagated",
   "AssumptionRecorded","AssumptionInvalidated","ConstitutionAmended","ConstitutionCheckFailed","PolicyChanged","PolicyViolationDetected",
-  "BrainVersionChanged","BackupCompleted","BackupFailed","ModeChanged","StateChanged","EngineRegistered","EngineUnavailable","EnginePaused","EngineResumed","EngineShutdown","SelfTestCompleted","RecoveryAttempted","RecoverySucceeded","RecoveryFailed","BootStarted","BootCompleted","CleanShutdownRecorded","SafeModeActivated","RecoveryCompleted","OwnerVerified",
+  "BrainVersionChanged","BackupCompleted","BackupFailed","ModeChanged","StateChanged","EngineRegistered","EngineUnavailable","EnginePaused","EngineResumed","EngineShutdown","SelfTestCompleted","RecoveryAttempted","RecoverySucceeded","RecoveryFailed","BootStarted","BootCompleted","CleanShutdownRecorded","SafeModeActivated","RecoveryCompleted","OwnerVerified","KnowledgeAged","KnowledgeStale",
   "IntentClassified","IntentCorrected","ExplanationGenerated","ExplanationInvalidated",
   "UniversalObjectCreated","UniversalObjectUpdated","SourceVaultRecordCreated","ImpactNodeCreated","ImpactEdgeCreated","ConstitutionProvisionCreated",
 ] as const;

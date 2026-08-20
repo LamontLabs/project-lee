@@ -51,6 +51,7 @@ import internalRouter from "./internal";
 import selfTestRouter from "./self-test";
 import recoveryRouter from "./recovery";
 import ownershipRouter from "./ownership";
+import agingRouter from "./aging";
 
 const router: IRouter = Router();
 
@@ -105,6 +106,7 @@ router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);
+router.use(agingRouter);
 router.use(foundationRouter);
 
 export default router;

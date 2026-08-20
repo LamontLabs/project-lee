@@ -4,6 +4,7 @@ import { generateOperationalReview } from "./operational-review";
 import { runSelfImprovementCycle } from "./self-improvement";
 import { runSystemEconomicsCycle } from "./system-economics";
 import { generateBrief, scanFreshness } from "./time-engine";
+import { runKnowledgeAgingScan } from "./knowledge-aging";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -86,6 +87,9 @@ export async function executeScheduledJob(id: string) {
   if (job.jobType === "freshness_scan") {
     try { await scanFreshness(); } catch (error) { handlerError = error instanceof Error ? error.message : "Freshness scan failed."; }
   }
+  if (job.jobType === "knowledge_aging_scan") {
+    try { await runKnowledgeAgingScan(); } catch (error) { handlerError = error instanceof Error ? error.message : "Knowledge aging scan failed."; }
+  }
   if (job.jobType === "morning_brief" || job.jobType === "evening_reflection" || job.jobType === "weekly_review") {
     try {
       const briefType = job.jobType === "morning_brief" ? "today" : job.jobType === "evening_reflection" ? "evening" : "weekly";
@@ -99,6 +103,7 @@ export async function executeScheduledJob(id: string) {
     job.jobType === "self_improvement" ||
     job.jobType === "system_economics" ||
     job.jobType === "freshness_scan" ||
+    job.jobType === "knowledge_aging_scan" ||
     job.jobType === "morning_brief" ||
     job.jobType === "evening_reflection" ||
     job.jobType === "weekly_review";

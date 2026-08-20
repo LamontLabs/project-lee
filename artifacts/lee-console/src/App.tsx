@@ -273,6 +273,14 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
   );
 }
 
+function RecoveryModeBanner() {
+  const [status, setStatus] = useState<any>(null);
+  useEffect(() => { void fetch('/api/recovery/status', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then(setStatus); }, []);
+  if (!status || status.mode === 'COLD_BOOT' || status.mode === 'WARM_RESTART') return null;
+  const label = status.mode.replaceAll('_', ' ');
+  return <div className="border-b border-accent/35 bg-accent/15 px-5 py-3 text-sm text-accent-foreground md:px-9"><div className="mx-auto flex max-w-[1280px] items-center gap-3"><span className="rounded-full border border-accent/40 px-2.5 py-1 text-[10px] font-bold">{label}</span><span>{status.reason}</span>{status.agenda && <span className="ml-auto text-xs">{status.agenda.issues.length} repair items</span>}</div></div>;
+}
+
 function SkeletonRows({ count = 3 }: { count?: number }) {
   return <div className="space-y-3" data-testid="loading-skeleton">{Array.from({ length: count }).map((_, index) => <div className="h-16 animate-pulse rounded-xl bg-secondary/70" key={index} />)}</div>;
 }
@@ -334,7 +342,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
             <button onClick={onAsk} className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary" aria-label="Ask Lee" data-testid="button-ask-lee-header"><Command size={16} /></button>
           </div>
         </header>
-        <main className="lee-shell-grid min-h-[calc(100dvh-68px)] px-5 py-7 md:px-9 md:py-9">{children}</main>
+        <main className="lee-shell-grid min-h-[calc(100dvh-68px)] px-5 py-7 md:px-9 md:py-9"><RecoveryModeBanner />{children}</main>
       </div>
       {accessOpen && <PrivateAccessDialog onClose={() => setAccessOpen(false)} onLock={onLock} />}
     </div>
@@ -647,7 +655,13 @@ function LifecyclePanel() {
   return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex items-center justify-between"><div><p className="lee-label text-primary">Lifecycle control</p><h3 className="mt-1 text-lg font-semibold">Boot, health & recovery posture</h3></div><span className="lee-label text-muted-foreground">{engines.filter((engine) => engine.lifecycleState === 'DEGRADED').length} degraded</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{engines.map((engine) => <div key={engine.id} className="rounded-xl bg-muted/50 p-3"><div className="flex items-center justify-between gap-2"><span className="truncate text-xs font-semibold">{engine.name}</span><span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold">{engine.lifecycleState ?? engine.status}</span></div><p className="mt-2 text-[11px] text-muted-foreground">Recovery: {engine.recoveryPolicy ?? 'GRACEFUL_DISABLE'}</p>{engine.degradedCapabilities?.length > 0 && <p className="mt-1 text-[11px] leading-relaxed text-accent">{engine.degradedCapabilities.join(' · ')}</p>}</div>)}</div></Panel></div>;
 }
 
-function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
+function BootHistoryPanel() {
+  const [boots, setBoots] = useState<any[]>([]);
+  useEffect(() => { void fetch('/api/recovery/boot-history', { cache: 'no-store' }).then((response) => response.ok ? response.json() : []).then(setBoots); }, []);
+  return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex items-center justify-between"><div><p className="lee-label text-primary">Recovery modes</p><h3 className="mt-1 text-lg font-semibold">Boot history</h3></div><span className="lee-label text-muted-foreground">{boots.length} boots</span></div><div className="mt-4 divide-y divide-border">{boots.slice(0, 8).map((boot) => <div key={boot.id} className="flex flex-wrap items-center gap-3 py-3"><span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold">{boot.bootMode}</span><span className="text-xs text-muted-foreground">{boot.reason}</span><span className="ml-auto text-xs text-muted-foreground">{boot.success ? 'complete' : 'in progress'} · {formatDate(boot.startedAt)}</span></div>)}</div></Panel></div>;
+}
+
+function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><BootHistoryPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

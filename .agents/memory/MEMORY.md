@@ -29,3 +29,4 @@
 - [Domain Events boundary](domain-events-boundary.md) — typed, versioned EventBus records causal state changes on the immutable Event Log.
 - [Engine Lifecycle boundary](engine-lifecycle-boundary.md) — Capability Registry owns engine lifecycle state, dependency declarations, degraded capabilities, and recovery policy.
 - [Self-Test boundary](self-test-boundary.md) — Self-Test produces persisted evidence reports across core Lee subsystems and emits a completion event.
+- [Recovery Modes boundary](recovery-modes-boundary.md) — Boot mode selection persists clean shutdowns, recovery agendas, boot history, and write restrictions.

@@ -49,6 +49,7 @@ import intentsRouter from "./intents";
 import stateRouter from "./state";
 import internalRouter from "./internal";
 import selfTestRouter from "./self-test";
+import recoveryRouter from "./recovery";
 
 const router: IRouter = Router();
 
@@ -101,6 +102,7 @@ router.use(intentsRouter);
 router.use(stateRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
+router.use(recoveryRouter);
 router.use(foundationRouter);
 
 export default router;

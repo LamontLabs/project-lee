@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runDueJobs } from "./lib/scheduler";
 import { orchestrationTick } from "./lib/orchestration";
+import { startBoot } from "./lib/recovery-modes";
 
 const rawPort = process.env["PORT"];
 
@@ -17,6 +18,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+startBoot().catch((err) => logger.error({ err }, "Boot mode selection failed"));
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

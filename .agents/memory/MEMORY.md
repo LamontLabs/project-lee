@@ -34,3 +34,4 @@
 - [Knowledge Aging boundary](knowledge-aging-boundary.md) — Freshness is an independent, configurable temporal dimension that gates retrieval without deleting knowledge.
 - [System Manifest boundary](system-manifest-boundary.md) — The manifest is a live, read-only description of Lee’s software, brain, policy, capability, connector, storage, and health state.
 - [World State boundary](world-state-boundary.md) — Lee maintains a curated external-context ledger with universal time signals and explicitly configured monitoring topics.
+- [Operational Memory boundary](operational-memory-boundary.md) — Lee derives durable procedural patterns from existing event timestamps and owner actions, separate from declarative knowledge.

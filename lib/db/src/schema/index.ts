@@ -29,4 +29,5 @@ export * from "./recovery";
 export * from "./aging";
 export * from "./manifest";
 export * from "./world-state";
+export * from "./operational-memory";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

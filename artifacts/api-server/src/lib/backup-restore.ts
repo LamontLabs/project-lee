@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import {
   assumptionLedger,
   anchorLedger,
@@ -25,7 +26,9 @@ import {
   simulation,
   universalObject,
   understandingRun,
+  experienceRecord,
 } from "@workspace/db";
+import { emitEvent } from "./foundation-events";
 
 export const BACKUP_FORMAT_VERSION = "2";
 export const DB_SCHEMA_VERSION = "1";
@@ -54,6 +57,7 @@ const tableSources = {
   projectionEventReceipt,
   brief,
   simulation,
+  experienceRecord,
 } as const;
 
 type PortablePayload = { [K in keyof typeof tableSources]?: unknown[] };
@@ -82,6 +86,7 @@ export function digest(value: unknown) {
 }
 
 export async function collectPortableBackup() {
+  await repairLegacyUniversalObjectEvents();
   const payload: Record<string, unknown[]> = {};
   for (const [name, table] of Object.entries(tableSources)) {
     payload[name as keyof typeof tableSources] = await db.select().from(table as any);
@@ -105,6 +110,35 @@ export async function collectPortableBackup() {
   };
   const sizeBytes = Buffer.byteLength(canonicalJson({ manifest, payload }));
   return { backupId, manifest, payload, sizeBytes };
+}
+
+async function repairLegacyUniversalObjectEvents() {
+  const [objects, events] = await Promise.all([
+    db.select().from(universalObject),
+    db.select({ aggregateId: eventLog.aggregateId }).from(eventLog).where(eq(eventLog.aggregateType, "universal_object")),
+  ]);
+  const eventAggregateIds = new Set(events.map((event) => event.aggregateId));
+  for (const object of objects) {
+    if (eventAggregateIds.has(object.id)) continue;
+    await emitEvent({
+      eventType: "UniversalObjectCreated",
+      aggregateType: "universal_object",
+      aggregateId: object.id,
+      actor: "legacy-integrity-repair",
+      sourceRef: object.sourceRefs[0] ?? "legacy-integrity-repair",
+      payload: {
+        objectId: object.id,
+        objectType: object.objectType,
+        name: object.name,
+        description: object.description,
+        status: object.status,
+        sourceRefs: object.sourceRefs,
+        createdAt: object.createdAt.toISOString(),
+        createdBy: object.createdBy,
+        legacyRepair: true,
+      },
+    });
+  }
 }
 
 function rows(payload: PortablePayload, name: keyof PortablePayload) {

@@ -3,11 +3,17 @@ import { db, assumptionLedger, eventLog, person, portfolioState, strategicAnchor
 import { emitEvent } from "./foundation-events";
 
 function parseReference(reference: string, events: Array<typeof eventLog.$inferSelect>) {
+  if (!reference.trim()) throw new Error("A Time Machine reference is required.");
   const date = new Date(reference);
   if (!Number.isNaN(date.getTime())) return date;
   const lower = reference.toLowerCase();
-  const match = events.find((event) => lower.includes(String(event.payload?.personName ?? "").toLowerCase()) || lower.includes(String(event.eventType).toLowerCase()));
-  return match?.occurredAt ?? new Date();
+  const match = events.find((event) => {
+    const personName = String(event.payload?.personName ?? "").trim().toLowerCase();
+    const eventType = String(event.eventType).trim().toLowerCase();
+    return (personName && lower.includes(personName)) || (eventType && lower.includes(eventType));
+  });
+  if (!match) throw new Error("Time Machine reference must be a valid date or match a known event/person.");
+  return match.occurredAt;
 }
 export async function reconstructTimeMachine(reference: string, name?: string) {
   const allEvents = await db.select().from(eventLog).orderBy(desc(eventLog.occurredAt));

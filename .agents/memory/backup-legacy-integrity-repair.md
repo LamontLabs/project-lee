@@ -1,0 +1,10 @@
+---
+name: Backup legacy integrity repair
+description: How portable backups handle older canonical rows and omitted provenance targets.
+---
+
+Portable backup collection must include every canonical table referenced by provenance and must append auditable creation events for legacy universal objects that predate event-first writes before snapshotting the payload.
+
+**Why:** A checksum-valid backup is not sufficient if provenance targets are omitted or canonical objects cannot be rebuilt from the immutable Event Log; silently downgrading those checks would hide a restore-integrity failure.
+
+**How to apply:** When adding a provenance-bearing ledger or canonical object type, update the backup table set and provide an explicit append-only lineage repair path with regression coverage for replay and isolated restore.

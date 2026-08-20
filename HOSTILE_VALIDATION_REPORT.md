@@ -1,24 +1,30 @@
 # Hostile Architecture Validation Report
 
 **Run date:** 2026-08-20  
-**Scope:** Controlled runtime and isolated hostile validation only. No implementation, configuration, schema, or UI fixes were made during this task.
+**Scope:** Controlled runtime and isolated hostile validation, followed by the focused repairs assigned from the findings. The original report below is retained as the baseline; the repair status is recorded here.
 
 ## Executive result
 
 - **P0:** 0 confirmed
-- **P1:** 2 confirmed
-- **P2:** 1 confirmed
+- **P1:** 0 remaining (2 repaired)
+- **P2:** 1 remaining
 - **P3:** 0 confirmed
 - **Automated hostile suites:** 43 passing tests, 1 failing test
 - **Manual hostile probes:** 2 unsafe error contracts found, 2 expected rejection paths passed
 
-The failing backup test is reproducible against the current database state and agrees with the existing Full System Check finding. The two manual findings are independent of the backup failure.
+The baseline run reproduced two P1s and one P2. After repair, the full hostile suite is clean: all 18 package scripts exited 0, with 46 tests passing and no P0/P1 failures. The recovery agenda response remains a separate P2 and was intentionally not expanded in this task.
+
+## Repair status
+
+- **HV-001 backup provenance/replay:** repaired. Portable backups now include `experienceRecord`, and backup collection appends auditable `UniversalObjectCreated` repair events for legacy canonical objects that have no creation event. Checksum, append-only, isolated restore, replay, and production-write-boundary checks remain enforced.
+- **HV-002 invalid Time Machine reference:** repaired. Empty or unresolved references return HTTP 400; valid dates and known semantic references continue to work. The semantic matcher now ignores absent/empty event fields.
+- **HV-003 recovery agenda resolution:** remains P2 and is reported below without scope expansion.
 
 ## P1 findings
 
-### HV-001 — Portable backup cannot prove provenance and event-replay integrity
+### HV-001 — Portable backup cannot prove provenance and event-replay integrity — **REPAIRED**
 
-**Impact:** A backup can be checksum-valid and restorable into an isolated transaction while still failing to reconstruct historical canonical records and resolve provenance. Restore readiness must not be treated as safe until these checks pass.
+**Baseline impact:** A backup could be checksum-valid and restorable into an isolated transaction while still failing to reconstruct historical canonical records and resolve provenance.
 
 **Reproduction:**
 
@@ -26,7 +32,7 @@ The failing backup test is reproducible against the current database state and a
 pnpm --filter @workspace/api-server run test:backup-restore
 ```
 
-**Observed result:** Exit code 1. The test failed because `/api/backups/:id/verify` returned `evidence.overall = "FAIL"` where the existing harness requires a non-FAIL result.
+**Baseline observed result:** Exit code 1. The test failed because `/api/backups/:id/verify` returned `evidence.overall = "FAIL"` where the existing harness requires a non-FAIL result.
 
 **Evidence from the verification report:**
 
@@ -53,9 +59,11 @@ pnpm --filter @workspace/api-server run test:backup-restore
 
 **Repair direction:** Reconcile legacy provenance references and create/recover auditable event lineage for canonical objects. Preserve the distinction between checksum validity, isolated restore success, provenance integrity, and replay completeness.
 
-### HV-002 — Invalid Time Machine references silently become “now”
+**Post-repair evidence:** `test:backup-restore` passes, including canonical payload integrity, event-log continuity/rebuild, canonical-state equality, isolated restore, and production state untouched.
 
-**Impact:** A malformed historical reference can produce a successful snapshot of the current state, allowing an operator or downstream engine to mistake an invalid request for a valid historical reconstruction.
+### HV-002 — Invalid Time Machine references silently become “now” — **REPAIRED**
+
+**Baseline impact:** A malformed historical reference could produce a successful snapshot of the current state, allowing an operator or downstream engine to mistake an invalid request for a valid historical reconstruction.
 
 **Reproduction:**
 
@@ -74,6 +82,8 @@ curl -sS -i -X POST http://127.0.0.1:8080/api/time-machine/reconstruct \
 - `artifacts/api-server/scripts/manifest-contract.test.mjs` (current manifest coverage does not exercise invalid reconstruction references)
 
 **Repair direction:** Reject invalid date references unless a documented semantic event/person match succeeds; if fallback resolution is intentional, return explicit resolution metadata and a degraded result rather than silently selecting the current time.
+
+**Post-repair evidence:** `test:time-machine-hostile` passes both rejection cases and a valid historical-date reconstruction case.
 
 ## P2 finding
 
@@ -118,8 +128,8 @@ curl -sS -i -X POST \
 | Institutional Knowledge | Repeated independent evidence and contradiction lifecycle | PASS |
 | Strategic Anchors | Malformed anchor rejected with HTTP 400 | PASS |
 | Self-Improvement | Protected-target bypass and rollback evidence | PASS |
-| Backup/restore | Checksum, isolated restore, provenance, replay, production-write boundary | P1: FAIL |
-| Time Machine | Missing snapshot rejected; malformed reference accepted as current time | P1: FAIL |
+| Backup/restore | Checksum, isolated restore, provenance, replay, production-write boundary | PASS after repair |
+| Time Machine | Missing snapshot rejected; malformed reference rejected; valid date preserved | PASS after repair |
 | Internal privacy | Public aliases rejected; registered service identity accepted | PASS |
 | Durable event recovery | Restart delivery, idempotency, bounded retry, dead-letter behavior | PASS |
 | Operational Intelligence | Controlled prioritization and upstream retrieval failure visibility | PASS |
@@ -149,4 +159,4 @@ test:manifest
 test:self-test-diagnostics
 ```
 
-All implementation files were left unchanged. The report is intentionally repair-ready so the separate P0/P1 remediation task can address only confirmed findings.
+The remediation changed only the backup and Time Machine boundaries plus focused regression coverage. The report remains repair-ready for the separate recovery-agenda P2 follow-up.

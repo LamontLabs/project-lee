@@ -1,4 +1,4 @@
-import { and, desc, eq, gt } from "drizzle-orm";
+import { desc, eq, gt } from "drizzle-orm";
 import { db, initiativeItem, resourceAllocation, resourceAllocationOverride, strategicAnchor, strategicObjective, universalObject, waitingLoop } from "@workspace/db";
 import { currentOperationalCapacity } from "./operational-capacity";
 import { currentProjectMomentum } from "./project-momentum";
@@ -45,3 +45,24 @@ export async function computeResourceAllocation() {
 export async function currentResourceAllocation() { const rows = await db.select().from(resourceAllocation).orderBy(desc(resourceAllocation.computedAt)).limit(100); const latest = new Map<string, any>(); for (const row of rows) if (!latest.has(row.projectId)) latest.set(row.projectId, row); return latest.size ? [...latest.values()] : computeResourceAllocation(); }
 export async function allocationHistory() { return db.select().from(resourceAllocation).orderBy(desc(resourceAllocation.computedAt)).limit(200); }
 export async function createAllocationOverride(input: { projectId: string; percentage: number; reason: string; expiresAt: Date }) { return db.insert(resourceAllocationOverride).values(input).returning(); }
+const OVERRIDE_EXPIRING_WINDOW_MS = 7 * 86400000;
+export async function allocationOverrideStatus() {
+  const [overrides, projects] = await Promise.all([
+    db.select().from(resourceAllocationOverride).orderBy(desc(resourceAllocationOverride.expiresAt)),
+    db.select({ id: universalObject.id, name: universalObject.name }).from(universalObject).where(eq(universalObject.objectType, "project")),
+  ]);
+  const now = Date.now();
+  return overrides.map((override) => {
+    const expiresAt = override.expiresAt.getTime();
+    const status = expiresAt <= now ? "expired" : expiresAt - now <= OVERRIDE_EXPIRING_WINDOW_MS ? "expiring" : "active";
+    return {
+      ...override,
+      status,
+      project: projects.find((project) => project.id === override.projectId) ?? { id: override.projectId, name: override.projectId },
+      daysRemaining: status === "expired" ? 0 : Math.ceil((expiresAt - now) / 86400000),
+    };
+  });
+}
+export async function releaseAllocationOverride(id: string) {
+  return db.delete(resourceAllocationOverride).where(eq(resourceAllocationOverride.id, id)).returning();
+}

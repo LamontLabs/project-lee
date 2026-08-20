@@ -71,6 +71,7 @@ import timeMachineRouter from "./time-machine";
 import uncertaintyRouter from "./uncertainty";
 import resourceAllocationRouter from "./resource-allocation";
 import executionReadinessRouter from "./execution-readiness";
+import portfolioDependencyRouter from "./portfolio-dependency";
 
 const router: IRouter = Router();
 
@@ -140,6 +141,7 @@ router.use(timeMachineRouter);
 router.use(uncertaintyRouter);
 router.use(resourceAllocationRouter);
 router.use(executionReadinessRouter);
+router.use(portfolioDependencyRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

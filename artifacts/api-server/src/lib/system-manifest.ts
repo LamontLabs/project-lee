@@ -7,6 +7,7 @@ import {
   selfTestRun, sourceVault, universalObject, leeState, internalCapabilityService, executiveLoop,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
+import { getPortfolioDependencyGraph } from "./portfolio-dependency";
 
 export const MANIFEST_VERSION = "1.0.0";
 const iso = (value: Date | null | undefined) => value?.toISOString() ?? null;
@@ -39,6 +40,7 @@ export async function generateManifest() {
   ]);
   const counts = { universalObjects: objects.length, facts: facts.length, interpretations: interpretations.length, projects: objects.filter((x) => x.objectType === "project").length, people: people.length, assumptions: assumptions.length, sources: sources.length, events: events.length };
   const allDates = [...objects, ...facts, ...interpretations, ...people, ...assumptions].map((row: any) => row.createdAt).filter(Boolean).map((value) => new Date(value).getTime());
+  const dependencyGraph = await getPortfolioDependencyGraph();
   const manifest: ManifestDocument = {
     manifestVersion: MANIFEST_VERSION, generatedAt: generatedAt.toISOString(),
     identity: { leeVersion: process.env.LEE_VERSION ?? "0.1.0", brainVersion: backups[0]?.brainVersion ?? "unversioned", owner: "private owner" },
@@ -52,7 +54,7 @@ export async function generateManifest() {
     statistics: { modelCalls30d: routes.length, totalCostUsd: costs.reduce((sum, row) => sum + Number(row.estimatedCostUsd ?? 0), 0), briefsGenerated: 0, curiosityItemsCreated: 0, governanceResolved: 0, activeStrategicAnchors: anchors.map((anchor) => ({ id: anchor.id, type: anchor.anchorType, summary: anchor.summary, projectId: anchor.projectId })), selfTest: tests[0] ? { result: tests[0].overallResult, at: iso(tests[0].startedAt) } : null },
     storage: { databaseRows: counts, databaseMb: null, backups: backups.length, lastBackupAgeDays: backups[0] ? (Date.now() - new Date(backups[0].createdAt).getTime()) / 86400000 : null, brainVersion: backups[0]?.brainVersion ?? null },
     health: { state: states[0]?.currentState ?? "Idle", overall: "nominal", criticalAlerts: 0, warnAlerts: 0, capacity: capacities[0] ? { state: capacities[0].state, score: capacities[0].score, inferred: capacities[0].inferred } : null, lastSelfTest: tests[0] ? { result: tests[0].overallResult, at: iso(tests[0].startedAt) } : null, executiveLoop: loops[0] ? { phase: loops[0].phase, cycleCount: loops[0].cycleCount, averageCycleDurationMs: loops[0].averageCycleDurationMs, interrupted: loops[0].interrupted } : null, internalServices: internalServices.map((service) => ({ serviceId: service.serviceId, category: service.category, currentHealth: service.currentHealth, failurePolicy: service.failurePolicy, lastHealthCheck: iso(service.lastHealthCheck), credentialEnvKey: service.credentialEnvKey })) },
-    dependencies: [...engines.map((engine) => ({ engine: engine.engineId, required: engine.dependencies, satisfied: engine.lifecycleState !== "UNAVAILABLE" })), ...internalServices.map((service) => ({ engine: service.serviceId, required: [], satisfied: service.currentHealth === "healthy" || service.currentHealth === "degraded" }))],
+    dependencies: [...engines.map((engine) => ({ engine: engine.engineId, required: engine.dependencies, satisfied: engine.lifecycleState !== "UNAVAILABLE" })), ...internalServices.map((service) => ({ engine: service.serviceId, required: [], satisfied: service.currentHealth === "healthy" || service.currentHealth === "degraded" })), { portfolioDependencyGraph: dependencyGraph.summary }],
   };
   await emitEvent({ eventType: "ManifestGenerated", aggregateType: "system_manifest", aggregateId: "system", payload: { manifestVersion: MANIFEST_VERSION, overallHealth: manifest.health.overall } });
   return manifest;

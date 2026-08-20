@@ -21,7 +21,8 @@ router.post("/objects", async (req, res): Promise<void> => {
   if (typeof input.name !== "string" || typeof input.objectType !== "string") { res.status(400).json({ error: "objectType and name are required." }); return; }
   const id = input.id ?? crypto.randomUUID();
   const event = await emitEvent({ eventType: "UniversalObjectCreated", aggregateType: "universal_object", aggregateId: id, actor: input.actor, payload: input });
-  const [object] = await db.insert(universalObject).values({ id, objectType: input.objectType, name: input.name, description: input.description ?? null, sourceRefs: input.sourceRefs ?? [], status: input.status ?? "active", version: event.sequenceNumber }).returning();
+  const createdBy = typeof input.createdBy === "string" ? input.createdBy : "owner";
+  const [object] = await db.insert(universalObject).values({ id, objectType: input.objectType, name: input.name, description: input.description ?? null, sourceRefs: input.sourceRefs ?? [], status: input.status ?? "active", version: event.sequenceNumber, createdBy, currentOwner: input.currentOwner ?? createdBy, importedFrom: input.importedFrom, generatedBy: input.generatedBy }).returning();
   res.status(201).json(object);
 });
 
@@ -29,7 +30,7 @@ router.patch("/objects/:id", async (req, res): Promise<void> => {
   const existing = await db.select().from(universalObject).where(eq(universalObject.id, req.params.id)).limit(1);
   if (!existing[0]) { res.status(404).json({ error: "Object not found." }); return; }
   const event = await emitEvent({ eventType: "UniversalObjectUpdated", aggregateType: "universal_object", aggregateId: req.params.id, actor: req.body?.actor, payload: req.body ?? {} });
-  const [object] = await db.update(universalObject).set({ ...(typeof req.body?.name === "string" ? { name: req.body.name } : {}), ...(typeof req.body?.description === "string" ? { description: req.body.description } : {}), ...(typeof req.body?.status === "string" ? { status: req.body.status } : {}), version: event.sequenceNumber, updatedAt: new Date() }).where(eq(universalObject.id, req.params.id)).returning();
+  const [object] = await db.update(universalObject).set({ ...(typeof req.body?.name === "string" ? { name: req.body.name } : {}), ...(typeof req.body?.description === "string" ? { description: req.body.description } : {}), ...(typeof req.body?.status === "string" ? { status: req.body.status } : {}), version: event.sequenceNumber, updatedAt: new Date(), modifiedBy: typeof req.body?.modifiedBy === "string" ? req.body.modifiedBy : "owner", modifiedAt: new Date() }).where(eq(universalObject.id, req.params.id)).returning();
   res.json(object);
 });
 
@@ -41,7 +42,8 @@ router.get("/objects", async (req, res): Promise<void> => {
 router.post("/sources", async (req, res): Promise<void> => {
   const input = req.body ?? {};
   if (typeof input.originalFilename !== "string" || typeof input.mimeType !== "string" || typeof input.checksum !== "string") { res.status(400).json({ error: "originalFilename, mimeType, and checksum are required." }); return; }
-  const [source] = await db.insert(sourceVault).values({ originalFilename: input.originalFilename, mimeType: input.mimeType, checksum: input.checksum, storagePath: input.storagePath ?? `sources/${input.checksum}`, byteSize: input.byteSize, metadata: input.metadata ?? {} }).returning();
+  const createdBy = typeof input.createdBy === "string" ? input.createdBy : "owner";
+  const [source] = await db.insert(sourceVault).values({ originalFilename: input.originalFilename, mimeType: input.mimeType, checksum: input.checksum, storagePath: input.storagePath ?? `sources/${input.checksum}`, byteSize: input.byteSize, metadata: input.metadata ?? {}, createdBy, currentOwner: input.currentOwner ?? createdBy, importedFrom: input.importedFrom, generatedBy: input.generatedBy }).returning();
   await emitEvent({ eventType: "SourceVaultRecordCreated", aggregateType: "source_vault", aggregateId: source.id, payload: { sourceId: source.id, checksum: source.checksum } });
   res.status(201).json(source);
 });

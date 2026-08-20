@@ -35,6 +35,14 @@ export const universalObject = pgTable("universal_object", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull().default("migration"),
+    modifiedBy: text("modified_by"),
+    modifiedAt: timestamp("modified_at", { withTimezone: true }),
+    verifiedBy: text("verified_by"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    importedFrom: jsonb("imported_from").$type<Record<string, unknown>>(),
+    generatedBy: jsonb("generated_by").$type<Record<string, unknown>>(),
+    currentOwner: text("current_owner").notNull().default("owner"),
 }, (table) => [index("universal_object_type_status_idx").on(table.objectType, table.status), index("universal_object_memory_idx").on(table.memoryTier, table.relevanceScore), index("universal_object_access_idx").on(table.lastAccessedAt)]);
 
 export const sourceVault = pgTable("source_vault", {
@@ -48,6 +56,14 @@ export const sourceVault = pgTable("source_vault", {
   evidenceQuality: real("evidence_quality").notNull().default(0.5),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
   rawContent: text("raw_content"),
+    createdBy: text("created_by").notNull().default("migration"),
+    modifiedBy: text("modified_by"),
+    modifiedAt: timestamp("modified_at", { withTimezone: true }),
+    verifiedBy: text("verified_by"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    importedFrom: jsonb("imported_from").$type<Record<string, unknown>>(),
+    generatedBy: jsonb("generated_by").$type<Record<string, unknown>>(),
+    currentOwner: text("current_owner").notNull().default("owner"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("source_vault_status_idx").on(table.processingStatus)]);

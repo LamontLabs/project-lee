@@ -15,6 +15,14 @@ export const strategicObjective = pgTable("strategic_objective", {
   lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdBy: text("created_by").notNull().default("migration"),
+  modifiedBy: text("modified_by"),
+  modifiedAt: timestamp("modified_at", { withTimezone: true }),
+  verifiedBy: text("verified_by"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  importedFrom: jsonb("imported_from").$type<Record<string, unknown>>(),
+  generatedBy: jsonb("generated_by").$type<Record<string, unknown>>(),
+  currentOwner: text("current_owner").notNull().default("owner"),
 }, (table) => [index("strategic_objective_horizon_status_idx").on(table.horizon, table.status)]);
 export const strategyReview = pgTable("strategy_review", {
   id: uuid("id").defaultRandom().primaryKey(),

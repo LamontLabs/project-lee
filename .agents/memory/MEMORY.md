@@ -30,3 +30,4 @@
 - [Engine Lifecycle boundary](engine-lifecycle-boundary.md) — Capability Registry owns engine lifecycle state, dependency declarations, degraded capabilities, and recovery policy.
 - [Self-Test boundary](self-test-boundary.md) — Self-Test produces persisted evidence reports across core Lee subsystems and emits a completion event.
 - [Recovery Modes boundary](recovery-modes-boundary.md) — Boot mode selection persists clean shutdowns, recovery agendas, boot history, and write restrictions.
+- [Data Ownership boundary](data-ownership-boundary.md) — Knowledge records carry creator, modifier, verifier, import, generation, and current-owner provenance.

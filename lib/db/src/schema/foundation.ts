@@ -140,6 +140,13 @@ export const factLedger = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    createdBy: text("created_by").notNull().default("migration"),
+    modifiedBy: text("modified_by"),
+    modifiedAt: timestamp("modified_at", { withTimezone: true }),
+    verifiedBy: text("verified_by"),
+    importedFrom: jsonb("imported_from").$type<Record<string, unknown>>(),
+    generatedBy: jsonb("generated_by").$type<Record<string, unknown>>(),
+    currentOwner: text("current_owner").notNull().default("owner"),
   },
   (table) => [
     index("fact_ledger_subject_idx").on(table.subject),
@@ -181,6 +188,14 @@ export const interpretationLedger = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
+    createdBy: text("created_by").notNull().default("migration"),
+    modifiedBy: text("modified_by"),
+    modifiedAt: timestamp("modified_at", { withTimezone: true }),
+    verifiedBy: text("verified_by"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    importedFrom: jsonb("imported_from").$type<Record<string, unknown>>(),
+    generatedBy: jsonb("generated_by").$type<Record<string, unknown>>(),
+    currentOwner: text("current_owner").notNull().default("owner"),
   },
   (table) => [
     index("interpretation_source_idx").on(table.sourceRef),

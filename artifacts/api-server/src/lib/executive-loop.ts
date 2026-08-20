@@ -4,6 +4,7 @@ import { emitEvent } from "./foundation-events";
 import { generateOperationalContext } from "./operational-intelligence";
 import { computeOperationalConfidence } from "./operational-confidence";
 import { computeProjectMomentum } from "./project-momentum";
+import { detectOpportunities } from "./opportunity";
 
 export const LOOP_PHASES = ["OBSERVE", "UNDERSTAND", "PRIORITIZE", "DECIDE", "PREPARE", "WAIT", "REVIEW"] as const;
 export type LoopPhase = typeof LOOP_PHASES[number];
@@ -29,6 +30,7 @@ export async function transitionExecutiveLoop(reason = "phase duration elapsed",
   await emitEvent({ eventType: "ExecutiveLoopPhaseChanged", aggregateType: "executive_loop", aggregateId: row.id, payload: { fromPhase: phase, toPhase: target, cycleCount, reason, durationMs: elapsed } });
   await computeOperationalConfidence();
   await computeProjectMomentum();
+  await detectOpportunities();
   return updated;
 }
 export async function interruptExecutiveLoop(eventType: string, eventId?: string) {

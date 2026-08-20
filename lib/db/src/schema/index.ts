@@ -34,4 +34,5 @@ export * from "./initiative";
 export * from "./operational-intelligence";
 export * from "./provider-registry";
 export * from "./bootstrap";
+export * from "./internal-services";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

@@ -9,6 +9,7 @@ import { ensureOperationalMemoryJob } from "./lib/operational-memory";
 import { db, scheduledJob } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { registerProviders } from "./lib/provider-abstraction";
+import { registerInternalServices } from "./services/internal-services";
 
 const rawPort = process.env["PORT"];
 
@@ -31,6 +32,7 @@ ensureOperationalMemoryJob().catch((err) => logger.error({ err }, "Operational m
 db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "initiative_scan")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "initiative_scan", runAt: new Date(Date.now() + 60_000), recurrence: "daily", payload: { engine: "Initiative Engine" } })).catch((err) => logger.error({ err }, "Initiative job registration failed"));
 db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "operational_intelligence_refresh")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "operational_intelligence_refresh", runAt: new Date(Date.now() + 60_000), recurrence: "15m", payload: { engine: "Operational Intelligence Engine" } })).catch((err) => logger.error({ err }, "Operational intelligence job registration failed"));
 registerProviders().catch((err) => logger.error({ err }, "Provider registry registration failed"));
+registerInternalServices().catch((err) => logger.error({ err }, "Internal service registry registration failed"));
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

@@ -59,6 +59,7 @@ import initiativeRouter from "./initiative";
 import operationalIntelligenceRouter from "./operational-intelligence";
 import providersRouter from "./providers";
 import bootstrapRouter from "./bootstrap";
+import internalServicesRouter from "./internal-services";
 
 const router: IRouter = Router();
 
@@ -116,6 +117,7 @@ router.use(initiativeRouter);
 router.use(operationalIntelligenceRouter);
 router.use(providersRouter);
 router.use(bootstrapRouter);
+router.use(internalServicesRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

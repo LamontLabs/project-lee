@@ -9,6 +9,7 @@ import { Router, type IRouter } from "express";
 import { registerAction } from "../lib/governance-engine";
 import { callProvider } from "../lib/ai-providers";
 import { checkConstitution } from "../lib/constitution";
+import { governanceService } from "../services/internal-services";
 
 const router: IRouter = Router();
 
@@ -33,59 +34,8 @@ function unavailableResponse(request: GovernedRequest, reason: string) {
 }
 
 async function evaluateWithCerbaSeal(request: GovernedRequest) {
-  const baseUrl = process.env.CERBASEAL_BASE_URL;
-  if (!baseUrl) {
-    return {
-      response: unavailableResponse(request, "GOVERNANCE_SERVICE_UNAVAILABLE"),
-      serviceUnavailable: true,
-    };
-  }
-
-  const body = JSON.stringify(request);
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const bodyHash = createHash("sha256").update(body).digest("hex");
-  const signature = createHmac("sha256", process.env.CERBASEAL_HMAC_SECRET ?? "")
-    .update(`${request.lee_request_id}.${timestamp}.${bodyHash}`)
-    .digest("hex");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/govern/evaluate`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(process.env.CERBASEAL_API_KEY
-          ? { authorization: `Bearer ${process.env.CERBASEAL_API_KEY}` }
-          : {}),
-        "X-LEE-Timestamp": timestamp,
-        "X-LEE-Signature": signature,
-      },
-      body,
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      return {
-        response: unavailableResponse(request, response.status === 429 ? "RATE_LIMITED" : "GOVERNANCE_SERVICE_UNAVAILABLE"),
-        serviceUnavailable: true,
-      };
-    }
-    const responseBody = await response.json() as Record<string, unknown>;
-    const verdict = responseBody.verdict;
-    if (verdict !== "ALLOW" && verdict !== "HOLD" && verdict !== "REJECT") {
-      return {
-        response: unavailableResponse(request, "INVALID_GOVERNANCE_RESPONSE"),
-        serviceUnavailable: true,
-      };
-    }
-    return { response: responseBody as ReturnType<typeof unavailableResponse>, serviceUnavailable: false };
-  } catch {
-    return {
-      response: unavailableResponse(request, "GOVERNANCE_SERVICE_UNAVAILABLE"),
-      serviceUnavailable: true,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const response = await governanceService.evaluate(request as unknown as Record<string, unknown> & { lee_request_id: string; action_class: string; target_system: string });
+  return { response, serviceUnavailable: response.reason_codes.includes("GOVERNANCE_SERVICE_UNAVAILABLE") };
 }
 
 router.post("/governance/evaluate", async (req, res): Promise<void> => {

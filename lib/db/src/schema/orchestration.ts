@@ -2,8 +2,16 @@ import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uuid, v
 
 export const engineRegistry = pgTable("engine_registry", {
   id: uuid("id").defaultRandom().primaryKey(),
+  engineId: varchar("engine_id", { length: 120 }).notNull().default(""),
   name: varchar("name", { length: 120 }).notNull().unique(),
+  version: varchar("version", { length: 32 }).notNull().default("1.0.0"),
+  status: varchar("status", { length: 24 }).notNull().default("HEALTHY"),
+  owner: varchar("owner", { length: 80 }).notNull().default("Foundations"),
+  lastHeartbeat: timestamp("last_heartbeat", { withTimezone: true }).defaultNow().notNull(),
+  healthEndpoint: varchar("health_endpoint", { length: 240 }),
   capabilities: jsonb("capabilities").$type<string[]>().notNull().default([]),
+  inputs: jsonb("inputs").$type<Record<string, string[]>>().notNull().default({}),
+  outputs: jsonb("outputs").$type<Record<string, string[]>>().notNull().default({}),
   priorityClass: varchar("priority_class", { length: 16 }).notNull().default("NORMAL"),
   frequency: varchar("frequency", { length: 80 }),
   resourceProfile: jsonb("resource_profile").$type<Record<string, unknown>>().notNull().default({}),
@@ -11,7 +19,7 @@ export const engineRegistry = pgTable("engine_registry", {
   enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [index("engine_registry_engine_id_idx").on(table.engineId), index("engine_registry_status_idx").on(table.status), index("engine_registry_heartbeat_idx").on(table.lastHeartbeat)]);
 
 export const orchestrationWorkItem = pgTable("orchestration_work_item", {
   id: uuid("id").defaultRandom().primaryKey(),

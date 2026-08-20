@@ -47,6 +47,7 @@ import policyRouter from "./policy";
 import resourcesRouter from "./resources";
 import intentsRouter from "./intents";
 import stateRouter from "./state";
+import internalRouter from "./internal";
 
 const router: IRouter = Router();
 
@@ -97,6 +98,7 @@ router.use(policyRouter);
 router.use(resourcesRouter);
 router.use(intentsRouter);
 router.use(stateRouter);
+router.use(internalRouter);
 router.use(foundationRouter);
 
 export default router;

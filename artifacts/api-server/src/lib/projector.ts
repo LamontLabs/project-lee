@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, gt, or } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, or } from "drizzle-orm";
 import {
   db,
   eventLog,
@@ -64,8 +64,8 @@ async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boo
         version: event.sequenceNumber,
         createdBy: typeof payload.createdBy === "string" ? payload.createdBy : "owner",
         currentOwner: typeof payload.currentOwner === "string" ? payload.currentOwner : "owner",
-        importedFrom: typeof payload.importedFrom === "string" ? payload.importedFrom : undefined,
-        generatedBy: typeof payload.generatedBy === "string" ? payload.generatedBy : undefined,
+        importedFrom: payload.importedFrom && typeof payload.importedFrom === "object" ? payload.importedFrom as Record<string, unknown> : undefined,
+        generatedBy: payload.generatedBy && typeof payload.generatedBy === "object" ? payload.generatedBy as Record<string, unknown> : undefined,
       });
     }
     return null;
@@ -96,7 +96,7 @@ async function applyStateEvent(event: typeof eventLog.$inferSelect, dryRun: bool
     if (!current) {
       await db.insert(leeState).values({ id: event.aggregateId, currentState: nextState, enteredAt, reason, estimatedDurationSeconds: typeof payload.estimatedDurationSeconds === "number" ? payload.estimatedDurationSeconds : undefined, updatedAt: event.occurredAt });
     } else {
-      await db.update(stateHistory).set({ exitedAt: enteredAt, durationSeconds: typeof payload.durationSeconds === "number" ? payload.durationSeconds : undefined }).where(and(eq(stateHistory.state, current.currentState), eq(stateHistory.id, current.id)));
+      await db.update(stateHistory).set({ exitedAt: enteredAt, durationSeconds: typeof payload.durationSeconds === "number" ? payload.durationSeconds : undefined }).where(and(eq(stateHistory.state, current.currentState), isNull(stateHistory.exitedAt)));
       await db.update(leeState).set({ currentState: nextState, enteredAt, reason, estimatedDurationSeconds: typeof payload.estimatedDurationSeconds === "number" ? payload.estimatedDurationSeconds : undefined, updatedAt: event.occurredAt }).where(eq(leeState.id, current.id));
     }
     await db.insert(stateHistory).values({ state: nextState, enteredAt, reason, triggeringJobId: typeof payload.triggeringJobId === "string" ? payload.triggeringJobId : undefined });

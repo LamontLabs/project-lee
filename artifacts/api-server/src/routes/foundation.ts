@@ -4,6 +4,7 @@ import { auditLog, constitutionProvision, constitutionVersion, db, eventLog, imp
 import { emitEvent } from "../lib/foundation-events";
 import { replayFrom } from "../lib/projector";
 import { DOMAIN_EVENT_CATALOG, causalChain } from "../lib/domain-events";
+import { projectEvent, projectionCheckpoints, rebuildAllProjections } from "../lib/projector";
 
 const router: IRouter = Router();
 
@@ -22,7 +23,8 @@ router.post("/objects", async (req, res): Promise<void> => {
   const id = input.id ?? crypto.randomUUID();
   const event = await emitEvent({ eventType: "UniversalObjectCreated", aggregateType: "universal_object", aggregateId: id, actor: input.actor, payload: input });
   const createdBy = typeof input.createdBy === "string" ? input.createdBy : "owner";
-  const [object] = await db.insert(universalObject).values({ id, objectType: input.objectType, name: input.name, description: input.description ?? null, sourceRefs: input.sourceRefs ?? [], status: input.status ?? "active", version: event.sequenceNumber, createdBy, currentOwner: input.currentOwner ?? createdBy, importedFrom: input.importedFrom, generatedBy: input.generatedBy }).returning();
+  await projectEvent(event);
+  const [object] = await db.select().from(universalObject).where(eq(universalObject.id, id)).limit(1);
   res.status(201).json(object);
 });
 
@@ -30,7 +32,8 @@ router.patch("/objects/:id", async (req, res): Promise<void> => {
   const existing = await db.select().from(universalObject).where(eq(universalObject.id, req.params.id)).limit(1);
   if (!existing[0]) { res.status(404).json({ error: "Object not found." }); return; }
   const event = await emitEvent({ eventType: "UniversalObjectUpdated", aggregateType: "universal_object", aggregateId: req.params.id, actor: req.body?.actor, payload: req.body ?? {} });
-  const [object] = await db.update(universalObject).set({ ...(typeof req.body?.name === "string" ? { name: req.body.name } : {}), ...(typeof req.body?.description === "string" ? { description: req.body.description } : {}), ...(typeof req.body?.status === "string" ? { status: req.body.status } : {}), version: event.sequenceNumber, updatedAt: new Date(), modifiedBy: typeof req.body?.modifiedBy === "string" ? req.body.modifiedBy : "owner", modifiedAt: new Date() }).where(eq(universalObject.id, req.params.id)).returning();
+  await projectEvent(event);
+  const [object] = await db.select().from(universalObject).where(eq(universalObject.id, req.params.id)).limit(1);
   res.json(object);
 });
 
@@ -52,7 +55,12 @@ router.get("/impact/nodes", async (_req, res): Promise<void> => { res.json(await
 router.post("/impact/nodes", async (req, res): Promise<void> => { const input = req.body ?? {}; if (typeof input.nodeType !== "string" || typeof input.label !== "string") { res.status(400).json({ error: "nodeType and label are required." }); return; } const [node] = await db.insert(impactNode).values({ nodeType: input.nodeType, label: input.label, objectId: input.objectId, outcome: input.outcome, sourceRefs: input.sourceRefs ?? [], metadata: input.metadata ?? {} }).returning(); await emitEvent({ eventType: "ImpactNodeCreated", aggregateType: "impact_node", aggregateId: node.id, payload: { nodeId: node.id, nodeType: node.nodeType } }); res.status(201).json(node); });
 router.post("/impact/edges", async (req, res): Promise<void> => { const input = req.body ?? {}; if (typeof input.sourceNodeId !== "string" || typeof input.targetNodeId !== "string" || typeof input.edgeType !== "string") { res.status(400).json({ error: "sourceNodeId, targetNodeId, and edgeType are required." }); return; } const [edge] = await db.insert(impactEdge).values({ sourceNodeId: input.sourceNodeId, targetNodeId: input.targetNodeId, edgeType: input.edgeType, strength: input.strength ?? 0.5, lagDays: input.lagDays, evidenceRefs: input.evidenceRefs ?? [], metadata: input.metadata ?? {} }).returning(); await emitEvent({ eventType: "ImpactEdgeCreated", aggregateType: "impact_edge", aggregateId: edge.id, payload: { edgeId: edge.id, edgeType: edge.edgeType } }); res.status(201).json(edge); });
 
-router.post("/projection/replay", async (req, res): Promise<void> => { res.json(await replayFrom(typeof req.body?.afterCreatedAt === "string" ? req.body.afterCreatedAt : undefined)); });
+router.get("/projection/checkpoints", async (_req, res) => res.json(await projectionCheckpoints()));
+router.post("/projection/replay", async (req, res): Promise<void> => {
+  const dryRun = req.body?.dryRun === true;
+  const reset = req.body?.reset === true;
+  res.json(await rebuildAllProjections({ dryRun, reset }));
+});
 router.get("/audit", async (_req, res): Promise<void> => { res.json(await db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(500)); });
 router.get("/constitution/provisions", async (_req, res): Promise<void> => { res.json(await db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true)).orderBy(asc(constitutionProvision.key))); });
 router.post("/constitution/provisions", async (req, res): Promise<void> => { const input = req.body ?? {}; if (typeof input.key !== "string" || typeof input.title !== "string" || !["ABSOLUTE", "GOVERNED", "CONFIGURABLE"].includes(input.tier)) { res.status(400).json({ error: "key, title, and a valid tier are required." }); return; } const [provision] = await db.insert(constitutionProvision).values({ key: input.key, title: input.title, tier: input.tier, machineReadableRule: input.machineReadableRule ?? {}, appliesToEngines: input.appliesToEngines ?? [] }).returning(); await emitEvent({ eventType: "ConstitutionProvisionCreated", aggregateType: "constitution_provision", aggregateId: provision.id, payload: { key: provision.key, tier: provision.tier } }); res.status(201).json(provision); });

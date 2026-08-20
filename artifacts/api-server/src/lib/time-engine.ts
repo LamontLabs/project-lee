@@ -6,6 +6,7 @@ import { queryEngine } from "./query-engine";
 import { currentProjectMomentum } from "./project-momentum";
 import { activeOpportunities } from "./opportunity";
 import { currentOperationalCapacity } from "./operational-capacity";
+import { listAnchors } from "./strategic-anchors";
 
 const DAY = 86_400_000;
 const decay: Record<string, { halfLife: number; stale: number }> = {
@@ -50,6 +51,7 @@ export async function generateBrief(briefType: "today" | "evening" | "weekly") {
   const rankedMomentum = [...momentum].sort((a, b) => b.score - a.score);
   const opportunities = await activeOpportunities();
   const capacity = await currentOperationalCapacity();
+  const anchors = await listAnchors();
   const stale = overview.objects.filter((item) => item.temporal.freshnessState === "stale" || item.temporal.freshnessState === "critical");
   const content = {
     generatedAt: overview.now, focus: overview.objects.filter((item) => item.status === "active").slice(0, 5).map((item) => item.name),
@@ -59,6 +61,7 @@ export async function generateBrief(briefType: "today" | "evening" | "weekly") {
     momentum: [...rankedMomentum.slice(0, 2), ...rankedMomentum.slice(-1)].filter((item, index, list) => list.findIndex((candidate) => candidate.projectId === item.projectId) === index).map((item) => ({ projectId: item.projectId, score: item.score, classification: item.classification, direction: item.direction })),
     opportunities: capacity.state === "LOW" || capacity.state === "RECOVERY" ? [] : opportunities.slice(0, capacity.state === "CONSTRAINED" ? 1 : 3),
     capacity: { state: capacity.state, score: capacity.score },
+    strategicAnchors: anchors.slice(0, 8).map((anchor) => ({ id: anchor.id, type: anchor.anchorType, summary: anchor.summary, projectId: anchor.projectId })),
   };
   const sourcesUsed = ["event_log", "universal_object", "waiting_loop"];
   const whyChain = new WhyChainBuilder().addStep("freshness_threshold", `${stale.length} active objects crossed a freshness threshold.`, stale.length ? 0.8 : 0.6, "Brief Engine", stale[0]?.id).addStep("fact_confirmed", `${overview.notifications.length} notifications and ${overview.waitingLoops.length} waiting loops shaped this brief.`, 0.75, "Brief Engine", "event_log").buildNonTrivial();

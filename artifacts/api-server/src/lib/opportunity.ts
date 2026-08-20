@@ -2,17 +2,19 @@ import { desc, eq, gte } from "drizzle-orm";
 import { db, bootstrapRun, eventLog, opportunity, strategicObjective, universalObject, notification } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 import { currentProjectMomentum } from "./project-momentum";
+import { anchorContradictions, listAnchors } from "./strategic-anchors";
 
 const DAILY_LIMIT = 3;
 const TYPES = ["code_reuse", "strategic_alignment", "resource_leverage"] as const;
 type Candidate = { opportunityType: typeof TYPES[number]; title: string; description: string; projectIds: string[]; evidenceRefs: string[]; suggestedAction: string; confidence: number };
 
 export async function detectOpportunities() {
-  const [projects, runs, objectives, momentum] = await Promise.all([
+  const [projects, runs, objectives, momentum, anchors] = await Promise.all([
     db.select().from(universalObject).where(eq(universalObject.objectType, "project")),
     db.select().from(bootstrapRun).where(eq(bootstrapRun.status, "completed")),
     db.select().from(strategicObjective).where(eq(strategicObjective.status, "active")),
     currentProjectMomentum(),
+    listAnchors(),
   ]);
   const candidates: Candidate[] = [];
   for (let i = 0; i < runs.length; i += 1) {
@@ -47,8 +49,11 @@ export async function detectOpportunities() {
 }
 
 export async function activeOpportunities() {
-  const rows = await db.select().from(opportunity).where(eq(opportunity.lifecycle, "new")).orderBy(desc(opportunity.relevanceScore), desc(opportunity.generatedAt)).limit(30);
-  return rows.map((item) => ({ ...item, title: item.headline, description: item.headline, projectIds: item.affectedObjects, evidenceRefs: item.supportingEvidence, suggestedAction: item.actionSuggestion, confidenceScore: item.propagatedConfidence ?? (item.confidence === "high" ? .9 : .65) }));
+  const [rows, anchors] = await Promise.all([
+    db.select().from(opportunity).where(eq(opportunity.lifecycle, "new")).orderBy(desc(opportunity.relevanceScore), desc(opportunity.generatedAt)).limit(30),
+    listAnchors(),
+  ]);
+  return rows.map((item) => ({ ...item, title: item.headline, description: item.headline, projectIds: item.affectedObjects, evidenceRefs: item.supportingEvidence, suggestedAction: item.actionSuggestion, confidenceScore: item.propagatedConfidence ?? (item.confidence === "high" ? .9 : .65), anchorContradictions: anchorContradictions(item.headline + " " + item.actionSuggestion, anchors) }));
 }
 export async function resolveOpportunity(id: string) {
   const [item] = await db.update(opportunity).set({ lifecycle: "acted", actedOnAt: new Date() }).where(eq(opportunity.id, id)).returning();

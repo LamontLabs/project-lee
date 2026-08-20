@@ -4,7 +4,7 @@ import { Router, type IRouter } from "express";
 import { backupArchive, db, eventLog } from "@workspace/db";
 
 const router: IRouter = Router();
-const tables = ["eventLog", "factLedger", "interpretationLedger", "anchorLedger", "assumptionLedger", "decisionHeuristicLedger", "institutionalKnowledgeLedger", "connector", "connectorSync", "costRecord", "executiveObjective", "identityProfile", "organizationalProfile", "provenanceRecord", "understandingRun"];
+const tables = ["eventLog", "factLedger", "interpretationLedger", "strategicAnchor", "assumptionLedger", "decisionHeuristicLedger", "institutionalKnowledgeLedger", "connector", "connectorSync", "costRecord", "executiveObjective", "identityProfile", "organizationalProfile", "provenanceRecord", "understandingRun"];
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value, (_, item) => item instanceof Date ? item.toISOString() : item)).digest("hex");
 async function collect() {
   const { brainVersion } = await import("@workspace/db");

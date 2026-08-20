@@ -5,6 +5,7 @@ import { contextPacket, conversation, conversationMessage, costRecord, db, event
 import { buildContextPacket, type ConversationMode } from "../lib/context-engine";
 import { callProvider, estimateCost, MODEL_PRICING } from "../lib/ai-providers";
 import { registerAction } from "../lib/governance-engine";
+import { classifyIntent } from "../lib/intent";
 
 const router: IRouter = Router();
 const modes = ["normal", "deep_think", "build", "write", "review", "pilot", "low_cost", "private", "no_model", "governed_action"] as const;
@@ -37,20 +38,21 @@ async function budgetState() {
   return { limits, spent, limited: spent.daily >= limits.daily || spent.weekly >= limits.weekly || spent.monthly >= limits.monthly };
 }
 
-async function preview(query: string, mode: Mode, risk = "LOW", budgetTokens = 3000) {
+async function preview(query: string, mode: Mode, risk = "LOW", budgetTokens = 3000, intent?: any) {
   const state = await budgetState();
   const selectedModel = modelFor(mode, risk, state.limited);
-  const packet = await buildContextPacket(query, mode as ConversationMode, budgetTokens);
+  const packet = await buildContextPacket(query, mode as ConversationMode, budgetTokens, intent);
   const estimatedCostUsd = estimateCost(selectedModel, packet.tokens + Math.ceil(query.length / 4), 900);
   const route = mode === "no_model" ? "packet_only" : packet.reused ? "cil_reuse" : state.limited ? "budget_low_cost" : "model";
   const reason = mode === "no_model" ? "The selected mode prohibits model execution." : state.limited ? "A configured budget limit has been reached; Lee will use the cheapest path." : packet.reused ? "A fresh reusable packet exists for this intent and source set." : "Selected by mode, risk, context size, and cost.";
-  return { packet, selectedModel, selectedTier: selectedModel === "gpt-5-nano" ? "T1" : selectedModel === "gpt-5.6-luna" ? "T2" : "T3", estimatedCostUsd, route, reason, budget: state };
+  return { packet, selectedModel, selectedTier: selectedModel === "gpt-5-nano" ? "T1" : selectedModel === "gpt-5.6-luna" ? "T2" : "T3", estimatedCostUsd, route, reason: `${reason} Intent: ${intent?.intentType ?? "unclassified"}.`, budget: state, intent };
 }
 
 router.post("/ai/context-preview", async (req, res): Promise<void> => {
   const query = String(req.body?.message ?? "").trim();
   if (!query) { res.status(400).json({ error: "message is required." }); return; }
-  const result = await preview(query, parseMode(req.body?.mode), String(req.body?.risk ?? "LOW"), Number(req.body?.budgetTokens ?? 3000));
+  const intent = await classifyIntent(query, {}, "ask_lee", String(req.body?.sessionId ?? "preview"));
+  const result = await preview(query, parseMode(req.body?.mode), String(req.body?.risk ?? "LOW"), Number(req.body?.budgetTokens ?? 3000), intent);
   res.json({ ...result, packet: { ...result.packet, selectedModel: result.selectedModel, estimatedCostUsd: result.estimatedCostUsd, riskLevel: String(req.body?.risk ?? "LOW") } });
 });
 
@@ -75,7 +77,8 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
   const risk = String(req.body?.risk ?? "LOW").toUpperCase();
   const correlationId = randomUUID();
   const startedAt = Date.now();
-  const route = await preview(message, mode, risk, Number(req.body?.budgetTokens ?? 3000));
+  const intent = await classifyIntent(message, {}, "ask_lee", item.id);
+  const route = await preview(message, mode, risk, Number(req.body?.budgetTokens ?? 3000), intent);
   const [packet] = route.packet.id ? [null] : await db.insert(contextPacket).values({
     fingerprint: route.packet.fingerprint, intent: message, mode, packet: { items: route.packet.items }, sourceRefs: route.packet.items.map((entry) => entry.id), excludedRefs: route.packet.excludedRefs, tokenEstimate: route.packet.tokens, estimatedCostUsd: route.estimatedCostUsd, selectedTier: route.selectedTier, selectedModel: route.selectedModel, riskLevel: risk, expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   }).returning();
@@ -97,7 +100,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
   }
   const [userMessage] = mode === "private"
     ? [undefined]
-    : await db.insert(conversationMessage).values({ conversationId: item.id, role: "user", content: message, contextPacketId: packetId }).returning();
+     : await db.insert(conversationMessage).values({ conversationId: item.id, role: "user", content: message, contextPacketId: packetId, intentId: intent.id }).returning();
   if (mode === "no_model") {
     res.json({ held: false, packetOnly: true, correlationId, contextPacket: route.packet, userMessage });
     return;
@@ -110,12 +113,12 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
   const cost = estimateCost(result.model, result.tokensIn, result.tokensOut);
   const [assistantMessage] = mode === "private"
     ? [undefined]
-    : await db.insert(conversationMessage).values({ conversationId: item.id, role: "assistant", content: result.text, contextPacketId: packetId, evidenceRefs: route.packet.items.map((entry) => entry.id) }).returning();
+     : await db.insert(conversationMessage).values({ conversationId: item.id, role: "assistant", content: result.text, contextPacketId: packetId, intentId: intent.id, evidenceRefs: route.packet.items.map((entry) => entry.id) }).returning();
   if (mode !== "private") {
     await db.insert(costRecord).values({ correlationId, engine: "ask-lee", provider: result.provider, tier: route.selectedTier, model: result.model, promptTokens: result.tokensIn, completionTokens: result.tokensOut, totalTokens: result.tokensIn + result.tokensOut, estimatedCostUsd: cost, latencyMs: Date.now() - startedAt, cacheHit: route.packet.reused, metadata: { conversationId: item.id, mode, route: route.route, budgetLimited: route.budget.limited } });
     await db.insert(eventLog).values({ eventType: "CostRecordCreated", aggregateType: "cost_record", aggregateId: correlationId, sourceRef: "ask-lee", correlationId, occurredAt: new Date(), payload: { provider: result.provider, model: result.model, totalTokens: result.tokensIn + result.tokensOut, estimatedCostUsd: cost, cacheHit: route.packet.reused } });
   }
-  res.json({ held: false, correlationId, answer: result.text, userMessage, assistantMessage, contextPacket: route.packet, estimatedCostUsd: cost, provider: result.provider, model: result.model, evidenceRefs: route.packet.items.map((entry) => entry.id) });
+  res.json({ held: false, correlationId, answer: result.text, userMessage, assistantMessage, intent, contextPacket: route.packet, estimatedCostUsd: cost, provider: result.provider, model: result.model, evidenceRefs: route.packet.items.map((entry) => entry.id) });
 });
 
 export default router;

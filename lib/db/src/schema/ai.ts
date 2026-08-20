@@ -19,6 +19,7 @@ export const conversationMessage = pgTable("conversation_message", {
   role: varchar("role", { length: 16 }).notNull(),
   content: text("content").notNull(),
   contextPacketId: uuid("context_packet_id"),
+  intentId: uuid("intent_id"),
   evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("conversation_message_conversation_idx").on(table.conversationId, table.createdAt)]);

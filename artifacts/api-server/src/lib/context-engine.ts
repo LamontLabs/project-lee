@@ -9,13 +9,15 @@ import { checkPolicy } from "./policy";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
-export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000) {
+export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { retrievalMode?: string }) {
+  const retrievalFilters = intent?.retrievalMode === "semantic" ? { text: query } : {};
+  const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
   const [objectResults, factResults, interpretationResults, waiting, eventResults, founder, trust, objectives, learningRules, constitution, assumptions] = await Promise.all([
-    queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: "context_assembly" }),
-    queryEngine.query({ sources: ["facts"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: "context_assembly" }),
-    queryEngine.query({ sources: ["interpretations"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: "context_assembly" }),
+    queryEngine.query({ sources: ["universal_objects"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: retrievalPurpose }),
+    queryEngine.query({ sources: ["facts"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: retrievalPurpose }),
+    queryEngine.query({ sources: ["interpretations"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
     db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")).limit(20),
-    queryEngine.query({ sources: ["events"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: "context_assembly" }),
+    queryEngine.query({ sources: ["events"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
     founderContext(),
     db.select({ score: avg(trustScore.score) }).from(trustScore),
     db.select().from(strategicObjective).where(eq(strategicObjective.status, "active")).limit(12),

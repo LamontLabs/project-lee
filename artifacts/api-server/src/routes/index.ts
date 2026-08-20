@@ -45,6 +45,7 @@ import explanationsRouter from "./explanations";
 import semanticRouter from "./semantic";
 import policyRouter from "./policy";
 import resourcesRouter from "./resources";
+import intentsRouter from "./intents";
 
 const router: IRouter = Router();
 
@@ -93,6 +94,7 @@ router.use(explanationsRouter);
 router.use(semanticRouter);
 router.use(policyRouter);
 router.use(resourcesRouter);
+router.use(intentsRouter);
 router.use(foundationRouter);
 
 export default router;

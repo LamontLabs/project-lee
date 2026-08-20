@@ -29,6 +29,10 @@ export function classifyAction(actionType: string, payload: Record<string, unkno
   return { riskLevel: riskTable[actionType], known };
 }
 
+export function requiresEvidence(riskLevel: RiskLevel, evidenceRefs: string[] = []) {
+  return (riskLevel === "HIGH" || riskLevel === "CRITICAL") && evidenceRefs.length === 0;
+}
+
 function expiryFor(risk: RiskLevel) {
   return new Date(Date.now() + (risk === "HIGH" || risk === "CRITICAL" ? 48 : 168) * 60 * 60 * 1000);
 }
@@ -52,7 +56,9 @@ export async function registerAction(input: {
 }) {
   const classification = classifyAction(input.actionType, input.payload);
   const rule = await evaluateRules(input.actionType);
-  const verdict: Verdict = classification.known ? rule.verdict : "HOLD";
+  const evidenceRefs = input.evidenceRefs ?? [];
+  const evidenceRequired = requiresEvidence(classification.riskLevel, evidenceRefs);
+  const verdict: Verdict = !classification.known || evidenceRequired ? "HOLD" : rule.verdict;
   const now = new Date();
   const [record] = await db.insert(governanceRequest).values({
     leeRequestId: randomUUID(),
@@ -62,11 +68,14 @@ export async function registerAction(input: {
     verdict,
     riskLevel: classification.riskLevel,
     reason: input.reason,
-    evidenceRefs: input.evidenceRefs ?? [],
+    evidenceRefs,
     affectedObject: input.affectedObject,
     actor: input.actor ?? "lee",
     requestPayload: input.payload,
-    reasonCodes: classification.known ? [] : ["UNKNOWN_ACTION_TYPE"],
+    reasonCodes: [
+      ...(!classification.known ? ["UNKNOWN_ACTION_TYPE"] : []),
+      ...(evidenceRequired ? ["EVIDENCE_REQUIRED"] : []),
+    ],
     createdAt: now,
     expiresAt: verdict === "HOLD" ? expiryFor(classification.riskLevel) : null,
     resolvedAt: verdict === "HOLD" ? null : now,

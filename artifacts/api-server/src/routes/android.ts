@@ -142,8 +142,10 @@ router.post("/android/approve", async (req, res): Promise<void> => {
   if (!id || !decision) { res.status(400).json({ error: "governanceRequestId and decision are required." }); return; }
   const [current] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, id)).limit(1);
   if (!current) { res.status(404).json({ error: "Governance request not found." }); return; }
+  if (current.status !== "HOLD") { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
+  if (current.expiresAt && current.expiresAt <= new Date()) { res.status(409).json({ error: "This governance request has expired." }); return; }
   if (decision === "approved" && ["HIGH", "CRITICAL"].includes(current.riskLevel) && current.evidenceRefs.length === 0) { res.status(409).json({ error: "Evidence is required before approving this action." }); return; }
-  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(eq(governanceRequest.id, id)).returning();
+  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(and(eq(governanceRequest.id, id), eq(governanceRequest.status, "HOLD"))).returning();
   if (!updated) { res.status(404).json({ error: "Governance request not found." }); return; }
   await db.insert(auditLog).values({ action: `governance_${decision}`, actor: "android-founder", targetType: "governance_request", targetId: updated.id, outcome: decision.toUpperCase(), metadata: { actionId: updated.id, evidenceShown: updated.evidenceRefs, wasEdited: false } });
   res.json({ id: updated.id, status: updated.status });

@@ -1,12 +1,12 @@
 import { createHash, createHmac } from "node:crypto";
-import { desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import {
   EvaluateGovernedRequestBody,
   EvaluateGovernedRequestResponse,
 } from "@workspace/api-zod";
 import { auditLog, db, eventLog, governanceRequest, governanceRule } from "@workspace/db";
 import { Router, type IRouter } from "express";
-import { registerAction } from "../lib/governance-engine";
+import { classifyAction, registerAction, requiresEvidence } from "../lib/governance-engine";
 import { callProvider } from "../lib/ai-providers";
 import { checkConstitution } from "../lib/constitution";
 import { governanceService } from "../services/internal-services";
@@ -60,6 +60,8 @@ router.post("/governance/evaluate", async (req, res): Promise<void> => {
     return;
   }
 
+  const classification = classifyAction(request.action_class, request as unknown as Record<string, unknown>);
+  const evidenceRequired = requiresEvidence(classification.riskLevel, request.evidence_refs);
   const submittedAt = new Date();
   const [record] = await db.insert(governanceRequest).values({
     leeRequestId: request.lee_request_id,
@@ -68,7 +70,7 @@ router.post("/governance/evaluate", async (req, res): Promise<void> => {
     status: "HOLD",
     reasonCodes: [],
     requestPayload: request,
-    riskLevel: request.action_class === "model_call" ? "MEDIUM" : "HIGH",
+    riskLevel: classification.riskLevel,
     reason: request.expected_downstream_effect,
     evidenceRefs: request.evidence_refs,
     affectedObject: request.target_system,
@@ -90,8 +92,14 @@ router.post("/governance/evaluate", async (req, res): Promise<void> => {
   });
 
   const { response, serviceUnavailable } = await evaluateWithCerbaSeal(request);
-  const verdict = response.verdict;
-  const reasonCodes = response.reason_codes ?? [];
+  const providerVerdict = ["ALLOW", "HOLD", "REJECT"].includes(response.verdict) ? response.verdict : "HOLD";
+  const verdict: Verdict = !classification.known || evidenceRequired || serviceUnavailable ? "HOLD" : providerVerdict as Verdict;
+  const reasonCodes = [
+    ...(response.reason_codes ?? []),
+    ...(!classification.known ? ["UNKNOWN_ACTION_TYPE"] : []),
+    ...(evidenceRequired ? ["EVIDENCE_REQUIRED"] : []),
+    ...(providerVerdict === "HOLD" && !["ALLOW", "HOLD", "REJECT"].includes(response.verdict) ? ["INVALID_GOVERNANCE_VERDICT"] : []),
+  ].filter((code, index, codes) => codes.indexOf(code) === index);
   const resolvedAt = new Date();
   const [updated] = await db.update(governanceRequest).set({
     status: verdict,
@@ -172,11 +180,13 @@ router.patch("/governance/requests/:id/verdict", async (req, res): Promise<void>
   if (!["ALLOW", "HOLD", "REJECT"].includes(verdict)) { res.status(400).json({ error: "verdict must be ALLOW, HOLD, or REJECT." }); return; }
   const [current] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, req.params.id)).limit(1);
   if (!current) { res.status(404).json({ error: "Governance item not found." }); return; }
+  if (current.status !== "HOLD") { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
   if (verdict === "ALLOW" && ["HIGH", "CRITICAL"].includes(current.riskLevel) && current.evidenceRefs.length === 0) {
     res.status(409).json({ error: "Evidence must be shown before approving a HIGH or CRITICAL action." }); return;
   }
   const now = new Date();
-  const [updated] = await db.update(governanceRequest).set({ status: verdict, verdict, resolvedAt: verdict === "HOLD" ? null : now, wasEdited: Boolean(req.body?.wasEdited), responsePayload: { ...(current.responsePayload ?? {}), decisionReason: req.body?.reason ?? null } }).where(eq(governanceRequest.id, current.id)).returning();
+  const [updated] = await db.update(governanceRequest).set({ status: verdict, verdict, resolvedAt: verdict === "HOLD" ? null : now, wasEdited: Boolean(req.body?.wasEdited), responsePayload: { ...(current.responsePayload ?? {}), decisionReason: req.body?.reason ?? null } }).where(and(eq(governanceRequest.id, current.id), eq(governanceRequest.status, "HOLD"))).returning();
+  if (!updated) { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
   await db.insert(auditLog).values({ action: `governance_${verdict.toLowerCase()}`, actor: String(req.body?.actor ?? "founder"), targetType: "governance_request", targetId: current.id, outcome: verdict, metadata: { actionId: current.id, reason: req.body?.reason ?? null, evidenceShown: current.evidenceRefs, wasEdited: Boolean(req.body?.wasEdited) } });
   await db.insert(eventLog).values({ eventType: `Governance${verdict[0]}${verdict.slice(1).toLowerCase()}`, aggregateType: "governance_request", aggregateId: current.id, actor: String(req.body?.actor ?? "founder"), sourceRef: "governance-engine", occurredAt: now, payload: { verdict, reason: req.body?.reason ?? null } });
   res.json(updated);

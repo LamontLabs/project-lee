@@ -13,6 +13,7 @@ import { registerInternalServices } from "./services/internal-services";
 import { subscribe } from "./lib/domain-events";
 import { interruptExecutiveLoop } from "./lib/executive-loop";
 import { computeOperationalConfidence } from "./lib/operational-confidence";
+import { computeProjectMomentum } from "./lib/project-momentum";
 
 const rawPort = process.env["PORT"];
 
@@ -39,6 +40,7 @@ registerProviders().catch((err) => logger.error({ err }, "Provider registry regi
 registerInternalServices().catch((err) => logger.error({ err }, "Internal service registry registration failed"));
 for (const eventType of ["GovernedActionHeld", "BuildFailed", "OperationalPatternBroken", "GovernanceServiceUnavailable"] as const) subscribe(eventType, (event) => { void interruptExecutiveLoop(eventType, event.id).catch((err) => logger.error({ err }, "Executive Loop interrupt failed")); });
 for (const eventType of ["ConnectorSynced", "ConnectorFailed", "CILUnavailable", "GovernanceServiceUnavailable", "KnowledgeStale", "KnowledgeAged"] as const) subscribe(eventType, () => { void computeOperationalConfidence().catch((err) => logger.error({ err }, "Operational Confidence recompute failed")); });
+for (const eventType of ["CommitPushed", "PRMerged", "DocumentCreated", "DocumentUpdated", "SourceVaultRecordCreated", "WaitingLoopResolved", "EmailReceived", "ThreadUpdated"] as const) subscribe(eventType, (event) => { void computeProjectMomentum(typeof event.payload.projectId === "string" ? event.payload.projectId : undefined).catch((err) => logger.error({ err }, "Project Momentum recompute failed")); });
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

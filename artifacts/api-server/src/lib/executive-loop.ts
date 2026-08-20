@@ -3,6 +3,7 @@ import { db, executiveLoop, eventLog } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 import { generateOperationalContext } from "./operational-intelligence";
 import { computeOperationalConfidence } from "./operational-confidence";
+import { computeProjectMomentum } from "./project-momentum";
 
 export const LOOP_PHASES = ["OBSERVE", "UNDERSTAND", "PRIORITIZE", "DECIDE", "PREPARE", "WAIT", "REVIEW"] as const;
 export type LoopPhase = typeof LOOP_PHASES[number];
@@ -27,6 +28,7 @@ export async function transitionExecutiveLoop(reason = "phase duration elapsed",
   const [updated] = await db.update(executiveLoop).set({ phase: target, cycleCount, phaseEnteredAt: now, lastTransitionAt: now, lastCycleStartedAt: target === "OBSERVE" ? now : row.lastCycleStartedAt, averageCycleDurationMs: average, phaseDurations: durations, lastReason: reason, updatedAt: now }).where(eq(executiveLoop.id, row.id)).returning();
   await emitEvent({ eventType: "ExecutiveLoopPhaseChanged", aggregateType: "executive_loop", aggregateId: row.id, payload: { fromPhase: phase, toPhase: target, cycleCount, reason, durationMs: elapsed } });
   await computeOperationalConfidence();
+  await computeProjectMomentum();
   return updated;
 }
 export async function interruptExecutiveLoop(eventType: string, eventId?: string) {

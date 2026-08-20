@@ -37,4 +37,5 @@ export * from "./bootstrap";
 export * from "./internal-services";
 export * from "./executive-loop";
 export * from "./operational-confidence";
+export * from "./project-momentum";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

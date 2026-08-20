@@ -47,6 +47,7 @@ import {
   Inbox,
   KeyRound,
   LockKeyhole,
+  Layers3,
   LogOut,
   Menu,
   MessageSquareText,

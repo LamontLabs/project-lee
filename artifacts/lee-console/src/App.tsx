@@ -248,17 +248,19 @@ function Panel({ children, className = '' }: { children: ReactNode; className?: 
 }
 
 function ConsoleStatusBar() {
-  const [data, setData] = useState({ cost: '—', approvals: '—', notifications: '—', backup: '—', mode: 'morning' });
+  const [data, setData] = useState({ cost: '—', approvals: '—', notifications: '—', backup: '—', mode: 'morning', state: 'Idle', stateReason: '' });
   useEffect(() => {
-    void Promise.all([fetch('/api/economics/summary'), fetch('/api/events?limit=20'), fetch('/api/brain-versions'), fetch('/api/workspace')]).then(async ([economics, events, backups, workspace]) => {
+    void Promise.all([fetch('/api/economics/summary'), fetch('/api/events?limit=20'), fetch('/api/brain-versions'), fetch('/api/workspace'), fetch('/api/state')]).then(async ([economics, events, backups, workspace, state]) => {
       const economicsData = economics.ok ? await economics.json() : null;
       const eventsData = events.ok ? await events.json() : [];
       const backupsData = backups.ok ? await backups.json() : [];
       const workspaceData = workspace.ok ? await workspace.json() : null;
-      setData({ cost: economicsData?.totalCostUsd != null ? `$${Number(economicsData.totalCostUsd).toFixed(2)}` : 'No ledger', approvals: `${eventsData.filter((item: any) => /held|approval/i.test(item.eventType)).length}`, notifications: `${eventsData.filter((item: any) => /alert|notification/i.test(item.eventType)).length}`, backup: backupsData[0]?.status ?? 'Not run', mode: workspaceData?.state?.currentMode ?? 'morning' });
+      const stateData = state.ok ? await state.json() : null;
+      setData({ cost: economicsData?.totalCostUsd != null ? `$${Number(economicsData.totalCostUsd).toFixed(2)}` : 'No ledger', approvals: `${eventsData.filter((item: any) => /held|approval/i.test(item.eventType)).length}`, notifications: `${eventsData.filter((item: any) => /alert|notification/i.test(item.eventType)).length}`, backup: backupsData[0]?.status ?? 'Not run', mode: workspaceData?.state?.currentMode ?? 'morning', state: stateData?.currentState ?? 'Idle', stateReason: stateData?.reason ?? '' });
     }).catch(() => undefined);
   }, []);
-  return <div className="hidden items-center gap-2 xl:flex"><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Health nominal</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
+  const stateTone = ['Offline', 'Recovering', 'Degraded'].includes(data.state) ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary';
+  return <div className="hidden items-center gap-2 xl:flex"><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Health nominal</span><span title={data.stateReason} className={cn('rounded-full border px-2.5 py-1 text-[10px]', stateTone, ['Thinking', 'Recovering'].includes(data.state) && 'animate-pulse')}>Lee {data.state}</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
 }
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {
@@ -624,7 +626,13 @@ function ResourceHealthPanel() {
   return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="lee-label text-primary">Resource engine</p><h3 className="mt-1 text-lg font-semibold">Live capacity</h3><p className="mt-1 text-xs text-muted-foreground">Compute, disk, budget, network, quota, and battery pressure before work is dispatched.</p></div><StatusPill status={String(data?.state?.overallState ?? 'HEALTHY').toLowerCase()} /></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{Object.entries(dimensions).map(([name, value]: [string, any]) => <div key={name} className="rounded-xl bg-muted/50 p-3"><div className="flex items-center justify-between"><p className="text-xs font-semibold capitalize">{name.replace('_', ' ')}</p><span className={`h-2 w-2 rounded-full ${value.level === 'CRITICAL' ? 'bg-destructive' : value.level === 'CONSTRAINED' ? 'bg-accent' : 'bg-primary'}`} /></div><p className="mt-2 text-xs text-muted-foreground">{value.value !== undefined ? `${Number(value.value).toFixed(1)} ${value.unit ?? ''}` : value.level}</p></div>)}</div></Panel></div>;
 }
 
-function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
+function StateHistoryPanel() {
+  const [history, setHistory] = useState<any[]>([]);
+  useEffect(() => { void fetch('/api/state/history?limit=12', { cache: 'no-store' }).then((response) => response.ok ? response.json() : []).then(setHistory); }, []);
+  return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex items-center justify-between"><div><p className="lee-label text-primary">Operational state</p><h3 className="mt-1 text-lg font-semibold">State history</h3></div><span className="lee-label text-muted-foreground">{history.length} transitions</span></div><div className="mt-4 divide-y divide-border">{history.map((entry) => <div key={entry.id} className="flex flex-wrap items-center gap-3 py-3"><span className="h-2 w-2 rounded-full bg-primary" /><span className="min-w-28 text-sm font-semibold">{entry.state}</span><span className="text-xs text-muted-foreground">{entry.reason}</span><span className="ml-auto text-xs text-muted-foreground">{entry.exitedAt ? `${entry.durationSeconds ?? 0}s` : 'active'} · {formatDate(entry.enteredAt)}</span></div>)}</div></Panel></div>;
+}
+
+function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

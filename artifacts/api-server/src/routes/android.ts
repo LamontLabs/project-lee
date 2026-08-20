@@ -4,6 +4,7 @@ import { Router, type IRouter } from "express";
 import { auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
 import { buildContextPacket } from "../lib/context-engine";
 import { sampleResources } from "../lib/resource";
+import { getState } from "../lib/state";
 import { callProvider, estimateCost } from "../lib/ai-providers";
 
 const router: IRouter = Router();
@@ -42,7 +43,8 @@ router.post("/android/ask", async (req, res): Promise<void> => {
 router.get("/android/brief", async (req, res): Promise<void> => {
   if (rejectPairing(req, res)) return;
   const rows = await db.select().from(notification).where(eq(notification.status, "unread")).orderBy(desc(notification.createdAt)).limit(10);
-  res.json({ title: "Today's Brief", unreadAlerts: rows.length, alerts: rows.map((row) => ({ id: row.id, title: row.title, body: row.body, severity: row.severity })) });
+  const state = await getState();
+  res.json({ title: "Today's Brief", state: state.currentState, stateReason: state.reason, unreadAlerts: rows.length, alerts: rows.map((row) => ({ id: row.id, title: row.title, body: row.body, severity: row.severity })) });
 });
 
 router.get("/android/waiting", async (req, res): Promise<void> => {

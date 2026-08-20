@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
 import { db, engineHealth, engineRegistry, eventLog, orchestrationWorkItem } from "@workspace/db";
 import { getResourceState } from "./resource";
+import { getState, transitionState } from "./state";
 
 export type Priority = "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
 const priorities: Record<Priority, number> = { CRITICAL: 4, HIGH: 3, NORMAL: 2, LOW: 1 };
@@ -50,6 +51,19 @@ export async function orchestrationTick() {
   const [next] = await db.select().from(orchestrationWorkItem).where(eq(orchestrationWorkItem.status, "queued")).orderBy(desc(orchestrationWorkItem.priority), desc(orchestrationWorkItem.urgencyScore), asc(orchestrationWorkItem.createdAt)).limit(1);
   if (!next) return null;
   const resources = await getResourceState();
+  const operational = await getState();
+  if (operational.currentState === "Offline" && /sync|connector/i.test(`${next.engineName} ${next.action}`)) {
+    const reason = "Lee is Offline; connector synchronization is deferred.";
+    const [delayed] = await db.update(orchestrationWorkItem).set({ status: "delayed", delayReason: reason }).where(eq(orchestrationWorkItem.id, next.id)).returning();
+    await db.insert(eventLog).values({ eventType: "StateWorkDeferred", aggregateType: "orchestration_work_item", aggregateId: next.id, sourceRef: "state-engine", occurredAt: new Date(), payload: { reason, state: operational.currentState } });
+    return delayed;
+  }
+  if (operational.currentState === "Thinking" && /import/i.test(`${next.engineName} ${next.action}`)) {
+    const reason = "Lee is Thinking; heavy import work is deferred.";
+    const [delayed] = await db.update(orchestrationWorkItem).set({ status: "delayed", delayReason: reason }).where(eq(orchestrationWorkItem.id, next.id)).returning();
+    await db.insert(eventLog).values({ eventType: "StateWorkDeferred", aggregateType: "orchestration_work_item", aggregateId: next.id, sourceRef: "state-engine", occurredAt: new Date(), payload: { reason, state: operational.currentState } });
+    return delayed;
+  }
   if ((resources.overallState === "CRITICAL" && next.priority !== "CRITICAL") || (resources.overallState === "CONSTRAINED" && ["LOW", "NORMAL"].includes(next.priority))) {
     const reason = `Resource Engine reports ${resources.overallState}; ${next.priority} work is deferred.`;
     const [delayed] = await db.update(orchestrationWorkItem).set({ status: "delayed", delayReason: reason }).where(eq(orchestrationWorkItem.id, next.id)).returning();
@@ -62,6 +76,10 @@ export async function orchestrationTick() {
     return delayed;
   }
   const [running] = await db.update(orchestrationWorkItem).set({ status: "running", startedAt: new Date() }).where(eq(orchestrationWorkItem.id, next.id)).returning();
+  const jobText = `${next.engineName} ${next.action}`;
+  if (/brief/i.test(jobText)) await transitionState("Briefing", "Brief job dispatched.", next.id);
+  else if (/import|understanding/i.test(jobText)) await transitionState("Importing", "Import job dispatched.", next.id, Number(next.payload.fileSizeMb ?? 0) * 30 || undefined);
+  else if (/sync|connector/i.test(jobText)) await transitionState("Synchronizing", "Connector sync dispatched.", next.id);
   await db.insert(eventLog).values({ eventType: "OrchestrationWorkDispatched", aggregateType: "orchestration_work_item", aggregateId: next.id, sourceRef: "orchestration-engine", occurredAt: new Date(), payload: { engineName: next.engineName, action: next.action, priority: next.priority } });
   return running;
 }

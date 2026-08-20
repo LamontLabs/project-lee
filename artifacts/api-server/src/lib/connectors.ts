@@ -23,6 +23,9 @@ export type NormalizedConnectorEvent = IncomingConnectorEvent & {
 
 export interface ProviderAdapter {
   provider: ConnectorProvider;
+  category: "communication" | "document" | "development" | "scheduling" | "storage";
+  adapterName: string;
+  supportedEvents: string[];
   normalize(event: IncomingConnectorEvent): NormalizedConnectorEvent;
 }
 
@@ -36,9 +39,12 @@ const eventTypeMap: Record<string, string> = {
   declined: "calendar.event.declined",
 };
 
-function createAdapter(provider: ConnectorProvider): ProviderAdapter {
+function createAdapter(provider: ConnectorProvider, category: ProviderAdapter["category"], supportedEvents: string[]): ProviderAdapter {
   return {
     provider,
+    category,
+    adapterName: provider,
+    supportedEvents,
     normalize(event) {
       return {
         ...event,
@@ -49,10 +55,10 @@ function createAdapter(provider: ConnectorProvider): ProviderAdapter {
 }
 
 export const providerAdapters: Record<ConnectorProvider, ProviderAdapter> = {
-  gmail: createAdapter("gmail"),
-  proton: createAdapter("proton"),
-  github: createAdapter("github"),
-  google_drive: createAdapter("google_drive"),
-  google_calendar: createAdapter("google_calendar"),
-  replit: createAdapter("replit"),
+  gmail: createAdapter("gmail", "communication", ["EmailReceived", "ThreadUpdated", "EmailSentDetected"]),
+  proton: createAdapter("proton", "communication", ["EmailReceived", "ThreadUpdated", "EmailSentDetected"]),
+  github: createAdapter("github", "development", ["CommitPushed", "IssueOpened", "IssueResolved", "PROpened", "PRMerged", "BuildFailed", "RepoInactive"]),
+  google_drive: createAdapter("google_drive", "storage", ["FileCreated", "FileUpdated", "FileDeleted", "DocumentCreated", "DocumentUpdated"]),
+  google_calendar: createAdapter("google_calendar", "scheduling", ["CalendarEventCreated", "CalendarEventUpdated", "CalendarEventCancelled", "TravelDetected", "MeetingWithPersonDetected"]),
+  replit: createAdapter("replit", "development", ["CommitPushed", "BuildFailed"]),
 };

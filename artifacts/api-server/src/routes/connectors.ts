@@ -165,6 +165,9 @@ router.get("/connectors/health", async (_req, res): Promise<void> => {
         const row = byProvider.get(provider);
         return {
           provider,
+          providerCategory: providerAdapters[provider]?.category,
+          adapterName: providerAdapters[provider]?.adapterName,
+          supportedEvents: providerAdapters[provider]?.supportedEvents ?? [],
           accessMode: row?.accessMode ?? "read",
           status: row?.status ?? "unconfigured",
           authStatus: row?.authStatus ?? "not_connected",

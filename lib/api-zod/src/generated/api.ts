@@ -201,7 +201,10 @@ export const ListConnectorHealthResponseItem = zod.object({
   "lastError": zod.string().optional(),
   "authStatus": zod.string().optional(),
   "consecutiveFailureCount": zod.number().optional(),
-  "eventCount": zod.number().optional()
+  "eventCount": zod.number().optional(),
+  "providerCategory": zod.string().optional(),
+  "adapterName": zod.string().optional(),
+  "supportedEvents": zod.array(zod.string()).optional()
 })
 export const ListConnectorHealthResponse = zod.array(ListConnectorHealthResponseItem)
 

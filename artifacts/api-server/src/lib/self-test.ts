@@ -5,6 +5,7 @@ import { DOMAIN_EVENT_CATALOG, subscribe } from "./domain-events";
 import { emitEvent } from "./foundation-events";
 import { constructContextPacket } from "./context-economy";
 import { internalContracts } from "./internal-contracts";
+import { listProviders, providerDefinitions } from "./provider-abstraction";
 
 export type TestResult = "PASS" | "WARN" | "FAIL";
 export type TestCase = { test_id: string; test_name: string; result: TestResult; message: string; duration_ms: number; evidence: unknown };
@@ -57,9 +58,15 @@ async function runDataSuite() {
   const eventTest = await test("event-append-only", "Event Log append-only contract is installed", async () => ({ result: "PASS", message: "The append-only database trigger is installed by the DB setup routine.", evidence: { table: "event_log", constraint: "append-only trigger" } }));
   return suite("Backup & Event Log Suite", [backupTest, eventTest]);
 }
+async function runProviderSuite() {
+  const providers = await listProviders();
+  const registered = await test("providers-registered", "Provider adapters are registered by category", async () => ({ result: providers.length >= providerDefinitions.length ? "PASS" : "FAIL", message: `${providers.length} provider registrations available.`, evidence: providers.map((provider) => ({ providerId: provider.providerId, category: provider.providerCategory, adapter: provider.adapterName })) }));
+  const events = await test("providers-events", "Adapters declare standardized domain events", async () => ({ result: providers.every((provider) => provider.supportedEvents.length > 0) ? "PASS" : "FAIL", message: "Every registered adapter declares supported provider-neutral events.", evidence: providers.map((provider) => ({ providerId: provider.providerId, supportedEvents: provider.supportedEvents })) }));
+  return suite("Provider Abstraction Suite", [registered, events]);
+}
 export async function runSelfTest(): Promise<SelfTestReport> {
   const started = new Date();
-  const test_suites = await Promise.all([runEngineSuite(), runApiSuite(), runPolicySuite(), runEventSuite(), runContextSuite(), runDataSuite()]);
+  const test_suites = await Promise.all([runEngineSuite(), runApiSuite(), runPolicySuite(), runEventSuite(), runContextSuite(), runDataSuite(), runProviderSuite()]);
   const completed = new Date();
   const report: SelfTestReport = { test_run_id: crypto.randomUUID(), started_at: started.toISOString(), completed_at: completed.toISOString(), overall_result: worst(test_suites.map((suiteItem) => suiteItem.result)), test_suites };
   const counts = test_suites.flatMap((suiteItem) => suiteItem.tests).reduce((acc, item) => { acc[item.result.toLowerCase() as "pass" | "warn" | "fail"] += 1; return acc; }, { pass: 0, warn: 0, fail: 0 });

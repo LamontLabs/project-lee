@@ -32,4 +32,5 @@ export * from "./world-state";
 export * from "./operational-memory";
 export * from "./initiative";
 export * from "./operational-intelligence";
+export * from "./provider-registry";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

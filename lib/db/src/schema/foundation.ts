@@ -26,6 +26,7 @@ export const eventLog = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     eventType: varchar("event_type", { length: 160 }).notNull(),
+    eventVersion: varchar("event_version", { length: 24 }).notNull().default("1.0.0"),
     aggregateType: varchar("aggregate_type", { length: 160 }).notNull(),
     aggregateId: text("aggregate_id").notNull(),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
@@ -34,6 +35,8 @@ export const eventLog = pgTable(
     sequenceNumber: integer("sequence_number").notNull().default(1),
     causationId: uuid("causation_id"),
     correlationId: uuid("correlation_id"),
+    sessionId: uuid("session_id"),
+    brainVersion: varchar("brain_version", { length: 128 }),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

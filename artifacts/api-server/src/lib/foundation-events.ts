@@ -1,21 +1,12 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db, eventLog } from "@workspace/db";
 import type { PgDatabase } from "drizzle-orm/pg-core";
+import { notifySubscribers, subscribe, unsubscribe, causalChain, validateDomainPayload, type DomainEventInput, type DomainEventType } from "./domain-events";
 
 type EventWriter = typeof db;
 
-export type DomainEventInput = {
-  eventType: string;
-  aggregateId: string;
-  aggregateType: string;
-  payload: Record<string, unknown>;
-  actor?: string;
-  sourceRef?: string;
-  causationId?: string;
-  correlationId?: string;
-};
-
 export async function emitEvent(input: DomainEventInput, writer: EventWriter = db) {
+  const catalog = validateDomainPayload(input.eventType, input.payload);
   const [latest] = await writer.select({ sequenceNumber: eventLog.sequenceNumber })
     .from(eventLog)
     .where(and(eq(eventLog.aggregateType, input.aggregateType), eq(eventLog.aggregateId, input.aggregateId)))
@@ -23,6 +14,7 @@ export async function emitEvent(input: DomainEventInput, writer: EventWriter = d
     .limit(1);
   const [event] = await writer.insert(eventLog).values({
     eventType: input.eventType,
+    eventVersion: catalog.eventVersion,
     aggregateType: input.aggregateType,
     aggregateId: input.aggregateId,
     payload: input.payload,
@@ -31,8 +23,11 @@ export async function emitEvent(input: DomainEventInput, writer: EventWriter = d
     sequenceNumber: (latest?.sequenceNumber ?? 0) + 1,
     causationId: input.causationId,
     correlationId: input.correlationId,
+    sessionId: input.sessionId,
+    brainVersion: input.brainVersion,
     occurredAt: new Date(),
   }).returning();
+  await notifySubscribers(event);
   return event;
 }
 
@@ -44,3 +39,10 @@ export async function replayAggregate<T>(aggregateType: string, aggregateId: str
   const events = await eventsForAggregate(aggregateType, aggregateId);
   return events.reduce(apply, initial);
 }
+
+export const EventBus = {
+  emit: emitEvent,
+  subscribe: (eventType: DomainEventType, handler: (event: typeof eventLog.$inferSelect) => void | Promise<void>) => subscribe(eventType, handler),
+  unsubscribe,
+  getCausalChain: causalChain,
+};

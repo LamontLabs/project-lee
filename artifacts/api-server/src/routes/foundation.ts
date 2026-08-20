@@ -3,14 +3,18 @@ import { Router, type IRouter } from "express";
 import { auditLog, constitutionProvision, constitutionVersion, db, eventLog, impactEdge, impactNode, sourceVault, universalObject } from "@workspace/db";
 import { emitEvent } from "../lib/foundation-events";
 import { replayFrom } from "../lib/projector";
+import { DOMAIN_EVENT_CATALOG, causalChain } from "../lib/domain-events";
 
 const router: IRouter = Router();
 
 router.get("/events", async (req, res): Promise<void> => {
   const limit = Math.min(Number(req.query.limit ?? 100), 500);
-  const events = await db.select().from(eventLog).orderBy(desc(eventLog.createdAt)).limit(Number.isFinite(limit) ? limit : 100);
+  const filters = [typeof req.query.eventType === "string" ? eq(eventLog.eventType, req.query.eventType) : undefined, typeof req.query.sourceEngine === "string" ? eq(eventLog.sourceRef, req.query.sourceEngine) : undefined].filter(Boolean) as any[];
+  const events = await db.select().from(eventLog).where(filters.length ? and(...filters) : undefined).orderBy(desc(eventLog.createdAt)).limit(Number.isFinite(limit) ? limit : 100);
   res.json(events);
 });
+router.get("/events/catalog", async (_req, res) => res.json(Object.values(DOMAIN_EVENT_CATALOG).map((entry) => ({ eventType: entry.eventType, eventVersion: entry.eventVersion }))));
+router.get("/events/:id/causal-chain", async (req, res) => res.json(await causalChain(req.params.id)));
 
 router.post("/objects", async (req, res): Promise<void> => {
   const input = req.body ?? {};

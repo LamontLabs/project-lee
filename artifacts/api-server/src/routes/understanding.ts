@@ -15,6 +15,7 @@ import {
 } from "@workspace/db";
 import { extractUnderstanding } from "../lib/understanding";
 import { processExperiences } from "../lib/experience";
+import { assertFactProvenance } from "../lib/provenance";
 
 const router: IRouter = Router();
 
@@ -27,6 +28,12 @@ router.post("/understanding/runs", async (req, res): Promise<void> => {
   }
 
   const input = parsed.data;
+  try {
+    await assertFactProvenance([input.sourceRef]);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Understanding source provenance is invalid." });
+    return;
+  }
   const extraction = extractUnderstanding(input);
   const now = new Date();
 
@@ -55,7 +62,9 @@ router.post("/understanding/runs", async (req, res): Promise<void> => {
           predicate: fact.predicate,
           object: fact.object,
           sourceRef: input.sourceRef,
+          sourceEvidence: [input.sourceRef],
           confidence: fact.confidence,
+          generatedBy: { engineId: "Understanding Pipeline", runType: "source_extraction" },
           observedAt: now,
         })),
       )
@@ -68,7 +77,13 @@ router.post("/understanding/runs", async (req, res): Promise<void> => {
           statement: interpretation.statement,
           basis: interpretation.basis,
           sourceRef: input.sourceRef,
+          inputFacts: facts.map((fact) => fact.id),
+          generatedBy: { engineId: "Understanding Pipeline", runType: "source_interpretation" },
           confidence: interpretation.confidence,
+          whyChain: [
+            { step_type: "fact_confirmed", statement: "The interpretation was extracted from source-backed facts.", evidence_id: facts[0]?.id ?? input.sourceRef, confidence: interpretation.confidence, engine_name: "Understanding Pipeline" },
+            { step_type: "freshness_threshold", statement: "The interpretation is valid from the current understanding run.", evidence_id: input.sourceRef, confidence: input.sourceReliability ?? 0.5, engine_name: "Understanding Pipeline" },
+          ],
           validFrom: now,
         })),
       )

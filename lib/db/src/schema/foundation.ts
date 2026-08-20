@@ -187,6 +187,7 @@ export const interpretationLedger = pgTable(
     confidence: real("confidence").notNull().default(0.5),
     propagatedConfidence: real("propagated_confidence"),
     confidenceLineage: jsonb("confidence_lineage").$type<Record<string, unknown>>().notNull().default({}),
+    whyChain: jsonb("why_chain").$type<Record<string, unknown>[]>().notNull().default([]),
     canonLevel: varchar("canon_level", { length: 16 }).notNull().default("working"),
     status: varchar("status", { length: 32 }).notNull().default("active"),
     validFrom: timestamp("valid_from", { withTimezone: true }),
@@ -544,7 +545,9 @@ export const insertEventLogSchema = createInsertSchema(eventLog, {
   payload: jsonRecord,
 });
 export const insertFactSchema = createInsertSchema(factLedger);
-export const insertInterpretationSchema = createInsertSchema(interpretationLedger);
+export const insertInterpretationSchema = createInsertSchema(interpretationLedger, {
+  whyChain: z.array(jsonRecord),
+});
 export const insertAnchorSchema = createInsertSchema(anchorLedger);
 export const insertDecisionHeuristicSchema = createInsertSchema(
   decisionHeuristicLedger,

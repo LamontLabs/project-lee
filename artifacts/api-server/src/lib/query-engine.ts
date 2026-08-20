@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import {
   assumptionLedger,
@@ -140,7 +140,7 @@ export class QueryEngine {
       for (const source of spec.sources) {
         const [table, type] = sourceTable[source];
         const columns = table as any;
-        const dateColumn = columns.updatedAt ?? columns.occurredAt ?? columns.lastUpdated ?? columns.createdAt;
+        const dateColumn = columns.updatedAt ?? columns.occurredAt ?? columns.lastUpdated ?? columns.generatedAt ?? columns.computedAt ?? columns.createdAt;
         const conditions = [
           f.status && columns.status ? eq(columns.status, f.status) : undefined,
           f.objectType && columns.objectType ? eq(columns.objectType, f.objectType) : undefined,
@@ -150,9 +150,11 @@ export class QueryEngine {
           f.start && dateColumn ? gte(dateColumn, f.start) : undefined,
           f.end && dateColumn ? lte(dateColumn, f.end) : undefined,
         ].filter(Boolean) as any[];
-        const records = await db.select().from(table as any)
-          .where(conditions.length ? and(...conditions) : undefined)
-          .limit(spec.limit);
+        const baseQuery = db.select().from(table as any)
+          .where(conditions.length ? and(...conditions) : undefined);
+        const records = dateColumn
+          ? await baseQuery.orderBy(desc(dateColumn)).limit(spec.limit)
+          : await baseQuery.limit(spec.limit);
         rows.push(...records
           .filter((record: any) => !f.text || JSON.stringify(record).toLowerCase().includes(f.text.toLowerCase()))
           .map((record: any) => rank(record, type, source, spec)));
@@ -189,3 +191,7 @@ export class QueryEngine {
   }
 }
 export const queryEngine = new QueryEngine();
+export async function invalidateQueryCache(source = "system") {
+  await db.update(queryCache).set({ invalidatedAt: new Date() }).where(isNull(queryCache.invalidatedAt));
+  return { invalidated: true, source };
+}

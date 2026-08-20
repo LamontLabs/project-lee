@@ -9,5 +9,6 @@ export const operationalContextSnapshot = pgTable("operational_context_snapshot"
   blockedItems: jsonb("blocked_items").$type<Record<string, unknown>[]>().notNull().default([]),
   atRiskItems: jsonb("at_risk_items").$type<Record<string, unknown>[]>().notNull().default([]),
   canWaitItems: jsonb("can_wait_items").$type<Record<string, unknown>[]>().notNull().default([]),
+  ignoreTodayItems: jsonb("ignore_today_items").$type<Record<string, unknown>[]>().notNull().default([]),
   scoringContext: jsonb("scoring_context").$type<Record<string, unknown>>().notNull().default({}),
 });

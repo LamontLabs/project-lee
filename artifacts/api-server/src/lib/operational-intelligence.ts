@@ -3,17 +3,45 @@ import { db, operationalContextSnapshot } from "@workspace/db";
 import { operationalContext } from "./operational-memory";
 import { currentWorldState } from "./world-state";
 import { emitEvent } from "./foundation-events";
+import { subscribe, type DomainEventType } from "./domain-events";
 import { currentProjectMomentum } from "./project-momentum";
 import { currentOperationalCapacity } from "./operational-capacity";
 import { currentPortfolioState } from "./portfolio-intelligence";
-import { queryEngine } from "./query-engine";
+import { invalidateQueryCache, queryEngine } from "./query-engine";
 
 const weight: Record<string, number> = { CRITICAL: 100, HIGH: 80, MEDIUM: 50, LOW: 20 };
+export const OPERATIONAL_INTELLIGENCE_REACTIVE_EVENTS: DomainEventType[] = [
+  "CommitPushed", "PRMerged", "DocumentCreated", "DocumentUpdated", "SourceVaultRecordCreated",
+  "WaitingLoopResolved", "EmailReceived", "ThreadUpdated", "FactCreated", "KnowledgeStale",
+  "InitiativeItemCreated", "OpportunityDetected", "OperationalCapacityChanged", "ProjectMomentumChanged",
+  "PortfolioRiskDetected", "PortfolioOpportunityDetected", "GovernedActionHeld", "GovernedActionRejected",
+];
+
+function whyChain(summary: string, evidenceRefs: string[]) {
+  return [
+    { step: "evidence", summary: `${evidenceRefs.length} source-backed signal(s) support this item.`, evidenceRefs },
+    { step: "interpretation", summary, evidenceRefs },
+  ];
+}
+
+function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]; significance?: string; value?: unknown }) {
+  const evidenceRefs = [...new Set(input.evidenceRefs ?? [])];
+  return {
+    id: input.id,
+    text: input.text,
+    ...(input.significance ? { significance: input.significance } : {}),
+    ...(input.value !== undefined ? { value: input.value } : {}),
+    evidenceRefs,
+    whyChain: whyChain(input.text, evidenceRefs),
+  };
+}
+
 export async function generateOperationalContext() {
+  await invalidateQueryCache("operational-intelligence");
   const [initiativeResults, memory, world, objectResults, momentum, capacity, portfolio] = await Promise.all([
-    queryEngine.query({ sources: ["initiatives"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Operational Intelligence", purpose: "operational_context" }),
+    queryEngine.query({ sources: ["initiatives"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 150, requester: "Operational Intelligence", purpose: "operational_context" }),
     operationalContext(), currentWorldState(),
-    queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Operational Intelligence", purpose: "operational_context" }),
+    queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 150, requester: "Operational Intelligence", purpose: "operational_context" }),
     currentProjectMomentum(),
     currentOperationalCapacity(),
     currentPortfolioState(),
@@ -22,17 +50,32 @@ export async function generateOperationalContext() {
   const objects = objectResults.map((item) => item.object as any);
   const active = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt && (!item.expiresAt || new Date(item.expiresAt) > new Date())).filter((item) => capacity.state !== "LOW" || item.significance === "CRITICAL").filter((item) => capacity.state !== "RECOVERY" || item.significance === "CRITICAL");
   const scored = active.map((item) => ({ ...item, score: (weight[item.significance] ?? 10) + (new Date(item.generatedAt).getTime() > Date.now() - 21600000 ? 15 : 0) })).sort((a, b) => b.score - a.score);
-  const changedItems = scored.slice(0, capacity.state === "CONSTRAINED" ? 2 : capacity.state === "LOW" || capacity.state === "RECOVERY" ? 1 : 5).map((item) => ({ id: item.id, text: item.observation, score: item.score, evidenceRefs: item.evidenceRefs }));
-  const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => ({ id: item.id, text: item.observation, significance: item.significance }));
-  const driftingItems = objects.filter((item: any) => item.ageState === "STALE" || item.ageState === "OLD").slice(0, 10).map((item: any) => ({ id: item.id, text: `${item.title ?? item.name ?? "Knowledge item"} is ${item.ageState.toLowerCase()}.` }));
-  const momentumRisk = momentum.filter((item) => item.classification === "Dormant" || item.classification === "Stalled").map((item) => ({ id: item.projectId, text: `Project ${item.projectId} momentum is ${item.classification.toLowerCase()}.`, value: item.score }));
-  const atRiskItems = [...world.signals.filter((signal) => signal.signalType === "technical" || signal.currentValue?.alert).map((signal) => ({ id: signal.id, text: signal.signalName, value: signal.currentValue })), ...momentumRisk, ...portfolio.alerts.filter((alert) => alert.type === "shared_dependency").map((alert) => ({ id: alert.title, text: alert.title, value: alert.projectIds }))];
-  const momentumDrift = momentum.filter((item) => item.classification === "Declining").map((item) => ({ id: item.projectId, text: `Project ${item.projectId} momentum is declining.` }));
-  const canWaitItems = objects.filter((item: any) => item.memoryTier === "archive" || item.memoryTier === "historical").slice(0, 10).map((item: any) => ({ id: item.id, text: item.title ?? item.name ?? "Historical item" }));
-  const activePriority = changedItems[0] ?? (memory.activePatterns[0] ? { text: memory.activePatterns[0].patternDescription, score: 35 } : null);
-  const [snapshot] = await db.insert(operationalContextSnapshot).values({ activePriority, changedItems, driftingItems: [...driftingItems, ...momentumDrift], waitingItems, blockedItems: [], atRiskItems, canWaitItems, scoringContext: { operationalMemory: memory, worldStateSignals: world.signals.length, momentumProjects: momentum.length, capacity: capacity.state, portfolioHealth: portfolio.healthScore, currentState: "live" } }).returning();
-  await emitEvent({ eventType: "OperationalContextUpdated", aggregateType: "operational_context", aggregateId: snapshot.id, payload: { previousPriority: null, newPriority: activePriority } });
+  const limit = capacity.state === "CONSTRAINED" ? 2 : capacity.state === "LOW" || capacity.state === "RECOVERY" ? 1 : 5;
+  const changedItems = scored.slice(0, limit).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, value: item.score }));
+  const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance }));
+  const driftingItems = objects.filter((item: any) => item.ageState === "STALE" || item.ageState === "OLD").slice(0, 10).map((item: any) => evidenceItem({ id: item.id, text: `${item.title ?? item.name ?? "Knowledge item"} is ${item.ageState.toLowerCase()}.`, evidenceRefs: item.sourceRefs, value: item.ageState }));
+  const momentumRisk = momentum.filter((item) => item.classification === "Dormant" || item.classification === "Stalled").map((item) => evidenceItem({ id: item.projectId, text: `Project ${item.projectId} momentum is ${item.classification.toLowerCase()}.`, evidenceRefs: [item.id], value: item.score }));
+  const technicalRisk = world.signals.filter((signal) => signal.signalType === "technical" || signal.currentValue?.alert).map((signal) => evidenceItem({ id: signal.id, text: signal.signalName, evidenceRefs: [signal.id], value: signal.currentValue }));
+  const dependencyRisk = portfolio.alerts.filter((alert) => alert.type === "shared_dependency").map((alert) => evidenceItem({ id: alert.title, text: alert.title, evidenceRefs: alert.evidenceRefs, value: alert.projectIds }));
+  const atRiskItems = [...technicalRisk, ...momentumRisk, ...dependencyRisk];
+  const momentumDrift = momentum.filter((item) => item.classification === "Declining").map((item) => evidenceItem({ id: item.projectId, text: `Project ${item.projectId} momentum is declining.`, evidenceRefs: [item.id], value: item.score }));
+  const blockedItems = [
+    ...initiatives.filter((item) => Boolean((item.metadata as Record<string, unknown>).blocked) || /blocked|dependency/i.test(item.observation)).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance })),
+    ...objects.filter((item: any) => item.status === "blocked").map((item: any) => evidenceItem({ id: item.id, text: `${item.name} is blocked.`, evidenceRefs: item.sourceRefs, value: item.status })),
+  ];
+  const canWaitItems = objects.filter((item: any) => item.memoryTier === "archive" || item.memoryTier === "historical").slice(0, 10).map((item: any) => evidenceItem({ id: item.id, text: item.name ?? "Historical item", evidenceRefs: item.sourceRefs, value: item.memoryTier }));
+  const changedIds = new Set(changedItems.map((item) => item.id));
+  const ignoreTodayItems = initiatives.filter((item) => !changedIds.has(item.id) && !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance }));
+  const activePriority = changedItems[0] ?? (memory.activePatterns[0] ? evidenceItem({ id: "operational-memory", text: memory.activePatterns[0].patternDescription, evidenceRefs: memory.activePatterns[0].evidenceRefs, value: 35 }) : null);
+  const [snapshot] = await db.insert(operationalContextSnapshot).values({ activePriority, changedItems, driftingItems: [...driftingItems, ...momentumDrift], waitingItems, blockedItems, atRiskItems, canWaitItems, ignoreTodayItems, scoringContext: { operationalMemory: memory, worldStateSignals: world.signals.length, momentumProjects: momentum.length, capacity: capacity.state, portfolioHealth: portfolio.healthScore, currentState: "live", evidenceContract: "Every category item carries evidenceRefs and whyChain." } }).returning();
+  await emitEvent({ eventType: "OperationalContextUpdated", aggregateType: "operational_context", aggregateId: snapshot.id, payload: { previousPriority: null, newPriority: activePriority, categoryCounts: { changed: changedItems.length, drifting: driftingItems.length + momentumDrift.length, waiting: waitingItems.length, blocked: blockedItems.length, atRisk: atRiskItems.length, canWait: canWaitItems.length, ignoreToday: ignoreTodayItems.length } } });
   return snapshot;
+}
+
+export function registerOperationalIntelligenceRefresh() {
+  return OPERATIONAL_INTELLIGENCE_REACTIVE_EVENTS.map((eventType) => subscribe(eventType, async () => {
+    await generateOperationalContext();
+  }));
 }
 export async function currentOperationalContext() { const [latest] = await db.select().from(operationalContextSnapshot).orderBy(desc(operationalContextSnapshot.generatedAt)).limit(1); return latest ?? generateOperationalContext(); }
 export async function operationalFocus() { const context = await currentOperationalContext(); return context.activePriority ?? { text: "No immediate operational priority detected.", score: 0 }; }

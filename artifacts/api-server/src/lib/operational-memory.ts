@@ -9,7 +9,7 @@ export async function ingestBehavioralSignal(input: { signalType: string; entity
   return signal;
 }
 export async function detectOperationalPatterns() {
-  const signalResults = await queryEngine.query({ sources: ["behavioral_signals"], filters: {}, rankingPolicy: "curiosity_scan", confidenceThreshold: 0, limit: 1000, requester: "Operational Memory", purpose: "pattern_detection" });
+  const signalResults = await queryEngine.query({ sources: ["behavioral_signals"], filters: {}, rankingPolicy: "curiosity_scan", confidenceThreshold: 0, limit: 200, requester: "Operational Memory", purpose: "pattern_detection" });
   const signals = signalResults.map((item) => item.object as typeof behavioralSignal.$inferSelect);
   const groups = new Map<string, typeof signals>();
   for (const signal of signals) { const hour = new Date(signal.occurredAt).getHours(); const key = `${signal.signalType}:${hour}`; groups.set(key, [...(groups.get(key) ?? []), signal]); }
@@ -31,12 +31,12 @@ export async function detectOperationalPatterns() {
       await db.update(operationalPattern).set({ observationCount: group.length, confidence, status: nextStatus, evidenceRefs: group.slice(0, 25).map((item) => item.evidenceEventId ?? item.id), lastObservedAt: group[0].occurredAt, updatedAt: new Date() }).where(eq(operationalPattern.id, existing.id));
     }
   }
-  const patternResults = await queryEngine.query({ sources: ["operational_patterns"], filters: {}, rankingPolicy: "curiosity_scan", confidenceThreshold: 0, limit: 1000, requester: "Operational Memory", purpose: "pattern_detection" });
+  const patternResults = await queryEngine.query({ sources: ["operational_patterns"], filters: {}, rankingPolicy: "curiosity_scan", confidenceThreshold: 0, limit: 200, requester: "Operational Memory", purpose: "pattern_detection" });
   return { signals: signals.length, patterns: patternResults.length, established };
 }
 export async function operationalContext() {
   const now = new Date(); const hour = now.getHours();
-  const patternResults = await queryEngine.query({ sources: ["operational_patterns"], filters: {}, rankingPolicy: "curiosity_scan", confidenceThreshold: 0, limit: 1000, requester: "Operational Memory", purpose: "operational_context" });
+  const patternResults = await queryEngine.query({ sources: ["operational_patterns"], filters: {}, rankingPolicy: "curiosity_scan", confidenceThreshold: 0, limit: 200, requester: "Operational Memory", purpose: "operational_context" });
   const patterns = patternResults.map((item) => item.object as typeof operationalPattern.$inferSelect).filter((item) => ["established", "strong"].includes(item.status));
   return { generatedAt: now.toISOString(), currentHour: hour, activePatterns: patterns.filter((pattern) => pattern.patternDescription.includes(`${hour}:00`)), expectedMode: patterns.find((pattern) => pattern.patternType === "work_session" && pattern.patternDescription.includes(`${hour}:00`))?.patternDescription ?? "No established work-session pattern for the current hour.", attentionWindows: patterns.filter((pattern) => pattern.patternType === "attention") };
 }

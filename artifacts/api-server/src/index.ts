@@ -17,6 +17,7 @@ import { computeOperationalConfidence } from "./lib/operational-confidence";
 import { computeProjectMomentum } from "./lib/project-momentum";
 import { detectOpportunities } from "./lib/opportunity";
 import { deliverDurableEvents } from "./lib/event-delivery";
+import { registerOperationalIntelligenceRefresh } from "./lib/operational-intelligence";
 
 const rawPort = process.env["PORT"];
 
@@ -44,6 +45,7 @@ durableDelivery.unref();
 db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "executive_loop_tick")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "executive_loop_tick", runAt: new Date(Date.now() + 5_000), recurrence: "1m", payload: { engine: "Executive Loop" } })).catch((err) => logger.error({ err }, "Executive Loop job registration failed"));
 registerProviders().catch((err) => logger.error({ err }, "Provider registry registration failed"));
 registerInternalServices().catch((err) => logger.error({ err }, "Internal service registry registration failed"));
+registerOperationalIntelligenceRefresh();
 for (const eventType of ["GovernedActionHeld", "BuildFailed", "OperationalPatternBroken", "GovernanceServiceUnavailable"] as const) subscribe(eventType, (event) => { void interruptExecutiveLoop(eventType, event.id).catch((err) => logger.error({ err }, "Executive Loop interrupt failed")); });
 for (const eventType of ["ConnectorSynced", "ConnectorFailed", "CILUnavailable", "GovernanceServiceUnavailable", "KnowledgeStale", "KnowledgeAged"] as const) subscribe(eventType, () => { void computeOperationalConfidence().catch((err) => logger.error({ err }, "Operational Confidence recompute failed")); });
 for (const eventType of ["CommitPushed", "PRMerged", "DocumentCreated", "DocumentUpdated", "SourceVaultRecordCreated", "WaitingLoopResolved", "EmailReceived", "ThreadUpdated"] as const) subscribe(eventType, (event) => { void computeProjectMomentum(typeof event.payload.projectId === "string" ? event.payload.projectId : undefined).catch((err) => logger.error({ err }, "Project Momentum recompute failed")); });

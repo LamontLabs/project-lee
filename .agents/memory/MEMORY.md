@@ -25,3 +25,4 @@
 - [Intent Engine boundary](intent-engine-boundary.md) — every Lee request gets one persisted, confidence-scored intent that downstream retrieval and routing can reuse.
 - [State Engine boundary](state-engine-boundary.md) — Lee has one validated primary operational state with auditable transitions and durations.
 - [Capability Registry boundary](capability-registry-boundary.md) — engine discovery uses persisted registrations and typed internal contracts instead of implicit cross-engine assumptions.
+- [Context Economy boundary](context-economy-boundary.md) — context packets rank candidates continuously across relevance factors and audit both winners and exclusions.

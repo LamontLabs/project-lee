@@ -80,7 +80,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
   const intent = await classifyIntent(message, {}, "ask_lee", item.id);
   const route = await preview(message, mode, risk, Number(req.body?.budgetTokens ?? 3000), intent);
   const [packet] = route.packet.id ? [null] : await db.insert(contextPacket).values({
-    fingerprint: route.packet.fingerprint, intent: message, mode, packet: { items: route.packet.items }, sourceRefs: route.packet.items.map((entry) => entry.id), excludedRefs: route.packet.excludedRefs, tokenEstimate: route.packet.tokens, estimatedCostUsd: route.estimatedCostUsd, selectedTier: route.selectedTier, selectedModel: route.selectedModel, riskLevel: risk, expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    fingerprint: route.packet.fingerprint, intent: message, mode, packet: { items: route.packet.items, excluded: route.packet.excluded }, sourceRefs: route.packet.items.map((entry) => entry.id), excludedRefs: route.packet.excludedRefs, tokenEstimate: route.packet.tokens, estimatedCostUsd: route.estimatedCostUsd, selectedTier: route.selectedTier, selectedModel: route.selectedModel, riskLevel: risk, expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   }).returning();
   const packetId = route.packet.id ?? packet?.id ?? null;
   if (mode !== "private") {

@@ -1,3 +1,5 @@
+import { db, contextScore } from "@workspace/db";
+
 export type ContextInput = {
   id: string;
   text: string;
@@ -5,10 +7,18 @@ export type ContextInput = {
   confidence: number;
   recencyDays: number;
   strategicAnchor: boolean;
+  importance?: number;
+  relationship?: number;
+  projectActivity?: number;
+  trust?: number;
+  modeRelevance?: number;
+  goalMatch?: number;
 };
 
 export type SelectedContext = ContextInput & {
   score: number;
+  contextValueScore: number;
+  factorBreakdown: Record<string, number>;
   estimatedTokens: number;
 };
 
@@ -32,9 +42,20 @@ function lexicalScore(query: string, text: string): number {
   return matches / terms.size;
 }
 
-function scoreItem(query: string, item: ContextInput): number {
-  const recency = 1 / (1 + item.recencyDays);
-  return item.confidence * 0.5 + recency * 0.3 + lexicalScore(query, item.text) * 0.2;
+export const DEFAULT_WEIGHTS = { goal: 1, recency: 0.7, importance: 0.8, relationship: 0.6, project: 0.5, confidence: 0.9, trust: 0.7, mode: 0.5 };
+export function scoreContextValue(query: string, item: ContextInput, weights = DEFAULT_WEIGHTS) {
+  const factors = {
+    goal: Math.max(0, Math.min(1, item.goalMatch ?? lexicalScore(query, item.text))),
+    recency: 1 / (1 + Math.log(item.recencyDays + 1)),
+    importance: Math.max(0, Math.min(1, item.importance ?? (item.strategicAnchor ? 1 : 0.5))),
+    relationship: Math.max(0, Math.min(1, item.relationship ?? 0)),
+    project: Math.max(0, Math.min(1, item.projectActivity ?? 0.1)),
+    confidence: Math.max(0, Math.min(1, item.confidence ?? 0.5)),
+    trust: Math.max(0, Math.min(1, item.trust ?? 0.5)),
+    mode: Math.max(0, Math.min(1, item.modeRelevance ?? 0.5)),
+  };
+  const value = Object.entries(factors).reduce((product, [key, factor]) => product * Math.pow(factor, Number((weights as any)[key] ?? 1)), 1);
+  return { value, factors };
 }
 
 function clampText(text: string, tokenBudget: number): string {
@@ -46,35 +67,24 @@ export function constructContextPacket(
   query: string,
   items: ContextInput[],
   budgetTokens: number,
-): { items: SelectedContext[]; tokens: number } {
+  weights = DEFAULT_WEIGHTS,
+  intentId?: string,
+): { items: SelectedContext[]; excluded: SelectedContext[]; tokens: number } {
   const scored = items.map((item) => ({
     ...item,
-    score: item.strategicAnchor ? 1 : scoreItem(query, item),
+    score: scoreContextValue(query, item, weights).value,
+    contextValueScore: scoreContextValue(query, item, weights).value,
+    factorBreakdown: scoreContextValue(query, item, weights).factors,
     estimatedTokens: estimateTokens(item.text),
   }));
-  const anchors = scored.filter((item) => item.strategicAnchor);
-  const ranked = scored
-    .filter((item) => !item.strategicAnchor)
-    .sort((a, b) => b.score - a.score);
+  const ranked = scored.sort((a, b) => b.score - a.score);
   const selected: SelectedContext[] = [];
   let tokens = 0;
-
-  const anchorBudget = Math.max(1, Math.floor(budgetTokens / Math.max(1, anchors.length)));
-  for (const item of anchors) {
-    const remaining = budgetTokens - tokens;
-    const estimatedTokens = Math.min(item.estimatedTokens, anchorBudget, remaining);
-    selected.push({
-      ...item,
-      text: clampText(item.text, estimatedTokens),
-      estimatedTokens,
-    });
-    tokens += estimatedTokens;
-  }
-
+  const excluded: SelectedContext[] = [];
   for (const item of ranked) {
     const remaining = budgetTokens - tokens;
-    if (remaining <= 0) break;
-    const estimatedTokens = Math.min(item.estimatedTokens, remaining);
+    if (remaining <= 0 || item.estimatedTokens > remaining) { excluded.push({ ...item, estimatedTokens: item.estimatedTokens }); continue; }
+    const estimatedTokens = item.estimatedTokens;
     selected.push({
       ...item,
       text: clampText(item.text, estimatedTokens),
@@ -82,6 +92,6 @@ export function constructContextPacket(
     });
     tokens += estimatedTokens;
   }
-
-  return { items: selected, tokens };
+  void db.insert(contextScore).values([...selected.map((item) => ({ objectId: item.id, intentId: intentId ?? null, contextValueScore: item.contextValueScore, factorBreakdown: item.factorBreakdown, included: true })), ...excluded.map((item) => ({ objectId: item.id, intentId: intentId ?? null, contextValueScore: item.contextValueScore, factorBreakdown: item.factorBreakdown, included: false, exclusionReason: "Outcompeted or exceeded remaining token budget." }))]).catch(() => undefined);
+  return { items: selected, excluded, tokens };
 }

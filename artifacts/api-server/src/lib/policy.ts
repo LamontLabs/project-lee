@@ -9,6 +9,15 @@ export const POLICY_DEFAULTS: Record<string, { description: string; values: Reco
   backup: { description: "Controls Brain backup cadence, retention, encryption, and verification.", values: { schedule: "daily 02:00", dailyRetention: 7, weeklyRetention: 4, monthlyRetention: 12, encryptionRequired: true, verificationCadence: "every backup", restoreTestCadence: "monthly" } },
   connector: { description: "Controls connector cadence, error tolerance, and freshness.", values: { syncFrequencyMinutes: 30, errorTolerance: 3, freshnessRequirementHours: 24 } },
   resource: { description: "Controls thresholds used to classify compute, disk, token, cost, network, quota, and battery pressure.", values: { cpuConstrainedPercent: 75, cpuCriticalPercent: 90, memoryConstrainedPercent: 80, memoryCriticalPercent: 92, diskConstrainedPercent: 80, diskCriticalPercent: 92, tokenConstrainedPercent: 75, tokenCriticalPercent: 90, batteryConstrainedPercent: 25, batteryCriticalPercent: 10 } },
+  context_economy: {
+    description: "Controls Context Value factor weights by intent type.",
+    values: {
+      defaults: { goal: 1, recency: 0.7, importance: 0.8, relationship: 0.6, project: 0.5, confidence: 0.9, trust: 0.7, mode: 0.5 },
+      question_factual: { goal: 1, recency: 0.6, importance: 0.7, relationship: 0.4, project: 0.4, confidence: 1, trust: 0.8, mode: 0.4 },
+      question_exploratory: { goal: 1, recency: 0.5, importance: 0.6, relationship: 0.7, project: 0.6, confidence: 0.8, trust: 0.7, mode: 0.7 },
+      explanation_seeking: { goal: 1, recency: 0.5, importance: 0.8, relationship: 0.7, project: 0.5, confidence: 1, trust: 0.8, mode: 0.6 },
+    },
+  },
 };
 export async function ensurePolicies() {
   for (const [policyType, definition] of Object.entries(POLICY_DEFAULTS)) {

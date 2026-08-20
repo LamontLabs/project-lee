@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { avg, desc, eq } from "drizzle-orm";
 import { assumptionLedger, contextPacket, db, eventLog, factLedger, interpretationLedger, universalObject, waitingLoop, trustScore, strategicObjective, constitutionProvision } from "@workspace/db";
-import { constructContextPacket, type SelectedContext } from "./context-economy";
+import { constructContextPacket, DEFAULT_WEIGHTS, type SelectedContext } from "./context-economy";
 import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
 import { queryEngine } from "./query-engine";
@@ -9,7 +9,7 @@ import { checkPolicy } from "./policy";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
-export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { retrievalMode?: string }) {
+export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; retrievalMode?: string }) {
   const retrievalFilters = intent?.retrievalMode === "semantic" ? { text: query } : {};
   const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
   const [objectResults, factResults, interpretationResults, waiting, eventResults, founder, trust, objectives, learningRules, constitution, assumptions] = await Promise.all([
@@ -55,8 +55,14 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const [cached] = await db.select().from(contextPacket).where(eq(contextPacket.fingerprint, fingerprint)).orderBy(desc(contextPacket.createdAt)).limit(1);
   const trustScoreValue = Math.round(Number(trust[0]?.score ?? 50));
   const trustAdvisory = { subsystem: "Context Engine", score: trustScoreValue, lowTrust: trustScoreValue < 60 };
-  if (cached && cached.expiresAt > new Date()) return { id: cached.id, fingerprint, reused: true, items: (cached.packet.items as SelectedContext[]) ?? [], tokens: cached.tokenEstimate, excludedRefs: cached.excludedRefs, trustAdvisory };
-  const selected = constructContextPacket(query, items, budgetTokens);
-  const excludedRefs = [...new Set([...excludedByPolicy, ...items.filter((item) => !selected.items.some((chosen) => chosen.id === item.id)).map((item) => item.id)])];
-  return { id: null, fingerprint, reused: false, items: selected.items, tokens: selected.tokens, excludedRefs, trustAdvisory };
+  if (cached && cached.expiresAt > new Date()) return { id: cached.id, fingerprint, reused: true, items: (cached.packet.items as SelectedContext[]) ?? [], excluded: (cached.packet.excluded as SelectedContext[]) ?? [], tokens: cached.tokenEstimate, excludedRefs: cached.excludedRefs, trustAdvisory };
+  const weightsResult = await checkPolicy("context_economy", "weights", {}, "Context Engine");
+  const configured = (weightsResult.value as any)?.[intent?.intentType ?? "defaults"];
+  const weights = configured && typeof configured === "object" ? { ...DEFAULT_WEIGHTS, ...configured } : DEFAULT_WEIGHTS;
+  const goalMatches = new Map(items.map((item: any) => [item.id, Number(item.similarityScore ?? item.similarity ?? NaN)]));
+  const contextItems = items.map((item: any) => ({ ...item, goalMatch: Number.isFinite(goalMatches.get(item.id)) ? goalMatches.get(item.id) : undefined, trust: Math.max(0, Math.min(1, trustScoreValue / 100)), modeRelevance: mode === "deep_think" && /strategy|project|decision/.test(item.kind) ? 1 : mode === "build" && /project|task|decision/.test(item.kind) ? 0.9 : 0.5 }));
+  const selected = constructContextPacket(query, contextItems, budgetTokens, weights, intent?.id);
+  const excludedRefs = [...new Set([...excludedByPolicy, ...selected.excluded.map((item) => item.id)])];
+  const excluded = [...selected.excluded, ...items.filter((item) => excludedByPolicy.includes(item.id)).map((item: any) => ({ ...item, score: 0, contextValueScore: 0, factorBreakdown: {}, estimatedTokens: 0, exclusionReason: "Excluded by Privacy Policy." }))];
+  return { id: null, fingerprint, reused: false, items: selected.items, excluded, tokens: selected.tokens, excludedRefs, trustAdvisory };
 }

@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { index, integer, jsonb, pgTable, real, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 const jsonRecord = z.record(z.string(), z.unknown());
@@ -40,6 +40,17 @@ export const contextPacket = pgTable("context_packet", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("context_packet_fingerprint_idx").on(table.fingerprint, table.expiresAt)]);
+
+export const contextScore = pgTable("context_score", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  objectId: text("object_id").notNull(),
+  intentId: uuid("intent_id"),
+  contextValueScore: real("context_value_score").notNull(),
+  factorBreakdown: jsonb("factor_breakdown").$type<Record<string, number>>().notNull().default({}),
+  included: boolean("included").notNull().default(false),
+  exclusionReason: text("exclusion_reason"),
+  computedAt: timestamp("computed_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("context_score_intent_idx").on(table.intentId, table.computedAt), index("context_score_object_idx").on(table.objectId, table.computedAt)]);
 
 export const modelRouteDecision = pgTable("model_route_decision", {
   id: uuid("id").defaultRandom().primaryKey(),

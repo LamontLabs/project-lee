@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { costRecord, db, eventLog, systemEconomicsCycle } from "@workspace/db";
+import { runCILCostBenchmark } from "./cil-cost-benchmark";
 
 const MONTHLY_COST_CEILING_USD = 100;
 
@@ -53,6 +54,7 @@ export async function runSystemEconomicsCycle(now = new Date()) {
   if (concentration[0] && totalCostUsd > 0 && concentration[0][1].estimatedCostUsd / totalCostUsd > 0.6) {
     alerts.push(`${concentration[0][0]} accounts for ${Math.round(concentration[0][1].estimatedCostUsd / totalCostUsd * 100)}% of current cost.`);
   }
+  const benchmark = runCILCostBenchmark();
   const summary = {
     periodStart: start.toISOString(),
     periodEnd: end.toISOString(),
@@ -62,6 +64,7 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     byEngine: [...byEngine.entries()].map(([engine, value]) => ({ engine, requestCount: value.requestCount, estimatedCostUsd: value.estimatedCostUsd, totalTokens: value.totalTokens, latencyP50Ms: percentile(value.latencyMs, 0.5), latencyP95Ms: percentile(value.latencyMs, 0.95) })),
     byTier: [...byTier.entries()].map(([tier, value]) => ({ tier, ...value })),
     cil: { requestCount: cilRecords.length, reuseRate: cilRecords.length ? reusedRecords.length / cilRecords.length : 0, reusedRequests: reusedRecords.length, escalationRate: cilRecords.length ? cilRecords.filter((record) => record.tier === "T3").length / cilRecords.length : 0 },
+    cilBenchmark: benchmark,
     latency: { p50Ms: percentile(records.map((record) => record.latencyMs).filter(Boolean), 0.5), p95Ms: percentile(records.map((record) => record.latencyMs).filter(Boolean), 0.95) },
     valueRatios: { costPerAcceptedRecommendation: acceptedRecommendations ? totalCostUsd / acceptedRecommendations : null, costPerCompletedBriefItem: completedBriefItems ? totalCostUsd / completedBriefItems : null, costPerSimulation: simulationResolutions ? totalCostUsd / simulationResolutions : null, costPerInstitutionalKnowledge: institutionalKnowledgeEstablished ? totalCostUsd / institutionalKnowledgeEstablished : null },
     valueCounts: { acceptedRecommendations, completedBriefItems, simulationResolutions, institutionalKnowledgeEstablished },

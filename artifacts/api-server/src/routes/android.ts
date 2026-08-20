@@ -89,7 +89,7 @@ router.post("/android/approve", async (req, res): Promise<void> => {
 });
 
 router.get("/android/approvals", async (req, res): Promise<void> => {
-  if (rejectPairing(req, res)) return;
+  if (await rejectPairing(req, res)) return;
   res.json(await db.select().from(governanceRequest).where(eq(governanceRequest.status, "HOLD")).orderBy(desc(governanceRequest.createdAt)));
 });
 

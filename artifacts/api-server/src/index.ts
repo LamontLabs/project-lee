@@ -28,6 +28,7 @@ ensureKnowledgeAgingJob().catch((err) => logger.error({ err }, "Knowledge aging 
 ensureWorldStateJob().catch((err) => logger.error({ err }, "World state job registration failed"));
 ensureOperationalMemoryJob().catch((err) => logger.error({ err }, "Operational memory job registration failed"));
 db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "initiative_scan")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "initiative_scan", runAt: new Date(Date.now() + 60_000), recurrence: "daily", payload: { engine: "Initiative Engine" } })).catch((err) => logger.error({ err }, "Initiative job registration failed"));
+db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "operational_intelligence_refresh")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "operational_intelligence_refresh", runAt: new Date(Date.now() + 60_000), recurrence: "15m", payload: { engine: "Operational Intelligence Engine" } })).catch((err) => logger.error({ err }, "Operational intelligence job registration failed"));
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

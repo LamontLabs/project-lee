@@ -1,0 +1,10 @@
+import { Router, type IRouter } from "express";
+import { desc } from "drizzle-orm";
+import { db, operationalContextSnapshot } from "@workspace/db";
+import { currentOperationalContext, generateOperationalContext, operationalFocus } from "../lib/operational-intelligence";
+const router: IRouter = Router();
+router.get("/internal/operational-intelligence/context", async (_req, res) => res.json(await currentOperationalContext()));
+router.get("/internal/operational-intelligence/focus", async (_req, res) => res.json(await operationalFocus()));
+router.post("/internal/operational-intelligence/refresh", async (_req, res) => res.json(await generateOperationalContext()));
+router.get("/operational-intelligence/history", async (_req, res) => res.json(await db.select().from(operationalContextSnapshot).orderBy(desc(operationalContextSnapshot.generatedAt)).limit(100)));
+export default router;

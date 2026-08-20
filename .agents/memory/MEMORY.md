@@ -36,3 +36,4 @@
 - [World State boundary](world-state-boundary.md) — Lee maintains a curated external-context ledger with universal time signals and explicitly configured monitoring topics.
 - [Operational Memory boundary](operational-memory-boundary.md) — Lee derives durable procedural patterns from existing event timestamps and owner actions, separate from declarative knowledge.
 - [Initiative boundary](initiative-boundary.md) — Initiative turns existing Lee evidence into optional, deduplicated operational observations rather than alarms or automatic actions.
+- [Operational Intelligence boundary](operational-intelligence-boundary.md) — Operational Intelligence continuously ranks what deserves attention from current initiatives, memory, world state, and canonical records.

@@ -9,6 +9,7 @@ import { computeOperationalCapacity } from "./operational-capacity";
 import { computePortfolioState } from "./portfolio-intelligence";
 import { computeResourceAllocation } from "./resource-allocation";
 import { runRequestPipeline } from "./request-pipeline";
+import { ingestBehavioralSignal } from "./operational-memory";
 
 export const LOOP_PHASES = ["OBSERVE", "UNDERSTAND", "PRIORITIZE", "DECIDE", "PREPARE", "WAIT", "REVIEW"] as const;
 export type LoopPhase = typeof LOOP_PHASES[number];
@@ -45,6 +46,24 @@ export async function interruptExecutiveLoop(eventType: string, eventId?: string
   const row = await current(); const [updated] = await db.update(executiveLoop).set({ interrupted: row.interrupted + 1, lastReason: `Interrupted by ${eventType}`, updatedAt: new Date() }).where(eq(executiveLoop.id, row.id)).returning();
   await emitEvent({ eventType: "ExecutiveLoopInterrupted", aggregateType: "executive_loop", aggregateId: row.id, payload: { eventType, eventId, phase: row.phase, reentryPhase: "OBSERVE" } });
   return transitionExecutiveLoop(`critical interrupt: ${eventType}`, "OBSERVE");
+}
+
+export async function recordExecutiveLoopReview(input: { feedback: string; outcome?: string; cycleCount?: number }) {
+  const row = await current();
+  const event = await emitEvent({
+    eventType: "ExecutiveLoopReviewRecorded",
+    aggregateType: "executive_loop",
+    aggregateId: row.id,
+    sourceRef: "executive-loop-review",
+    payload: { feedback: input.feedback, outcome: input.outcome ?? "reviewed", phase: row.phase, cycleCount: input.cycleCount ?? row.cycleCount },
+  });
+  const signal = await ingestBehavioralSignal({
+    signalType: "executive_loop_review",
+    entityRef: row.id,
+    evidenceEventId: event.id,
+    metadata: { feedback: input.feedback, outcome: input.outcome ?? "reviewed", phase: row.phase, cycleCount: input.cycleCount ?? row.cycleCount },
+  });
+  return { event, signal };
 }
 export async function runExecutiveLoopTick() {
   const row = await current(); const phase = row.phase as LoopPhase; const elapsed = Date.now() - new Date(row.phaseEnteredAt).getTime();

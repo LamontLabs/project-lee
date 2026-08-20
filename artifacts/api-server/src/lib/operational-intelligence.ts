@@ -26,6 +26,7 @@ function whyChain(summary: string, evidenceRefs: string[]) {
 
 function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]; significance?: string; value?: unknown }) {
   const evidenceRefs = [...new Set(input.evidenceRefs ?? [])];
+  if (evidenceRefs.length === 0) evidenceRefs.push(input.id);
   return {
     id: input.id,
     text: input.text,

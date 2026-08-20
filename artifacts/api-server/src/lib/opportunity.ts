@@ -17,18 +17,20 @@ export async function detectOpportunities() {
     listAnchors(),
   ]);
   const candidates: Candidate[] = [];
+  const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
   for (let i = 0; i < runs.length; i += 1) {
     for (let j = i + 1; j < runs.length; j += 1) {
       const a = runs[i].report as any;
       const b = runs[j].report as any;
-      const first = new Set([...(a?.dependencies ?? []), ...(a?.technologyStack ?? [])].map(String));
-      const second = [...new Set([...(b?.dependencies ?? []), ...(b?.technologyStack ?? [])].map(String))];
+      const first = new Set([...list(a?.dependencies), ...list(a?.technologyStack)].map(String));
+      const second = [...new Set([...list(b?.dependencies), ...list(b?.technologyStack)].map(String))];
       const overlap = second.filter((item) => first.has(item));
       if (overlap.length >= 2) candidates.push({ opportunityType: "code_reuse", title: "Shared implementation pattern", description: `Projects ${runs[i].projectId} and ${runs[j].projectId} share ${overlap.slice(0, 4).join(", ")}.`, projectIds: [runs[i].projectId, runs[j].projectId], evidenceRefs: [runs[i].id, runs[j].id], suggestedAction: "Compare the shared pattern and extract the reusable boundary before building it twice.", confidence: Math.min(.95, .6 + overlap.length * .08) });
     }
   }
   for (const objective of objectives) {
-    if (objective.relatedProjectIds.length >= 2) candidates.push({ opportunityType: "strategic_alignment", title: "Shared strategic objective", description: `${objective.objective} links multiple projects and can compound progress across the portfolio.`, projectIds: objective.relatedProjectIds, evidenceRefs: [objective.id], suggestedAction: objective.nextAction ?? "Coordinate the next milestone so both projects advance the objective.", confidence: objective.propagatedConfidence ?? .7 });
+    const relatedProjectIds = list(objective.relatedProjectIds).map(String);
+    if (relatedProjectIds.length >= 2) candidates.push({ opportunityType: "strategic_alignment", title: "Shared strategic objective", description: `${objective.objective} links multiple projects and can compound progress across the portfolio.`, projectIds: relatedProjectIds, evidenceRefs: [objective.id], suggestedAction: objective.nextAction ?? "Coordinate the next milestone so both projects advance the objective.", confidence: objective.propagatedConfidence ?? .7 });
   }
   const active = momentum.filter((item) => item.classification === "Rising" || item.classification === "Explosive");
   const stalled = momentum.filter((item) => item.classification === "Stalled" || item.classification === "Dormant");

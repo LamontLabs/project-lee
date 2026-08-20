@@ -21,7 +21,7 @@ function modelFor(mode: Mode, risk: string, budgetLimited: boolean) {
   if (mode === "deep_think" || risk === "HIGH" || risk === "CRITICAL") return "claude-opus-5";
   if (mode === "build" || mode === "review") return "gpt-5.6-terra";
   if (mode === "write") return "claude-sonnet-4-6";
-  if (mode === "pilot") return "gemini-2.5-pro";
+  if (mode === "pilot") return "gemini-3.1-pro-preview";
   return "gpt-5.6-luna";
 }
 

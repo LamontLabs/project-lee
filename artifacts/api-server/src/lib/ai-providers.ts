@@ -12,7 +12,7 @@ export const MODEL_PRICING: Record<string, { input: number; output: number; prov
   "claude-sonnet-4-6": { input: 0.000003, output: 0.000015, provider: "anthropic" },
   "claude-opus-5": { input: 0.000005, output: 0.000025, provider: "anthropic" },
   "gemini-2.5-flash": { input: 0.0000003, output: 0.0000025, provider: "gemini" },
-  "gemini-2.5-pro": { input: 0.00000125, output: 0.000005, provider: "gemini" },
+  "gemini-3.1-pro-preview": { input: 0.00000125, output: 0.000005, provider: "gemini" },
 };
 
 export function estimateCost(model: string, tokensIn: number, tokensOut: number): number {

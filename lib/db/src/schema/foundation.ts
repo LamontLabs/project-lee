@@ -70,6 +70,61 @@ export const projectionEventReceipt = pgTable("projection_event_receipt", {
   eventHash: varchar("event_hash", { length: 64 }).notNull(),
   appliedAt: timestamp("applied_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("projection_event_receipt_unique").on(table.projectionName, table.eventId)]);
+
+export const eventSubscription = pgTable("event_subscription", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  subscriberId: varchar("subscriber_id", { length: 160 }).notNull().unique(),
+  eventTypes: jsonb("event_types").$type<string[]>().notNull().default([]),
+  status: varchar("status", { length: 24 }).notNull().default("active"),
+  cursorCreatedAt: timestamp("cursor_created_at", { withTimezone: true }),
+  cursorEventId: uuid("cursor_event_id"),
+  retryCount: integer("retry_count").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+  deadLetterCount: integer("dead_letter_count").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(5),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("event_subscription_status_idx").on(table.status, table.nextAttemptAt),
+]);
+
+export const eventDelivery = pgTable("event_delivery", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  subscriptionId: uuid("subscription_id").notNull(),
+  eventId: uuid("event_id").notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("pending"),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  correlationId: uuid("correlation_id"),
+  causationId: uuid("causation_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("event_delivery_subscription_event_unique").on(table.subscriptionId, table.eventId),
+  index("event_delivery_due_idx").on(table.status, table.nextAttemptAt),
+]);
+
+export const eventDeliveryAttempt = pgTable("event_delivery_attempt", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  deliveryId: uuid("delivery_id").notNull(),
+  subscriptionId: uuid("subscription_id").notNull(),
+  eventId: uuid("event_id").notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  status: varchar("status", { length: 24 }).notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  error: text("error"),
+  correlationId: uuid("correlation_id"),
+  causationId: uuid("causation_id"),
+}, (table) => [
+  uniqueIndex("event_delivery_attempt_unique").on(table.deliveryId, table.attemptNumber),
+  index("event_delivery_attempt_event_idx").on(table.eventId, table.status),
+]);
 export const timelineEventConfig = pgTable("timeline_event_config", {
   id: uuid("id").defaultRandom().primaryKey(),
   eventType: varchar("event_type", { length: 160 }).notNull().unique(),

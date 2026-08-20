@@ -4,13 +4,14 @@ import { currentOperationalCapacity } from "./operational-capacity";
 import { currentProjectMomentum } from "./project-momentum";
 import { emitEvent } from "./foundation-events";
 import { currentPortfolioState } from "./portfolio-intelligence";
+import { currentExecutionReadiness } from "./execution-readiness";
 const DAILY_HOURS = 8; const WEEKLY_HOURS = 40;
 export async function computeResourceAllocation() {
-  const [projects, momentum, objectives, anchors, loops, capacity, overrides, portfolio] = await Promise.all([
+  const [projects, momentum, objectives, anchors, loops, capacity, overrides, portfolio, readiness] = await Promise.all([
     db.select().from(universalObject).where(eq(universalObject.objectType, "project")), currentProjectMomentum(),
     db.select().from(strategicObjective).where(eq(strategicObjective.status, "active")), db.select().from(strategicAnchor).where(eq(strategicAnchor.active, true)),
     db.select().from(waitingLoop).where(eq(waitingLoop.status, "open")), currentOperationalCapacity(),
-    db.select().from(resourceAllocationOverride).where(gt(resourceAllocationOverride.expiresAt, new Date())), currentPortfolioState(),
+    db.select().from(resourceAllocationOverride).where(gt(resourceAllocationOverride.expiresAt, new Date())), currentPortfolioState(), currentExecutionReadiness(),
   ]);
   if (!projects.length) return [];
   const raw = projects.map((project) => {
@@ -18,8 +19,9 @@ export async function computeResourceAllocation() {
     const objectiveScore = objectives.reduce((sum, item) => sum + ((item.relatedProjectIds ?? []).includes(project.id) ? 30 : 0), 0);
     const anchorScore = anchors.reduce((sum, item) => sum + (item.projectId === project.id ? 20 : 0), 0);
     const waitingPenalty = loops.filter((item) => JSON.stringify(item).includes(project.id)).length * 8;
-    const score = Math.max(1, momentumScore * .55 + objectiveScore + anchorScore - waitingPenalty);
-    return { project, score, why: { momentum: momentumScore, objectives: objectiveScore, anchors: anchorScore, waitingPenalty } };
+    const readinessBonus = Math.max(0, (readiness.find((item: any) => item.projectId === project.id)?.overallScore ?? 0) - 70) * .25;
+    const score = Math.max(1, momentumScore * .55 + objectiveScore + anchorScore + readinessBonus - waitingPenalty);
+    return { project, score, why: { momentum: momentumScore, objectives: objectiveScore, anchors: anchorScore, readinessBonus, waitingPenalty } };
   });
   const total = raw.reduce((sum, item) => sum + item.score, 0);
   const locked = new Map(overrides.map((item) => [item.projectId, item]));

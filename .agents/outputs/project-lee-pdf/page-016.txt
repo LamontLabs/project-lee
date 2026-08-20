@@ -1,0 +1,44 @@
+- persist through restart 
+- react to important events 
+- monitor connected systems 
+- update priorities 
+- prepare useful actions 
+- wait when nothing needs intervention 
+- review outcomes 
+- feed experience back into learning 
+ 
+--- 
+ 
+22. Portfolio Intelligence 
+ 
+LEE understands Lamont Labs as one portfolio. 
+ 
+She should understand: 
+ 
+- shared infrastructure 
+- system dependencies 
+- project momentum 
+- readiness 
+- resource competition 
+- common technologies 
+- shared customers 
+- opportunities 
+- risks 
+- potential reuse 
+ 
+This enables questions such as: 
+ 
+- Which project deserves attention? 
+- Which project is closest to commercial readiness? 
+- Which systems depend on this service? 
+- Where is effort being duplicated? 
+- What system failure would have the largest blast radius? 
+ 
+--- 
+ 
+23. LEE Desktop on the K6 
+ 
+The K6 should eventually become LEE's primary local runtime. 
+ 
+The K6 can host: 
+ 

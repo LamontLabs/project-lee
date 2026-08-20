@@ -1,0 +1,44 @@
+Project LEE 
+ 
+Learning and Evolving Environment 
+ 
+Persistent Founder Operating Environment and Lamont Labs Orchestration Layer 
+ 
+--- 
+ 
+1. Core Definition 
+ 
+Project LEE — Learning and Evolving Environment — is the persistent operating intelligence 
+layer for Lamont Labs. 
+ 
+LEE is designed to understand the full operational picture across projects, people, systems, 
+services, objectives, decisions, events, relationships, dependencies, risks, costs, and 
+accumulated experience. 
+ 
+LEE is not intended to perform every specialized task herself. 
+ 
+Instead: 
+ 
+«LEE understands, coordinates, supervises, remembers, prioritizes, and orchestrates. 
+Specialized systems perform their own specialist work. APIs connect them.» 
+ 
+LEE therefore sits above the broader Lamont Labs ecosystem. 
+ 
+Her job is to continuously answer questions such as: 
+ 
+- What is happening? 
+- What changed? 
+- What deserves attention? 
+- What am I waiting on? 
+- What is blocked? 
+- Which project is moving? 
+- Which project is stagnating? 
+- Which systems are healthy? 
+- What can continue without intervention? 
+- What requires approval? 
+- What system should handle this? 
+- What AI reasoning is actually required? 
+- What did this cost? 
+- What happened as a result? 
+- What have we learned from similar outcomes? 
+ 

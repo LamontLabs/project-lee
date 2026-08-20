@@ -1,0 +1,44 @@
+CerbaSeal 
+ 
+- GovernanceDecisionIssued 
+- ActionHeld 
+- ActionRejected 
+- AuthorizationExpired 
+ 
+Replit AI Bridge 
+ 
+- ModelCallStarted 
+- ModelCallCompleted 
+- ModelUnavailable 
+- IntegrationDegraded 
+ 
+LEE normalizes these into Domain Events. 
+ 
+--- 
+ 
+41. CIL Is Completely External 
+ 
+CIL is a separate API service. 
+ 
+LEE never performs CIL's specialist reasoning-routing logic internally. 
+ 
+LEE sends a cognitive-resolution request to CIL. 
+ 
+CIL determines: 
+ 
+- whether governed reuse is available 
+- whether new reasoning is required 
+- what model capability is necessary 
+- which model or model class should be selected 
+- whether the request should be held 
+- how much the chosen route is expected to cost 
+ 
+LEE receives and follows that decision. 
+ 
+--- 
+ 
+42. CIL Is Mandatory Before External Model Calls 
+ 
+For LEE-originated AI reasoning requests: 
+ 
+«CIL must be consulted before LEE sends a model request to Replit or another paid AI route.» 

@@ -1,0 +1,44 @@
+↓ 
+ 
+model response 
+ 
+↓ 
+ 
+LEE 
+ 
+This ordering is mandatory for normal LEE AI reasoning. 
+ 
+--- 
+ 
+46. Replit AI Bridge 
+ 
+When LEE moves to the K6, a small private Replit-hosted service should remain available. 
+ 
+Its main purpose is: 
+ 
+«Preserve access to Replit-managed AI integrations so desktop LEE does not need to 
+separately obtain and maintain API keys for every underlying AI provider.» 
+ 
+The flow becomes: 
+ 
+LEE Core on K6 
+→ CIL 
+→ model selected 
+→ Model Router 
+→ Replit AI Bridge 
+→ Replit-managed AI integration 
+→ selected model 
+→ response 
+→ LEE Core 
+ 
+--- 
+ 
+47. Replit Bridge Is an Execution Service, Not a Decision Maker 
+ 
+The Replit AI Bridge does not decide which model to use. 
+ 
+CIL already made that decision. 
+ 
+If the requested route is unavailable: 
+ 
+Replit AI Bridge 

@@ -1,0 +1,44 @@
+ 
+--- 
+ 
+9. Identity 
+ 
+Identity defines who Lee is and how she should operate. 
+ 
+It should be: 
+ 
+- structured 
+- persistent 
+- versioned 
+- owner-controlled 
+ 
+Identity includes areas such as: 
+ 
+- who Lee is 
+- why Lee exists 
+- responsibilities 
+- what Lee must protect 
+- what Lee must never do 
+- priority order 
+- success definition 
+- interruption threshold 
+- silence threshold 
+- escalation threshold 
+- ask threshold 
+- observation threshold 
+ 
+Identity should be consulted before normal reasoning or action. 
+ 
+--- 
+ 
+10. Constitution 
+ 
+The Constitution defines non-negotiable operating boundaries. 
+ 
+Identity answers: 
+ 
+«Who am I?» 
+ 
+The Constitution answers: 
+ 
+«What am I allowed to do?» 

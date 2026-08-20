@@ -1,0 +1,44 @@
+→ result 
+ 
+→ Event Log 
+ 
+--- 
+ 
+54. No Local CerbaSeal Fallback 
+ 
+LEE must never do this: 
+ 
+«CerbaSeal is unavailable, but my local governance logic thinks this is safe.» 
+ 
+That should be architecturally impossible. 
+ 
+If CerbaSeal is required and unavailable: 
+ 
+«HOLD.» 
+ 
+Informational work may continue. 
+ 
+Preparation may continue. 
+ 
+Execution may not. 
+ 
+--- 
+ 
+55. Cross-System Orchestration 
+ 
+LEE should eventually coordinate workflows spanning multiple independent services. 
+ 
+Example: 
+ 
+Greyline reports: 
+ 
+"PackageReady" 
+ 
+LEE: 
+ 
+1. records the event 
+2. determines validation is required 
+3. invokes validation capability 
+4. receives result 
+5. determines external publication is consequential 
+6. sends action to CerbaSeal 

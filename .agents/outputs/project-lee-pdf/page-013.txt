@@ -1,0 +1,44 @@
+- architectural commitments 
+- foundational product philosophy 
+- rejected approaches 
+- long-term priorities 
+ 
+Anchors should not silently age away. 
+ 
+Contradictions should be surfaced. 
+ 
+--- 
+ 
+16. Decision Memory 
+ 
+LEE should infer recurring decision heuristics from observed decisions. 
+ 
+Examples: 
+ 
+- portability is preferred over vendor lock-in 
+- systems should remain independently useful 
+- proof is preferred over architectural claims 
+ 
+Decision Heuristics should include: 
+ 
+- evidence 
+- confidence 
+- exceptions 
+- first observed 
+- last reinforced 
+ 
+--- 
+ 
+17. Institutional Knowledge 
+ 
+LEE should learn durable organizational knowledge through repeated reality. 
+ 
+The progression remains: 
+ 
+Event 
+→ Experience 
+→ Lesson 
+→ Pattern 
+→ Institutional Knowledge 
+ 
+Institutional Knowledge should not be created from one isolated observation. 

@@ -1,0 +1,44 @@
+ 
+It should be earned through repeated supported outcomes. 
+ 
+--- 
+ 
+18. Query Engine 
+ 
+LEE's intelligence engines should retrieve operational knowledge through one universal Query 
+Engine. 
+ 
+It should handle: 
+ 
+- authorization 
+- structured search 
+- semantic search 
+- Fact/Interpretation separation 
+- freshness 
+- aging 
+- confidence 
+- trust 
+- project scope 
+- people scope 
+- timeline scope 
+- ranking 
+- Context Economy preparation 
+ 
+This prevents individual engines from developing incompatible views of reality. 
+ 
+--- 
+ 
+19. Context Economy 
+ 
+LEE should not send its entire Brain to AI models. 
+ 
+Context should be selected based on factors such as: 
+ 
+- goal match 
+- recency 
+- importance 
+- relationship relevance 
+- project activity 
+- confidence 
+- trust 
+- current operating mode 

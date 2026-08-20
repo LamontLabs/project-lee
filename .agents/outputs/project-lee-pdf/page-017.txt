@@ -1,0 +1,44 @@
+- LEE Core 
+- database 
+- Event Log 
+- Semantic Index 
+- Query Engine 
+- Executive Loop 
+- Operational Intelligence 
+- System Registry 
+- Capability Registry 
+- local background workers 
+- safe local models where appropriate 
+- backup services 
+- desktop notifications 
+ 
+LEE should ultimately behave like a proper desktop application. 
+ 
+The user experience should be: 
+ 
+«Open Lee.» 
+ 
+--- 
+ 
+24. Desktop Interface 
+ 
+The desktop application should become the complete operating control center. 
+ 
+Major areas include: 
+ 
+Today 
+ 
+Current priorities and changes. 
+ 
+Ask Lee 
+ 
+Full interaction with the Brain. 
+ 
+Projects 
+ 
+Individual project state. 
+ 
+Portfolio 
+ 
+Cross-project view. 
+ 

@@ -1,0 +1,44 @@
+The definitive consequential-action path should be: 
+ 
+LEE decides an external action is required 
+ 
+→ target capability identified 
+ 
+→ capability contract indicates CerbaSeal required 
+ 
+→ CerbaSeal API 
+ 
+→ ALLOW / HOLD / REJECT 
+ 
+→ human confirmation if required 
+ 
+→ target system API 
+ 
+→ result 
+ 
+→ LEE Event Log 
+ 
+No duplicate local governance decision engine. 
+ 
+--- 
+ 
+74. Final Responsibility Model 
+ 
+LEE 
+ 
+Understands, remembers, prioritizes, coordinates, supervises, and learns. 
+ 
+CIL 
+ 
+Owns cognitive reuse, cost minimization, and model selection. 
+ 
+Model Router 
+ 
+Executes CIL's routing decision. 
+ 
+Replit AI Bridge 
+ 
+Provides Replit-managed AI execution without requiring individual underlying provider API keys 
+on the K6. 
+ 
+CerbaSeal 

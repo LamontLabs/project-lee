@@ -1,0 +1,44 @@
+7. receives ALLOW 
+8. requests mobile approval 
+9. receives approval 
+10. calls Greyline publishing API 
+11. records the outcome 
+ 
+Every system retains its own specialization. 
+ 
+LEE coordinates the sequence. 
+ 
+--- 
+ 
+56. Health Monitoring 
+ 
+Every connected system should expose standardized health. 
+ 
+Possible states: 
+ 
+- Healthy 
+- Degraded 
+- Unreachable 
+- Failed 
+- Maintenance 
+- Unknown 
+ 
+LEE should track: 
+ 
+- last heartbeat 
+- response latency 
+- error rate 
+- consecutive failures 
+- system version 
+- dependencies 
+- workload 
+- last successful request 
+ 
+This includes: 
+ 
+- CIL 
+- CerbaSeal 
+- Replit AI Bridge 
+- Greyline 
+- QuantraCore 
+- future systems 

@@ -1,0 +1,44 @@
+ 
+This allows both active orchestration and event-driven operation. 
+ 
+--- 
+ 
+38. Greyline Example 
+ 
+LEE might receive: 
+ 
+«Run Greyline overnight and process everything already approved for production. Do not 
+publish externally.» 
+ 
+LEE would: 
+ 
+1. understand the objective 
+2. inspect Greyline health 
+3. inspect available capabilities 
+4. inspect the production queue 
+5. check permissions 
+6. consider K6 resource state 
+7. call Greyline's production API 
+8. monitor events 
+9. retry safe failures where permitted 
+10. stop when human judgment is required 
+11. summarize the result 
+ 
+Greyline performs the publishing work. 
+ 
+LEE supervises it. 
+ 
+--- 
+ 
+39. QuantraCore Example 
+ 
+QuantraCore retains its own specialist logic. 
+ 
+LEE may observe: 
+ 
+- system health 
+- data state 
+- strategies 
+- risk state 
+- simulations 
+- positions 

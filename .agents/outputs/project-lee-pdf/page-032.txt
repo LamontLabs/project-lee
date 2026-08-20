@@ -1,0 +1,44 @@
+↓ 
+ 
+Identity 
+ 
+↓ 
+ 
+Constitution 
+ 
+↓ 
+ 
+Intent 
+ 
+↓ 
+ 
+Query Engine 
+ 
+↓ 
+ 
+Context Economy 
+ 
+↓ 
+ 
+CIL API 
+ 
+If CIL returns: 
+ 
+T1 / T2 resolution 
+ 
+LEE receives the result. 
+ 
+No model call occurs. 
+ 
+If CIL returns: 
+ 
+T3 + selected model route 
+ 
+LEE passes that decision to: 
+ 
+Model Router 
+ 
+↓ 
+ 
+appropriate execution service 
+ 

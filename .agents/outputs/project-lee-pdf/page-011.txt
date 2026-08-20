@@ -1,0 +1,44 @@
+- accountability 
+- Time Machine 
+- learning from outcomes 
+- auditing 
+ 
+--- 
+ 
+12. Facts and Interpretations 
+ 
+LEE must preserve a permanent structural distinction between evidence and conclusions. 
+ 
+Fact 
+ 
+A sourced claim about reality. 
+ 
+Interpretation 
+ 
+A conclusion derived from evidence. 
+ 
+Example: 
+ 
+Fact 
+ 
+Greyline completed seven production jobs. 
+ 
+Interpretation 
+ 
+Greyline's current workflow appears operationally stable. 
+ 
+Interpretations should retain: 
+ 
+- evidence references 
+- confidence 
+- provenance 
+- Why Chain 
+- timestamp 
+- creator 
+ 
+--- 
+ 
+13. Provenance 
+ 
+LEE should always be able to answer: 
+ 

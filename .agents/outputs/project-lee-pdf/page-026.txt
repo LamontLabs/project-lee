@@ -1,0 +1,44 @@
+ 
+Capabilities may be classified as: 
+ 
+Observe 
+ 
+LEE can inspect state and events. 
+ 
+Use 
+ 
+LEE can call the system as a service. 
+ 
+Manage 
+ 
+LEE can operate approved functions. 
+ 
+Governed Manage 
+ 
+LEE may request consequential functions only after the required governance process. 
+ 
+Permissions should exist per capability. 
+ 
+--- 
+ 
+37. Three API Relationships 
+ 
+There are three important API directions. 
+ 
+Service API 
+ 
+LEE → System 
+ 
+LEE uses specialist functionality. 
+ 
+Management API 
+ 
+LEE → System 
+ 
+LEE operates approved workflows. 
+ 
+Event API 
+ 
+System → LEE 
+ 
+The system reports what happened. 

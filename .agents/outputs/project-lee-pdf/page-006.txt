@@ -1,0 +1,44 @@
+The Android interface for portable access, capture, alerts, approvals, Ask Lee, and lightweight 
+system control. 
+ 
+Replit Infrastructure 
+ 
+A cloud component that preserves access to Replit-managed AI integrations and other selected 
+cloud capabilities. 
+ 
+None of these becomes a separate authoritative Lee. 
+ 
+--- 
+ 
+6. The LEE Brain 
+ 
+The LEE Brain is the durable asset. 
+ 
+It contains accumulated operational intelligence such as: 
+ 
+- Identity 
+- Constitution 
+- Event history 
+- Facts 
+- Interpretations 
+- Assumptions 
+- Strategic Anchors 
+- Decision Heuristics 
+- Institutional Knowledge 
+- Organizational Memory 
+- Operational Memory 
+- project state 
+- people 
+- relationships 
+- objectives 
+- dependencies 
+- portfolio structure 
+- project momentum 
+- execution readiness 
+- opportunities 
+- simulations 
+- reviews 
+- experiences 
+- lessons 
+- provenance 
+- Why Chains 

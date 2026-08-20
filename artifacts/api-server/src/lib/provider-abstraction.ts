@@ -9,12 +9,14 @@ export type StandardCommit = { sha: string; repoId: string; author: string; mess
 export type StandardIssue = { id: string; repoId: string; title: string; labels: string[]; assignees: string[]; openedAt: Date };
 export type StandardPR = { id: string; repoId: string; title: string; author: string; targetBranch: string; openedAt: Date };
 export type FileRef = { id: string; name: string; type: string; size?: number; folder?: string; provider: string; modifiedAt?: Date };
+export type RepositoryFile = { path: string; size: number; lines: number; content?: string; contentExcluded?: boolean };
+export type RepositorySnapshot = { repositoryId: string; root: string; files: RepositoryFile[] };
 
 export interface CommunicationProvider {
   fetchMessages(since: Date): Promise<StandardMessage[]>; fetchThread(threadId: string): Promise<StandardThread>; listUnread(): Promise<StandardMessage[]>; markRead(messageId: string): Promise<void>;
 }
 export interface DocumentProvider { listDocuments(since: Date): Promise<StandardDocument[]>; getDocument(docId: string): Promise<StandardDocument>; watchChanges(callback: (document: StandardDocument) => void): Promise<() => void>; }
-export interface DevelopmentProvider { listRepos(): Promise<{ id: string; name: string }[]>; fetchCommits(repoId: string, since: Date): Promise<StandardCommit[]>; fetchIssues(repoId: string, filters?: Record<string, unknown>): Promise<StandardIssue[]>; fetchPullRequests(repoId: string, filters?: Record<string, unknown>): Promise<StandardPR[]>; }
+export interface DevelopmentProvider { listRepos(): Promise<{ id: string; name: string }[]>; fetchCommits(repoId: string, since: Date): Promise<StandardCommit[]>; fetchIssues(repoId: string, filters?: Record<string, unknown>): Promise<StandardIssue[]>; fetchPullRequests(repoId: string, filters?: Record<string, unknown>): Promise<StandardPR[]>; inspectRepository?(repositoryId: string): Promise<RepositorySnapshot>; }
 export interface SchedulingProvider { listEvents(from: Date, to: Date): Promise<StandardEvent[]>; getEvent(eventId: string): Promise<StandardEvent>; watchChanges(callback: (event: StandardEvent) => void): Promise<() => void>; }
 export interface StorageProvider { listFiles(folder?: string): Promise<FileRef[]>; getFile(fileId: string): Promise<unknown>; watchChanges(callback: (file: FileRef) => void): Promise<() => void>; }
 

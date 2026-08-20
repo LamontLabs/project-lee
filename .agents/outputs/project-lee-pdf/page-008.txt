@@ -1,0 +1,44 @@
+- Identity Engine 
+- Constitution Engine 
+- Intent Engine 
+- Understanding Pipeline 
+- Event Log 
+- Domain Events 
+- Query Engine 
+- Context Economy 
+- Fact Ledger 
+- Interpretation Ledger 
+- Assumption Ledger 
+- Strategic Anchors 
+- Decision Memory 
+- Organizational Memory 
+- Intelligence Graph 
+- Decision Impact Graph 
+- Digital Twin Timeline 
+- Time Machine 
+- Strategy Engine 
+- Reflection Engine 
+- Explanation Engine 
+- Simulation Engine 
+- Operational Intelligence Engine 
+- Executive Loop 
+- Operational Confidence 
+- Project Momentum 
+- Opportunity Engine 
+- Portfolio Intelligence 
+- Portfolio Dependency Graph 
+- Execution Readiness 
+- Resource Allocation 
+- Operational Reviews 
+- Institutional Knowledge 
+- Operational Self-Improvement 
+- System Economics 
+- System Registry 
+- Capability Registry 
+- Universal Systems API Layer 
+- Model Router 
+- backup and recovery 
+- System Manifest 
+- Self-Test Framework 
+ 
+CIL and CerbaSeal are intentionally absent from this list as internal implementations. 

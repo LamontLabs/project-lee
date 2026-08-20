@@ -1,0 +1,44 @@
+«Why do you believe this?» 
+ 
+Important conclusions should remain traceable through: 
+ 
+Recommendation 
+→ reasoning 
+→ Interpretation 
+→ Facts 
+→ source evidence 
+ 
+This should apply to: 
+ 
+- strategy 
+- priorities 
+- opportunities 
+- simulations 
+- readiness 
+- relationship assessments 
+- operational conclusions 
+- Institutional Knowledge 
+ 
+--- 
+ 
+14. Assumptions 
+ 
+Unverified beliefs should be explicitly tracked as Assumptions. 
+ 
+Possible lifecycle: 
+ 
+- active 
+- under review 
+- invalidated 
+- archived 
+ 
+When an assumption becomes invalid, LEE should know what conclusions depended on it. 
+ 
+--- 
+ 
+15. Strategic Anchors 
+ 
+Strategic Anchors preserve durable owner-defined commitments. 
+ 
+Examples may include: 
+ 

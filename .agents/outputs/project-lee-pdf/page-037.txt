@@ -1,0 +1,44 @@
+--- 
+ 
+53. Consequential-Action Flow 
+ 
+The normal flow becomes: 
+ 
+LEE identifies required capability 
+ 
+→ check permission 
+ 
+→ check risk classification 
+ 
+→ prepare action 
+ 
+→ CerbaSeal API 
+ 
+→ decision 
+ 
+If: 
+ 
+HOLD 
+ 
+Stop. 
+ 
+REJECT 
+ 
+Stop. 
+ 
+CerbaSeal unavailable 
+ 
+Stop. 
+ 
+ALLOW 
+ 
+Continue only if all additional requirements are satisfied. 
+ 
+If owner confirmation is required: 
+ 
+→ Mobile/Desktop approval 
+ 
+Then: 
+ 
+→ target system API 
+ 

@@ -1,0 +1,44 @@
+ 
+- API client 
+- endpoint configuration 
+- authentication logic 
+- request schema 
+- response schema 
+- health checks 
+- timeout handling 
+- retry handling 
+- service-state tracking 
+- correlation IDs 
+- normalized events 
+- UI representation 
+ 
+LEE must not contain a second implementation of: 
+ 
+CIL logic 
+ 
+- T1 logic 
+- T2 logic 
+- T3 logic 
+- model-selection rules 
+- cost optimization 
+- cognitive asset selection 
+- contradiction arbitration 
+- cognitive crystallization 
+- CIL-specific confidence logic 
+ 
+CerbaSeal logic 
+ 
+- policy-pack evaluation 
+- ALLOW/HOLD/REJECT decision logic 
+- approval-chain evaluation 
+- governance invariants 
+- decision-envelope creation 
+- authorization-expiry rules 
+- evidence-bundle generation 
+ 
+There must be one authoritative implementation of each. 
+ 
+--- 
+ 
+4. Why This Separation Matters 
+ 

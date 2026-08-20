@@ -1,0 +1,44 @@
+- ai.model.status 
+- ai.usage 
+- ai.health 
+ 
+--- 
+ 
+34. Standard LEE System Contract 
+ 
+A LEE-compatible project should expose a machine-readable contract. 
+ 
+It should describe: 
+ 
+Identity 
+ 
+What system this is. 
+ 
+Runtime 
+ 
+Where it runs. 
+ 
+Health 
+ 
+How its health is checked. 
+ 
+Capabilities 
+ 
+What LEE may call. 
+ 
+Request Schemas 
+ 
+What each capability accepts. 
+ 
+Response Schemas 
+ 
+What each capability returns. 
+ 
+Events 
+ 
+What it reports back to LEE. 
+ 
+Permissions 
+ 
+What LEE may do. 
+ 

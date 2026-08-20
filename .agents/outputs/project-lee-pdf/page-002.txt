@@ -1,0 +1,44 @@
+--- 
+ 
+2. Fundamental Architecture 
+ 
+The long-term architecture is built around several strict separations. 
+ 
+LEE 
+ 
+Owns: 
+ 
+- operational context 
+- persistent memory 
+- organizational understanding 
+- project intelligence 
+- people and relationships 
+- priorities 
+- objectives 
+- orchestration 
+- workflow coordination 
+- system supervision 
+- portfolio intelligence 
+- historical continuity 
+- learning from outcomes 
+ 
+CIL 
+ 
+Owns: 
+ 
+- cognitive reuse 
+- reasoning resolution 
+- AI cost minimization 
+- model selection 
+- model-class selection 
+- cognitive routing 
+- T1/T2/T3 logic 
+- cognitive asset logic 
+- contradiction handling 
+- drift handling 
+- routing economics 
+ 
+CerbaSeal 
+ 
+Owns: 
+ 

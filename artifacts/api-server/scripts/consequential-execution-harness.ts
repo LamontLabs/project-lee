@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { db, governanceRule } from "@workspace/db";
 import { executeProviderWrite } from "../src/lib/provider-abstraction";
 
-type Mode = "ALLOW" | "HOLD" | "REJECT" | "MALFORMED" | "EXPIRED" | "CONFIRMATION" | "AUTH_FAILURE";
+type Mode = "ALLOW" | "HOLD" | "REJECT" | "MALFORMED" | "EXPIRED" | "CONFIRMATION" | "AUTH_FAILURE" | "GATE_RESULT";
 let mode: Mode = "ALLOW";
 let calls = 0;
 const runId = randomUUID();
@@ -20,6 +20,30 @@ const server = http.createServer(async (_request, response) => {
   }
   const expiry = mode === "EXPIRED" ? new Date(Date.now() - 1000).toISOString() : new Date(Date.now() + 60_000).toISOString();
   if (mode === "MALFORMED") return response.end(JSON.stringify({ verdict: "ALLOW" }));
+  if (mode === "GATE_RESULT") return response.end(JSON.stringify({
+    decisionEnvelope: {
+      envelopeId: `env-${runId}-${calls}`,
+      requestId: "test-request",
+      workflowClass: "your_workflow_class",
+      finalState: "ALLOW",
+      permittedActionClass: "escalate",
+      humanApprovalRequired: false,
+      humanApprovalPresent: true,
+      proposalSourceKind: "deterministic_rule",
+      immutable: true,
+      evidenceBundleId: `evidence-${runId}-${calls}`,
+      trace: { checkedInvariants: ["stub"], reasonCodes: ["DECISION_ALLOWED"], evaluatedAt: new Date().toISOString() },
+      issuedAt: new Date().toISOString(),
+    },
+    releaseAuthorization: {
+      releaseAuthorizationId: `release-${runId}-${calls}`,
+      requestId: "test-request",
+      envelopeId: `env-${runId}-${calls}`,
+      actionClass: "escalate",
+      releasedAt: new Date().toISOString(),
+    },
+    blockedActionRecord: null,
+  }));
   return response.end(JSON.stringify({
     verdict: mode === "CONFIRMATION" ? "ALLOW" : mode,
     reason_codes: [`STUB_${mode}`],
@@ -40,7 +64,9 @@ async function main() {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = (server.address() as { port: number }).port;
   const previousBaseUrl = process.env.CERBASEAL_BASE_URL;
+  const previousEvaluateEndpoint = process.env.CERBASEAL_EVALUATE_ENDPOINT;
   process.env.CERBASEAL_BASE_URL = `http://127.0.0.1:${port}`;
+  process.env.CERBASEAL_EVALUATE_ENDPOINT = `http://127.0.0.1:${port}/evaluate`;
   const [rule] = await db.insert(governanceRule).values({
     ruleType: "always_allow",
     actionPattern: "connector_write",
@@ -68,6 +94,13 @@ async function main() {
   const { result, writes } = await attempt();
   assert.equal(result.executed, true);
   assert.equal(writes, 1);
+  });
+
+  test("CerbaSeal-Core GateResult is normalized without weakening the execution gate", { concurrency: false }, async () => {
+    mode = "GATE_RESULT";
+    const { result, writes } = await attempt();
+    assert.equal(result.executed, true);
+    assert.equal(writes, 1);
   });
 
   test("missing owner or human confirmation blocks without contacting CerbaSeal", { concurrency: false }, async () => {
@@ -103,6 +136,8 @@ async function main() {
     await db.update(governanceRule).set({ active: false, updatedAt: new Date() }).where(eq(governanceRule.id, rule.id));
     if (previousBaseUrl === undefined) delete process.env.CERBASEAL_BASE_URL;
     else process.env.CERBASEAL_BASE_URL = previousBaseUrl;
+    if (previousEvaluateEndpoint === undefined) delete process.env.CERBASEAL_EVALUATE_ENDPOINT;
+    else process.env.CERBASEAL_EVALUATE_ENDPOINT = previousEvaluateEndpoint;
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
 }

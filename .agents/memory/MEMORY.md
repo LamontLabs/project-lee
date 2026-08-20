@@ -41,5 +41,6 @@
 - [Provider Abstraction boundary](provider-abstraction-boundary.md) — External adapters translate service-specific data into typed provider-neutral records and domain events before internal engines consume it.
 - [Project Bootstrap boundary](project-bootstrap-boundary.md) — Repository bootstrap converts observable static structure into auditable first-draft project knowledge and owner questions.
 - [Internal Capability Services boundary](internal-capability-services-boundary.md) — LEE calls CIL and CerbaSeal through authenticated versioned service contracts without sharing their databases or runtimes.
+- [CerbaSeal contract drift](cerbaseal-contract-drift.md) — the public CerbaSeal frontend is not the enforcement-gate API; health requires a reachable JSON gate deployment.
 - [Internal route boundary](internal-route-boundary.md) — internal capability aliases are mounted outside the public router and require registered service identity.
 - [Executive Loop boundary](executive-loop-boundary.md) — The Executive Loop is a persisted phase heartbeat wrapped around Operational Intelligence, not a replacement scheduler.

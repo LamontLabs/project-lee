@@ -25,7 +25,7 @@ timeoutMs = 20000
 CIL_LEE_ENDPOINT = "https://cognitive-infrastructure-layer.replit.app/api/query/lee"
 CERBASEAL_BASE_URL = "https://cerbaseal.replit.app"
 CERBASEAL_POLICY_PACK_VERSION = "2026.7.1"
-CERBASEAL_EVALUATE_ENDPOINT = "https://cerbaseal.replit.app/govern/evaluate"
+CERBASEAL_EVALUATE_ENDPOINT = "https://cerbaseal.replit.app/evaluate"
 CERBASEAL_POLICY_VERSION_ENDPOINT = "https://cerbaseal.replit.app/policy/current-version"
 CERBASEAL_HEALTH_ENDPOINT = "https://cerbaseal.replit.app/health"
 

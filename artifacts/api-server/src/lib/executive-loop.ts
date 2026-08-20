@@ -8,6 +8,7 @@ import { detectOpportunities } from "./opportunity";
 import { computeOperationalCapacity } from "./operational-capacity";
 import { computePortfolioState } from "./portfolio-intelligence";
 import { computeResourceAllocation } from "./resource-allocation";
+import { runRequestPipeline } from "./request-pipeline";
 
 export const LOOP_PHASES = ["OBSERVE", "UNDERSTAND", "PRIORITIZE", "DECIDE", "PREPARE", "WAIT", "REVIEW"] as const;
 export type LoopPhase = typeof LOOP_PHASES[number];
@@ -47,6 +48,11 @@ export async function interruptExecutiveLoop(eventType: string, eventId?: string
 }
 export async function runExecutiveLoopTick() {
   const row = await current(); const phase = row.phase as LoopPhase; const elapsed = Date.now() - new Date(row.phaseEnteredAt).getTime();
+  const pipeline = await runRequestPipeline({ text: `Executive Loop ${phase} cycle`, origin: "executive_loop", actionType: "executive_loop_tick", engineName: "Executive Loop", mode: "normal", budgetTokens: 1200, payload: { phase } });
+  if (!pipeline.ok) {
+    await emitEvent({ eventType: "RequestPipelineFailed", aggregateType: "executive_loop", aggregateId: row.id, sourceRef: "executive-loop", payload: { failedStage: pipeline.failedStage, error: pipeline.error, correlationId: pipeline.correlationId } });
+    return row;
+  }
   if (phase === "UNDERSTAND" || phase === "PRIORITIZE") await generateOperationalContext();
   if (elapsed >= (DEFAULT_PHASE_MAX_MS[phase] ?? 60_000)) return transitionExecutiveLoop();
   return row;

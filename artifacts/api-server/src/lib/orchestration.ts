@@ -4,6 +4,7 @@ import { getResourceState } from "./resource";
 import { getState, transitionState } from "./state";
 import { findCapability, getEngines, registerEngine, setLifecycleState } from "./capability-registry";
 import type { RecoveryPolicy } from "./engine-lifecycle";
+import { runRequestPipeline } from "./request-pipeline";
 
 export type Priority = "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
 const priorities: Record<Priority, number> = { CRITICAL: 4, HIGH: 3, NORMAL: 2, LOW: 1 };
@@ -102,6 +103,13 @@ export async function orchestrationTick() {
   await registerDefaultEngines();
   const [next] = await db.select().from(orchestrationWorkItem).where(eq(orchestrationWorkItem.status, "queued")).orderBy(desc(orchestrationWorkItem.priority), desc(orchestrationWorkItem.urgencyScore), asc(orchestrationWorkItem.createdAt)).limit(1);
   if (!next) return null;
+  const pipeline = await runRequestPipeline({ text: `Proactive orchestration ${next.engineName} ${next.action}`, origin: "proactive", actionType: next.action, engineName: next.engineName, mode: "normal", budgetTokens: 1000, payload: { workItemId: next.id, priority: next.priority } });
+  if (!pipeline.ok) {
+    const reason = `Request pipeline stopped at ${pipeline.failedStage}: ${pipeline.error}`;
+    const [delayed] = await db.update(orchestrationWorkItem).set({ status: "delayed", delayReason: reason }).where(eq(orchestrationWorkItem.id, next.id)).returning();
+    await db.insert(eventLog).values({ eventType: "RequestPipelineFailed", aggregateType: "orchestration_work_item", aggregateId: next.id, sourceRef: "orchestration-engine", occurredAt: new Date(), payload: { reason, failedStage: pipeline.failedStage, correlationId: pipeline.correlationId } });
+    return delayed;
+  }
   const resources = await getResourceState();
   const operational = await getState();
   const requiredEngine = (await findCapability(next.action))[0] ?? (await db.select().from(engineRegistry).where(eq(engineRegistry.name, next.engineName)).limit(1))[0];

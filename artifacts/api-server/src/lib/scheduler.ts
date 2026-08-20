@@ -10,6 +10,7 @@ import { detectOperationalPatterns } from "./operational-memory";
 import { generateInitiatives } from "./initiative";
 import { generateOperationalContext } from "./operational-intelligence";
 import { runExecutiveLoopTick } from "./executive-loop";
+import { runRequestPipeline } from "./request-pipeline";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -49,6 +50,13 @@ export async function executeScheduledJob(id: string) {
     .set({ status: "running", attempts: job.attempts + 1, updatedAt: new Date() })
     .where(eq(scheduledJob.id, id))
     .returning();
+  const pipeline = await runRequestPipeline({ text: `Scheduled job ${job.jobType}`, origin: "scheduled", actionType: job.jobType, engineName: "Scheduler", mode: "normal", budgetTokens: 1000, payload: { jobId: id, jobType: job.jobType } });
+  if (!pipeline.ok) {
+    const now = new Date();
+    const [failed] = await db.update(scheduledJob).set({ status: "failed", lastError: `Request pipeline stopped at ${pipeline.failedStage}: ${pipeline.error}`, updatedAt: now }).where(eq(scheduledJob.id, id)).returning();
+    const [event] = await db.insert(eventLog).values({ eventType: "JobFailed", aggregateType: "scheduled_job", aggregateId: id, sourceRef: "scheduler", occurredAt: now, payload: { jobId: id, jobType: job.jobType, reason: failed.lastError, pipeline: { correlationId: pipeline.correlationId, failedStage: pipeline.failedStage, completedStages: pipeline.stages } } }).returning();
+    return { job: failed, eventId: event.id, message: "Scheduled job stopped by request pipeline." };
+  }
   let handlerError: string | null = null;
   if (job.jobType === "operational_review") {
     try {

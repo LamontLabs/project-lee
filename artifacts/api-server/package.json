@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:manifest": "node --test scripts/manifest-contract.test.mjs",
     "test:behavioral": "node --test scripts/behavioral-test-foundation.test.mjs",
+    "test:pipeline": "node --test scripts/request-pipeline.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

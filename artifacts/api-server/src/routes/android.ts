@@ -7,6 +7,7 @@ import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
 import { estimateCost, streamProvider } from "../lib/ai-providers";
 import { verifyAndroidPairing } from "./android-pairing";
+import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 
 const router: IRouter = Router();
 async function paired(req: any) {
@@ -54,7 +55,9 @@ router.post("/android/ask", async (req, res): Promise<void> => {
   const message = String(req.body?.message ?? "").trim();
   if (!message) { res.status(400).json({ error: "message is required." }); return; }
   const model = "gpt-5-nano";
-  const packet = await buildContextPacket(message, "low_cost", 1800);
+  const pipeline = await runRequestPipeline({ text: message, origin: "android", actionType: "android_ask", engineName: "Android Companion", mode: "low_cost", budgetTokens: 1800 });
+  if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
+  const packet = pipeline.context;
   const controller = new AbortController();
   res.on("close", () => controller.abort());
   res.status(200).set({

@@ -4,8 +4,10 @@ import { capabilityList, contractVersion, engineHealthResponse, internalContract
 import { getState, transitionState } from "../lib/state";
 import { classifyIntent, correctIntent } from "../lib/intent";
 import { registerDefaultEngines } from "../lib/orchestration";
+import { runSelfTest } from "../lib/self-test";
 
 const router: IRouter = Router();
+router.post("/internal/self-test/run", async (_req, res) => res.status(201).json(await runSelfTest()));
 const engineIdFromRequest = (req: any) => String(req.header("x-engine-id") ?? "");
 async function authorized(req: any, res: any) {
   const engineId = engineIdFromRequest(req);

@@ -24,4 +24,5 @@ export * from "./resources";
 export * from "./intent";
 export * from "./state";
 export * from "./workspace";
+export * from "./self-test";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

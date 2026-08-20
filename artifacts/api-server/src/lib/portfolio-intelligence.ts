@@ -1,18 +1,25 @@
-import { desc, eq, gte } from "drizzle-orm";
-import { db, bootstrapRun, eventLog, opportunity, person, portfolioState, portfolioStateHistory, strategicAnchor, universalObject } from "@workspace/db";
+import { desc } from "drizzle-orm";
+import { db, portfolioState, portfolioStateHistory } from "@workspace/db";
 import { currentProjectMomentum } from "./project-momentum";
 import { emitEvent } from "./foundation-events";
+import { queryEngine } from "./query-engine";
 
 export async function computePortfolioState() {
-  const [projects, momentum, runs, opportunities, anchors, events, people] = await Promise.all([
-    db.select().from(universalObject).where(eq(universalObject.objectType, "project")),
+  const [projectResults, momentum, runResults, opportunityResults, anchorResults, eventResults, peopleResults] = await Promise.all([
+    queryEngine.query({ sources: ["universal_objects"], filters: { objectType: "project" }, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Portfolio Intelligence", purpose: "portfolio_computation" }),
     currentProjectMomentum(),
-    db.select().from(bootstrapRun).where(eq(bootstrapRun.status, "completed")),
-    db.select().from(opportunity).where(eq(opportunity.lifecycle, "new")).orderBy(desc(opportunity.relevanceScore)).limit(20),
-    db.select().from(strategicAnchor).where(eq(strategicAnchor.active, true)),
-    db.select().from(eventLog).where(gte(eventLog.occurredAt, new Date(Date.now() - 7 * 86400000))),
-    db.select().from(person),
+    queryEngine.query({ sources: ["bootstrap_runs"], filters: { status: "completed" }, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Portfolio Intelligence", purpose: "portfolio_computation" }),
+    queryEngine.query({ sources: ["opportunities"], filters: { lifecycle: "new" }, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 20, requester: "Portfolio Intelligence", purpose: "portfolio_computation" }),
+    queryEngine.query({ sources: ["strategic_anchors"], filters: { active: true }, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Portfolio Intelligence", purpose: "portfolio_computation" }),
+    queryEngine.query({ sources: ["events"], filters: { start: new Date(Date.now() - 7 * 86400000) }, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Portfolio Intelligence", purpose: "portfolio_computation" }),
+    queryEngine.query({ sources: ["people"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 200, requester: "Portfolio Intelligence", purpose: "portfolio_computation" }),
   ]);
+  const projects = projectResults.map((item) => item.object as any);
+  const runs = runResults.map((item) => item.object as any);
+  const opportunities = opportunityResults.map((item) => item.object as any);
+  const anchors = anchorResults.map((item) => item.object as any);
+  const events = eventResults.map((item) => item.object as any);
+  const people = peopleResults.map((item) => item.object as any);
   const distribution = Object.fromEntries(["Explosive", "Rising", "Stable", "Declining", "Dormant", "Stalled"].map((key) => [key, momentum.filter((item) => item.classification === key).length]));
   const sharedMap = new Map<string, Set<string>>();
   for (const run of runs) {
@@ -34,7 +41,7 @@ export async function computePortfolioState() {
   }
   const total = [...activity.values()].reduce((sum, value) => sum + value, 0) || projects.length || 1;
   const attentionDistribution = projects.map((project) => ({ projectId: project.id, share: Math.round(((activity.get(project.id) ?? 0) / total) * 100) }));
-  const crossProjectPeople = people.map((item) => ({ personId: item.id, name: item.displayName, projectIds: (item.projects ?? []).filter((id) => projects.some((project) => project.id === id)) })).filter((item) => item.projectIds.length > 1);
+  const crossProjectPeople = people.map((item) => ({ personId: item.id, name: item.displayName, projectIds: (item.projects ?? []).filter((id: string) => projects.some((project) => project.id === id)) })).filter((item) => item.projectIds.length > 1);
   const alerts = [
     ...sharedDependencies.filter((item) => item.projectIds.length > 1).slice(0, 5).map((item) => ({ type: "shared_dependency", title: `Shared dependency: ${item.dependency}`, detail: `${item.projectIds.length} projects depend on the same observed package or service.`, projectIds: item.projectIds, evidenceRefs: runs.filter((run) => item.projectIds.includes(run.projectId)).map((run) => run.id) })),
     ...opportunities.filter((item) => (item.affectedObjects ?? []).length > 1).slice(0, 5).map((item) => ({ type: "shared_opportunity", title: item.headline, detail: item.actionSuggestion, projectIds: item.affectedObjects, evidenceRefs: item.supportingEvidence })),

@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   assumptionLedger,
   behavioralSignal,
+  bootstrapRun,
   constitutionProvision,
   db,
   eventLog,
@@ -29,7 +30,7 @@ const sourceNames = [
   "universal_objects", "facts", "interpretations", "assumptions", "events",
   "waiting_loops", "strategic_objectives", "constitution", "trust_scores",
   "operational_patterns", "behavioral_signals", "institutional_knowledge",
-    "initiatives", "opportunities", "strategic_anchors", "people",
+    "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people",
 ] as const;
 
 export const querySpecSchema = z.object({
@@ -38,7 +39,8 @@ export const querySpecSchema = z.object({
     objectType: z.string().optional(), status: z.string().optional(),
     start: z.coerce.date().optional(), end: z.coerce.date().optional(),
     project: z.string().optional(), person: z.string().optional(),
-    memoryTier: z.string().optional(), text: z.string().optional(),
+    memoryTier: z.string().optional(), lifecycle: z.string().optional(),
+    active: z.boolean().optional(), text: z.string().optional(),
   }).default({}),
   rankingPolicy: z.enum(["balanced", "brief_generation", "strategy_evaluation", "curiosity_scan", "context_assembly"]).default("balanced"),
   confidenceThreshold: z.number().min(0).max(1).default(0),
@@ -78,6 +80,7 @@ const sourceTable = {
   behavioral_signals: [behavioralSignal, "behavioral_signal"],
   institutional_knowledge: [institutionalKnowledgeLedger, "institutional_knowledge"],
   initiatives: [initiativeItem, "initiative"],
+  bootstrap_runs: [bootstrapRun, "bootstrap_run"],
   opportunities: [opportunity, "opportunity"],
   strategic_anchors: [strategicAnchor, "strategic_anchor"],
   people: [person, "person"],
@@ -142,6 +145,8 @@ export class QueryEngine {
           f.status && columns.status ? eq(columns.status, f.status) : undefined,
           f.objectType && columns.objectType ? eq(columns.objectType, f.objectType) : undefined,
           f.memoryTier && columns.memoryTier ? eq(columns.memoryTier, f.memoryTier) : undefined,
+          f.lifecycle && columns.lifecycle ? eq(columns.lifecycle, f.lifecycle) : undefined,
+          f.active !== undefined && columns.active ? eq(columns.active, f.active) : undefined,
           f.start && dateColumn ? gte(dateColumn, f.start) : undefined,
           f.end && dateColumn ? lte(dateColumn, f.end) : undefined,
         ].filter(Boolean) as any[];

@@ -29,6 +29,10 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const facts = factResults.map((item) => item.object as any);
   const interpretations = interpretationResults.map((item) => item.object as any);
   const events = eventResults.map((item) => item.object as any);
+  const waitingRecords = waiting.map((item) => item.object as any);
+  const objectiveRecords = objectives.map((item) => item.object as any);
+  const constitutionRecords = constitution.map((item) => item.object as any);
+  const assumptionRecords = assumptions.map((item) => item.object as any);
   const queryText = query.toLowerCase();
   const privacyAllowed = await Promise.all(objects.map(async (item) => ({ item, policy: await checkPolicy("privacy", "context_include", { objectType: item.objectType, sourceType: item.sourceType }, "Context Engine") })));
   const excludedByPolicy = privacyAllowed.filter((entry) => !entry.policy.permitted).map((entry) => entry.item.id);
@@ -43,13 +47,13 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     }),
     ...facts.map((item) => ({ id: item.id, text: `Fact · ${item.subject} ${item.predicate} ${item.object} [${item.factType}]`, kind: "fact", confidence: item.propagatedConfidence ?? item.confidence, recencyDays: Math.max(0, item.updatedAt ? (Date.now() - new Date(item.updatedAt).getTime()) / 86400000 : 0), strategicAnchor: item.canonLevel === "canonical", ageState: item.ageState })),
     ...interpretations.map((item) => ({ id: item.id, text: `Interpretation · ${item.statement} [${item.interpretationType}]`, kind: "interpretation", confidence: item.propagatedConfidence ?? item.confidence, recencyDays: Math.max(0, item.updatedAt ? (Date.now() - new Date(item.updatedAt).getTime()) / 86400000 : 0), strategicAnchor: item.canonLevel === "canonical", ageState: item.ageState })),
-    ...waiting.map((item) => ({ id: item.id, text: `Waiting: ${item.subject} (${item.owner ?? "unassigned"})`, kind: "waiting", confidence: 0.8, recencyDays: Math.max(0, (Date.now() - new Date(item.updatedAt).getTime()) / 86400000), strategicAnchor: false })),
+    ...waitingRecords.map((item) => ({ id: item.id, text: `Waiting: ${item.subject} (${item.owner ?? "unassigned"})`, kind: "waiting", confidence: 0.8, recencyDays: Math.max(0, (Date.now() - new Date(item.updatedAt).getTime()) / 86400000), strategicAnchor: false })),
     ...events.map((item) => { const record = item as any; const occurredAt = record.occurredAt ?? record.createdAt ?? new Date(); return { id: record.id, text: `${record.eventType ?? "Semantic result"}: ${JSON.stringify(record.payload ?? record.excerpt ?? "")}`, kind: "event", confidence: record.confidence ?? record.similarityScore ?? 0.7, recencyDays: Math.max(0, (Date.now() - new Date(occurredAt).getTime()) / 86400000), strategicAnchor: false }; }),
     ...Object.entries(founder).map(([dimension, record]: [string, any]) => ({ id: `founder-${dimension}`, text: `Founder preference · ${dimension}: ${JSON.stringify(record.value)}`, kind: "founder_profile", confidence: record.confidence === "confirmed" ? 1 : 0.85, recencyDays: 0, strategicAnchor: true })),
-    ...objectives.map((item) => ({ id: item.id, text: `Strategy objective · ${item.horizon}: ${item.objective}. Blockers: ${item.blockers.join(", ") || "none"}`, kind: "strategy", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
+    ...objectiveRecords.map((item) => ({ id: item.id, text: `Strategy objective · ${item.horizon}: ${item.objective}. Blockers: ${item.blockers.join(", ") || "none"}`, kind: "strategy", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
     ...learningRules.map((rule) => ({ id: `learning-${rule.id}`, text: `Standing correction rule · ${rule.category}: ${rule.correction}`, kind: "learning_rule", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
-    ...constitution.map((item) => ({ id: `constitution-${item.id}`, text: `Constitution · ${item.title}: ${String(item.machineReadableRule.ruleText ?? item.title)}`, kind: "constitution", confidence: 1, recencyDays: 0, strategicAnchor: true })),
-    ...assumptions.map((item) => ({ id: `assumption-${item.id}`, text: `Assumption · ${item.statement}`, kind: "assumption", confidence: item.confidence, recencyDays: 0, strategicAnchor: false })),
+    ...constitutionRecords.map((item) => ({ id: `constitution-${item.id}`, text: `Constitution · ${item.title}: ${String(item.machineReadableRule.ruleText ?? item.title)}`, kind: "constitution", confidence: 1, recencyDays: 0, strategicAnchor: true })),
+    ...assumptionRecords.map((item) => ({ id: `assumption-${item.id}`, text: `Assumption · ${item.statement}`, kind: "assumption", confidence: item.confidence, recencyDays: 0, strategicAnchor: false })),
   ];
   const fingerprint = createHash("sha256").update(JSON.stringify({ query: query.trim().toLowerCase(), mode, ids: items.map((item) => item.id) })).digest("hex");
   const [cached] = await db.select().from(contextPacket).where(eq(contextPacket.fingerprint, fingerprint)).orderBy(desc(contextPacket.createdAt)).limit(1);

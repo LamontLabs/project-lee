@@ -8,6 +8,7 @@ import {
   institutionalKnowledgeLedger,
   lessonRecord,
 } from "@workspace/db";
+import { queryEngine } from "./query-engine";
 
 const SIGNIFICANT_EVENT = /fail|error|reject|degrad|complete|resolved|success|outcome|review|govern|decision|health/i;
 const EVIDENCE_THRESHOLD = 3;
@@ -168,7 +169,18 @@ export async function processExperiences(options: { since?: Date } = {}) {
 }
 
 export async function listInstitutionalKnowledge() {
-  return db.select().from(institutionalKnowledgeLedger).orderBy(desc(institutionalKnowledgeLedger.lastReinforced));
+  const results = await queryEngine.query({
+    sources: ["institutional_knowledge"],
+    filters: {},
+    rankingPolicy: "strategy_evaluation",
+    confidenceThreshold: 0,
+    limit: 200,
+    requester: "Experience Engine",
+    purpose: "institutional_retrieval",
+  });
+  return results
+    .map((result) => result.object as typeof institutionalKnowledgeLedger.$inferSelect)
+    .sort((left, right) => (right.lastReinforced?.getTime() ?? 0) - (left.lastReinforced?.getTime() ?? 0));
 }
 
 export async function reviewInstitutionalKnowledge(id: string, approved: boolean) {

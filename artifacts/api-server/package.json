@@ -12,6 +12,7 @@
     "test:pipeline": "node --test scripts/request-pipeline.test.mjs",
     "test:internal-security": "node --test scripts/internal-route-security.test.mjs",
     "test:event-replay": "node --test scripts/event-replay.test.mjs",
+    "test:query-architecture": "node --test scripts/query-engine-architecture.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

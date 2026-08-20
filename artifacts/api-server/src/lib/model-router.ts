@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import type { SelectedContext } from "./context-economy";
 import { checkPolicy } from "./policy";
 import { reasoningService, type CILQueryRequest, type CILQueryResponse } from "../services/internal-services";
+import { callProvider } from "./ai-providers";
 
 type RiskClassification = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type PreferredTier = "auto" | "T1" | "T2" | "T3";
@@ -120,25 +120,20 @@ export async function routeModelRequest(input: RouteInput): Promise<{
   const contextText = input.contextItems
     .map((item) => `[${item.kind}:${item.id}] ${item.text}`)
     .join("\n");
-  const response = await openai.chat.completions.create({
-    model,
-    max_completion_tokens: 8192,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are Lee, a private founder operating intelligence. Separate observations from conclusions, name uncertainty plainly, and do not invent evidence. Answer the request directly.",
-      },
-      {
-        role: "user",
-        content: `Domain: ${input.semanticDomain}\nIntent: ${input.intentType}\nRisk: ${input.riskClassification}\n\nContext packet:\n${contextText || "(No context selected)"}\n\nRequest:\n${input.queryText}`,
-      },
-    ],
-  });
-  const answer = response.choices[0]?.message?.content?.trim();
-  if (!answer) throw new Error("Model returned an empty answer");
-  const completionTokens = response.usage?.completion_tokens ?? 0;
-  const promptTokens = response.usage?.prompt_tokens ?? 0;
+  const response = await callProvider(model, [
+    {
+      role: "system",
+      content:
+        "You are Lee, a private founder operating intelligence. Separate observations from conclusions, name uncertainty plainly, and do not invent evidence. Answer the request directly.",
+    },
+    {
+      role: "user",
+      content: `Domain: ${input.semanticDomain}\nIntent: ${input.intentType}\nRisk: ${input.riskClassification}\n\nContext packet:\n${contextText || "(No context selected)"}\n\nRequest:\n${input.queryText}`,
+    },
+  ]);
+  const answer = response.text;
+  const completionTokens = response.tokensOut;
+  const promptTokens = response.tokensIn;
   const estimatedCostUsd = (promptTokens * 0.0000002) + (completionTokens * 0.000001);
   return {
     tier,

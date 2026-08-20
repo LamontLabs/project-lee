@@ -38,3 +38,4 @@
 - [Initiative boundary](initiative-boundary.md) — Initiative turns existing Lee evidence into optional, deduplicated operational observations rather than alarms or automatic actions.
 - [Operational Intelligence boundary](operational-intelligence-boundary.md) — Operational Intelligence continuously ranks what deserves attention from current initiatives, memory, world state, and canonical records.
 - [Provider Abstraction boundary](provider-abstraction-boundary.md) — External adapters translate service-specific data into typed provider-neutral records and domain events before internal engines consume it.
+- [Project Bootstrap boundary](project-bootstrap-boundary.md) — Repository bootstrap converts observable static structure into auditable first-draft project knowledge and owner questions.

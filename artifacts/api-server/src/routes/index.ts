@@ -58,6 +58,7 @@ import operationalMemoryRouter from "./operational-memory";
 import initiativeRouter from "./initiative";
 import operationalIntelligenceRouter from "./operational-intelligence";
 import providersRouter from "./providers";
+import bootstrapRouter from "./bootstrap";
 
 const router: IRouter = Router();
 
@@ -114,6 +115,7 @@ router.use(operationalMemoryRouter);
 router.use(initiativeRouter);
 router.use(operationalIntelligenceRouter);
 router.use(providersRouter);
+router.use(bootstrapRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

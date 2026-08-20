@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { enqueueWork, orchestrationStatus, orchestrationTick } from "../lib/orchestration";
+import { enqueueWork, orchestrationStatus, orchestrationTick, recoverEngine, validateEngineDependencies } from "../lib/orchestration";
 const router: IRouter = Router();
 router.get("/orchestration/status", async (_req, res) => res.json(await orchestrationStatus()));
 router.get("/orchestration/calendar", async (_req, res) => {
@@ -11,4 +11,6 @@ router.post("/orchestration/work", async (req, res) => {
   res.status(201).json(await enqueueWork(req.body));
 });
 router.post("/orchestration/tick", async (_req, res) => res.json({ item: await orchestrationTick() }));
+router.post("/orchestration/validate-dependencies", async (_req, res) => res.json({ engines: await validateEngineDependencies() }));
+router.post("/orchestration/recover/:engineId", async (req, res) => res.json({ engines: await recoverEngine(req.params.engineId) }));
 export default router;

@@ -27,3 +27,4 @@
 - [Capability Registry boundary](capability-registry-boundary.md) — engine discovery uses persisted registrations and typed internal contracts instead of implicit cross-engine assumptions.
 - [Context Economy boundary](context-economy-boundary.md) — context packets rank candidates continuously across relevance factors and audit both winners and exclusions.
 - [Domain Events boundary](domain-events-boundary.md) — typed, versioned EventBus records causal state changes on the immutable Event Log.
+- [Engine Lifecycle boundary](engine-lifecycle-boundary.md) — Capability Registry owns engine lifecycle state, dependency declarations, degraded capabilities, and recovery policy.

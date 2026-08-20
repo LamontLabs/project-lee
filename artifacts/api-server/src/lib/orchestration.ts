@@ -2,7 +2,8 @@ import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
 import { db, engineHealth, engineRegistry, eventLog, orchestrationWorkItem } from "@workspace/db";
 import { getResourceState } from "./resource";
 import { getState, transitionState } from "./state";
-import { findCapability, registerEngine } from "./capability-registry";
+import { findCapability, getEngines, registerEngine, setLifecycleState } from "./capability-registry";
+import type { RecoveryPolicy } from "./engine-lifecycle";
 
 export type Priority = "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
 const priorities: Record<Priority, number> = { CRITICAL: 4, HIGH: 3, NORMAL: 2, LOW: 1 };
@@ -36,10 +37,50 @@ const defaults = [
 
 export async function registerDefaultEngines() {
   for (const [name, capabilities, priorityClass, frequency] of defaults) {
-    await registerEngine({ engineId: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), engineName: name, capabilities: [...capabilities], owner: /connector|notification|backup|health|workspace/i.test(name) ? "Coordination" : /strategy|simulation|reflection|opportunity|curiosity/i.test(name) ? "Intelligence" : /memory|learning|understanding|identity/i.test(name) ? "Knowledge" : "Foundations" });
+    const owner = /connector|notification|backup|health|workspace/i.test(name) ? "Coordination" : /strategy|simulation|reflection|opportunity|curiosity/i.test(name) ? "Intelligence" : /memory|learning|understanding|identity/i.test(name) ? "Knowledge" : "Foundations";
+    await registerEngine({ engineId: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), engineName: name, capabilities: [...capabilities], owner, recoveryPolicy: /backup|memory|policy|state/i.test(name) ? "MANUAL_RECOVERY" : "AUTO_RESTART", recoveryConfig: { maxRetries: 3, backoffSeconds: 10 } });
     await db.update(engineRegistry).set({ priorityClass, frequency, updatedAt: new Date() }).where(eq(engineRegistry.name, name));
     await db.insert(engineHealth).values({ engineName: name }).onConflictDoNothing({ target: engineHealth.engineName });
   }
+  await validateEngineDependencies();
+}
+const layerOrder = ["Foundations", "Knowledge", "Retrieval", "Intelligence", "Coordination", "Interfaces"];
+export async function validateEngineDependencies() {
+  const engines = await getEngines();
+  const available = new Set(engines.filter((engine) => engine.status === "HEALTHY").map((engine) => engine.engineId));
+  const ordered = [...engines].sort((a, b) => layerOrder.indexOf(a.owner) - layerOrder.indexOf(b.owner));
+  for (const engine of ordered) {
+    const required = engine.requiredDependencies ?? engine.dependencies ?? [];
+    const optional = engine.optionalDependencies ?? [];
+    const missingRequired = required.filter((dependency) => !available.has(dependency));
+    const missingOptional = optional.filter((dependency) => !available.has(dependency));
+    if (missingRequired.length) {
+      await setLifecycleState(engine.engineId, "DEGRADED", [`Required dependencies unavailable: ${missingRequired.join(", ")}`]);
+      await db.insert(eventLog).values({ eventType: "EngineUnavailable", aggregateType: "engine_registry", aggregateId: engine.id, sourceRef: "orchestration-engine", occurredAt: new Date(), payload: { engineId: engine.engineId, missingRequired, dependencyChain: required } });
+    } else if (missingOptional.length) {
+      await setLifecycleState(engine.engineId, "DEGRADED", [`Optional dependencies unavailable: ${missingOptional.join(", ")}`]);
+    } else {
+      await setLifecycleState(engine.engineId, "HEALTHY", []);
+      available.add(engine.engineId);
+    }
+  }
+  return getEngines();
+}
+export async function recoverEngine(engineId: string) {
+  const engine = await (await getEngines()).find((candidate) => candidate.engineId === engineId);
+  if (!engine) return null;
+  const policy = engine.recoveryPolicy as RecoveryPolicy;
+  await setLifecycleState(engineId, "RECOVERING");
+  await db.insert(eventLog).values({ eventType: "RecoveryAttempted", aggregateType: "engine_registry", aggregateId: engine.id, sourceRef: "recovery-executor", occurredAt: new Date(), payload: { engineId, policy } });
+  try {
+    if (policy === "GRACEFUL_DISABLE" || policy === "MANUAL_RECOVERY") await setLifecycleState(engineId, "UNAVAILABLE");
+    else await setLifecycleState(engineId, "HEALTHY", []);
+    await db.insert(eventLog).values({ eventType: "RecoverySucceeded", aggregateType: "engine_registry", aggregateId: engine.id, sourceRef: "recovery-executor", occurredAt: new Date(), payload: { engineId, policy } });
+  } catch (error) {
+    await setLifecycleState(engineId, "UNAVAILABLE");
+    await db.insert(eventLog).values({ eventType: "RecoveryFailed", aggregateType: "engine_registry", aggregateId: engine.id, sourceRef: "recovery-executor", occurredAt: new Date(), payload: { engineId, policy, error: String(error) } });
+  }
+  return getEngines();
 }
 export async function enqueueWork(input: { engineName: string; action: string; priority?: Priority; urgencyScore?: number; estimatedCostUsd?: number; dependencies?: string[]; payload?: Record<string, unknown> }) {
   const priority = input.priority ?? "NORMAL";

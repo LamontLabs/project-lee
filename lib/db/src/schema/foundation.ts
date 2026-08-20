@@ -53,6 +53,23 @@ export const eventLog = pgTable(
     ),
   ],
 );
+export const projectionCheckpoint = pgTable("projection_checkpoint", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectionName: varchar("projection_name", { length: 120 }).notNull().unique(),
+  lastCreatedAt: timestamp("last_created_at", { withTimezone: true }),
+  lastEventId: uuid("last_event_id"),
+  processedCount: integer("processed_count").notNull().default(0),
+  conflictCount: integer("conflict_count").notNull().default(0),
+  status: varchar("status", { length: 24 }).notNull().default("ready"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+export const projectionEventReceipt = pgTable("projection_event_receipt", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectionName: varchar("projection_name", { length: 120 }).notNull(),
+  eventId: uuid("event_id").notNull(),
+  eventHash: varchar("event_hash", { length: 64 }).notNull(),
+  appliedAt: timestamp("applied_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("projection_event_receipt_unique").on(table.projectionName, table.eventId)]);
 export const timelineEventConfig = pgTable("timeline_event_config", {
   id: uuid("id").defaultRandom().primaryKey(),
   eventType: varchar("event_type", { length: 160 }).notNull().unique(),

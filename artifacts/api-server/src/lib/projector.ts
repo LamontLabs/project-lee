@@ -1,32 +1,170 @@
-import { asc, eq, gt } from "drizzle-orm";
-import { db, eventLog, universalObject } from "@workspace/db";
+import { createHash } from "node:crypto";
+import { and, asc, eq, gt, or } from "drizzle-orm";
+import {
+  db,
+  eventLog,
+  leeState,
+  projectionCheckpoint,
+  projectionEventReceipt,
+  stateHistory,
+  universalObject,
+} from "@workspace/db";
 
-export type ProjectionResult = { processed: number; lastEventId: string | null };
+export const PROJECTION_NAMES = ["universal_objects", "operational_state"] as const;
+export type ProjectionName = typeof PROJECTION_NAMES[number];
+export type ProjectionConflict = { projection: ProjectionName; eventId: string; reason: string };
+export type ProjectionResult = {
+  projection: ProjectionName;
+  processed: number;
+  skipped: number;
+  conflicts: ProjectionConflict[];
+  lastEventId: string | null;
+  dryRun: boolean;
+};
 
-export async function replayFrom(eventId?: string): Promise<ProjectionResult> {
-  const events = await db.select().from(eventLog).where(eventId ? gt(eventLog.createdAt, new Date(eventId)) : undefined).orderBy(asc(eventLog.createdAt), asc(eventLog.sequenceNumber));
-  let processed = 0;
-  for (const event of events) {
-    if (event.eventType === "UniversalObjectCreated") {
-      const payload = event.payload;
+const projectionForEvent = (eventType: string): ProjectionName | null => {
+  if (eventType === "UniversalObjectCreated" || eventType === "UniversalObjectUpdated") return "universal_objects";
+  if (eventType === "StateInitialized" || eventType === "StateChanged") return "operational_state";
+  return null;
+};
+
+const eventHash = (event: typeof eventLog.$inferSelect) =>
+  createHash("sha256").update(JSON.stringify({
+    id: event.id,
+    eventType: event.eventType,
+    aggregateType: event.aggregateType,
+    aggregateId: event.aggregateId,
+    payload: event.payload,
+    occurredAt: new Date(event.occurredAt).toISOString(),
+  })).digest("hex");
+
+async function checkpointFor(projection: ProjectionName) {
+  const [checkpoint] = await db.select().from(projectionCheckpoint).where(eq(projectionCheckpoint.projectionName, projection)).limit(1);
+  return checkpoint;
+}
+
+async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boolean): Promise<string | null> {
+  const payload = event.payload;
+  const [existing] = await db.select().from(universalObject).where(eq(universalObject.id, event.aggregateId)).limit(1);
+  if (event.eventType === "UniversalObjectCreated") {
+    if (existing) {
+      if (existing.name !== String(payload.name ?? existing.name) || existing.objectType !== String(payload.objectType ?? existing.objectType)) {
+        return "Create conflicts with an existing object.";
+      }
+      return null;
+    }
+    if (!dryRun) {
       await db.insert(universalObject).values({
         id: event.aggregateId,
-        objectType: String(payload.objectType ?? event.aggregateType),
-        name: String(payload.name ?? event.aggregateId),
+        objectType: String(payload.objectType),
+        name: String(payload.name),
         description: typeof payload.description === "string" ? payload.description : null,
         status: typeof payload.status === "string" ? payload.status : "active",
+        sourceRefs: Array.isArray(payload.sourceRefs) ? payload.sourceRefs.filter((value): value is string => typeof value === "string") : [],
         version: event.sequenceNumber,
-      }).onConflictDoNothing();
-    } else if (event.eventType === "UniversalObjectUpdated") {
-      await db.update(universalObject).set({
-        ...(typeof event.payload.name === "string" ? { name: event.payload.name } : {}),
-        ...(typeof event.payload.description === "string" ? { description: event.payload.description } : {}),
-        ...(typeof event.payload.status === "string" ? { status: event.payload.status } : {}),
-        version: event.sequenceNumber,
-        updatedAt: event.occurredAt,
-      }).where(eq(universalObject.id, event.aggregateId));
+        createdBy: typeof payload.createdBy === "string" ? payload.createdBy : "owner",
+        currentOwner: typeof payload.currentOwner === "string" ? payload.currentOwner : "owner",
+        importedFrom: typeof payload.importedFrom === "string" ? payload.importedFrom : undefined,
+        generatedBy: typeof payload.generatedBy === "string" ? payload.generatedBy : undefined,
+      });
     }
-    processed += 1;
+    return null;
   }
-  return { processed, lastEventId: events.at(-1)?.id ?? null };
+  if (!existing) return "Update targets an object that is not present.";
+  if (event.sequenceNumber < existing.version) return null;
+  if (!dryRun) {
+    await db.update(universalObject).set({
+      ...(typeof payload.name === "string" ? { name: payload.name } : {}),
+      ...(typeof payload.description === "string" ? { description: payload.description } : {}),
+      ...(typeof payload.status === "string" ? { status: payload.status } : {}),
+      version: event.sequenceNumber,
+      updatedAt: event.occurredAt,
+      ...(typeof payload.modifiedBy === "string" ? { modifiedBy: payload.modifiedBy } : {}),
+    }).where(eq(universalObject.id, event.aggregateId));
+  }
+  return null;
+}
+
+async function applyStateEvent(event: typeof eventLog.$inferSelect, dryRun: boolean): Promise<string | null> {
+  const payload = event.payload;
+  const nextState = String(payload.to ?? payload.state ?? "Idle");
+  const enteredAt = payload.enteredAt ? new Date(String(payload.enteredAt)) : event.occurredAt;
+  const reason = String(payload.reason ?? "Event-sourced state transition");
+  const [current] = await db.select().from(leeState).limit(1);
+  if (event.eventType === "StateChanged" && current && current.currentState === nextState) return null;
+  if (!dryRun) {
+    if (!current) {
+      await db.insert(leeState).values({ id: event.aggregateId, currentState: nextState, enteredAt, reason, estimatedDurationSeconds: typeof payload.estimatedDurationSeconds === "number" ? payload.estimatedDurationSeconds : undefined, updatedAt: event.occurredAt });
+    } else {
+      await db.update(stateHistory).set({ exitedAt: enteredAt, durationSeconds: typeof payload.durationSeconds === "number" ? payload.durationSeconds : undefined }).where(and(eq(stateHistory.state, current.currentState), eq(stateHistory.id, current.id)));
+      await db.update(leeState).set({ currentState: nextState, enteredAt, reason, estimatedDurationSeconds: typeof payload.estimatedDurationSeconds === "number" ? payload.estimatedDurationSeconds : undefined, updatedAt: event.occurredAt }).where(eq(leeState.id, current.id));
+    }
+    await db.insert(stateHistory).values({ state: nextState, enteredAt, reason, triggeringJobId: typeof payload.triggeringJobId === "string" ? payload.triggeringJobId : undefined });
+  }
+  return null;
+}
+
+export async function projectEvent(event: typeof eventLog.$inferSelect, options: { dryRun?: boolean } = {}) {
+  const projection = projectionForEvent(event.eventType);
+  if (!projection) return { applied: false, conflict: null as string | null };
+  const dryRun = options.dryRun ?? false;
+  if (!dryRun) {
+    const [receipt] = await db.select().from(projectionEventReceipt).where(and(eq(projectionEventReceipt.projectionName, projection), eq(projectionEventReceipt.eventId, event.id))).limit(1);
+    if (receipt) return { applied: false, conflict: null };
+  }
+  const conflict = projection === "universal_objects" ? await applyObjectEvent(event, dryRun) : await applyStateEvent(event, dryRun);
+  if (!dryRun && !conflict) {
+    await db.insert(projectionEventReceipt).values({ projectionName: projection, eventId: event.id, eventHash: eventHash(event) }).onConflictDoNothing();
+  }
+  return { applied: !conflict, conflict };
+}
+
+export async function rebuildProjection(projection: ProjectionName, options: { dryRun?: boolean; reset?: boolean } = {}): Promise<ProjectionResult> {
+  const dryRun = options.dryRun ?? false;
+  if (options.reset && !dryRun) {
+    if (projection === "universal_objects") await db.delete(universalObject);
+    if (projection === "operational_state") {
+      await db.delete(stateHistory);
+      await db.delete(leeState);
+    }
+    await db.delete(projectionEventReceipt).where(eq(projectionEventReceipt.projectionName, projection));
+    await db.delete(projectionCheckpoint).where(eq(projectionCheckpoint.projectionName, projection));
+  }
+  const checkpoint = dryRun || options.reset ? null : await checkpointFor(projection);
+  const cursor = checkpoint?.lastCreatedAt && checkpoint.lastEventId
+    ? or(gt(eventLog.createdAt, checkpoint.lastCreatedAt), and(eq(eventLog.createdAt, checkpoint.lastCreatedAt), gt(eventLog.id, checkpoint.lastEventId)))
+    : undefined;
+  const events = await db.select().from(eventLog).where(cursor).orderBy(asc(eventLog.createdAt), asc(eventLog.id));
+  let processed = 0;
+  let skipped = 0;
+  let conflictCount = checkpoint?.conflictCount ?? 0;
+  const conflicts: ProjectionConflict[] = [];
+  for (const event of events) {
+    if (projectionForEvent(event.eventType) !== projection) continue;
+    const result = await projectEvent(event, { dryRun });
+    if (result.conflict) {
+      conflictCount += 1;
+      conflicts.push({ projection, eventId: event.id, reason: result.conflict });
+    } else if (result.applied) {
+      processed += 1;
+    } else {
+      skipped += 1;
+    }
+    if (!dryRun) {
+      await db.insert(projectionCheckpoint).values({ projectionName: projection, lastCreatedAt: event.createdAt, lastEventId: event.id, processedCount: (checkpoint?.processedCount ?? 0) + processed, conflictCount, status: conflicts.length ? "conflicted" : "ready", updatedAt: new Date() }).onConflictDoUpdate({ target: projectionCheckpoint.projectionName, set: { lastCreatedAt: event.createdAt, lastEventId: event.id, processedCount: (checkpoint?.processedCount ?? 0) + processed, conflictCount, status: conflicts.length ? "conflicted" : "ready", updatedAt: new Date() } });
+    }
+  }
+  return { projection, processed, skipped, conflicts, lastEventId: events.at(-1)?.id ?? checkpoint?.lastEventId ?? null, dryRun };
+}
+
+export async function rebuildAllProjections(options: { dryRun?: boolean; reset?: boolean } = {}) {
+  return Promise.all(PROJECTION_NAMES.map((projection) => rebuildProjection(projection, options)));
+}
+
+export async function projectionCheckpoints() {
+  return db.select().from(projectionCheckpoint).orderBy(asc(projectionCheckpoint.projectionName));
+}
+
+export async function replayFrom(eventId?: string) {
+  return rebuildAllProjections({ reset: !eventId });
 }

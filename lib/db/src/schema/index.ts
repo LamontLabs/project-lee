@@ -41,4 +41,5 @@ export * from "./project-momentum";
 export * from "./operational-capacity";
 export * from "./strategic-anchor";
 export * from "./portfolio-intelligence";
+export * from "./time-machine";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

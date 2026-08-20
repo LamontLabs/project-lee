@@ -12,6 +12,7 @@ import { registerProviders } from "./lib/provider-abstraction";
 import { registerInternalServices } from "./services/internal-services";
 import { subscribe } from "./lib/domain-events";
 import { interruptExecutiveLoop } from "./lib/executive-loop";
+import { computeOperationalConfidence } from "./lib/operational-confidence";
 
 const rawPort = process.env["PORT"];
 
@@ -37,6 +38,7 @@ db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobT
 registerProviders().catch((err) => logger.error({ err }, "Provider registry registration failed"));
 registerInternalServices().catch((err) => logger.error({ err }, "Internal service registry registration failed"));
 for (const eventType of ["GovernedActionHeld", "BuildFailed", "OperationalPatternBroken", "GovernanceServiceUnavailable"] as const) subscribe(eventType, (event) => { void interruptExecutiveLoop(eventType, event.id).catch((err) => logger.error({ err }, "Executive Loop interrupt failed")); });
+for (const eventType of ["ConnectorSynced", "ConnectorFailed", "CILUnavailable", "GovernanceServiceUnavailable", "KnowledgeStale", "KnowledgeAged"] as const) subscribe(eventType, () => { void computeOperationalConfidence().catch((err) => logger.error({ err }, "Operational Confidence recompute failed")); });
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");

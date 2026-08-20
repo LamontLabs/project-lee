@@ -13,7 +13,8 @@ export default function BriefTab() {
   const [brief, setBrief] = useState<Brief | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState(false);
-  useEffect(() => { void (async () => { const cached = await getBrief(); if (cached) setBrief(cached); if (api) try { const live = await api.brief(); setBrief(live); await saveBrief(live); setOffline(false); } catch { setOffline(true); } })(); }, [api]);
+  const [operationalConfidence, setOperationalConfidence] = useState<{ score: number; explanation: string; factors: Array<{ label: string; contribution: number; detail: string }> } | null>(null);
+  useEffect(() => { void (async () => { const cached = await getBrief(); if (cached) setBrief(cached); if (api) try { const live = await api.brief(); setBrief(live); setOperationalConfidence(await api.operationalConfidence()); await saveBrief(live); setOffline(false); } catch { setOffline(true); } })(); }, [api]);
   async function refresh() { if (!api) return; setRefreshing(true); try { const live = await api.brief(); setBrief(live); await saveBrief(live); setOffline(false); } catch { setOffline(true); } finally { setRefreshing(false); } }
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
@@ -25,6 +26,7 @@ export default function BriefTab() {
         <Pressable style={styles.arrow}><Feather name="arrow-up-right" size={20} color={colors.primaryForeground} /></Pressable>
       </Card>
       <SectionLabel>At a glance</SectionLabel>
+      {operationalConfidence && <Card><View style={styles.row}><View style={[styles.confidenceCircle, { backgroundColor: colors.accent }]}><Text style={[styles.confidenceScore, { color: colors.primary }]}>{operationalConfidence.score}</Text></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Operational confidence</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{operationalConfidence.explanation}</Text></View></View></Card>}
       <View style={styles.grid}>
          <Card style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>{brief?.unreadAlerts ?? 0}</Text><Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Active alerts</Text><Text style={[styles.statHint, { color: colors.destructive }]}>{brief?.unreadAlerts ? 'Needs attention' : 'Quiet signal'}</Text></Card>
          <Card style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>{brief?.alerts.length ?? 0}</Text><Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Brief signals</Text><Text style={[styles.statHint, { color: colors.mutedForeground }]}>Source-backed</Text></Card>
@@ -44,4 +46,5 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 1.2 }, priority: { fontSize: 24, lineHeight: 30, fontFamily: 'Inter_700Bold', marginTop: 4 }, body: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular' }, arrow: { alignSelf: 'flex-end', marginTop: 8 },
   grid: { flexDirection: 'row', gap: 10 }, stat: { flex: 1, minHeight: 122 }, statValue: { fontSize: 30, fontFamily: 'Inter_700Bold' }, statLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 2 }, statHint: { fontSize: 11, fontFamily: 'Inter_500Medium', marginTop: 'auto' },
   row: { flexDirection: 'row', gap: 12 }, iconCircle: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, flex: { flex: 1 }, cardTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  confidenceCircle: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' }, confidenceScore: { fontSize: 20, fontFamily: 'Inter_700Bold' },
 });

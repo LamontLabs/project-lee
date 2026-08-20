@@ -24,5 +24,6 @@ export function createLeeApi(pairing: Pairing) {
     ask: (message: string) => request<{ answer: string; model: string; estimatedCostUsd: number; contextItems: number }>('/android/ask', { method: 'POST', body: JSON.stringify({ message }) }),
     approve: (governanceRequestId: string, decision: 'approve' | 'hold' | 'reject') => request<{ id: string; status: string }>('/android/approve', { method: 'POST', body: JSON.stringify({ governanceRequestId, decision }) }),
     health: () => request('/healthz'),
+    operationalConfidence: () => request<{ score: number; explanation: string; factors: Array<{ label: string; contribution: number; detail: string }> }>('/operational-confidence'),
   };
 }

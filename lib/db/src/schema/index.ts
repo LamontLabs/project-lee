@@ -36,4 +36,5 @@ export * from "./provider-registry";
 export * from "./bootstrap";
 export * from "./internal-services";
 export * from "./executive-loop";
+export * from "./operational-confidence";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

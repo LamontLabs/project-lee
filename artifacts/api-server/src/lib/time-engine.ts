@@ -11,12 +11,16 @@ const decay: Record<string, { halfLife: number; stale: number }> = {
 };
 
 export function temporalFields(input: { createdAt: Date; updatedAt?: Date | null; lastConfirmedAt?: Date | null; objectType?: string; deadline?: Date | null }, now = new Date()) {
-  const created = Math.max(0, Math.floor((now.getTime() - input.createdAt.getTime()) / DAY));
-  const confirmed = input.lastConfirmedAt ?? input.updatedAt ?? input.createdAt;
+  const createdAt = input.createdAt instanceof Date ? input.createdAt : new Date(input.createdAt);
+  const updatedAt = input.updatedAt ? (input.updatedAt instanceof Date ? input.updatedAt : new Date(input.updatedAt)) : null;
+  const lastConfirmedAt = input.lastConfirmedAt ? (input.lastConfirmedAt instanceof Date ? input.lastConfirmedAt : new Date(input.lastConfirmedAt)) : null;
+  const deadline = input.deadline ? (input.deadline instanceof Date ? input.deadline : new Date(input.deadline)) : null;
+  const created = Math.max(0, Math.floor((now.getTime() - createdAt.getTime()) / DAY));
+  const confirmed = lastConfirmedAt ?? updatedAt ?? createdAt;
   const staleDays = Math.max(0, Math.floor((now.getTime() - confirmed.getTime()) / DAY));
   const rule = decay[input.objectType ?? "default"] ?? decay.default;
   const freshnessScore = Math.max(0, Math.min(100, Math.round(100 * Math.exp(-staleDays / rule.halfLife))));
-  return { ageDays: created, stalenessDays: staleDays, deadlineDistanceDays: input.deadline ? Math.ceil((input.deadline.getTime() - now.getTime()) / DAY) : null, freshnessScore, freshnessState: freshnessScore < 20 ? "critical" : freshnessScore < 50 ? "stale" : freshnessScore < 75 ? "aging" : "fresh", staleThresholdDays: rule.stale };
+  return { ageDays: created, stalenessDays: staleDays, deadlineDistanceDays: deadline ? Math.ceil((deadline.getTime() - now.getTime()) / DAY) : null, freshnessScore, freshnessState: freshnessScore < 20 ? "critical" : freshnessScore < 50 ? "stale" : freshnessScore < 75 ? "aging" : "fresh", staleThresholdDays: rule.stale };
 }
 
 export async function timeOverview() {

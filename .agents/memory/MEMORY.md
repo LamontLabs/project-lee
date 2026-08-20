@@ -42,5 +42,6 @@
 - [Project Bootstrap boundary](project-bootstrap-boundary.md) — Repository bootstrap converts observable static structure into auditable first-draft project knowledge and owner questions.
 - [Internal Capability Services boundary](internal-capability-services-boundary.md) — LEE calls CIL and CerbaSeal through authenticated versioned service contracts without sharing their databases or runtimes.
 - [CerbaSeal contract drift](cerbaseal-contract-drift.md) — the public CerbaSeal frontend is not the enforcement-gate API; health requires a reachable JSON gate deployment.
+- [CIL contract drift](cil-contract-drift.md) — the configured CIL host is currently a frontend, not the enriched JSON reasoning API.
 - [Internal route boundary](internal-route-boundary.md) — internal capability aliases are mounted outside the public router and require registered service identity.
 - [Executive Loop boundary](executive-loop-boundary.md) — The Executive Loop is a persisted phase heartbeat wrapped around Operational Intelligence, not a replacement scheduler.

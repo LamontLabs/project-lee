@@ -105,7 +105,21 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
         metadata: {
           semanticDomain: input.semanticDomain,
           contextTokens: packet.tokens,
-           category: routed.model === "CIL" ? "cil" : "model-router",
+            category: routed.model === "CIL" ? "cil" : "model-router",
+            ...(routed.cilEvidence ? {
+              cilConfidence: routed.cilEvidence.confidence,
+              cilLatencyMs: routed.cilEvidence.latency_ms,
+              cilProvenance: routed.cilEvidence.provenance,
+              cognitiveAssetId: routed.cilEvidence.cognitive_asset_id,
+              assetVersion: routed.cilEvidence.asset_version,
+              driftDetected: routed.cilEvidence.drift_detected,
+              contradictionDetected: routed.cilEvidence.contradiction_detected,
+              freshnessState: routed.cilEvidence.freshness_state,
+              reuseEligible: routed.cilEvidence.reuse_eligible,
+            } : {
+              fallbackUsed: routed.fallbackUsed ?? false,
+              fallbackReason: routed.fallbackReason,
+            }),
         },
       })
       .returning();

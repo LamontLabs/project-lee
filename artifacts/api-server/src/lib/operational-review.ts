@@ -160,7 +160,22 @@ export async function generateOperationalReview(input: ReviewInput) {
       completionTokens: routed.completionTokens,
       totalTokens: routed.totalTokens,
       estimatedCostUsd: routed.estimatedCostUsd,
-      metadata: { cadence: input.cadence, eventCount: events.length },
+      metadata: {
+        cadence: input.cadence,
+        eventCount: events.length,
+        ...(routed.cilEvidence ? {
+          cilConfidence: routed.cilEvidence.confidence,
+          cilLatencyMs: routed.cilEvidence.latency_ms,
+          cilProvenance: routed.cilEvidence.provenance,
+          cognitiveAssetId: routed.cilEvidence.cognitive_asset_id,
+          assetVersion: routed.cilEvidence.asset_version,
+          driftDetected: routed.cilEvidence.drift_detected,
+          contradictionDetected: routed.cilEvidence.contradiction_detected,
+        } : {
+          fallbackUsed: routed.fallbackUsed ?? false,
+          fallbackReason: routed.fallbackReason,
+        }),
+      },
     }).returning();
     await tx.insert(eventLog).values({
       eventType: "CostRecordCreated",

@@ -1,7 +1,8 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHash } from "node:crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { SelectedContext } from "./context-economy";
 import { checkPolicy } from "./policy";
+import { reasoningService, type CILQueryRequest, type CILQueryResponse } from "../services/internal-services";
 
 type RiskClassification = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type PreferredTier = "auto" | "T1" | "T2" | "T3";
@@ -24,6 +25,15 @@ type CILResponse = {
   confidence: number;
   cost_usd: number;
   provenance: string[];
+  latency_ms: number;
+  cognitive_asset_id?: string;
+  asset_version?: string;
+  drift_detected: boolean;
+  contradiction_detected: boolean;
+  freshness_state: "fresh" | "current" | "stale" | "expired";
+  reuse_eligible: boolean;
+  recommend_escalation: boolean;
+  escalation_reason?: string;
 };
 
 const modelForTier = {
@@ -45,10 +55,8 @@ function buildCILRequest(input: RouteInput) {
   const context = input.contextItems.map((item) => item.id);
   const body = {
     correlation_id: input.correlationId,
-    lee_brain_version: "foundation-1",
-    source_context_checksum: `sha256:${createHash("sha256")
-      .update(JSON.stringify(input.contextItems))
-      .digest("hex")}`,
+    lee_brain_version: process.env.LEE_BRAIN_VERSION ?? "2026.7.1",
+    source_context_checksum: `sha256:${createHash("sha256").update(JSON.stringify(input.contextItems)).digest("hex")}`,
     query_text: input.queryText,
     semantic_domain: input.semanticDomain,
     intent: {
@@ -56,38 +64,22 @@ function buildCILRequest(input: RouteInput) {
       risk_classification: input.riskClassification,
     },
     context_asset_refs: context,
-    freshness_requirement: "current",
+    freshness_requirement: "current" as const,
     reuse_permitted: true,
     frontier_escalation_permitted: true,
-    desired_format: "detailed",
+    desired_format: "detailed" as const,
     cost_ceiling_usd: input.costCeilingUsd,
   };
-  return body;
+  return body satisfies CILQueryRequest;
 }
 
 async function tryCIL(input: RouteInput): Promise<CILResponse | null> {
-  const baseUrl = process.env.LEE_CIL_BASE_URL;
-  const secret = process.env.LEE_CIL_HMAC_SECRET;
-  if (!baseUrl || !secret) return null;
-
   const body = buildCILRequest(input);
-  const bodyText = JSON.stringify(body);
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const bodyHash = createHash("sha256").update(bodyText).digest("hex");
-  const signature = createHmac("sha256", secret)
-    .update(`${input.correlationId}.${timestamp}.${bodyHash}`)
-    .digest("hex");
-  const response = await fetch(new URL("/query/lee", baseUrl), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-lee-timestamp": timestamp,
-      "x-lee-signature": signature,
-    },
-    body: bodyText,
-  });
-  if (!response.ok) return null;
-  return (await response.json()) as CILResponse;
+  try {
+    return await reasoningService.query(body);
+  } catch {
+    return null;
+  }
 }
 
 export async function routeModelRequest(input: RouteInput): Promise<{
@@ -98,6 +90,9 @@ export async function routeModelRequest(input: RouteInput): Promise<{
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  cilEvidence?: Pick<CILQueryResponse, "confidence" | "cost_usd" | "latency_ms" | "provenance" | "cognitive_asset_id" | "asset_version" | "drift_detected" | "contradiction_detected" | "freshness_state" | "reuse_eligible" | "recommend_escalation" | "escalation_reason">;
+  fallbackUsed?: boolean;
+  fallbackReason?: string;
 }> {
   const costPolicy = await checkPolicy("cost", "model_call", { estimatedCostUsd: input.costCeilingUsd ?? 0, tier: input.preferredTier }, "Model Router");
   if (!costPolicy.permitted) throw new Error(`Model call blocked by Cost Policy: ${costPolicy.constraints.join(" ")}`);
@@ -116,10 +111,11 @@ export async function routeModelRequest(input: RouteInput): Promise<{
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
+      cilEvidence: cil,
     };
   }
 
-  const tier = chooseTier(input);
+  const tier = "T3" as const;
   const model = modelForTier[tier];
   const contextText = input.contextItems
     .map((item) => `[${item.kind}:${item.id}] ${item.text}`)
@@ -152,5 +148,7 @@ export async function routeModelRequest(input: RouteInput): Promise<{
     promptTokens,
     completionTokens,
     totalTokens: promptTokens + completionTokens,
+    fallbackUsed: true,
+    fallbackReason: "CIL unavailable or response contract invalid",
   };
 }

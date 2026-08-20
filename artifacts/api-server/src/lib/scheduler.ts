@@ -9,6 +9,7 @@ import { refreshWorldState } from "./world-state";
 import { detectOperationalPatterns } from "./operational-memory";
 import { generateInitiatives } from "./initiative";
 import { generateOperationalContext } from "./operational-intelligence";
+import { runExecutiveLoopTick } from "./executive-loop";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -106,6 +107,9 @@ export async function executeScheduledJob(id: string) {
   if (job.jobType === "operational_intelligence_refresh") {
     try { await generateOperationalContext(); } catch (error) { handlerError = error instanceof Error ? error.message : "Operational intelligence refresh failed."; }
   }
+  if (job.jobType === "executive_loop_tick") {
+    try { await runExecutiveLoopTick(); } catch (error) { handlerError = error instanceof Error ? error.message : "Executive Loop tick failed."; }
+  }
   if (job.jobType === "morning_brief" || job.jobType === "evening_reflection" || job.jobType === "weekly_review") {
     try {
       const briefType = job.jobType === "morning_brief" ? "today" : job.jobType === "evening_reflection" ? "evening" : "weekly";
@@ -124,6 +128,7 @@ export async function executeScheduledJob(id: string) {
     job.jobType === "operational_memory_scan" ||
     job.jobType === "initiative_scan" ||
     job.jobType === "operational_intelligence_refresh" ||
+    job.jobType === "executive_loop_tick" ||
     job.jobType === "morning_brief" ||
     job.jobType === "evening_reflection" ||
     job.jobType === "weekly_review";

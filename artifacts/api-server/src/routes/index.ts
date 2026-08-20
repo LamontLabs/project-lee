@@ -60,6 +60,7 @@ import operationalIntelligenceRouter from "./operational-intelligence";
 import providersRouter from "./providers";
 import bootstrapRouter from "./bootstrap";
 import internalServicesRouter from "./internal-services";
+import executiveLoopRouter from "./executive-loop";
 
 const router: IRouter = Router();
 
@@ -118,6 +119,7 @@ router.use(operationalIntelligenceRouter);
 router.use(providersRouter);
 router.use(bootstrapRouter);
 router.use(internalServicesRouter);
+router.use(executiveLoopRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

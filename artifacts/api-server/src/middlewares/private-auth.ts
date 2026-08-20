@@ -10,7 +10,7 @@ function signature(value: string) {
 
 export function privateAuth(enabled = Boolean(process.env.LEE_OWNER_USERNAME && process.env.LEE_OWNER_PASSWORD)) {
   const middleware: RequestHandler = (req, res, next) => {
-    if (!enabled || req.path.endsWith("/health") || req.path.endsWith("/healthz") || req.path.endsWith("/auth/login") || req.path.endsWith("/auth/session") || req.path.endsWith("/auth/logout")) { next(); return; }
+    if (!enabled || req.path.startsWith("/api/android/") && !req.path.startsWith("/api/android/pairing") || req.path.endsWith("/health") || req.path.endsWith("/healthz") || req.path.endsWith("/auth/login") || req.path.endsWith("/auth/session") || req.path.endsWith("/auth/logout")) { next(); return; }
     const raw = req.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
     if (!raw) { res.status(401).json({ error: "Private Lee session required." }); return; }
     const [token, provided] = raw.split(".");

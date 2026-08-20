@@ -36,6 +36,19 @@ export const connector = pgTable(
   (table) => [index("connector_status_idx").on(table.status)],
 );
 
+export const androidPairingToken = pgTable(
+  "android_pairing_token",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  },
+  (table) => [index("android_pairing_token_status_idx").on(table.status)],
+);
+
 export const connectorSync = pgTable(
   "connector_sync",
   {

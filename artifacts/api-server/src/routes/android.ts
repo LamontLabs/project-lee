@@ -1,7 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
+import { androidPairingToken, auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
 import { buildContextPacket } from "../lib/context-engine";
 import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
@@ -10,17 +10,24 @@ import { verifyAndroidPairing } from "./android-pairing";
 
 const router: IRouter = Router();
 async function paired(req: any) {
-  const expected = process.env.LEE_ANDROID_PAIRING_TOKEN;
   const supplied = req.headers["x-lee-device-token"] ?? String(req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
-  return await verifyAndroidPairing(supplied);
+  if (typeof supplied !== "string" || supplied.length < 8) return null;
+  if (await verifyAndroidPairing(supplied)) return true;
+  const hash = createHash("sha256").update(supplied).digest("hex");
+  const [record] = await db.select().from(androidPairingToken).where(and(eq(androidPairingToken.tokenHash, hash), eq(androidPairingToken.status, "active"))).limit(1);
+  if (!record) return null;
+  await db.update(androidPairingToken).set({ lastUsedAt: new Date() }).where(eq(androidPairingToken.id, record.id));
+  return record;
 }
 async function rejectPairing(req: any, res: any) {
   if (!(await paired(req))) { res.status(401).json({ error: "Android device pairing is required." }); return true; }
   return false;
 }
 
-router.post("/android/capture", async (req, res): Promise<void> => {
-  if (await rejectPairing(req, res)) return;
+function issueToken() {
+  const token = randomBytes(32).toString("base64url");
+  return { token, tokenHash: createHash("sha256").update(token).digest("hex") };
+}
   const content = String(req.body?.text ?? req.body?.transcript ?? "").trim();
   if (!content) { res.status(400).json({ error: "text or transcript is required." }); return; }
   const checksum = createHash("sha256").update(content).digest("hex");
@@ -57,7 +64,7 @@ router.post("/android/waiting/:id/action", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   const action = req.body?.action;
   const nextCheckAt = action === "snooze" ? new Date(Date.now() + Number(req.body?.hours ?? 24) * 3600000) : null;
-  const [updated] = await db.update(waitingLoop).set({ status: action === "resolve" ? "resolved" : "open", nextCheckAt, updatedAt: new Date() }).where(eq(waitingLoop.id, req.params.id)).returning();
+  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(eq(governanceRequest.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Waiting loop not found." }); return; }
   res.json(updated);
 });
@@ -69,7 +76,7 @@ router.get("/android/alerts", async (req, res): Promise<void> => {
 
 router.post("/android/alerts/:id/action", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
-  const [updated] = await db.update(notification).set({ status: req.body?.action === "dismiss" ? "dismissed" : "read", readAt: new Date() }).where(eq(notification.id, req.params.id)).returning();
+  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(eq(governanceRequest.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Alert not found." }); return; }
   res.json(updated);
 });
@@ -94,3 +101,13 @@ router.get("/android/approvals", async (req, res): Promise<void> => {
 });
 
 export default router;
+
+async function revokeActiveTokens() {
+  await db.update(androidPairingToken).set({ status: "revoked", revokedAt: new Date() }).where(eq(androidPairingToken.status, "active"));
+}
+
+  const [record] = await db.insert(androidPairingToken).values({ tokenHash }).returning({ id: androidPairingToken.id, createdAt: androidPairingToken.createdAt });
+
+  const { token, tokenHash } = issueToken();
+
+  const record = await paired(req);

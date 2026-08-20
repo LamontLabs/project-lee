@@ -52,6 +52,7 @@ import selfTestRouter from "./self-test";
 import recoveryRouter from "./recovery";
 import ownershipRouter from "./ownership";
 import agingRouter from "./aging";
+import manifestRouter from "./manifest";
 
 const router: IRouter = Router();
 
@@ -102,6 +103,7 @@ router.use(policyRouter);
 router.use(resourcesRouter);
 router.use(intentsRouter);
 router.use(stateRouter);
+router.use(manifestRouter);
 router.use(internalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);

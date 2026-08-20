@@ -27,4 +27,5 @@ export * from "./workspace";
 export * from "./self-test";
 export * from "./recovery";
 export * from "./aging";
+export * from "./manifest";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

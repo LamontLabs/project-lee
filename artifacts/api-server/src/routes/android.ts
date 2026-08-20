@@ -39,6 +39,15 @@ router.post("/android/battery", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   res.json(await sampleResources({ batteryLevel: Number(req.body?.batteryLevel), charging: Boolean(req.body?.charging) }));
 });
+router.post("/android/push-token", async (req, res): Promise<void> => {
+  const pairing = await paired(req);
+  if (!pairing || pairing === true) { res.status(401).json({ error: "Android device pairing is required." }); return; }
+  const pushToken = String(req.body?.pushToken ?? "").trim();
+  const platform = String(req.body?.platform ?? "android").trim().toLowerCase();
+  if (!pushToken || pushToken.length < 16 || platform !== "android") { res.status(400).json({ error: "An Android push token is required." }); return; }
+  await db.update(androidPairing).set({ fcmToken: pushToken, pushPlatform: platform, pushUpdatedAt: new Date() }).where(eq(androidPairing.id, pairing.id));
+  res.json({ registered: true });
+});
 
 router.post("/android/ask", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;

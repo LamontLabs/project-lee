@@ -55,6 +55,7 @@ export function createLeeApi(pairing: Pairing) {
     },
     approve: (governanceRequestId: string, decision: 'approve' | 'hold' | 'reject') => request<{ id: string; status: string }>('/android/approve', { method: 'POST', body: JSON.stringify({ governanceRequestId, decision }) }),
     health: () => request<{ connected: boolean; status: string; pairedAt: string; lastVerifiedAt: string }>('/android/connection'),
+    registerPushToken: (pushToken: string, platform = 'android') => request<{ registered: boolean }>('/android/push-token', { method: 'POST', body: JSON.stringify({ pushToken, platform }) }),
     operationalConfidence: () => request<{ score: number; explanation: string; factors: Array<{ label: string; contribution: number; detail: string }> }>('/operational-confidence'),
   };
 }

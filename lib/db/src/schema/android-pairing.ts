@@ -8,4 +8,7 @@ export const androidPairing = pgTable("android_pairing", {
   rotatedAt: timestamp("rotated_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
+  fcmToken: text("fcm_token"),
+  pushPlatform: varchar("push_platform", { length: 16 }),
+  pushUpdatedAt: timestamp("push_updated_at", { withTimezone: true }),
 }, (table) => [index("android_pairing_active_idx").on(table.active, table.expiresAt)]);

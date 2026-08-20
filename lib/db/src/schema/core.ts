@@ -187,6 +187,7 @@ export const notification = pgTable("notification", {
   targetRef: text("target_ref"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   readAt: timestamp("read_at", { withTimezone: true }),
+  pushSentAt: timestamp("push_sent_at", { withTimezone: true }),
 }, (table) => [index("notification_status_created_idx").on(table.status, table.createdAt)]);
 
 export const brief = pgTable("brief", {

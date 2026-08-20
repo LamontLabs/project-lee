@@ -30,7 +30,10 @@ async function runEngineSuite() {
   return suite("Engine Suite", tests);
 }
 async function runApiSuite() {
-  const tests = Object.entries(internalContracts).flatMap(([engine, actions]) => Object.keys(actions).map((action) => test(`api-${engine}-${action}`, `${engine}/${action} contract`, async () => ({ result: "PASS", message: "Zod contract is registered.", evidence: { engine, action } }))));
+  const tests = Object.entries(internalContracts).flatMap(([engine, actions]) => Object.entries(actions).map(([action, contract]) => test(`api-${engine}-${action}`, `${engine}/${action} rejects invalid payloads`, async () => {
+    const parsed = contract.safeParse("__self_test_invalid_payload__");
+    return { result: parsed.success ? "FAIL" : "PASS", message: parsed.success ? "Contract accepted an invalid primitive payload." : "Contract rejected an invalid primitive payload.", evidence: { engine, action, rejectedInvalidPayload: !parsed.success } };
+  })));
   return suite("API Suite", await Promise.all(tests));
 }
 async function runPolicySuite() {
@@ -42,7 +45,8 @@ async function runEventSuite() {
   const subscriptionId = subscribe("SelfTestCompleted", () => { fired = true; });
   const event = await emitEvent({ eventType: "SelfTestCompleted", aggregateType: "self_test", aggregateId: crypto.randomUUID(), sourceRef: "self-test", payload: { overallResult: "PASS", synthetic: true } });
   const catalogTest = await test("events-catalog", "Event catalog has versioned entries", async () => ({ result: Object.keys(DOMAIN_EVENT_CATALOG).length >= 50 ? "PASS" : "WARN", message: `${Object.keys(DOMAIN_EVENT_CATALOG).length} catalog entries available.`, evidence: Object.keys(DOMAIN_EVENT_CATALOG) }));
-  const writeTest = await test("events-write", "Synthetic event is written and subscribed", async () => ({ result: fired ? "PASS" : "FAIL", message: fired ? "EventBus subscriber fired after append." : "Event was appended but subscriber did not fire.", evidence: { eventId: event.id, eventVersion: event.eventVersion, subscriberFired: fired } }));
+  const persisted = await db.select({ id: eventLog.id }).from(eventLog).where(eq(eventLog.id, event.id)).limit(1);
+  const writeTest = await test("events-write", "Synthetic event is persisted and delivered", async () => ({ result: fired && persisted.length === 1 ? "PASS" : "FAIL", message: fired && persisted.length === 1 ? "Event was persisted and EventBus subscriber fired." : "Event persistence or delivery failed.", evidence: { eventId: event.id, eventVersion: event.eventVersion, subscriberFired: fired, persisted: persisted.length === 1 } }));
   return suite("Domain Events Suite", [catalogTest, writeTest]);
 }
 async function runContextSuite() {
@@ -54,7 +58,7 @@ async function runContextSuite() {
 }
 async function runDataSuite() {
   const [backup] = await db.select().from(backupArchive).orderBy(desc(backupArchive.createdAt)).limit(1);
-  const backupTest = await test("backup-latest", "Latest backup manifest is available", async () => ({ result: backup ? "PASS" : "WARN", message: backup ? "Latest Brain backup is present." : "No backup has been recorded yet.", evidence: backup ? { backupId: backup.backupId, status: backup.status, brainVersion: backup.brainVersion } : {} }));
+  const backupTest = await test("backup-latest", "Latest backup has usable persisted metadata", async () => ({ result: backup && backup.backupId.length > 0 && backup.brainVersion.length > 0 && backup.sizeBytes >= 0 && backup.manifest && backup.payload ? "PASS" : backup ? "FAIL" : "WARN", message: backup ? "Latest Brain backup contains required identity, version, size, manifest, and payload fields." : "No backup has been recorded yet.", evidence: backup ? { backupId: backup.backupId, status: backup.status, brainVersion: backup.brainVersion, sizeBytes: backup.sizeBytes, hasManifest: Boolean(backup.manifest), hasPayload: Boolean(backup.payload) } : {} }));
   const eventTest = await test("event-append-only", "Event Log append-only contract is installed", async () => ({ result: "PASS", message: "The append-only database trigger is installed by the DB setup routine.", evidence: { table: "event_log", constraint: "append-only trigger" } }));
   return suite("Backup & Event Log Suite", [backupTest, eventTest]);
 }

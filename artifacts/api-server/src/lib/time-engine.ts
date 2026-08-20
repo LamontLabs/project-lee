@@ -8,6 +8,7 @@ import { activeOpportunities } from "./opportunity";
 import { currentOperationalCapacity } from "./operational-capacity";
 import { listAnchors } from "./strategic-anchors";
 import { currentPortfolioState } from "./portfolio-intelligence";
+import { currentResourceAllocation } from "./resource-allocation";
 import { currentUncertainty } from "./uncertainty";
 
 const DAY = 86_400_000;
@@ -56,6 +57,7 @@ export async function generateBrief(briefType: "today" | "evening" | "weekly") {
   const anchors = await listAnchors();
   const portfolio = await currentPortfolioState();
   const uncertainty = await currentUncertainty();
+  const allocation = await currentResourceAllocation();
   const stale = overview.objects.filter((item) => item.temporal.freshnessState === "stale" || item.temporal.freshnessState === "critical");
   const content = {
     generatedAt: overview.now, focus: overview.objects.filter((item) => item.status === "active").slice(0, 5).map((item) => item.name),
@@ -68,6 +70,7 @@ export async function generateBrief(briefType: "today" | "evening" | "weekly") {
     strategicAnchors: anchors.slice(0, 8).map((anchor) => ({ id: anchor.id, type: anchor.anchorType, summary: anchor.summary, projectId: anchor.projectId })),
     portfolio: { healthScore: portfolio.healthScore, projectCount: portfolio.projectCount, momentumDistribution: portfolio.momentumDistribution, alerts: portfolio.alerts.slice(0, 5) },
     uncertainty: uncertainty.filter((item) => item.level === "HIGH" || item.level === "VERY HIGH").map((item) => ({ objectId: item.objectId, objectType: item.objectType, level: item.level, dimensions: { outcome: item.outcomeLevel, timing: item.timingLevel, scope: item.scopeLevel }, signals: item.signals })),
+    allocation: allocation.slice().sort((a, b) => b.percentage - a.percentage).slice(0, 3).map((item) => ({ projectId: item.projectId, percentage: item.percentage, impliedDailyHours: item.impliedDailyHours, narrative: item.narrative })),
   };
   const sourcesUsed = ["event_log", "universal_object", "waiting_loop", "uncertainty_state"];
   const whyChain = new WhyChainBuilder().addStep("freshness_threshold", `${stale.length} active objects crossed a freshness threshold.`, stale.length ? 0.8 : 0.6, "Brief Engine", stale[0]?.id).addStep("fact_confirmed", `${overview.notifications.length} notifications and ${overview.waitingLoops.length} waiting loops shaped this brief.`, 0.75, "Brief Engine", "event_log").buildNonTrivial();

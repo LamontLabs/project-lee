@@ -43,4 +43,5 @@ export * from "./strategic-anchor";
 export * from "./portfolio-intelligence";
 export * from "./time-machine";
 export * from "./uncertainty";
+export * from "./resource-allocation";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

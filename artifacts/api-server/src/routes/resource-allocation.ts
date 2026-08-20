@@ -1,0 +1,8 @@
+import { Router, type IRouter } from "express";
+import { allocationHistory, computeResourceAllocation, createAllocationOverride, currentResourceAllocation } from "../lib/resource-allocation";
+const router: IRouter = Router();
+router.get("/resource-allocation", async (_req, res) => res.json(await currentResourceAllocation()));
+router.get("/resource-allocation/history", async (_req, res) => res.json(await allocationHistory()));
+router.post("/resource-allocation/recompute", async (_req, res) => res.json(await computeResourceAllocation()));
+router.post("/resource-allocation/overrides", async (req, res) => { const body = req.body ?? {}; if (!body.projectId || !body.reason || !body.expiresAt || Number(body.percentage) < 0 || Number(body.percentage) > 100) { res.status(400).json({ error: "projectId, percentage 0-100, reason, and expiresAt are required." }); return; } res.json((await createAllocationOverride({ projectId: String(body.projectId), percentage: Number(body.percentage), reason: String(body.reason), expiresAt: new Date(body.expiresAt) }))[0]); });
+export default router;

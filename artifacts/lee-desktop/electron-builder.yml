@@ -1,0 +1,25 @@
+appId: com.lamontlabs.projectlee
+productName: Project LEE
+artifactName: Project-LEE-Setup-${version}-${arch}.${ext}
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**
+  - resources/**
+  - "!**/*.map"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Project LEE
+  runAfterFinish: true
+publish:
+  provider: github
+  releaseType: release

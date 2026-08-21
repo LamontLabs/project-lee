@@ -1,0 +1,43 @@
+name: Project LEE Desktop Release
+
+on:
+  push:
+    tags:
+      - "lee-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/api-zod exec tsc -p tsconfig.json
+      - run: pnpm --filter @workspace/api-server run build
+      - run: pnpm --filter @workspace/lee-console run build
+        env:
+          PORT: 4173
+          BASE_PATH: /
+      - run: pnpm --filter @workspace/lee-desktop run package
+      - name: Add checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/lee-desktop/release/* | ForEach-Object {
+            (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name | Out-File ($_.FullName + ".sha256") -Encoding ascii
+          }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/lee-desktop/release/*.exe
+            artifacts/lee-desktop/release/*.sha256
+          generate_release_notes: true

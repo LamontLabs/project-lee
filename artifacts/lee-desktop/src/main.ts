@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, shell } from "electron";
 import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 import { RuntimeSupervisor } from "./runtime.js";
 import { startConsoleServer } from "./static-server.js";
 
@@ -30,12 +31,16 @@ function setupWindow(url: string): void {
 async function boot(): Promise<void> {
   supervisor = new RuntimeSupervisor(app.getAppPath(), isProduction);
   const runtime = await supervisor.start();
+  if (process.env.LEE_SMOKE_STATUS_FILE) {
+    writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify(runtime, null, 2), "utf8");
+  }
   if (isProduction) {
     consoleServer = await startConsoleServer(join(process.resourcesPath, "console"), runtime.apiUrl);
     setupWindow(consoleServer.url);
   } else {
     setupWindow(process.env.LEE_CONSOLE_URL ?? "http://127.0.0.1:5173/");
   }
+  if (app.commandLine.hasSwitch("lee-smoke-exit")) app.quit();
 }
 
 app.on("before-quit", () => { isQuitting = true; supervisor?.stop(); consoleServer?.server.close(); });

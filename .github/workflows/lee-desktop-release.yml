@@ -44,6 +44,45 @@ jobs:
           Get-ChildItem artifacts/lee-desktop/release/* | ForEach-Object {
             (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name | Out-File ($_.FullName + ".sha256") -Encoding ascii
           }
+      - name: Upload installer for validation
+        uses: actions/upload-artifact@v4
+        with:
+          name: lee-windows-installer
+          path: artifacts/lee-desktop/release/*.exe
+          if-no-files-found: error
+
+  windows-installer-validation:
+    needs: windows-installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lee-windows-installer
+          path: ${{ runner.temp }}/lee-installer
+      - name: Validate disposable Windows installation
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "$env:RUNNER_TEMP\lee-installer\*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "Downloaded NSIS installer is missing." }
+          & "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\scripts\windows-smoke-test.ps1" -InstallerPath $installer.FullName
+
+  publish-release:
+    needs: windows-installer-validation
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lee-windows-installer
+          path: artifacts/lee-desktop/release
+      - name: Add checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/lee-desktop/release/*.exe | ForEach-Object {
+            (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name | Out-File ($_.FullName + ".sha256") -Encoding ascii
+          }
       - uses: softprops/action-gh-release@v2
         with:
           files: |

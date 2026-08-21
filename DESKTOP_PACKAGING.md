@@ -12,6 +12,7 @@ The Electron shell now provides:
 - Contract-based startup probing
 - Application data directories under `%APPDATA%/Project LEE`
 - Windows NSIS installer configuration with desktop and Start Menu shortcuts
+- Disposable Windows installer validation in the release workflow
 - GitHub Release automation for `lee-v*` tags
 - SHA-256 checksums for release artifacts
 
@@ -55,4 +56,4 @@ Run this on a clean Windows VM after building the NSIS installer:
 
 ## Release
 
-Tagging `lee-v1.0.0` runs `.github/workflows/lee-desktop-release.yml` on Windows. The workflow builds the API and Console, packages the Electron shell, and publishes the installer and checksum to GitHub Releases.
+Tagging `lee-v1.0.0` runs `.github/workflows/lee-desktop-release.yml` on Windows. The workflow builds the API and Console, packages the Electron shell, and uploads the NSIS artifact to a separate disposable Windows validation job. That job installs silently into a temporary directory and verifies private PostgreSQL startup, migration failure reporting, `Exit LEE` process cleanup, and restart reuse of the configured data/database directories. GitHub Release publication runs only after validation passes and includes the installer and checksum.

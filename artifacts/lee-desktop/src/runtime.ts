@@ -89,9 +89,17 @@ export class RuntimeSupervisor {
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? process.execPath.replace(/electron(?:\.exe)?$/i, "node.exe");
     const args = config.apiArgs ?? [apiPath];
+    const childEnv = {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      PORT: String(this.port),
+      NODE_ENV: this.production ? "production" : "development",
+      LEE_DATA_DIR: dataDir,
+      ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+    };
     this.child = spawn(command, args, {
       cwd: this.root,
-      env: { ...process.env, DATABASE_URL: databaseUrl, PORT: String(this.port), NODE_ENV: this.production ? "production" : "development", LEE_DATA_DIR: dataDir },
+      env: childEnv,
       stdio: "ignore",
       windowsHide: true,
     });
@@ -170,11 +178,20 @@ export class RuntimeSupervisor {
 
   stop(): void {
     this.snapshot = { ...this.snapshot, state: "stopped", reason: null };
-    if (this.child && !this.child.killed) this.child.kill();
+    this.terminate(this.child);
     if (this.postgresCtl) spawnSync(this.postgresCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore" });
-    if (this.postgres && !this.postgres.killed) this.postgres.kill();
+    this.terminate(this.postgres);
     this.child = null;
     this.postgres = null;
     this.postgresCtl = null;
+  }
+
+  private terminate(child: ChildProcess | null): void {
+    if (!child || child.killed || child.pid == null) return;
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" });
+    } else {
+      child.kill();
+    }
   }
 }

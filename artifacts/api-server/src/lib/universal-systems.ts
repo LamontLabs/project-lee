@@ -80,7 +80,7 @@ export async function listUniversalSystems() {
 export async function callUniversalSystem(systemId: string, path: string, payload: Record<string, unknown>, correlationId: string = randomUUID(), options: { method?: "GET" | "POST"; timeoutMs?: number } = {}) {
   const [system] = await db.select().from(internalCapabilityService).where(eq(internalCapabilityService.serviceId, systemId)).limit(1);
   if (!system?.baseUrl) throw new Error("UNIVERSAL_SYSTEM_NOT_REGISTERED");
-  if (!/^\/[a-zA-Z0-9/_-]*$/.test(path)) throw new Error("UNIVERSAL_SYSTEM_PATH_INVALID");
+  if (!/^\/[a-zA-Z0-9._/:-]*$/.test(path)) throw new Error("UNIVERSAL_SYSTEM_PATH_INVALID");
   const metrics = (system.metrics ?? {}) as Record<string, unknown>;
   const directSystems = new Set(["cil", "cerbaseal", "replit-ai-openai", "replit-ai-anthropic", "replit-ai-gemini"]);
   const encoded = JSON.stringify(metrics.requestEnvelope === "direct" || directSystems.has(systemId) ? payload : { contract_version: system.apiVersion, correlation_id: correlationId, payload });

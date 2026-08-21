@@ -17,13 +17,13 @@ export default function TabLayout() {
   const colors = useColors();
   return (
     <Tabs
-      screenOptions={({ route }) => ({
+      screenOptions={({ route }: { route: { name: string } }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
         tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: Platform.OS === 'web' ? 84 : 78, paddingTop: 8 },
-        tabBarIcon: ({ color, size }) => <Feather name={tabIcons[route.name] ?? 'circle'} color={color} size={size} />,
+        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Feather name={tabIcons[route.name] ?? 'circle'} color={color} size={size} />,
       })}
     >
       <Tabs.Screen name="index" options={{ title: 'Brief' }} />

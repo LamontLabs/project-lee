@@ -166,7 +166,7 @@ export function buildSystemContract(manifest: ManifestDocument): SystemContract 
   const contract = systemContractSchema.parse({
     ...sections,
     generatedAt: manifest.generatedAt,
-    validation: { result: checks.some((check) => check.result === "FAIL") ? "WARN" : checks.some((check) => check.result === "WARN") ? "WARN" : "PASS", checks },
+    validation: { result: checks.some((check) => check.result === "FAIL") ? "WARN" : "PASS", checks },
   });
   return contract;
 }

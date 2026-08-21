@@ -1,6 +1,22 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import type { SystemContract } from "@workspace/api-zod";
 
 export function SystemsPage() {
+  const [contract, setContract] = useState<SystemContract | null>(null);
+  const [contractState, setContractState] = useState<"live" | "cached" | "unavailable">("unavailable");
+  useEffect(() => {
+    void fetch("/api/contract", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new Error("Contract unavailable");
+      const liveContract = await response.json() as SystemContract;
+      setContract(liveContract);
+      window.localStorage.setItem("lee-system-contract", JSON.stringify(liveContract));
+      setContractState("live");
+    }).catch(() => {
+      const cached = window.localStorage.getItem("lee-system-contract");
+      if (cached) { try { setContract(JSON.parse(cached) as SystemContract); setContractState("cached"); } catch { setContractState("unavailable"); } }
+    });
+  }, []);
   return (
     <div className="space-y-10">
       <div>
@@ -8,6 +24,28 @@ export function SystemsPage() {
         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
           Three distinct systems with distinct ownership boundaries. LEE is the operating environment. CIL is the reasoning service. CerbaSeal is the governance service. LEE calls both. Neither can be accessed by LEE's database queries.
         </p>
+      </div>
+
+      <div className="bg-card border border-card-border rounded-xl p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Executable system contract</p>
+            <h2 className="mt-2 text-base font-semibold text-foreground">{contract ? `Project LEE · v${contract.contractVersion}` : "Contract unavailable"}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">The contract is the shared vocabulary for identity, health, capabilities, governance, permissions, economics, and dependencies.</p>
+          </div>
+          <span className={`rounded-full border px-2.5 py-1 text-[11px] ${contractState === "live" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : contractState === "cached" ? "border-amber-500/30 bg-amber-500/10 text-amber-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
+            {contractState === "live" ? "LIVE" : contractState === "cached" ? "CACHED" : "UNAVAILABLE"}
+          </span>
+        </div>
+        {contract && <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Health", `${contract.health.overall} · ${contract.health.freshness}`],
+            ["Capabilities", `${contract.capabilities.filter((item) => item.state === "available").length}/${contract.capabilities.length} available`],
+            ["Governance", contract.governance.failClosed ? "Fail-closed" : "Review required"],
+            ["Economics", `${contract.economics.totalCostStatus} · ${contract.economics.dimensions.length} dimensions`],
+          ].map(([label, value]) => <div key={label} className="rounded-lg border border-border bg-muted/30 p-3"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-1 text-sm font-semibold text-foreground">{value}</p></div>)}
+        </div>}
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">State means availability: available, degraded, unavailable, or offline. Freshness means live, cached, or uncertain. Economics are labeled MEASURED, ESTIMATED, or UNAVAILABLE; an unavailable value is never presented as zero.</p>
       </div>
 
       <div className="grid gap-6">

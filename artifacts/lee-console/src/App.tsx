@@ -80,6 +80,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFoundPage from '@/pages/not-found';
+import type { SystemContract } from '@workspace/api-zod';
 
 function NotFound() {
   const [path] = useLocation();
@@ -250,21 +251,23 @@ function Panel({ children, className = '' }: { children: ReactNode; className?: 
 }
 
 function ConsoleStatusBar() {
-  const [data, setData] = useState({ cost: '—', approvals: '—', notifications: '—', backup: '—', mode: 'morning', state: 'Idle', stateReason: '', loopPhase: 'OBSERVE', loopCycle: 0, error: '' });
+  const [data, setData] = useState({ cost: '—', approvals: '—', notifications: '—', backup: '—', mode: 'morning', state: 'Idle', stateReason: '', loopPhase: 'OBSERVE', loopCycle: 0, contractState: 'unavailable', contractVersion: '—', error: '' });
   useEffect(() => {
-    void Promise.all([fetch('/api/economics/summary'), fetch('/api/events?limit=20'), fetch('/api/brain-versions'), fetch('/api/workspace'), fetch('/api/state'), fetch('/api/internal/executive-loop/state')]).then(async ([economics, events, backups, workspace, state, loop]) => {
-      const unavailable = [economics, events, backups, workspace, state, loop].filter((response) => !response.ok).map((response) => response.url);
+    void Promise.all([fetch('/api/economics/summary'), fetch('/api/events?limit=20'), fetch('/api/brain-versions'), fetch('/api/workspace'), fetch('/api/state'), fetch('/api/internal/executive-loop/state'), fetch('/api/contract', { cache: 'no-store' })]).then(async ([economics, events, backups, workspace, state, loop, contract]) => {
+      const unavailable = [economics, events, backups, workspace, state, loop, contract].filter((response) => !response.ok).map((response) => response.url);
       const economicsData = economics.ok ? await economics.json() : null;
       const eventsData = events.ok ? await events.json() : [];
       const backupsData = backups.ok ? await backups.json() : [];
       const workspaceData = workspace.ok ? await workspace.json() : null;
       const stateData = state.ok ? await state.json() : null;
       const loopData = loop.ok ? await loop.json() : null;
-      setData({ cost: economicsData?.totalCostUsd != null ? `$${Number(economicsData.totalCostUsd).toFixed(2)}` : 'Unavailable', approvals: `${eventsData.filter((item: any) => /held|approval/i.test(item.eventType)).length}`, notifications: `${eventsData.filter((item: any) => /alert|notification/i.test(item.eventType)).length}`, backup: backupsData[0]?.status ?? 'Not run', mode: workspaceData?.state?.currentMode ?? 'morning', state: stateData?.currentState ?? 'Unavailable', stateReason: stateData?.reason ?? '', loopPhase: loopData?.phase ?? 'Unavailable', loopCycle: loopData?.cycleCount ?? 0, error: unavailable.length ? `${unavailable.length} live status sources unavailable.` : '' });
+      const contractData = contract.ok ? await contract.json() as SystemContract : null;
+      setData({ cost: economicsData?.totalCostUsd != null ? `$${Number(economicsData.totalCostUsd).toFixed(2)}` : 'Unavailable', approvals: `${eventsData.filter((item: any) => /held|approval/i.test(item.eventType)).length}`, notifications: `${eventsData.filter((item: any) => /alert|notification/i.test(item.eventType)).length}`, backup: backupsData[0]?.status ?? 'Not run', mode: workspaceData?.state?.currentMode ?? 'morning', state: stateData?.currentState ?? 'Unavailable', stateReason: stateData?.reason ?? '', loopPhase: loopData?.phase ?? 'Unavailable', loopCycle: loopData?.cycleCount ?? 0, contractState: contractData?.health.state ?? 'unavailable', contractVersion: contractData?.contractVersion ?? '—', error: unavailable.length ? `${unavailable.length} live status sources unavailable.` : contractData?.validation.result === 'WARN' ? 'Contract validation is degraded.' : '' });
     }).catch((cause) => setData((current) => ({ ...current, error: cause instanceof Error ? cause.message : 'Live status unavailable.' })));
   }, []);
   const stateTone = ['Offline', 'Recovering', 'Degraded'].includes(data.state) ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary';
-  return <div className="hidden items-center gap-2 xl:flex"><span title={data.error || 'Live status sources verified'} className={cn('rounded-full border px-2.5 py-1 text-[10px]', data.error ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary')}>{data.error ? 'Health degraded' : 'Health nominal'}</span><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Loop {data.loopPhase} · {data.loopCycle}</span><span title={data.stateReason} className={cn('rounded-full border px-2.5 py-1 text-[10px]', stateTone, ['Thinking', 'Recovering'].includes(data.state) && 'animate-pulse')}>Lee {data.state}</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
+  const contractLabel = data.contractState === 'available' ? 'Contract live' : data.contractState === 'degraded' ? 'Contract degraded' : data.contractState === 'offline' ? 'Contract cached' : 'Contract unavailable';
+  return <div className="hidden items-center gap-2 xl:flex"><span title={data.error || `System contract ${data.contractVersion}`} className={cn('rounded-full border px-2.5 py-1 text-[10px]', data.error || data.contractState !== 'available' ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary')}>{data.error ? 'Health degraded' : contractLabel}</span><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Loop {data.loopPhase} · {data.loopCycle}</span><span title={data.stateReason} className={cn('rounded-full border px-2.5 py-1 text-[10px]', stateTone, ['Thinking', 'Recovering'].includes(data.state) && 'animate-pulse')}>Lee {data.state}</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
 }
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {

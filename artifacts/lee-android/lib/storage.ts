@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Brief, Capture, UncertaintyRecord, WaitingLoop } from './types';
+import type { SystemContract } from '@workspace/api-zod';
 
 const PAIRING_KEY = '@lee/pairing';
 const CAPTURES_KEY = '@lee/captures';
 const BRIEF_KEY = '@lee/brief';
 const WAITING_KEY = '@lee/waiting';
 const UNCERTAINTY_KEY = '@lee/uncertainty';
+const CONTRACT_KEY = '@lee/system-contract';
 
 export type Pairing = { apiUrl: string; token: string; pairedAt: string };
 
@@ -48,6 +50,13 @@ export async function getWaitingCache(): Promise<WaitingLoop[]> {
   return value ? (JSON.parse(value) as WaitingLoop[]) : [];
 }
 export async function saveWaitingCache(items: WaitingLoop[]): Promise<void> { await AsyncStorage.setItem(WAITING_KEY, JSON.stringify(items)); }
+export async function getContract(): Promise<SystemContract | null> {
+  const value = await AsyncStorage.getItem(CONTRACT_KEY);
+  return value ? JSON.parse(value) as SystemContract : null;
+}
+export async function saveContract(contract: SystemContract): Promise<void> {
+  await AsyncStorage.setItem(CONTRACT_KEY, JSON.stringify(contract));
+}
 
 export async function pairedHealthCheck(apiUrl: string, token: string): Promise<boolean> {
   try {

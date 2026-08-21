@@ -20,7 +20,8 @@ test("canonical Manifest claims match live runtime state", async () => {
   for (const key of [
     "identity", "constitution", "policies", "brainState", "engines", "capabilities",
     "engineHealth", "providers", "schemas", "semanticIndex", "knowledge", "eventLog",
-    "graph", "storage", "latestBackup", "latestRestoreVerification", "selfTest",
+    "graph", "storage", "latestBackup", "latestRestoreVerification", "selfTest", "contractVersion",
+    "runtime", "events", "permissions", "risk", "governance", "humanConfirmation", "economics", "evidenceMap",
     "recoveryMode", "operationalState", "health", "dependencies", "provenance", "validation",
   ]) {
     assert.ok(Object.hasOwn(manifest, key), `Manifest is missing ${key}`);
@@ -44,4 +45,19 @@ test("canonical Manifest claims match live runtime state", async () => {
   assert.match(manifest.provenance.identity, /identity_profile/);
   assert.match(manifest.provenance.health, /internal_capability_service/);
   assert.ok(["PASS", "WARN"].includes(manifest.validation.result));
+});
+
+test("versioned system contract is complete, truthful, and agrees with Manifest", async () => {
+  const [manifest, contract] = await Promise.all([get("/api/manifest"), get("/api/contract")]);
+  assert.equal(contract.contractVersion, manifest.contractVersion);
+  assert.equal(contract.identity.name, "Project LEE");
+  assert.equal(contract.health.overall, manifest.health.overall);
+  assert.equal(contract.runtime.operationalState, manifest.operationalState.state);
+  assert.equal(contract.events.appendOnly, manifest.eventLog.appendOnly);
+  assert.equal(contract.governance.failClosed, true);
+  assert.equal(contract.governance.unavailableVerdict, "HOLD");
+  assert.ok(contract.economics.dimensions.length > 0);
+  assert.ok(contract.evidenceMap.health.length > 0);
+  assert.equal(JSON.stringify(contract).match(/(api[_-]?key|password|private[_-]?key)/i), null);
+  assert.ok(["PASS", "WARN"].includes(contract.validation.result));
 });

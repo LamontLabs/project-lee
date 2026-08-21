@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as Haptics from 'expo-haptics';
-import { clearPairing, getCaptures, getPairing, getUncertainty, saveCaptures, savePairing, saveUncertainty, type Pairing } from '@/lib/storage';
+import { clearPairing, getCaptures, getPairing, getContract, getUncertainty, saveCaptures, saveContract, savePairing, saveUncertainty, type Pairing } from '@/lib/storage';
 import { createLeeApi } from '@/lib/api';
 import type { Capture, UncertaintyRecord } from '@/lib/types';
+import type { SystemContract } from '@workspace/api-zod';
 
 type LeeContextValue = {
   pairing: Pairing | null;
@@ -15,6 +16,7 @@ type LeeContextValue = {
   syncCapture: (capture: Capture) => Promise<void>;
   api: ReturnType<typeof createLeeApi> | null;
   refresh: () => Promise<void>;
+  contract: SystemContract | null;
 };
 
 const LeeContext = createContext<LeeContextValue | null>(null);
@@ -23,12 +25,14 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
   const [pairing, setPairing] = useState<Pairing | null>(null);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [contract, setContract] = useState<SystemContract | null>(null);
 
   useEffect(() => {
-    Promise.all([getPairing(), getCaptures(), getUncertainty()]).then(([storedPairing, storedCaptures, storedUncertainty]) => {
+    Promise.all([getPairing(), getCaptures(), getUncertainty(), getContract()]).then(([storedPairing, storedCaptures, storedUncertainty, storedContract]) => {
       setPairing(storedPairing);
       setCaptures(storedCaptures);
       setUncertainty(storedUncertainty);
+      setContract(storedContract);
       setIsLoading(false);
     });
   }, []);
@@ -37,9 +41,10 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!pairing) return;
-    void createLeeApi(pairing).uncertainty().then((items) => {
+    void Promise.all([createLeeApi(pairing).uncertainty(), createLeeApi(pairing).contract()]).then(([items, liveContract]) => {
       setUncertainty(items);
-      return saveUncertainty(items);
+      setContract(liveContract);
+      return Promise.all([saveUncertainty(items), saveContract(liveContract)]);
     }).catch(() => undefined);
   }, [pairing]);
 
@@ -102,6 +107,7 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
       }
     },
     api: pairing ? createLeeApi(pairing) : null,
+    contract,
     async refresh() {
       if (!pairing) return;
       const queued = captures.filter((capture) => capture.status !== 'synced');
@@ -125,12 +131,13 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
         setCaptures(next); await saveCaptures(next);
       }
       try {
-        const items = await createLeeApi(pairing).uncertainty();
+        const [items, liveContract] = await Promise.all([createLeeApi(pairing).uncertainty(), createLeeApi(pairing).contract()]);
         setUncertainty(items);
-        await saveUncertainty(items);
+        setContract(liveContract);
+        await Promise.all([saveUncertainty(items), saveContract(liveContract)]);
       } catch { /* Cached uncertainty remains available offline. */ }
     },
-  }), [pairing, captures, uncertainty, isLoading]);
+  }), [pairing, captures, uncertainty, isLoading, contract]);
 
   return <LeeContext.Provider value={value}>{children}</LeeContext.Provider>;
 }

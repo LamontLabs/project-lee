@@ -102,8 +102,20 @@ export async function generateManifest() {
     dependencies: [...engines.map((engine) => ({ engine: engine.engineId, required: engine.requiredDependencies.length ? engine.requiredDependencies : engine.dependencies, satisfied: engine.lifecycleState !== "UNAVAILABLE", state: engine.lifecycleState })), ...internalServices.map((service) => ({ engine: service.serviceId, required: [], satisfied: ["healthy", "degraded"].includes(service.currentHealth), state: service.currentHealth })), { portfolioDependencyGraph: dependencyGraph.summary }],
     provenance: { identity: "identity_profile + identity_profile_version", brainState: "brain_version", constitution: "constitution_version + constitution_provision", policies: "policy_record", capabilities: "engine_registry", providers: "provider_registration", indexes: "semantic_index", statistics: "cost_record + model_route_decision + canonical ledgers", storage: "backup_archive", health: "engine_health + internal_capability_service + self_test_run + lee_state + executive_loop", dependencies: "engine_registry + internal_capability_service + graph_edge" },
     validation: { result: validationChecks.some((check) => check.result === "WARN") ? "WARN" : "PASS", checks: validationChecks },
-  } as ManifestDocument;
-  const manifest: ManifestDocument = { ...baseManifest, ...projectContractSections(baseManifest) };
+  } as unknown as ManifestDocument;
+  const contract = projectContractSections(baseManifest);
+  const manifest: ManifestDocument = {
+    ...baseManifest,
+    contractVersion: contract.contractVersion,
+    runtime: contract.runtime,
+    events: contract.events,
+    permissions: contract.permissions,
+    risk: contract.risk,
+    governance: contract.governance,
+    humanConfirmation: contract.humanConfirmation,
+    economics: contract.economics,
+    evidenceMap: contract.evidenceMap,
+  };
   await emitEvent({ eventType: "ManifestGenerated", aggregateType: "system_manifest", aggregateId: "system", payload: { manifestVersion: MANIFEST_VERSION, overallHealth: manifest.health.overall } });
   return manifest;
 }

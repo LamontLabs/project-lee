@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:manifest": "node --test scripts/manifest-contract.test.mjs",
+    "test:system-contract": "node --test scripts/manifest-contract.test.mjs",
     "test:behavioral": "node --test scripts/behavioral-test-foundation.test.mjs",
     "test:pipeline": "node --test scripts/request-pipeline.test.mjs",
     "test:internal-security": "node --test scripts/internal-route-security.test.mjs",

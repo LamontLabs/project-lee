@@ -10,7 +10,7 @@ import { highestUncertainty, UncertaintyNotice } from '@/components/UncertaintyN
 
 export default function BriefTab() {
   const colors = useColors();
-  const { api, uncertainty } = useLee();
+  const { api, uncertainty, contract } = useLee();
   const [brief, setBrief] = useState<Brief | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -28,7 +28,9 @@ export default function BriefTab() {
         <Pressable style={styles.arrow}><Feather name="arrow-up-right" size={20} color={colors.primaryForeground} /></Pressable>
       </Card>
        {(() => { const item = highestUncertainty(uncertainty); return item ? <UncertaintyNotice item={item} offline={offline} /> : null; })()}
-      <SectionLabel>At a glance</SectionLabel>
+       <SectionLabel>System contract</SectionLabel>
+       <Card><View style={styles.row}><View style={[styles.iconCircle, { backgroundColor: contract?.health.state === 'available' ? colors.accent : colors.secondary }]}><Feather name="shield" size={18} color={contract?.health.state === 'available' ? colors.primary : colors.secondaryForeground} /></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>{contract ? `Project LEE · v${contract.contractVersion}` : 'System contract unavailable'}</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{contract ? `${contract.health.overall} · ${contract.health.freshness} · ${contract.dependencies.filter((item) => item.state === 'available').length}/${contract.dependencies.length} dependencies available` : 'No live or cached contract is available. Capture remains local-first.'}</Text></View></View></Card>
+       <SectionLabel>At a glance</SectionLabel>
        <Card><View style={styles.row}><View style={[styles.iconCircle, { backgroundColor: offline ? colors.secondary : colors.accent }]}><Feather name={offline ? 'wifi-off' : 'wifi'} size={18} color={offline ? colors.secondaryForeground : colors.primary} /></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Android connection</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{offline ? 'The API could not verify this device. Cached data remains available.' : `Healthy · verified ${connection ? new Date(connection.lastVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'just now'}`}</Text></View></View></Card>
       {operationalConfidence && <Card><View style={styles.row}><View style={[styles.confidenceCircle, { backgroundColor: colors.accent }]}><Text style={[styles.confidenceScore, { color: colors.primary }]}>{operationalConfidence.score}</Text></View><View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Operational confidence</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{operationalConfidence.explanation}</Text></View></View></Card>}
       <View style={styles.grid}>

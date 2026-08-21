@@ -1,5 +1,6 @@
 import { fetch as expoFetch } from 'expo/fetch';
 import type { Alert, Approval, Brief, Capture, UncertaintyRecord, WaitingLoop } from './types';
+import type { SystemContract } from '@workspace/api-zod';
 
 export type Pairing = { apiUrl: string; token: string; pairedAt: string };
 export type AskStart = { model: string; contextItems: number; evidence: Array<{ id: string; kind: string; confidence: number }> };
@@ -58,5 +59,6 @@ export function createLeeApi(pairing: Pairing) {
     health: () => request<{ connected: boolean; status: string; pairedAt: string; lastVerifiedAt: string }>('/android/connection'),
     registerPushToken: (pushToken: string, platform = 'android') => request<{ registered: boolean }>('/android/push-token', { method: 'POST', body: JSON.stringify({ pushToken, platform }) }),
     operationalConfidence: () => request<{ score: number; explanation: string; factors: Array<{ label: string; contribution: number; detail: string }> }>('/operational-confidence'),
+    contract: () => request<SystemContract>('/contract'),
   };
 }

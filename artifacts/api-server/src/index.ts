@@ -18,6 +18,8 @@ import { computeProjectMomentum } from "./lib/project-momentum";
 import { detectOpportunities } from "./lib/opportunity";
 import { deliverDurableEvents } from "./lib/event-delivery";
 import { registerOperationalIntelligenceRefresh } from "./lib/operational-intelligence";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 const rawPort = process.env["PORT"];
 
@@ -31,6 +33,10 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+if (process.env.LEE_DATA_DIR) {
+  for (const name of ["backups", "logs", "brain", "event-log"]) mkdirSync(join(process.env.LEE_DATA_DIR, name), { recursive: true });
 }
 
 startBoot().catch((err) => logger.error({ err }, "Boot mode selection failed"));

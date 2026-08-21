@@ -78,6 +78,7 @@ import {
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
+import { DesktopSetupPanel } from './DesktopSetupPanel';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFoundPage from '@/pages/not-found';
 import type { SystemContract } from '@workspace/api-zod';
@@ -1095,7 +1096,7 @@ function App() {
   const [authenticated, setAuthenticated] = useState(false);
   useEffect(() => { document.documentElement.classList.add('dark'); return () => document.documentElement.classList.remove('dark'); }, []);
   useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then((response) => response.json()).then((result) => { setAuthenticated(Boolean(result.authenticated)); setAuthChecked(true); }).catch(() => setAuthChecked(true)); }, []);
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>{!authChecked ? <div className="grid min-h-[100dvh] place-items-center bg-sidebar text-sidebar-foreground"><RefreshCw className="animate-spin text-sidebar-primary" /></div> : !authenticated ? <LoginScreen onAuthenticated={() => setAuthenticated(true)} /> : locked ? <LockedScreen onUnlock={() => setLocked(false)} /> : <Router onAsk={() => setAskOpen(true)} onLock={() => setLocked(true)} />}{askOpen && authenticated && !locked && <AskDialog onClose={() => setAskOpen(false)} />}</WouterRouter></TooltipProvider><Toaster /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><DesktopSetupPanel />{!authChecked ? <div className="grid min-h-[100dvh] place-items-center bg-sidebar text-sidebar-foreground"><RefreshCw className="animate-spin text-sidebar-primary" /></div> : !authenticated ? <LoginScreen onAuthenticated={() => setAuthenticated(true)} /> : locked ? <LockedScreen onUnlock={() => setLocked(false)} /> : <Router onAsk={() => setAskOpen(true)} onLock={() => setLocked(true)} />}{askOpen && authenticated && !locked && <AskDialog onClose={() => setAskOpen(false)} />}</WouterRouter></TooltipProvider><Toaster /></QueryClientProvider>;
 }
 
 export default App;

@@ -17,11 +17,21 @@ The Electron shell now provides:
 
 The installer keeps CIL, CerbaSeal, Replit AI Bridge, and other specialist systems external. It does not copy or reimplement those services.
 
-## Honest database boundary
+## First-launch initialization
 
-The current API requires `DATABASE_URL`. The desktop supervisor treats a missing local database as `unavailable` and does not silently start a partial system. The next packaging milestone must provision and manage a private local PostgreSQL service, run migrations, and write its connection configuration into the protected LEE data directory.
+On first launch the desktop supervisor creates `%APPDATA%/Project LEE` and its
+`brain`, `event-log`, `backups`, `logs`, and private `database` directories.
+When PostgreSQL binaries are available in the packaged `resources/postgres/bin`
+(or `LEE_POSTGRES_BIN` during development), it initializes and starts a private
+instance on the next local port, creates the `lee` database, persists the
+connection string in the protected config file, and runs migrations before
+starting the API. An existing `DATABASE_URL` remains supported for development.
 
-Until that is implemented, the installer is a runtime-shell milestone rather than the final self-contained K6 installer.
+The console displays database, migration, Brain, Event Log, System Contract,
+CIL, CerbaSeal, and Replit Bridge states during startup. Missing external
+services are shown as unavailable rather than silently treated as healthy.
+Choosing `Exit LEE` stops the API and the private PostgreSQL process; closing
+the window only minimizes to the tray so state is preserved.
 
 ## Release
 

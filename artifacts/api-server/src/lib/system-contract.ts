@@ -81,6 +81,13 @@ export function projectContractSections(manifest: ManifestDocument) {
       ...posture(current, current === "available" ? null : "Capability is not healthy.", "system_manifest.capabilities", manifest.generatedAt),
     };
   });
+  const connectedSystems = ((manifest.health.internalServices as Array<Record<string, unknown>> | undefined) ?? []).map((service) => ({
+    id: String(service.serviceId),
+    name: String(service.displayName),
+    authority: String(service.serviceId) === "cil" ? "cognitive routing and model selection" : String(service.serviceId) === "cerbaseal" ? "consequential-action governance" : "specialist domain authority",
+    contractVersion: String(service.apiVersion ?? "v1"),
+    ...posture(service.status, service.status === "healthy" ? null : "Connected system is not healthy.", "system_manifest.connectedSystems", manifest.generatedAt),
+  }));
   const economics = systemEconomicsContract();
   return {
     contractVersion: CONTRACT_VERSION,
@@ -98,6 +105,7 @@ export function projectContractSections(manifest: ManifestDocument) {
     },
     health: healthPosture,
     capabilities,
+    connectedSystems,
     schemas: { ...manifest.schemas, contract: { version: CONTRACT_VERSION, source: "api-zod.system-contract" } },
     events: {
       version: "1.0.0",

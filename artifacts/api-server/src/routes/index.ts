@@ -72,6 +72,7 @@ import resourceAllocationRouter from "./resource-allocation";
 import executionReadinessRouter from "./execution-readiness";
 import portfolioDependencyRouter from "./portfolio-dependency";
 import androidPairingRouter from "./android-pairing";
+import universalSystemsRouter from "./universal-systems";
 
 const router: IRouter = Router();
 
@@ -143,6 +144,7 @@ router.use(resourceAllocationRouter);
 router.use(executionReadinessRouter);
 router.use(portfolioDependencyRouter);
 router.use(androidPairingRouter);
+  router.use(universalSystemsRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

@@ -93,7 +93,7 @@ export function SystemsPage() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            Provides reusable reasoning via three tiers. Reduces frontier model dependency. When CIL is unavailable, LEE falls back to local reasoning — Operational Confidence is depressed, but LEE continues operating.
+            Provides reusable reasoning via three tiers and is authoritative for cognitive routing and model selection. LEE sends authenticated requests and executes only the route CIL returns.
           </p>
           <div className="grid sm:grid-cols-3 gap-4 mb-4">
             {[
@@ -120,7 +120,7 @@ export function SystemsPage() {
           </div>
           <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
             <p className="text-xs font-semibold text-amber-400 mb-1">Degradation Behavior</p>
-            <p className="text-xs text-muted-foreground">CIL unavailability → local reasoning fallback. Operational Confidence depressed. No HOLD applied. LEE continues operating.</p>
+            <p className="text-xs text-muted-foreground">CIL unavailability → explicit degraded or held reasoning route. No local cognitive fallback and no silent external model selection.</p>
           </div>
         </div>
 
@@ -163,7 +163,7 @@ export function SystemsPage() {
           </div>
           <div className="mt-3">
             <Link href="/tasks/48" className="text-xs text-primary hover:underline">
-              Task #48: Internal Capability Services Layer →
+              Connected Lamont Labs Systems → 
             </Link>
           </div>
         </div>

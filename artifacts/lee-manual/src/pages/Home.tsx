@@ -22,7 +22,7 @@ const LAYERS = [
   { num: "5", name: "Coordination", color: "bg-orange-500/20 border-orange-500/30 text-orange-400", path: "/architecture/layer-5" },
   { num: "6", name: "Operational Context", color: "bg-emerald-500/20 border-emerald-500/30 text-emerald-400", path: "/architecture/layer-6" },
   { num: "6b", name: "Portfolio Intelligence", color: "bg-teal-500/20 border-teal-500/30 text-teal-400", path: "/architecture/layer-6b" },
-  { num: "7", name: "Internal Capability Services", color: "bg-purple-500/20 border-purple-500/30 text-purple-400", path: "/architecture/layer-7" },
+  { num: "7", name: "Connected Lamont Labs Systems", color: "bg-purple-500/20 border-purple-500/30 text-purple-400", path: "/architecture/layer-7" },
   { num: "8", name: "Provider Layer", color: "bg-yellow-500/20 border-yellow-500/30 text-yellow-400", path: "/architecture/layer-8" },
   { num: "9", name: "Interfaces and Observability", color: "bg-slate-500/20 border-slate-500/30 text-slate-400", path: "/architecture/layer-9" },
 ];

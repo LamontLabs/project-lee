@@ -39,6 +39,7 @@ const server = http.createServer(async (request, response) => {
     correlation_id: mode === "WRONG_CORRELATION" ? randomUUID() : body.correlation_id,
     resolution_tier: tier,
     answer: `answer-${mode}`,
+    model_route: tier === "T3_FRONTIER" ? { model: "gpt-5.6-terra", provider: "openai", route_id: "test-frontier" } : undefined,
     cognitive_asset_id: tier === "T3_FRONTIER" ? undefined : "asset:test-asset",
     asset_version: tier === "T3_FRONTIER" ? undefined : "7",
     confidence: mode === "DRIFT" ? 0.61 : 0.93,
@@ -128,15 +129,17 @@ test("CIL unavailability is recorded as graceful degradation", async () => {
   assert.ok(received > 0);
 });
 
-test("CIL unavailability forces the managed frontier fallback", async () => {
+test("CIL unavailability blocks model execution instead of selecting a local fallback", async () => {
   mode = "UNAVAILABLE";
   const originalCreate = openai.chat.completions.create;
+  let providerCalls = 0;
   (openai.chat.completions as any).create = async () => ({
+    ...(providerCalls++, {}),
     choices: [{ message: { content: "frontier fallback answer" } }],
     usage: { prompt_tokens: 12, completion_tokens: 8 },
   });
   try {
-    const routed = await routeModelRequest({
+    await assert.rejects(routeModelRequest({
       correlationId: randomUUID(),
       queryText: "fallback test",
       semanticDomain: "technical",
@@ -144,11 +147,8 @@ test("CIL unavailability forces the managed frontier fallback", async () => {
       riskClassification: "LOW",
       contextItems: [],
       preferredTier: "T1",
-    });
-    assert.equal(routed.tier, "T3");
-    assert.equal(routed.fallbackUsed, true);
-    assert.equal(routed.model, "gpt-5.6-terra");
-    assert.equal(routed.totalTokens, 20);
+    }), /CIL_UNAVAILABLE/);
+    assert.equal(providerCalls, 0);
   } finally {
     (openai.chat.completions as any).create = originalCreate;
   }

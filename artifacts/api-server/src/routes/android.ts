@@ -5,7 +5,7 @@ import { androidPairing, auditLog, conversation, db, governanceRequest, notifica
 import { buildContextPacket } from "../lib/context-engine";
 import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
-import { estimateCost, streamProvider } from "../lib/ai-providers";
+import { routeModelRequest } from "../lib/model-router";
 import { verifyAndroidPairing } from "./android-pairing";
 import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 
@@ -54,7 +54,6 @@ router.post("/android/ask", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   const message = String(req.body?.message ?? "").trim();
   if (!message) { res.status(400).json({ error: "message is required." }); return; }
-  const model = "gpt-5-nano";
   const pipeline = await runRequestPipeline({ text: message, origin: "android", actionType: "android_ask", engineName: "Android Companion", mode: "low_cost", budgetTokens: 1800 });
   if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
   const packet = pipeline.context;
@@ -69,32 +68,30 @@ router.post("/android/ask", async (req, res): Promise<void> => {
   const send = (event: string, data: unknown) => {
     if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
-  send("start", {
-    model,
-    contextItems: packet.items.length,
-    evidence: packet.items.map((item) => ({ id: item.id, kind: item.kind, confidence: item.confidence })),
-  });
-  let answer = "";
-  let tokensIn = 0;
-  let tokensOut = 0;
   try {
-    for await (const event of streamProvider(model, [
-      { role: "system", content: "You are Lee on a paired Android companion. Be concise, grounded, and explicit about uncertainty." },
-      { role: "user", content: `Context:\n${packet.items.map((item) => item.text).join("\n")}\n\nQuestion: ${message}` },
-    ], controller.signal)) {
-      if (event.type === "chunk") {
-        answer += event.text;
-        send("chunk", { text: event.text });
-      } else {
-        tokensIn = event.tokensIn;
-        tokensOut = event.tokensOut;
-      }
-    }
-    if (!answer.trim()) throw new Error("Lee returned an empty response.");
+     const result = await routeModelRequest({
+       correlationId: randomUUID(),
+       queryText: message,
+       semanticDomain: "android-companion",
+       intentType: "ANDROID_ASK",
+       riskClassification: "LOW",
+       contextItems: packet.items,
+       preferredTier: "auto",
+       costCeilingUsd: 0,
+     });
+     if (!result.answer.trim()) throw new Error("Lee returned an empty response.");
+     send("start", {
+       model: result.model,
+       tier: result.tier,
+       contextItems: packet.items.length,
+       evidence: packet.items.map((item) => ({ id: item.id, kind: item.kind, confidence: item.confidence })),
+     });
+     send("chunk", { text: result.answer });
     send("complete", {
-      answer,
-      model,
-      estimatedCostUsd: estimateCost(model, tokensIn || Math.ceil(message.length / 4), tokensOut || Math.ceil(answer.length / 4)),
+       answer: result.answer,
+       model: result.model,
+       tier: result.tier,
+       estimatedCostUsd: result.estimatedCostUsd,
       contextItems: packet.items.length,
       evidence: packet.items.map((item) => ({ id: item.id, kind: item.kind, confidence: item.confidence })),
     });

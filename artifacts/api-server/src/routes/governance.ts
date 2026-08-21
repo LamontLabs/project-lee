@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { and, desc, eq, lt } from "drizzle-orm";
 import {
   EvaluateGovernedRequestBody,
@@ -7,7 +7,7 @@ import {
 import { auditLog, db, eventLog, governanceRequest, governanceRule } from "@workspace/db";
 import { Router, type IRouter } from "express";
 import { classifyAction, registerAction, requiresEvidence } from "../lib/governance-engine";
-import { callProvider } from "../lib/ai-providers";
+import { routeModelRequest } from "../lib/model-router";
 import { checkConstitution } from "../lib/constitution";
 import { governanceService } from "../services/internal-services";
 
@@ -216,8 +216,8 @@ router.patch("/governance/rules/:id", async (req, res): Promise<void> => {
 router.post("/governance/requests/:id/ask-why", async (req, res): Promise<void> => {
   const [item] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, req.params.id)).limit(1);
   if (!item) { res.status(404).json({ error: "Governance item not found." }); return; }
-  const explanation = await callProvider("gpt-5-nano", [{ role: "system", content: "Explain Lee's governance reasoning clearly, distinguish evidence from inference, and never approve the action." }, { role: "user", content: JSON.stringify({ action: item.actionClass, risk: item.riskLevel, reason: item.reason, evidence: item.evidenceRefs, payload: item.requestPayload }) }]);
-  res.json({ explanation: explanation.text, model: explanation.model, governanceRequestId: item.id });
+   const explanation = await routeModelRequest({ correlationId: randomUUID(), queryText: `Explain this governance request without approving it: ${JSON.stringify({ action: item.actionClass, risk: item.riskLevel, reason: item.reason, evidence: item.evidenceRefs, payload: item.requestPayload })}`, semanticDomain: "governance-explanation", intentType: "EXPLANATION", riskClassification: "LOW", contextItems: [], preferredTier: "auto" });
+   res.json({ explanation: explanation.answer, model: explanation.model, governanceRequestId: item.id });
 });
 
 router.post("/governance/expire", async (_req, res): Promise<void> => {

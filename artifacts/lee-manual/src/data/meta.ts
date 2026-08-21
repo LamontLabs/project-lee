@@ -29,7 +29,7 @@ export const META = {
       name: "CIL",
       role: "Reasoning Service",
       endpoint: "cognitive-infrastructure-layer.replit.app/api/query/lee",
-      description: "Reusable reasoning. Three tiers: T1 (trigram reuse), T2 (vector similarity), T3 (frontier escalation). Degrades gracefully.",
+       description: "Independent cognitive authority. CIL decides T1/T2 reuse, T3 escalation, and the approved model route; LEE only sends authenticated requests and executes the returned route.",
       color: "blue",
     },
     {

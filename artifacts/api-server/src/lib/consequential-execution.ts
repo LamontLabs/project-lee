@@ -101,8 +101,6 @@ export async function executeConsequentialAction<T>(input: ConsequentialActionIn
   if (!pipeline.ok) return block(`REQUEST_PIPELINE_BLOCKED:${pipeline.failedStage}`);
   const constitutional = await checkConstitution(input.actionType, input.payload, "Consequential Execution Boundary");
   if (!constitutional.permitted) return block("CONSTITUTION_BLOCKED", "REJECT");
-  if (local.verdict !== "ALLOW") return block("INTERNAL_GOVERNANCE_HOLD");
-
   const leeRequestId = local.record.leeRequestId;
   const governedRequest: GovernedRequest = {
     lee_request_id: leeRequestId,

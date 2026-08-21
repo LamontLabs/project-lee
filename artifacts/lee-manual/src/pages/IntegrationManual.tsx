@@ -236,7 +236,7 @@ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON=<base64 encoded>`}
         <StepBlock n="4" title="CIL — reachability check (non-blocking)">
           Send an authenticated GET /health to the CIL deployment. If CIL is unreachable, log the degraded state
           and continue — CIL unavailability does not block boot, but Operational Confidence will be depressed.
-          The Strategy Engine and Understanding Pipeline will fall back to local reasoning.
+          The Strategy Engine and Understanding Pipeline must surface an explicit degraded or held result when CIL is unavailable; they do not fall back to local cognitive routing.
         </StepBlock>
 
         <StepBlock n="5" title="Identity Engine (Layer 0) — load Identity Profile">
@@ -448,7 +448,7 @@ T3 — Frontier Escalation
 
         <H3>CIL degradation — what happens when CIL is down</H3>
         <Ul items={[
-          "Strategy Engine falls back to local reasoning (no T1/T2/T3 cache access)",
+          "CIL unavailable: explicit degraded/held reasoning result (no local T1/T2/T3 substitute)",
           "Understanding Pipeline processes documents using local extraction only",
           "Operational Confidence is depressed (CIL health is a component of Operational Confidence)",
           "CIL health is surfaced on the Console Internal Services page",

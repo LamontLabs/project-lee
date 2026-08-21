@@ -47,7 +47,7 @@ export const NAVIGATION: NavItem[] = [
       { id: "layer-5", label: "Layer 5 — Coordination", path: "/architecture/layer-5" },
       { id: "layer-6", label: "Layer 6 — Operational Context", path: "/architecture/layer-6" },
       { id: "layer-6b", label: "Layer 6b — Portfolio Intelligence", path: "/architecture/layer-6b" },
-      { id: "layer-7", label: "Layer 7 — Internal Capability Services", path: "/architecture/layer-7" },
+      { id: "layer-7", label: "Layer 7 — Connected Lamont Labs Systems", path: "/architecture/layer-7" },
       { id: "layer-8", label: "Layer 8 — Provider Layer", path: "/architecture/layer-8" },
       { id: "layer-9", label: "Layer 9 — Interfaces and Observability", path: "/architecture/layer-9" },
     ],

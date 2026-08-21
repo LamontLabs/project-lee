@@ -43,6 +43,12 @@ export const systemContractSchema = z.object({
     engineId: z.string(),
     name: z.string(),
   })),
+  connectedSystems: z.array(posture.extend({
+    id: z.string(),
+    name: z.string(),
+    authority: z.string(),
+    contractVersion: z.string(),
+  })),
   schemas: z.record(z.unknown()),
   events: z.object({
     version: z.string(),

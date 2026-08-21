@@ -27,7 +27,7 @@ const VERSION_DETAILS: Record<string, {
       "Governance Engine → CerbaSeal",
       "Provider Abstraction Layer + Connector Engine",
       "Project Bootstrap Engine",
-      "Internal Capability Services Layer (CIL + CerbaSeal client)",
+      "Connected Lamont Labs Systems Layer (CIL + CerbaSeal clients)",
       "Brief Engine, Console, Android App",
       "Brain Versioning + Backup & Migration",
       "Assumption Ledger, Decision Impact Graph, Why Chain",

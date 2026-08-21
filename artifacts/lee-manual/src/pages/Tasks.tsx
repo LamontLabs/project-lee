@@ -7,7 +7,7 @@ import { VersionBadge, TaskStatusBadge } from "../components/StatusBadge";
 const LAYERS_ORDER = [
   "Identity", "Foundations", "Knowledge", "Retrieval", "Intelligence",
   "Coordination", "Operational Context", "Portfolio Intelligence",
-  "Internal Capability Services", "Provider Layer", "Interfaces and Observability",
+  "Connected Lamont Labs Systems", "Provider Layer", "Interfaces and Observability",
 ];
 
 const VERSION_OPTIONS = ["All", "9.0", "10.0", "11.0", "12.0"];

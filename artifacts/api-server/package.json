@@ -18,6 +18,7 @@
     "test:event-delivery": "node scripts/event-delivery.test.mjs",
     "test:consequential-execution": "node scripts/consequential-execution.test.mjs",
     "test:cil-protocol": "node scripts/cil-protocol.test.mjs",
+    "test:api-first-boundary": "node --test scripts/api-first-boundary.test.mjs",
     "test:cil-cost-benchmark": "node scripts/cil-cost-benchmark.test.mjs",
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",

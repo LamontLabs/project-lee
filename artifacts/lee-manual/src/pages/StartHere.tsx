@@ -39,7 +39,7 @@ const READING_ORDER = [
   },
   {
     step: 7,
-    title: "CIL and CerbaSeal (Layer 7)",
+    title: "Connected Lamont Labs Systems (Layer 7)",
     path: "/architecture/layer-7",
     description: "Two external services that LEE calls but does not own. CIL for reasoning reuse. CerbaSeal for governance. Understanding their fail modes is critical.",
   },

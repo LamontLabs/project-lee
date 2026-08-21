@@ -9,6 +9,7 @@ import {
 import { emitEvent } from "./foundation-events";
 import { getPortfolioDependencyGraph } from "./portfolio-dependency";
 import { getRecoveryMode } from "./recovery-modes";
+import { projectContractSections } from "./system-contract";
 
 export const MANIFEST_VERSION = "1.0.0";
 const iso = (value: Date | null | undefined) => value?.toISOString() ?? null;
@@ -22,6 +23,9 @@ export type ManifestDocument = {
   storage: Record<string, unknown>; latestBackup: Record<string, unknown>; latestRestoreVerification: Record<string, unknown>; selfTest: Record<string, unknown>;
   recoveryMode: Record<string, unknown>; operationalState: Record<string, unknown>; health: Record<string, unknown>; dependencies: unknown[]; provenance: Record<string, string>;
   validation: { result: "PASS" | "WARN"; checks: Array<{ name: string; result: "PASS" | "WARN"; evidence: Record<string, unknown> }> };
+  contractVersion: string; runtime: Record<string, unknown>; events: Record<string, unknown>; permissions: Record<string, unknown>;
+  risk: Record<string, unknown>; governance: Record<string, unknown>; humanConfirmation: Record<string, unknown>;
+  economics: Record<string, unknown>; evidenceMap: Record<string, unknown>;
 };
 
 export function manifestMarkdown(manifest: ManifestDocument) {
@@ -70,7 +74,7 @@ export async function generateManifest() {
     { name: "backup-restore-linkage", result: latestBackup ? "PASS" : "WARN", evidence: { backupId: latestBackup?.backupId ?? null, restoreTestStatus: latestRestore?.restoreTestStatus ?? null } },
     { name: "health-source", result: engines.length || internalServices.length ? "PASS" : "WARN", evidence: { engineCount: engines.length, internalServiceCount: internalServices.length, overall: overallHealth } },
   ];
-  const manifest: ManifestDocument = {
+  const baseManifest = {
     manifestVersion: MANIFEST_VERSION, generatedAt: generatedAt.toISOString(),
     identity: { leeVersion: process.env.LEE_VERSION ?? unavailable("LEE_VERSION is not configured").value, profileId: latestProfile?.id ?? null, profileKey: latestProfile?.profileKey ?? null, profileVersion: latestProfileVersion?.version ?? null, displayName: latestProfile?.displayName ?? null, confidence: latestProfile?.confidence ?? null },
     constitution: { version: latestConstitution?.version ?? null, activeProvisionCount: provisions.length, absolute: provisions.filter((x) => x.tier === "ABSOLUTE").length, governed: provisions.filter((x) => x.tier === "GOVERNED").length, configurable: provisions.filter((x) => x.tier === "CONFIGURABLE").length, source: latestConstitution ? "constitution_version" : "constitution_provision" },
@@ -98,7 +102,8 @@ export async function generateManifest() {
     dependencies: [...engines.map((engine) => ({ engine: engine.engineId, required: engine.requiredDependencies.length ? engine.requiredDependencies : engine.dependencies, satisfied: engine.lifecycleState !== "UNAVAILABLE", state: engine.lifecycleState })), ...internalServices.map((service) => ({ engine: service.serviceId, required: [], satisfied: ["healthy", "degraded"].includes(service.currentHealth), state: service.currentHealth })), { portfolioDependencyGraph: dependencyGraph.summary }],
     provenance: { identity: "identity_profile + identity_profile_version", brainState: "brain_version", constitution: "constitution_version + constitution_provision", policies: "policy_record", capabilities: "engine_registry", providers: "provider_registration", indexes: "semantic_index", statistics: "cost_record + model_route_decision + canonical ledgers", storage: "backup_archive", health: "engine_health + internal_capability_service + self_test_run + lee_state + executive_loop", dependencies: "engine_registry + internal_capability_service + graph_edge" },
     validation: { result: validationChecks.some((check) => check.result === "WARN") ? "WARN" : "PASS", checks: validationChecks },
-  };
+  } as ManifestDocument;
+  const manifest: ManifestDocument = { ...baseManifest, ...projectContractSections(baseManifest) };
   await emitEvent({ eventType: "ManifestGenerated", aggregateType: "system_manifest", aggregateId: "system", payload: { manifestVersion: MANIFEST_VERSION, overallHealth: manifest.health.overall } });
   return manifest;
 }

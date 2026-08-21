@@ -8,7 +8,18 @@ files:
   - dist/**
   - resources/**
   - "!**/*.map"
+extraResources:
+  - from: resources/api-server
+    to: api-server
+  - from: resources/console
+    to: console
+linux:
+  target:
+    - dir
+  category: Utility
+  executableName: Project-LEE
 win:
+  icon: resources/lee.png
   target:
     - target: nsis
       arch:

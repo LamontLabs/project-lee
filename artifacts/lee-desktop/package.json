@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Project LEE Windows desktop shell and local runtime supervisor.",
+  "author": "Lamont Labs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lamontlabs/project-lee"
+  },
+  "build": {
+    "executableName": "Project-LEE",
+    "productName": "Project LEE"
+  },
   "main": "dist/main.js",
   "scripts": {
     "dev": "tsx src/main.ts",
@@ -10,11 +20,9 @@
     "package": "pnpm run build && node scripts/prepare-runtime.mjs && electron-builder --config electron-builder.yml",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {
-    "electron": "^38.2.2"
-  },
   "devDependencies": {
     "@types/node": "catalog:",
+    "electron": "^38.2.2",
     "electron-builder": "^26.0.12",
     "typescript": "~5.9.3",
     "tsx": "catalog:"

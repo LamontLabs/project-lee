@@ -18,7 +18,7 @@ function setupWindow(url: string): void {
     minWidth: 1024,
     minHeight: 720,
     title: "Project LEE",
-    icon: join(app.getAppPath(), "resources", "lee.ico"),
+    icon: join(app.getAppPath(), "resources", "lee.png"),
     webPreferences: { preload: join(app.getAppPath(), "dist", "preload.js"), contextIsolation: true, nodeIntegration: false },
   });
   void window.loadURL(url);
@@ -31,7 +31,7 @@ async function boot(): Promise<void> {
   supervisor = new RuntimeSupervisor(app.getAppPath(), isProduction);
   const runtime = await supervisor.start();
   if (isProduction) {
-    consoleServer = await startConsoleServer(join(app.getAppPath(), "resources", "console"), runtime.apiUrl);
+    consoleServer = await startConsoleServer(join(process.resourcesPath, "console"), runtime.apiUrl);
     setupWindow(consoleServer.url);
   } else {
     setupWindow(process.env.LEE_CONSOLE_URL ?? "http://127.0.0.1:5173/");
@@ -53,4 +53,4 @@ app.whenReady().then(async () => {
   ipcMain.handle("lee:runtime-status", () => supervisor.status);
   await boot();
 });
-app.on("window-all-closed", (event) => event.preventDefault());
+app.on("window-all-closed", () => { /* Tray keeps LEE alive until the user chooses Exit LEE. */ });

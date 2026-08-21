@@ -194,7 +194,7 @@ def wrap(text, font, size, width):
     lines, line = [], ""
     for word in words:
         candidate = word if not line else line + " " + word
-        if font.textlength(candidate, fontsize=size) <= width:
+        if font.text_length(candidate, fontsize=size) <= width:
             line = candidate
         else:
             if line: lines.append(line)
@@ -267,10 +267,14 @@ page.insert_text((MARGIN, y+124), "Founder operating system • architecture •
 page.draw_line((MARGIN, y+150), (PAGE_W-MARGIN, y+150), color=RULE, width=1)
 page.insert_text((MARGIN, y+180), f"Prepared from the current repository state • {date.today().isoformat()}", fontsize=9, fontname="helv", color=MUTED)
 page.insert_text((MARGIN, y+205), "Purpose", fontsize=10, fontname="hebo", color=TEAL)
-paragraph("A detailed, source-grounded explanation of what Project LEE is, how its engines and ledgers connect, how it protects truth and authorization, how the Console, Android companion, Manual, API, and Windows desktop layer fit together, and what remains to be proven.", size=11, leading=16)
+cover_purpose = "A detailed, source-grounded explanation of what Project LEE is, how its engines and ledgers connect, how it protects truth and authorization, how the Console, Android companion, Manual, API, and Windows desktop layer fit together, and what remains to be proven."
+cover_font = fitz.Font("helv")
+for i, line in enumerate(wrap(cover_purpose, cover_font, 11, PAGE_W - 2*MARGIN)):
+    page.insert_text((MARGIN, y+232 + i*16), line, fontsize=11, fontname="helv", color=INK)
 page.insert_text((MARGIN, PAGE_H-64), "Prepared for Lamont Labs", fontsize=9, fontname="hebo", color=BLUE)
 page.insert_text((MARGIN, PAGE_H-47), "This document describes implementation and current maturity; it does not claim that every planned boundary is fully complete.", fontsize=8, fontname="helv", color=MUTED)
 
+new_page()
 for title, blocks in sections:
     heading(title, 1)
     for block in blocks:

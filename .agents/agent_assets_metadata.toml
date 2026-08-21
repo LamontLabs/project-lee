@@ -44,3 +44,10 @@ uri = "file://.agents/outputs/project-lee-v12-audit-download.zip"
 type = "unspecified"
 title = "Download Project LEE Audit PDF"
 description = "ZIP download containing the complete Project LEE Version 12.0 audit PDF. Extract the ZIP on your device to open the PDF."
+
+[[outputs]]
+id = "9DyYVp4ZouVslP-0tpopd"
+uri = "file://deliverables/Project-LEE-Complete-Project-Description.pdf"
+type = "pdf"
+title = "Project LEE — Complete Project Description"
+description = "An 8-page source-grounded overview of Project LEE’s architecture, engines, data model, governance, interfaces, Windows desktop deployment, validation evidence, and current limitations."

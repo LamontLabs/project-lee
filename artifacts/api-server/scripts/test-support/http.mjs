@@ -11,6 +11,7 @@ export function createApiClient(baseUrl = process.env.BEHAVIORAL_API_URL ?? "htt
     return body;
   }
   return {
+    baseUrl,
     get: (path) => request(path),
     post: (path, body) => request(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
   };

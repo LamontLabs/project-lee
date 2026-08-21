@@ -28,6 +28,15 @@ jobs:
         env:
           PORT: 4173
           BASE_PATH: /
+      - name: Stage private PostgreSQL runtime
+        shell: pwsh
+        run: |
+          $version = "17.6-1"
+          $archive = "$env:RUNNER_TEMP\postgresql-$version-windows-x64-binaries.zip"
+          Invoke-WebRequest "https://get.enterprisedb.com/postgresql/postgresql-$version-windows-x64-binaries.zip" -OutFile $archive
+          Expand-Archive $archive -DestinationPath "$env:RUNNER_TEMP\postgresql"
+          New-Item -ItemType Directory -Force artifacts/lee-desktop/resources/postgres | Out-Null
+          Copy-Item "$env:RUNNER_TEMP\postgresql\pgsql\*" artifacts/lee-desktop/resources/postgres -Recurse -Force
       - run: pnpm --filter @workspace/lee-desktop run package
       - name: Add checksums
         shell: pwsh

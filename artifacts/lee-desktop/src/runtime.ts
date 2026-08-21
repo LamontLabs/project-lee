@@ -12,6 +12,7 @@ export type RuntimeSnapshot = {
   contract: "live" | "unavailable";
   checks: Record<string, "live" | "degraded" | "unavailable">;
   reason: string | null;
+  migrationLogPath: string;
 };
 
 type RuntimeConfig = {
@@ -52,6 +53,7 @@ export class RuntimeSupervisor {
   private snapshot: RuntimeSnapshot = {
     state: "stopped", apiUrl: "", database: "unavailable", migration: "pending",
     contract: "unavailable", checks: this.emptyChecks(), reason: null,
+    migrationLogPath: join(dataDir, "logs", "migration.log"),
   };
   private readonly port: number;
   private readonly apiUrl: string;
@@ -68,7 +70,11 @@ export class RuntimeSupervisor {
     ensureRuntimeDirectories();
     const config = loadConfig();
     this.snapshot = { ...this.snapshot, state: "starting", apiUrl: this.apiUrl, database: "starting", migration: "pending", reason: null };
-    const databaseUrl = config.databaseUrl ?? process.env.DATABASE_URL ?? await this.ensurePostgres(config);
+    const configuredDatabaseUrl = config.databaseUrl ?? process.env.DATABASE_URL;
+    const hasPrivatePostgres = this.production || Boolean(config.postgresBin ?? process.env.LEE_POSTGRES_BIN);
+    const databaseUrl = configuredDatabaseUrl && (!this.isLocalDatabaseUrl(configuredDatabaseUrl) || !hasPrivatePostgres)
+      ? configuredDatabaseUrl
+      : await this.ensurePostgres(config);
     if (!databaseUrl) {
       this.snapshot = { ...this.snapshot, state: "unavailable", database: "unavailable", reason: "LEE could not find or start its private PostgreSQL service. Set postgresBin in the LEE config or reinstall with the bundled database runtime." };
       return this.snapshot;
@@ -76,7 +82,7 @@ export class RuntimeSupervisor {
     saveRuntimeConfig({ ...config, databaseUrl });
     this.snapshot = { ...this.snapshot, database: "configured" };
     if (!this.runMigrations(config, databaseUrl)) {
-      this.snapshot = { ...this.snapshot, state: "degraded", migration: "failed", reason: "The local database is available, but migrations failed. Review the LEE logs and repair the migration command before continuing." };
+      this.snapshot = { ...this.snapshot, state: "degraded", migration: "failed", reason: `The local database is available, but migrations failed. Review ${this.snapshot.migrationLogPath} and repair the migration command before continuing.` };
       return this.snapshot;
     }
     this.snapshot = { ...this.snapshot, migration: "complete" };
@@ -85,7 +91,7 @@ export class RuntimeSupervisor {
     const args = config.apiArgs ?? [apiPath];
     this.child = spawn(command, args, {
       cwd: this.root,
-      env: { ...process.env, DATABASE_URL: config.databaseUrl ?? process.env.DATABASE_URL, PORT: String(this.port), NODE_ENV: this.production ? "production" : "development", LEE_DATA_DIR: dataDir },
+      env: { ...process.env, DATABASE_URL: databaseUrl, PORT: String(this.port), NODE_ENV: this.production ? "production" : "development", LEE_DATA_DIR: dataDir },
       stdio: "ignore",
       windowsHide: true,
     });
@@ -101,6 +107,15 @@ export class RuntimeSupervisor {
 
   private emptyChecks(): Record<string, "live" | "degraded" | "unavailable"> {
     return { Brain: "unavailable", "Event Log": "unavailable", "System Contract": "unavailable", CIL: "unavailable", CerbaSeal: "unavailable", "Replit Bridge": "unavailable" };
+  }
+
+  private isLocalDatabaseUrl(value: string): boolean {
+    try {
+      const url = new URL(value);
+      return url.hostname === "127.0.0.1" || url.hostname === "localhost";
+    } catch {
+      return false;
+    }
   }
 
   private async ensurePostgres(config: RuntimeConfig): Promise<string | null> {
@@ -130,7 +145,7 @@ export class RuntimeSupervisor {
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    started.kill();
+    spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore" });
     this.postgres = null;
     return null;
   }

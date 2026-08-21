@@ -13,6 +13,8 @@ extraResources:
     to: api-server
   - from: resources/console
     to: console
+  - from: resources/postgres
+    to: postgres
 linux:
   target:
     - dir

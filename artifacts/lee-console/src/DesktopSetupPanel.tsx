@@ -10,6 +10,7 @@ type RuntimeSnapshot = {
   contract: CheckState;
   checks: Record<string, CheckState>;
   reason: string | null;
+  migrationLogPath: string;
 };
 
 declare global {
@@ -56,6 +57,7 @@ export function DesktopSetupPanel() {
           <Status label="Migrations" state={runtime.migration === "complete" ? "live" : runtime.migration === "pending" ? "pending" : "unavailable"} />
           {labels.map((label) => <Status key={label} label={label} state={runtime.checks[label] ?? "unavailable"} />)}
         </div>
+        {runtime.migration === "failed" && <p className="mt-3 text-xs text-amber-200">Migration log: {runtime.migrationLogPath}</p>}
       </div>
     </section>
   );

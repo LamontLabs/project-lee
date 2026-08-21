@@ -8,6 +8,8 @@ import { getState } from "../lib/state";
 import { routeModelRequest } from "../lib/model-router";
 import { verifyAndroidPairing } from "./android-pairing";
 import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
+import { hasReplayedAuthorization, validUnexpiredAllow } from "../lib/consequential-execution";
+import { governanceService } from "../services/internal-services";
 
 const router: IRouter = Router();
 async function paired(req: any) {
@@ -145,9 +147,47 @@ router.post("/android/approve", async (req, res): Promise<void> => {
   if (current.status !== "HOLD") { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
   if (current.expiresAt && current.expiresAt <= new Date()) { res.status(409).json({ error: "This governance request has expired." }); return; }
   if (decision === "approved" && ["HIGH", "CRITICAL"].includes(current.riskLevel) && current.evidenceRefs.length === 0) { res.status(409).json({ error: "Evidence is required before approving this action." }); return; }
-  const [updated] = await db.update(governanceRequest).set({ status: decision.toUpperCase(), verdict: decision === "approved" ? "ALLOW" : decision === "rejected" ? "REJECT" : "HOLD", resolvedAt: decision === "hold" ? null : new Date(), responsePayload: { source: "android", decision } }).where(and(eq(governanceRequest.id, id), eq(governanceRequest.status, "HOLD"))).returning();
+  const cerbaSealResponse = await governanceService.evaluate({
+    lee_request_id: current.leeRequestId,
+    action_class: current.actionClass,
+    target_system: current.targetSystem,
+    actor_identity: "android-founder",
+    owner_confirmation: decision === "approved",
+    human_confirmation: decision === "approved",
+    expected_downstream_effect: current.reason,
+    evidence_refs: current.evidenceRefs,
+    payload: current.requestPayload ?? {},
+    approval_artifact: {
+      source: "android-founder",
+      decision,
+      confirmed_at: new Date().toISOString(),
+      governance_request_id: current.id,
+    },
+  });
+  const authorization = decision === "approved" ? validUnexpiredAllow(cerbaSealResponse) : { ok: true as const, reason: "" };
+  if (decision === "approved" && !authorization.ok) {
+    res.status(409).json({ error: "CerbaSeal did not release this request.", reason: authorization.reason });
+    return;
+  }
+  if (cerbaSealResponse.verdict === "ALLOW" && await hasReplayedAuthorization(cerbaSealResponse.decision_id, current.id)) {
+    res.status(409).json({ error: "This CerbaSeal authorization has already been used.", reason: "REPLAYED_AUTHORIZATION" });
+    return;
+  }
+  // A phone rejection/hold is input to CerbaSeal, never an instruction to
+  // manufacture an ALLOW if a gate implementation responds permissively.
+  const resolvedVerdict = decision === "approved"
+    ? cerbaSealResponse.verdict
+    : cerbaSealResponse.verdict === "REJECT" ? "REJECT" : "HOLD";
+  const [updated] = await db.update(governanceRequest).set({
+    status: resolvedVerdict,
+    verdict: resolvedVerdict,
+    decisionId: cerbaSealResponse.decision_id,
+    reasonCodes: cerbaSealResponse.reason_codes,
+    resolvedAt: resolvedVerdict === "HOLD" ? null : new Date(),
+    responsePayload: { source: "android", decision, cerbaSeal: cerbaSealResponse },
+  }).where(and(eq(governanceRequest.id, id), eq(governanceRequest.status, "HOLD"))).returning();
   if (!updated) { res.status(404).json({ error: "Governance request not found." }); return; }
-  await db.insert(auditLog).values({ action: `governance_${decision}`, actor: "android-founder", targetType: "governance_request", targetId: updated.id, outcome: decision.toUpperCase(), metadata: { actionId: updated.id, evidenceShown: updated.evidenceRefs, wasEdited: false } });
+  await db.insert(auditLog).values({ action: `governance_android_confirmation_${decision}`, actor: "android-founder", targetType: "governance_request", targetId: updated.id, outcome: resolvedVerdict, metadata: { actionId: updated.id, evidenceShown: updated.evidenceRefs, cerbaSealDecisionId: cerbaSealResponse.decision_id, wasEdited: false } });
   res.json({ id: updated.id, status: updated.status });
 });
 

@@ -71,7 +71,7 @@ function toCerbaSealRequest(request: GovernedRequest): Record<string, unknown> {
     policyPackRef: { id: "cerbaseal", version: String(request.policy_pack_version ?? process.env.CERBASEAL_POLICY_PACK_VERSION ?? "unknown") },
     provenanceRef: { modelVersion: "lee", ruleSetVersion: String(request.policy_pack_version ?? "unknown"), sourceHash: createHash("sha256").update(JSON.stringify(request)).digest("hex") },
     approvalRequired: request.human_confirmation !== false,
-    approvalArtifact: null,
+    approvalArtifact: request.approval_artifact ?? null,
     loggingReady: true,
     controlStatus: { criticalControlsValid: true, stale: false, verificationRunId: request.lee_request_id },
     trustState: { trusted: true, trustStateId: request.lee_request_id },

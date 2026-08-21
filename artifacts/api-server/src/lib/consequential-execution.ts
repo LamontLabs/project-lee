@@ -56,7 +56,7 @@ async function recordOutcome(id: string, verdict: "HOLD" | "REJECT", reason: str
   });
 }
 
-function validUnexpiredAllow(response: GovernedResponse, now = new Date()) {
+export function validUnexpiredAllow(response: GovernedResponse, now = new Date()) {
   if (response.reason_codes?.includes("GOVERNANCE_SERVICE_UNAVAILABLE")) return { ok: false, reason: "CERBASEAL_UNAVAILABLE" };
   if (response.verdict !== "ALLOW") return { ok: false, reason: `CERBASEAL_${response.verdict}` };
   if (response.human_confirmation_required) return { ok: false, reason: "HUMAN_CONFIRMATION_REQUIRED" };
@@ -66,6 +66,14 @@ function validUnexpiredAllow(response: GovernedResponse, now = new Date()) {
   if (Number.isNaN(expiry.getTime()) || expiry <= now) return { ok: false, reason: "AUTHORIZATION_EXPIRED" };
   if (!response.timestamp || Number.isNaN(new Date(response.timestamp).getTime())) return { ok: false, reason: "MALFORMED_AUTHORIZATION_TIMESTAMP" };
   return { ok: true as const, reason: "" };
+}
+
+export async function hasReplayedAuthorization(decisionId: string, currentRequestId?: string) {
+  const predicate = currentRequestId
+    ? and(eq(governanceRequest.decisionId, decisionId), ne(governanceRequest.id, currentRequestId))
+    : eq(governanceRequest.decisionId, decisionId);
+  const [replayedDecision] = await db.select({ id: governanceRequest.id }).from(governanceRequest).where(predicate).limit(1);
+  return Boolean(replayedDecision);
 }
 
 export async function executeConsequentialAction<T>(input: ConsequentialActionInput<T>): Promise<ConsequentialActionResult<T>> {
@@ -125,9 +133,7 @@ export async function executeConsequentialAction<T>(input: ConsequentialActionIn
   const authorization = validUnexpiredAllow(response);
   if (!authorization.ok) return block(authorization.reason, response.verdict === "REJECT" ? "REJECT" : "HOLD", response);
 
-  const [replayedDecision] = await db.select({ id: governanceRequest.id }).from(governanceRequest)
-    .where(and(eq(governanceRequest.decisionId, response.decision_id), ne(governanceRequest.id, local.record.id))).limit(1);
-  if (replayedDecision) return block("REPLAYED_AUTHORIZATION", "REJECT", response);
+  if (await hasReplayedAuthorization(response.decision_id, local.record.id)) return block("REPLAYED_AUTHORIZATION", "REJECT", response);
   await db.update(governanceRequest).set({
     status: "ALLOW",
     verdict: "ALLOW",

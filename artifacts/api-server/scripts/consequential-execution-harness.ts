@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { db, governanceRule } from "@workspace/db";
 import { executeProviderWrite } from "../src/lib/provider-abstraction";
 
-type Mode = "ALLOW" | "HOLD" | "REJECT" | "MALFORMED" | "EXPIRED" | "CONFIRMATION" | "AUTH_FAILURE" | "GATE_RESULT";
+type Mode = "ALLOW" | "HOLD" | "REJECT" | "MALFORMED" | "EXPIRED" | "CONFIRMATION" | "AUTH_FAILURE" | "GATE_RESULT" | "REPLAY";
 let mode: Mode = "ALLOW";
 let calls = 0;
 const runId = randomUUID();
@@ -45,10 +45,10 @@ const server = http.createServer(async (_request, response) => {
     blockedActionRecord: null,
   }));
   return response.end(JSON.stringify({
-    verdict: mode === "CONFIRMATION" ? "ALLOW" : mode,
+    verdict: mode === "CONFIRMATION" || mode === "REPLAY" ? "ALLOW" : mode,
     reason_codes: [`STUB_${mode}`],
     checked_invariants: ["stub"],
-    decision_id: `decision-${runId}-${calls}`,
+     decision_id: mode === "REPLAY" ? `decision-replayed-${runId}` : `decision-${runId}-${calls}`,
     decision_envelope: `envelope-${runId}`,
     evidence_bundle_ref: "evidence",
     audit_entry_ref: "audit",
@@ -130,6 +130,17 @@ async function main() {
     assert.equal(result.executed, false);
     assert.equal(result.reason, "CERBASEAL_UNAVAILABLE");
     assert.equal(writes, 0);
+  });
+
+  test("a replayed CerbaSeal authorization never reaches the provider writer", { concurrency: false }, async () => {
+    mode = "REPLAY";
+    const first = await attempt();
+    const second = await attempt();
+    assert.equal(first.result.executed, true);
+    assert.equal(first.writes, 1);
+    assert.equal(second.result.executed, false);
+    assert.equal(second.result.reason, "REPLAYED_AUTHORIZATION");
+    assert.equal(second.writes, 0);
   });
 
   test.after(async () => {

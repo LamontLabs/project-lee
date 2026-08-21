@@ -168,6 +168,25 @@ try {
   Assert-True (Test-Path $migrationLog) "migration log was not written"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived failed startup"
 
+  $failedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
+    APPDATA = $appData
+    LEE_SMOKE_STATUS_FILE = $statusFile
+  } -PassThru
+  Assert-True ($null -ne $failedTrayProcess) "failed migration tray launch did not start"
+  $failedTrayDeadline = [DateTime]::UtcNow.AddSeconds(120)
+  while (-not (Test-Path $statusFile) -and [DateTime]::UtcNow -lt $failedTrayDeadline) {
+    Start-Sleep -Milliseconds 250
+  }
+  Assert-True (Test-Path $statusFile) "failed migration tray launch did not write runtime status"
+  Assert-True (-not $failedTrayProcess.HasExited) "failed migration tray launch exited before the tray menu was opened"
+  $failedTray = Get-Content $statusFile -Raw | ConvertFrom-Json
+  Remove-Item $statusFile -Force
+  Assert-True ($failedTray.migration -eq "failed") "failed migration tray launch did not report migration failure"
+  Invoke-TrayExit $failedTrayProcess
+  Assert-True (-not (Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue)) "application or PostgreSQL processes survived failed migration tray Exit LEE"
+  $failedTrayApiPort = ([Uri]$failedTray.apiUrl).Port
+  Assert-True (-not (Get-NetTCPConnection -LocalPort $failedTrayApiPort -ErrorAction SilentlyContinue)) "API child survived failed migration tray Exit LEE"
+
   $config.migrationCommand = "cmd /c exit 0"
   $config | ConvertTo-Json | Set-Content $configFile -Encoding utf8
   $restarted = Invoke-Lee $commonEnvironment "restart"
@@ -177,7 +196,7 @@ try {
   Assert-True (Test-Path (Join-Path $databaseDir "PG_VERSION")) "restart did not reuse the configured database directory"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived restart Exit LEE"
 
-  Write-Host "LEE Windows installer smoke test passed: clean launch, private PostgreSQL, migration failure reporting, Exit LEE cleanup, and restart reuse."
+  Write-Host "LEE Windows installer smoke test passed: clean launch, private PostgreSQL, migration failure reporting, failed-startup tray Exit LEE cleanup, and restart reuse."
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }

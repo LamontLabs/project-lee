@@ -1,4 +1,6 @@
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { randomUUID } from "node:crypto";
+import { callUniversalSystem } from "./universal-systems";
+import { registerInternalServices } from "../services/internal-services";
 
 export type ProviderName = "openai" | "anthropic" | "gemini";
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
@@ -35,9 +37,16 @@ async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
   throw lastError instanceof Error ? lastError : new Error("Provider request failed.");
 }
 
+let providerRegistration: Promise<unknown> | undefined;
+function ensureProviderSystems() {
+  providerRegistration ??= registerInternalServices();
+  return providerRegistration;
+}
+
 async function callOpenAI(model: string, messages: ChatMessage[]): Promise<ProviderResult> {
-  const response = await withRetry(() => openai.chat.completions.create({ model, max_completion_tokens: 8192, messages }));
-  const text = response.choices[0]?.message?.content?.trim();
+  await ensureProviderSystems();
+  const response = await withRetry(() => callUniversalSystem("replit-ai-openai", "/chat/completions", { model, max_completion_tokens: 8192, messages }, randomUUID())).then((result) => result.result as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } });
+  const text = response.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error("OpenAI returned an empty response.");
   return { text, tokensIn: response.usage?.prompt_tokens ?? tokenEstimate(messages), tokensOut: response.usage?.completion_tokens ?? Math.ceil(text.length / 4), provider: "openai", model };
 }
@@ -51,13 +60,8 @@ async function callAnthropic(model: string, messages: ChatMessage[]): Promise<Pr
     messages: messages.filter((message) => message.role !== "system").map((message) => ({ role: message.role, content: message.content })),
   };
   const response = await withRetry(async () => {
-    const result = await fetch(`${process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL}/v1/messages`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01" },
-      body: JSON.stringify(body),
-    });
-    if (!result.ok) throw new Error(`Anthropic request failed (${result.status}).`);
-    return result.json() as Promise<{ content?: Array<{ type: string; text?: string }>; usage?: { input_tokens?: number; output_tokens?: number } }>;
+    await ensureProviderSystems();
+    return (await callUniversalSystem("replit-ai-anthropic", "/v1/messages", body, randomUUID())).result as { content?: Array<{ type: string; text?: string }>; usage?: { input_tokens?: number; output_tokens?: number } };
   });
   const text = response.content?.find((block) => block.type === "text")?.text?.trim();
   if (!text) throw new Error("Anthropic returned an empty response.");
@@ -71,13 +75,8 @@ async function callGemini(model: string, messages: ChatMessage[]): Promise<Provi
   }));
   const system = messages.find((message) => message.role === "system")?.content;
   const response = await withRetry(async () => {
-    const result = await fetch(`${process.env.AI_INTEGRATIONS_GEMINI_BASE_URL}/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": process.env.AI_INTEGRATIONS_GEMINI_API_KEY ?? "" },
-      body: JSON.stringify({ systemInstruction: system ? { parts: [{ text: system }] } : undefined, contents, generationConfig: { maxOutputTokens: 8192 } }),
-    });
-    if (!result.ok) throw new Error(`Gemini request failed (${result.status}).`);
-    return result.json() as Promise<{ candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }>;
+    await ensureProviderSystems();
+    return (await callUniversalSystem("replit-ai-gemini", `/models/${model}:generateContent`, { systemInstruction: system ? { parts: [{ text: system }] } : undefined, contents, generationConfig: { maxOutputTokens: 8192 } }, randomUUID())).result as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } };
   });
   const text = response.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
   if (!text) throw new Error("Gemini returned an empty response.");
@@ -109,17 +108,8 @@ export async function* streamProvider(model: string, messages: ChatMessage[], si
     return;
   }
 
-  const response = await openai.chat.completions.create({
-    model,
-    max_completion_tokens: 8192,
-    messages,
-    stream: true,
-    stream_options: { include_usage: true },
-  }, { signal });
-  for await (const part of response) {
-    const text = part.choices[0]?.delta?.content;
-    if (text) yield { type: "chunk", text };
-    const usage = part.usage;
-    if (usage) yield { type: "usage", tokensIn: usage.prompt_tokens ?? 0, tokensOut: usage.completion_tokens ?? 0 };
-  }
+  const result = await callProvider(model, messages);
+  if (signal?.aborted) return;
+  yield { type: "chunk", text: result.text };
+  yield { type: "usage", tokensIn: result.tokensIn, tokensOut: result.tokensOut };
 }

@@ -1,6 +1,26 @@
 import { z } from "zod";
 
 export const CONTRACT_VERSION = "1.0.0";
+export const universalSystemRegistrationSchema = z.object({
+  systemId: z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/),
+  displayName: z.string().min(1).max(120),
+  category: z.string().min(1).max(32),
+  baseUrl: z.string().url(),
+  apiVersion: z.string().regex(/^v\d+$/).optional(),
+  healthEndpoint: z.string().regex(/^\/[a-zA-Z0-9/_-]*$/).optional(),
+  failurePolicy: z.enum(["graceful_degradation", "fail_closed"]).optional(),
+  credentialEnvKey: z.string().regex(/^[A-Z][A-Z0-9_]{2,119}$/).optional(),
+  credentialHeader: z.enum(["authorization", "x-api-key", "x-goog-api-key"]).optional(),
+  requestEnvelope: z.enum(["contract", "direct"]).optional(),
+  capabilities: z.array(z.string().min(1).max(120)).max(100),
+});
+export const universalSystemCallSchema = z.object({
+  path: z.string().regex(/^\/[a-zA-Z0-9/_-]*$/),
+  payload: z.record(z.unknown()).default({}),
+  correlationId: z.string().min(1).optional(),
+  method: z.enum(["GET", "POST"]).default("POST"),
+  timeoutMs: z.number().int().positive().max(120_000).optional(),
+});
 export const availabilityState = z.enum(["available", "degraded", "unavailable", "offline"]);
 export const freshnessState = z.enum(["live", "cached", "uncertain"]);
 export const measurementState = z.enum(["MEASURED", "ESTIMATED", "UNAVAILABLE"]);

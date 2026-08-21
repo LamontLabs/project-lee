@@ -49,3 +49,4 @@
 - [CIL cost benchmark](cil-cost-benchmark.md) — savings use a fixed hashed corpus and no-reuse frontier baseline while preserving freshness/correctness overrides.
 - [Internal route boundary](internal-route-boundary.md) — internal capability aliases are mounted outside the public router and require registered service identity.
 - [Executive Loop boundary](executive-loop-boundary.md) — The Executive Loop is a persisted phase heartbeat wrapped around Operational Intelligence, not a replacement scheduler.
+- [Universal transport boundary](universal-transport-boundary.md) — external capability requests share registered-system transport metadata and audit behavior.

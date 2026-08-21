@@ -1,7 +1,8 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { db, internalCapabilityService } from "@workspace/db";
 import { emitEvent } from "../lib/foundation-events";
+import { callUniversalSystem, registerUniversalSystem } from "../lib/universal-systems";
 
 export type ResolutionTier = "T1_TRIGRAM" | "T2_SEMANTIC" | "T3_FRONTIER";
 export type CILQueryRequest = { correlation_id: string; query_text: string; semantic_domain: string; intent: { intent_type: string; risk_classification: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; project_id?: string }; project_id?: string; context_asset_refs: string[]; freshness_requirement: "any" | "current" | "verified"; desired_format: "concise" | "detailed" | "structured" | "narrative"; reuse_permitted: boolean; frontier_escalation_permitted: boolean; cost_ceiling_usd?: number; lee_brain_version: string; source_context_checksum: string; execution_failure?: { model: string; reason: string } };
@@ -10,29 +11,46 @@ export type CILQueryResponse = { correlation_id: string; resolution_tier: Resolu
 export type GovernedRequest = Record<string, unknown> & { lee_request_id: string; action_class: string; target_system: string };
 export type GovernedResponse = { lee_request_id?: string; verdict: "ALLOW" | "HOLD" | "REJECT"; reason_codes: string[]; checked_invariants: unknown[]; missing_approvals?: unknown[]; remediation_requirements?: string[]; decision_id: string; decision_envelope: string; evidence_bundle_ref: string; audit_entry_ref: string; policy_version: string; timestamp: string; replay_checksum: string; authorization_expiry?: string; human_confirmation_required: boolean };
 
-function signedHeaders(body: string, bearerCredential: string | undefined, hmacSecret: string | undefined, correlationId: string) {
-  const timestamp = Math.floor(Date.now() / 1000).toString(); const digest = createHash("sha256").update(body).digest("hex");
-  const signature = createHmac("sha256", hmacSecret ?? bearerCredential ?? "").update(`${correlationId}.${timestamp}.${digest}`).digest("hex");
-  return { "content-type": "application/json", "X-LEE-Identity": "lee", "X-LEE-Correlation-Id": correlationId, "X-LEE-Timestamp": timestamp, "X-LEE-Signature": signature, ...(bearerCredential ? { authorization: `Bearer ${bearerCredential}` } : {}) };
+let internalServiceRegistration: Promise<unknown> | undefined;
+function ensureInternalServicesRegistered() {
+  internalServiceRegistration ??= registerInternalServices().then(async () => {
+    const endpoint = process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT;
+    if (endpoint) {
+      await registerUniversalSystem({
+        systemId: "cil",
+        displayName: "CIL Reasoning Runtime",
+        category: "reasoning",
+        baseUrl: process.env.CIL_BASE_URL ?? new URL(endpoint).origin,
+        healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health",
+        failurePolicy: "graceful_degradation",
+        credentialEnvKey: "CIL_API_KEY",
+        capabilities: ["query"],
+        requestEnvelope: "direct",
+      });
+    }
+  });
+  return internalServiceRegistration;
 }
+
 async function setHealth(serviceId: string, health: "healthy" | "degraded" | "unavailable", metrics?: Record<string, unknown>) {
   await db.update(internalCapabilityService).set({ currentHealth: health, lastHealthCheck: new Date(), updatedAt: new Date(), ...(metrics ? { metrics } : {}) }).where(eq(internalCapabilityService.serviceId, serviceId));
 }
 export async function registerInternalServices() {
-  const definitions = [{ serviceId: "cil", displayName: "CIL Reasoning Runtime", category: "reasoning", baseUrl: process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ?? process.env.CIL_BASE_URL, healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health", failurePolicy: "graceful_degradation", credentialEnvKey: "CIL_API_KEY" }, { serviceId: "cerbaseal", displayName: "CerbaSeal Governance", category: "governance", baseUrl: process.env.CERBASEAL_BASE_URL, healthEndpoint: "/health", failurePolicy: "fail_closed", credentialEnvKey: "CERBASEAL_API_KEY" }];
+  const definitions = [
+    { systemId: "cil", displayName: "CIL Reasoning Runtime", category: "reasoning", baseUrl: process.env.CIL_BASE_URL ?? (process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ? new URL(process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT!).origin : undefined), healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "CIL_API_KEY", capabilities: ["query"], requestEnvelope: "direct" as const },
+    { systemId: "cerbaseal", displayName: "CerbaSeal Governance", category: "governance", baseUrl: process.env.CERBASEAL_BASE_URL, healthEndpoint: "/health", failurePolicy: "fail_closed" as const, credentialEnvKey: "CERBASEAL_API_KEY", capabilities: ["evaluate", "health", "policy"], requestEnvelope: "direct" as const },
+    { systemId: "replit-ai-openai", displayName: "Replit AI OpenAI Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL, healthEndpoint: "/models", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_OPENAI_API_KEY", capabilities: ["chat"], requestEnvelope: "direct" as const },
+    { systemId: "replit-ai-anthropic", displayName: "Replit AI Anthropic Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL, healthEndpoint: "/v1/messages", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_ANTHROPIC_API_KEY", credentialHeader: "x-api-key", capabilities: ["chat"], requestEnvelope: "direct" as const },
+    { systemId: "replit-ai-gemini", displayName: "Replit AI Gemini Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL, healthEndpoint: "/models", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_GEMINI_API_KEY", credentialHeader: "x-goog-api-key", capabilities: ["chat"], requestEnvelope: "direct" as const },
+  ];
   for (const item of definitions) {
-    const [existing] = await db.select().from(internalCapabilityService).where(eq(internalCapabilityService.serviceId, item.serviceId));
-    if (existing) await db.update(internalCapabilityService).set({ baseUrl: item.baseUrl ?? null, updatedAt: new Date() }).where(eq(internalCapabilityService.id, existing.id));
-    else await db.insert(internalCapabilityService).values(item);
+    if (item.baseUrl) await registerUniversalSystem({ ...item, baseUrl: item.baseUrl });
+    else {
+      const [existing] = await db.select().from(internalCapabilityService).where(eq(internalCapabilityService.serviceId, item.systemId));
+      if (existing) await db.update(internalCapabilityService).set({ baseUrl: null, updatedAt: new Date() }).where(eq(internalCapabilityService.id, existing.id));
+    }
   }
   return db.select().from(internalCapabilityService);
-}
-async function requestJson(serviceId: string, url: string, body: unknown, timeoutMs = 8000, method = "POST") {
-  const correlationId = (body as any).correlation_id ?? (body as any).lee_request_id ?? randomUUID(); const encoded = JSON.stringify(body); const envKey = serviceId === "cil" ? "CIL_API_KEY" : "CERBASEAL_API_KEY"; const credential = process.env[envKey];
-  const hmacSecret = serviceId === "cerbaseal" ? process.env.CERBASEAL_HMAC_SECRET : process.env.CIL_HMAC_SECRET ?? process.env.LEE_CIL_HMAC_SECRET;
-  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try { const response = await fetch(url, { method, headers: signedHeaders(method === "GET" ? "" : encoded, credential, hmacSecret, correlationId), ...(method === "GET" ? {} : { body: encoded }), signal: controller.signal }); if (!response.ok) throw new Error(`HTTP ${response.status}`); const contentType = response.headers.get("content-type") ?? ""; if (!contentType.includes("application/json")) throw new Error("Invalid non-JSON service response"); return await response.json(); }
-  finally { clearTimeout(timeout); }
 }
 function cerbaSealEndpoint(name: "health" | "evaluate" | "policy") {
   const explicit = name === "health" ? process.env.CERBASEAL_HEALTH_ENDPOINT : name === "evaluate" ? process.env.CERBASEAL_EVALUATE_ENDPOINT : process.env.CERBASEAL_POLICY_VERSION_ENDPOINT;
@@ -83,12 +101,14 @@ function normalizeGateResult(request: GovernedRequest, raw: Record<string, any>)
 }
 export interface ReasoningService { query(request: CILQueryRequest): Promise<CILQueryResponse>; }
 export const reasoningService: ReasoningService = { async query(request) {
+  await ensureInternalServicesRegistered();
   await emitEvent({ eventType: "CILQueryRequested", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, semanticDomain: request.semantic_domain, projectId: request.project_id ?? request.intent.project_id, riskClassification: request.intent.risk_classification, costCeilingUsd: request.cost_ceiling_usd } });
-  const endpoint = process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ?? (process.env.CIL_BASE_URL ? `${process.env.CIL_BASE_URL.replace(/\/$/, "")}/query/lee` : undefined);
+  const endpoint = process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT;
   if (!endpoint) { await setHealth("cil", "unavailable"); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: "CIL_LEE_ENDPOINT is not configured", fallbackUsed: true } }); throw new Error("CIL unavailable"); }
   const started = Date.now();
   try {
-    const result = await requestJson("cil", endpoint, request) as Record<string, any>;
+    const path = endpoint ? new URL(endpoint).pathname : "/query/lee";
+    const result = (await callUniversalSystem("cil", path, request, request.correlation_id)).result as Record<string, any>;
     if (!result || result.correlation_id !== request.correlation_id || !["T1_TRIGRAM", "T2_SEMANTIC", "T3_FRONTIER"].includes(result.resolution_tier) || typeof result.answer !== "string" || typeof result.confidence !== "number" || result.confidence < 0 || result.confidence > 1 || typeof result.cost_usd !== "number" || result.cost_usd < 0 || typeof result.latency_ms !== "number" || result.latency_ms < 0 || result.semantic_domain !== request.semantic_domain || typeof result.reuse_eligible !== "boolean" || typeof result.drift_detected !== "boolean" || typeof result.contradiction_detected !== "boolean" || !Array.isArray(result.provenance) || !["fresh", "current", "stale", "expired"].includes(result.freshness_state) || typeof result.recommend_escalation !== "boolean" || (result.resolution_tier === "T3_FRONTIER" && typeof result.model_route?.model !== "string" && typeof result.selected_model !== "string")) throw new Error("Invalid CIL response schema or correlation");
     const response = result as CILQueryResponse;
     await setHealth("cil", "healthy", { lastTier: response.resolution_tier, lastCostUsd: response.cost_usd, lastLatencyMs: response.latency_ms, lastConfidence: response.confidence, lastProvenance: response.provenance, lastCognitiveAssetId: response.cognitive_asset_id, driftDetected: response.drift_detected, contradictionDetected: response.contradiction_detected });
@@ -102,14 +122,15 @@ export const reasoningService: ReasoningService = { async query(request) {
 } };
 export interface GovernanceService { evaluate(request: GovernedRequest): Promise<GovernedResponse>; }
 export const governanceService: GovernanceService = { async evaluate(request) {
+   await ensureInternalServicesRegistered();
   const baseUrl = process.env.CERBASEAL_BASE_URL; if (!baseUrl) { await setHealth("cerbaseal", "unavailable"); await emitEvent({ eventType: "GovernanceServiceUnavailable", aggregateType: "governance_service", aggregateId: request.lee_request_id, payload: { errorSummary: "CERBASEAL_BASE_URL is not configured", actionClass: request.action_class } }); return { verdict: "HOLD", reason_codes: ["GOVERNANCE_SERVICE_UNAVAILABLE"], checked_invariants: [], decision_id: `hold-${request.lee_request_id}`, decision_envelope: "", evidence_bundle_ref: "", audit_entry_ref: "", policy_version: String(request.policy_pack_version ?? "unknown"), timestamp: new Date().toISOString(), replay_checksum: "", human_confirmation_required: true }; }
-  try { const raw = await requestJson("cerbaseal", cerbaSealEndpoint("evaluate"), { ...request, policy_pack_version: request.policy_pack_version ?? process.env.CERBASEAL_POLICY_PACK_VERSION }, 10000) as Record<string, any>; const response = raw.decisionEnvelope ? normalizeGateResult(request, raw) : raw as GovernedResponse; if (!["ALLOW", "HOLD", "REJECT"].includes(response.verdict) || !response.decision_id || !response.decision_envelope || !response.evidence_bundle_ref || !response.audit_entry_ref || !response.policy_version || !response.timestamp || !response.replay_checksum || typeof response.human_confirmation_required !== "boolean") throw new Error("Invalid CerbaSeal response schema"); await setHealth("cerbaseal", "healthy", { lastVerdict: response.verdict, policyVersion: response.policy_version }); return response; } catch (error) { await setHealth("cerbaseal", "unavailable", { lastError: String(error) }); await emitEvent({ eventType: "GovernanceServiceUnavailable", aggregateType: "governance_service", aggregateId: request.lee_request_id, payload: { errorSummary: String(error), actionClass: request.action_class } }); return { verdict: "HOLD", reason_codes: ["GOVERNANCE_SERVICE_UNAVAILABLE"], checked_invariants: [], decision_id: `hold-${request.lee_request_id}`, decision_envelope: "", evidence_bundle_ref: "", audit_entry_ref: "", policy_version: String(request.policy_pack_version ?? "unknown"), timestamp: new Date().toISOString(), replay_checksum: "", human_confirmation_required: true }; }
+   try { const path = new URL(cerbaSealEndpoint("evaluate")).pathname; const raw = (await callUniversalSystem("cerbaseal", path, { ...request, policy_pack_version: request.policy_pack_version ?? process.env.CERBASEAL_POLICY_PACK_VERSION }, request.lee_request_id, { timeoutMs: 10000 })).result as Record<string, any>; const response = raw.decisionEnvelope ? normalizeGateResult(request, raw) : raw as GovernedResponse; if (!["ALLOW", "HOLD", "REJECT"].includes(response.verdict) || !response.decision_id || !response.decision_envelope || !response.evidence_bundle_ref || !response.audit_entry_ref || !response.policy_version || !response.timestamp || !response.replay_checksum || typeof response.human_confirmation_required !== "boolean") throw new Error("Invalid CerbaSeal response schema"); await setHealth("cerbaseal", "healthy", { lastVerdict: response.verdict, policyVersion: response.policy_version }); return response; } catch (error) { await setHealth("cerbaseal", "unavailable", { lastError: String(error) }); await emitEvent({ eventType: "GovernanceServiceUnavailable", aggregateType: "governance_service", aggregateId: request.lee_request_id, payload: { errorSummary: String(error), actionClass: request.action_class } }); return { verdict: "HOLD", reason_codes: ["GOVERNANCE_SERVICE_UNAVAILABLE"], checked_invariants: [], decision_id: `hold-${request.lee_request_id}`, decision_envelope: "", evidence_bundle_ref: "", audit_entry_ref: "", policy_version: String(request.policy_pack_version ?? "unknown"), timestamp: new Date().toISOString(), replay_checksum: "", human_confirmation_required: true }; }
 } };
 async function probeCerbaSeal() {
   try {
-    const response = await requestJson("cerbaseal", cerbaSealEndpoint("health"), {}, 5000, "GET") as Record<string, any>;
+    const response = (await callUniversalSystem("cerbaseal", new URL(cerbaSealEndpoint("health")).pathname, {}, randomUUID(), { method: "GET", timeoutMs: 5000 })).result as Record<string, any>;
     if (!response || !["ok", "healthy"].includes(String(response.status).toLowerCase())) throw new Error("Invalid CerbaSeal health response");
-    const policy = await requestJson("cerbaseal", cerbaSealEndpoint("policy"), {}, 5000, "GET") as Record<string, any>;
+    const policy = (await callUniversalSystem("cerbaseal", new URL(cerbaSealEndpoint("policy")).pathname, {}, randomUUID(), { method: "GET", timeoutMs: 5000 })).result as Record<string, any>;
     if (typeof policy.policy_pack_version !== "string") throw new Error("Invalid CerbaSeal policy response");
     await setHealth("cerbaseal", "healthy", { policyVersion: policy.policy_pack_version, health: response });
   } catch (error) {

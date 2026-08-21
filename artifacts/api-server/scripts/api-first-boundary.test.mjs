@@ -32,6 +32,23 @@ test("CIL response authority and Universal Systems API are explicit", async () =
   assert.match(contract, /connectedSystems/);
 });
 
+test("all external reasoning and governance calls use the Universal Systems transport", async () => {
+  const [services, ai, universal] = await Promise.all([
+    source("services/internal-services.ts"),
+    source("lib/ai-providers.ts"),
+    source("lib/universal-systems.ts"),
+  ]);
+  assert.match(services, /callUniversalSystem\("cil"/);
+  assert.match(services, /callUniversalSystem\("cerbaseal"/);
+  assert.doesNotMatch(services, /fetch\(|requestJson|signedHeaders/);
+  assert.match(ai, /callUniversalSystem\("replit-ai-openai"/);
+  assert.match(ai, /callUniversalSystem\("replit-ai-anthropic"/);
+  assert.match(ai, /callUniversalSystem\("replit-ai-gemini"/);
+  assert.doesNotMatch(ai, /fetch\(|@workspace\/integrations-openai|openai\.chat/);
+  assert.match(universal, /X-LEE-Correlation-Id/);
+  assert.match(universal, /AbortController/);
+});
+
 test("local governance preparation cannot release consequential execution", async () => {
   const execution = await source("lib/consequential-execution.ts");
   assert.match(execution, /governanceService\.evaluate/);

@@ -188,7 +188,34 @@ try {
   Assert-True (-not (Get-NetTCPConnection -LocalPort $failedTrayApiPort -ErrorAction SilentlyContinue)) "API child survived failed migration tray Exit LEE"
 
   $config.migrationCommand = "cmd /c exit 0"
+  $config | Add-Member -NotePropertyName apiCommand -NotePropertyValue "cmd.exe" -Force
+  $config | Add-Member -NotePropertyName apiArgs -NotePropertyValue @("/c", "ping.exe -n 601 127.0.0.1 > nul") -Force
   $config | ConvertTo-Json | Set-Content $configFile -Encoding utf8
+  $degradedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
+    APPDATA = $appData
+    LEE_SMOKE_STATUS_FILE = $statusFile
+  } -PassThru
+  Assert-True ($null -ne $degradedTrayProcess) "degraded startup tray launch did not start"
+  $degradedTrayDeadline = [DateTime]::UtcNow.AddSeconds(120)
+  while (-not (Test-Path $statusFile) -and [DateTime]::UtcNow -lt $degradedTrayDeadline) {
+    Start-Sleep -Milliseconds 250
+  }
+  Assert-True (Test-Path $statusFile) "degraded startup tray launch did not write runtime status"
+  Assert-True (-not $degradedTrayProcess.HasExited) "degraded startup tray launch exited before the tray menu was opened"
+  $degradedTray = Get-Content $statusFile -Raw | ConvertFrom-Json
+  Remove-Item $statusFile -Force
+  Assert-True ($degradedTray.database -eq "configured") "degraded startup did not configure private PostgreSQL"
+  Assert-True ($degradedTray.migration -eq "complete") "degraded startup migration did not complete"
+  Assert-True ($degradedTray.state -eq "degraded") "unavailable API contract did not produce degraded runtime state"
+  Assert-True ($degradedTray.contract -eq "unavailable") "unavailable API contract was not reported"
+  $degradedApiPort = ([Uri]$degradedTray.apiUrl).Port
+  Assert-True (Get-Process -Id $degradedTrayProcess.Id -ErrorAction SilentlyContinue) "degraded startup application exited before the tray menu was opened"
+  Invoke-TrayExit $degradedTrayProcess
+  Assert-True (-not (Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue)) "application or PostgreSQL processes survived degraded startup tray Exit LEE"
+  Assert-True (-not (Get-NetTCPConnection -LocalPort $degradedApiPort -ErrorAction SilentlyContinue)) "API child survived degraded startup tray Exit LEE"
+
+  $config.PSObject.Properties.Remove("apiCommand")
+  $config.PSObject.Properties.Remove("apiArgs")
   $restarted = Invoke-Lee $commonEnvironment "restart"
   Assert-True ($restarted.database -eq "configured") "restart did not reuse the private database"
   $configAfterRestart = Get-Content $configFile -Raw | ConvertFrom-Json
@@ -196,7 +223,7 @@ try {
   Assert-True (Test-Path (Join-Path $databaseDir "PG_VERSION")) "restart did not reuse the configured database directory"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived restart Exit LEE"
 
-  Write-Host "LEE Windows installer smoke test passed: clean launch, private PostgreSQL, migration failure reporting, failed-startup tray Exit LEE cleanup, and restart reuse."
+  Write-Host "LEE Windows installer smoke test passed: clean launch, private PostgreSQL, migration failure reporting, failed-startup and degraded-startup tray Exit LEE cleanup, and restart reuse."
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }

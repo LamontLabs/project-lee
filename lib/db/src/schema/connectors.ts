@@ -36,6 +36,31 @@ export const connector = pgTable(
   (table) => [index("connector_status_idx").on(table.status)],
 );
 
+export const connection = pgTable(
+  "connection",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    displayName: varchar("display_name", { length: 160 }).notNull(),
+    targetType: varchar("target_type", { length: 32 }).notNull(),
+    method: varchar("method", { length: 32 }).notNull(),
+    status: varchar("status", { length: 32 }).notNull().default("pending"),
+    authStatus: varchar("auth_status", { length: 32 }).notNull().default("not_connected"),
+    baseUrl: varchar("base_url", { length: 500 }),
+    healthEndpoint: varchar("health_endpoint", { length: 240 }),
+    credentialRef: varchar("credential_ref", { length: 160 }),
+    contractVersion: varchar("contract_version", { length: 32 }),
+    permissions: jsonb("permissions").$type<string[]>().notNull().default(["OBSERVE"]),
+    capabilities: jsonb("capabilities").$type<Record<string, unknown>[]>().notNull().default([]),
+    dependencies: jsonb("dependencies").$type<Record<string, unknown>[]>().notNull().default([]),
+    configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull().default({}),
+    lastHealthCheck: timestamp("last_health_check", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("connection_status_idx").on(table.status), index("connection_method_idx").on(table.method)],
+);
+
 export const androidPairingToken = pgTable(
   "android_pairing_token",
   {

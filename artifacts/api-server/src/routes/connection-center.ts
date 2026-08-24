@@ -3,6 +3,8 @@ import { z } from "zod";
 import { connection, db, eventLog } from "@workspace/db";
 import { authorizeConnectionCapability, createConnection, listConnections, setConnectionStatus, testConnection, updateConnectionPermissions, verifyWebhookSignature } from "../lib/connection-center";
 import { eq } from "drizzle-orm";
+import { storage } from "./storage";
+import { importSource } from "../lib/understanding-pipeline";
 
 const router: IRouter = Router();
 const createSchema = z.object({
@@ -39,6 +41,27 @@ router.delete("/connections/:id", async (req, res): Promise<void> => {
   const result = await setConnectionStatus(req.params.id, "disconnected");
   if (!result) { res.status(404).json({ error: "Connection not found." }); return; }
   res.json(result);
+});
+router.post("/connections/:id/import", async (req, res): Promise<void> => {
+  const [row] = await db.select().from(connection).where(eq(connection.id, req.params.id)).limit(1);
+  const { filename, mimeType, objectPath, sourceKind, relativePath } = req.body ?? {};
+  if (!row || row.method !== "file") { res.status(404).json({ error: "Imported file or folder connection not found." }); return; }
+  if (typeof filename !== "string" || typeof mimeType !== "string" || typeof objectPath !== "string" || !objectPath.startsWith("/objects/")) {
+    res.status(400).json({ error: "filename, mimeType, and a valid objectPath are required." }); return;
+  }
+  try {
+    const stored = await storage.read(objectPath);
+    const result = await importSource({
+      filename, mimeType, content: stored.buffer.toString("utf8"), storagePath: objectPath,
+      metadata: { sourceKind: typeof sourceKind === "string" ? sourceKind : "file", relativePath: typeof relativePath === "string" ? relativePath : filename, byteSize: stored.size, importedAt: new Date().toISOString() },
+      importedFrom: { connectionId: row.id, connectionName: row.displayName, method: row.method, sourceKind: typeof sourceKind === "string" ? sourceKind : "file" },
+    });
+    await setConnectionStatus(row.id, "connected");
+    res.status(result.duplicate ? 200 : 201).json(result);
+  } catch (error) {
+    req.log.error({ error, connectionId: row.id }, "Connection import failed");
+    res.status(500).json({ error: error instanceof Error ? error.message : "Connection import failed." });
+  }
 });
 router.post("/connections/:id/webhook", async (req, res): Promise<void> => {
   const [row] = await db.select().from(connection).where(eq(connection.id, req.params.id)).limit(1);

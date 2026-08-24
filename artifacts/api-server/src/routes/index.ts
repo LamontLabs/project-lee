@@ -74,6 +74,7 @@ import portfolioDependencyRouter from "./portfolio-dependency";
 import androidPairingRouter from "./android-pairing";
 import universalSystemsRouter from "./universal-systems";
 import connectionCenterRouter from "./connection-center";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -147,6 +148,7 @@ router.use(portfolioDependencyRouter);
 router.use(androidPairingRouter);
   router.use(universalSystemsRouter);
   router.use(connectionCenterRouter);
+  router.use(storageRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

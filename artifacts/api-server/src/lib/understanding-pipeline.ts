@@ -5,7 +5,10 @@ import {
 } from "@workspace/db";
 import { extractUnderstanding } from "./understanding";
 
-type ImportInput = { filename: string; mimeType: string; content: string; metadata?: Record<string, unknown> };
+export type ImportInput = {
+  filename: string; mimeType: string; content: string; metadata?: Record<string, unknown>;
+  storagePath?: string; importedFrom?: Record<string, unknown>;
+};
 
 function checksum(value: string) { return createHash("sha256").update(value).digest("hex"); }
 
@@ -62,7 +65,8 @@ export async function importSource(input: ImportInput) {
   const now = new Date();
   const [source] = await db.insert(sourceVault).values({
     originalFilename: input.filename, mimeType: input.mimeType, checksum: digest,
-    storagePath: `sources/${digest}`, rawContent: raw, metadata: input.metadata ?? {},
+    storagePath: input.storagePath ?? `sources/${digest}`, rawContent: input.storagePath ? null : raw,
+    metadata: input.metadata ?? {}, importedFrom: input.importedFrom, createdBy: "owner", currentOwner: "owner",
     processingStatus: "parsing",
   }).returning();
   await db.insert(eventLog).values({ eventType: "SourceUploaded", aggregateType: "source_vault", aggregateId: source.id, sourceRef: source.id, occurredAt: now, payload: { sourceId: source.id, filename: input.filename, mimeType: input.mimeType } });

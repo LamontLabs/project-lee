@@ -16,7 +16,4 @@ export interface ConnectorHealth {
   authStatus?: string;
   consecutiveFailureCount?: number;
   eventCount?: number;
-  providerCategory?: string;
-  adapterName?: string;
-  supportedEvents?: string[];
 }

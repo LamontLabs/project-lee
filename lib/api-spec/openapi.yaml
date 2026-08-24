@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: systems
+    description: Read-only connected-system capability inventory
   - name: understanding
     description: Source ingestion and knowledge extraction
   - name: reasoning
@@ -46,6 +48,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /systems/cil/model-inventory:
+    get:
+      operationId: getCilModelInventory
+      tags: [systems]
+      summary: Read the CIL model inventory
+      description: Returns configured, enabled, available, and unavailable CIL models. This endpoint is observational and cannot select or mutate a route.
+      responses:
+        "200":
+          description: Current CIL model inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CilModelInventoryResponse"
+        "502":
+          description: CIL inventory unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /understanding/runs:
     post:
       operationId: createUnderstandingRun
@@ -535,6 +556,45 @@ paths:
                 $ref: "#/components/schemas/OperationalReview"
 components:
   schemas:
+    CilModelInventoryResponse:
+      type: object
+      properties:
+        readOnly:
+          type: boolean
+          const: true
+        inventory:
+          type: object
+          properties:
+            correlation_id:
+              type: string
+            total_configured:
+              type: integer
+            total_enabled:
+              type: integer
+            total_available:
+              type: integer
+            total_unavailable:
+              type: integer
+            models:
+              type: array
+              items:
+                type: object
+                properties:
+                  model_id:
+                    type: string
+                  provider:
+                    type: string
+                  status:
+                    type: string
+                  enabled:
+                    type: boolean
+                  route_ids:
+                    type: array
+                    items:
+                      type: string
+                required: [model_id, provider, status, enabled, route_ids]
+          required: [correlation_id, total_configured, total_enabled, total_available, total_unavailable, models]
+      required: [readOnly, inventory]
     HealthStatus:
       type: object
       properties:

@@ -18,6 +18,29 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Returns configured, enabled, available, and unavailable CIL models. This endpoint is observational and cannot select or mutate a route.
+ * @summary Read the CIL model inventory
+ */
+export const GetCilModelInventoryResponse = zod.object({
+  "readOnly": zod.boolean(),
+  "inventory": zod.object({
+  "correlation_id": zod.string(),
+  "total_configured": zod.number(),
+  "total_enabled": zod.number(),
+  "total_available": zod.number(),
+  "total_unavailable": zod.number(),
+  "models": zod.array(zod.object({
+  "model_id": zod.string(),
+  "provider": zod.string(),
+  "status": zod.string(),
+  "enabled": zod.boolean(),
+  "route_ids": zod.array(zod.string())
+}))
+})
+})
+
+
+/**
  * @summary Process a source through the understanding pipeline
  */
 export const createUnderstandingRunBodySourceTypeMax = 64;
@@ -201,10 +224,7 @@ export const ListConnectorHealthResponseItem = zod.object({
   "lastError": zod.string().optional(),
   "authStatus": zod.string().optional(),
   "consecutiveFailureCount": zod.number().optional(),
-  "eventCount": zod.number().optional(),
-  "providerCategory": zod.string().optional(),
-  "adapterName": zod.string().optional(),
-  "supportedEvents": zod.array(zod.string()).optional()
+  "eventCount": zod.number().optional()
 })
 export const ListConnectorHealthResponse = zod.array(ListConnectorHealthResponseItem)
 

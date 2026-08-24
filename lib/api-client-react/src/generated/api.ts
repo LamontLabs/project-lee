@@ -22,6 +22,7 @@ import type {
 import type {
   BrainVersion,
   BrainVersionSummary,
+  CilModelInventoryResponse,
   ConnectorHealth,
   ConnectorSyncInput,
   ConnectorSyncResult,
@@ -151,6 +152,84 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCilModelInventoryUrl = () => {
+
+
+
+
+  return `/api/systems/cil/model-inventory`
+}
+
+/**
+ * Returns configured, enabled, available, and unavailable CIL models. This endpoint is observational and cannot select or mutate a route.
+ * @summary Read the CIL model inventory
+ */
+export const getCilModelInventory = async ( options?: RequestInit): Promise<CilModelInventoryResponse> => {
+
+  return customFetch<CilModelInventoryResponse>(getGetCilModelInventoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCilModelInventoryQueryKey = () => {
+    return [
+    `/api/systems/cil/model-inventory`
+    ] as const;
+    }
+
+
+export const getGetCilModelInventoryQueryOptions = <TData = Awaited<ReturnType<typeof getCilModelInventory>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCilModelInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCilModelInventoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCilModelInventory>>> = ({ signal }) => getCilModelInventory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCilModelInventory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCilModelInventoryQueryResult = NonNullable<Awaited<ReturnType<typeof getCilModelInventory>>>
+export type GetCilModelInventoryQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Read the CIL model inventory
+ */
+
+export function useGetCilModelInventory<TData = Awaited<ReturnType<typeof getCilModelInventory>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCilModelInventory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCilModelInventoryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -5,6 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type CilModelInventoryResponseInventoryModelsItem = {
+  model_id: string;
+  provider: string;
+  status: string;
+  enabled: boolean;
+  route_ids: string[];
+};
+
+export type CilModelInventoryResponseInventory = {
+  correlation_id: string;
+  total_configured: number;
+  total_enabled: number;
+  total_available: number;
+  total_unavailable: number;
+  models: CilModelInventoryResponseInventoryModelsItem[];
+};
+
+export interface CilModelInventoryResponse {
+  readOnly: true;
+  inventory: CilModelInventoryResponseInventory;
+}
+
 export interface HealthStatus {
   status: string;
 }

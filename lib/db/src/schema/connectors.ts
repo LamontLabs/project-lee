@@ -61,6 +61,20 @@ export const connection = pgTable(
   (table) => [index("connection_status_idx").on(table.status), index("connection_method_idx").on(table.method)],
 );
 
+export const oauthCredential = pgTable(
+  "oauth_credential",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    connectionId: uuid("connection_id").notNull().unique(),
+    provider: varchar("provider", { length: 64 }).notNull(),
+    encryptedValue: text("encrypted_value").notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("oauth_credential_connection_idx").on(table.connectionId)],
+);
+
 export const androidPairingToken = pgTable(
   "android_pairing_token",
   {

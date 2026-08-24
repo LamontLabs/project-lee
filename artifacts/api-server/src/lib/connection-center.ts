@@ -8,10 +8,10 @@ export const CONNECTION_PERMISSIONS = ["OBSERVE", "USE", "MANAGE", "GOVERNED_MAN
 export type ConnectionStatus = typeof CONNECTION_STATUSES[number];
 
 export const oauthProviders = {
-  github: { authorization: "https://github.com/login/oauth/authorize", token: "https://github.com/login/oauth/access_token", scopes: ["read:user", "repo"] },
-  google_drive: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/drive.readonly"] },
-  google_calendar: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/calendar.readonly"] },
-  gmail: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/gmail.readonly"] },
+  github: { authorization: "https://github.com/login/oauth/authorize", token: "https://github.com/login/oauth/access_token", scopes: ["read:user", "repo"], supportsRefresh: false },
+  google_drive: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/drive.readonly"], supportsRefresh: true },
+  google_calendar: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/calendar.readonly"], supportsRefresh: true },
+  gmail: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/gmail.readonly"], supportsRefresh: true },
 } as const;
 export type OAuthProvider = keyof typeof oauthProviders;
 const oauthSecret = () => createHash("sha256").update(process.env.SESSION_SECRET ?? "development-session-secret").digest();
@@ -19,6 +19,16 @@ function seal(value: unknown) {
   const iv = randomBytes(12); const cipher = createCipheriv("aes-256-gcm", oauthSecret(), iv);
   const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
   return `${iv.toString("base64url")}.${cipher.getAuthTag().toString("base64url")}.${encrypted.toString("base64url")}`;
+}
+function unseal(value: string): Record<string, unknown> {
+  const [ivText, tagText, encryptedText] = value.split(".");
+  if (!ivText || !tagText || !encryptedText) throw new Error("OAuth credential is invalid.");
+  const decipher = createDecipheriv("aes-256-gcm", oauthSecret(), Buffer.from(ivText, "base64url"));
+  decipher.setAuthTag(Buffer.from(tagText, "base64url"));
+  const plain = Buffer.concat([decipher.update(Buffer.from(encryptedText, "base64url")), decipher.final()]).toString("utf8");
+  const parsed = JSON.parse(plain);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("OAuth credential is invalid.");
+  return parsed as Record<string, unknown>;
 }
 export function signOAuthState(connectionId: string, provider: OAuthProvider, redirectUri: string, codeVerifier = randomBytes(32).toString("base64url")) {
   const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
@@ -36,8 +46,72 @@ export function verifyOAuthState(state: string) {
   return value;
 }
 export async function storeOAuthCredential(connectionId: string, provider: OAuthProvider, token: Record<string, unknown>, scopes: string[], expiresAt?: Date | null) {
-  await db.insert(oauthCredential).values({ connectionId, provider, encryptedValue: seal(token), scopes, expiresAt: expiresAt ?? null, updatedAt: new Date() }).onConflictDoUpdate({ target: oauthCredential.connectionId, set: { provider, encryptedValue: seal(token), scopes, expiresAt: expiresAt ?? null, updatedAt: new Date() } });
-  await db.update(connection).set({ credentialRef: `OAUTH_${connectionId.replaceAll("-", "").toUpperCase()}`, updatedAt: new Date() }).where(eq(connection.id, connectionId));
+  const now = new Date();
+  const encryptedValue = seal(token);
+  await db.transaction(async (tx) => {
+    await tx.insert(oauthCredential).values({ connectionId, provider, encryptedValue, scopes, expiresAt: expiresAt ?? null, updatedAt: now }).onConflictDoUpdate({ target: oauthCredential.connectionId, set: { provider, encryptedValue, scopes, expiresAt: expiresAt ?? null, updatedAt: now } });
+    await tx.update(connection).set({ credentialRef: `OAUTH_${connectionId.replaceAll("-", "").toUpperCase()}`, updatedAt: now }).where(eq(connection.id, connectionId));
+  });
+}
+
+const REFRESH_WINDOW_MS = 60_000;
+const refreshFailureMessage = "OAuth authorization needs to be renewed.";
+
+/**
+ * Returns a provider access token only to server-side connector code. It is
+ * intentionally not part of any connection projection, response, event, or log.
+ */
+export async function getOAuthAccessToken(connectionId: string): Promise<string> {
+  const [record] = await db.select({
+    connection: connection,
+    credential: oauthCredential,
+  }).from(connection).innerJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id))
+    .where(eq(connection.id, connectionId)).limit(1);
+  if (!record || record.connection.method !== "oauth") throw new Error(refreshFailureMessage);
+  const provider = record.connection.configuration?.oauthProvider;
+  if (typeof provider !== "string" || !(provider in oauthProviders)) throw new Error(refreshFailureMessage);
+  const config = oauthProviders[provider as OAuthProvider];
+  let token: Record<string, unknown>;
+  try {
+    token = unseal(record.credential.encryptedValue);
+  } catch {
+    await setConnectionStatus(connectionId, "needs_reauthorization", refreshFailureMessage);
+    throw new Error(refreshFailureMessage);
+  }
+  const accessToken = typeof token.access_token === "string" ? token.access_token : null;
+  const expiresSoon = record.credential.expiresAt !== null &&
+    record.credential.expiresAt.getTime() - Date.now() <= REFRESH_WINDOW_MS;
+  if (!expiresSoon || !config.supportsRefresh) {
+    if (!accessToken) {
+      await setConnectionStatus(connectionId, "needs_reauthorization", refreshFailureMessage);
+      throw new Error(refreshFailureMessage);
+    }
+    return accessToken;
+  }
+  const refreshToken = typeof token.refresh_token === "string" ? token.refresh_token : null;
+  const clientId = process.env[`LEE_OAUTH_${provider.toUpperCase()}_CLIENT_ID`];
+  const clientSecret = process.env[`LEE_OAUTH_${provider.toUpperCase()}_CLIENT_SECRET`];
+  if (!refreshToken || !clientId || !clientSecret) {
+    await setConnectionStatus(connectionId, "needs_reauthorization", refreshFailureMessage);
+    throw new Error(refreshFailureMessage);
+  }
+  try {
+    const response = await fetch(config.token, {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
+    });
+    const refreshed = await response.json() as Record<string, unknown>;
+    if (!response.ok || typeof refreshed.access_token !== "string") throw new Error("refresh failed");
+    const rotated = { ...token, ...refreshed, refresh_token: typeof refreshed.refresh_token === "string" ? refreshed.refresh_token : refreshToken };
+    const expiresAt = typeof refreshed.expires_in === "number" ? new Date(Date.now() + refreshed.expires_in * 1000) : record.credential.expiresAt;
+    await storeOAuthCredential(connectionId, provider as OAuthProvider, rotated, record.credential.scopes, expiresAt);
+    await setConnectionStatus(connectionId, "connected");
+    return refreshed.access_token;
+  } catch {
+    await setConnectionStatus(connectionId, "needs_reauthorization", refreshFailureMessage);
+    throw new Error(refreshFailureMessage);
+  }
 }
 
 const secretKeys = /api[_-]?key|secret|password|token|private[_-]?key|credential/i;
@@ -106,10 +180,8 @@ export async function testConnection(id: string) {
   const [row] = await db.select().from(connection).where(eq(connection.id, id)).limit(1);
   if (!row) return null;
   if (row.method === "oauth") {
-    const [credential] = await db.select({ expiresAt: oauthCredential.expiresAt }).from(oauthCredential).where(eq(oauthCredential.connectionId, id)).limit(1);
-    if (!credential) return setConnectionStatus(id, "needs_reauthorization", "Authorization has not been completed.");
-    if (credential.expiresAt && credential.expiresAt <= new Date()) return setConnectionStatus(id, "needs_reauthorization", "Authorization has expired. Sign in again to continue.");
-    return setConnectionStatus(id, "connected");
+    try { await getOAuthAccessToken(id); return setConnectionStatus(id, "connected"); }
+    catch { return setConnectionStatus(id, "needs_reauthorization", refreshFailureMessage); }
   }
   if (!row.baseUrl) return setConnectionStatus(id, row.method === "file" ? "connected" : "unavailable", row.method === "file" ? null : "A reachable endpoint is required for this connection method.");
   const url = `${row.baseUrl}${row.healthEndpoint ?? "/health"}`;

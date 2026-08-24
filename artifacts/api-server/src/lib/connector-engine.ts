@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { connector, connectorSync, db, eventLog, normalizedConnectorEvent, sourceVault } from "@workspace/db";
 import { connectorProviders, providerAdapters, type ConnectorProvider } from "./connectors";
+import { getOAuthAccessToken } from "./connection-center";
 
 const connectors = new ReplitConnectors();
 
@@ -46,6 +47,16 @@ async function collect(provider: ConnectorProvider, configuration: Record<string
 
 export async function syncLiveConnector(provider: ConnectorProvider, configuration: Record<string, unknown> = {}) {
   const now = new Date();
+  const connectionId = typeof configuration.connectionId === "string"
+    ? configuration.connectionId
+    : typeof configuration.oauthConnectionId === "string" ? configuration.oauthConnectionId : null;
+  if (connectionId) {
+    try {
+      await getOAuthAccessToken(connectionId);
+    } catch {
+      return { provider, status: "failed", syncId: "", eventIds: [], eventCount: 0, error: "OAuth authorization needs to be renewed." };
+    }
+  }
   await db.insert(connector).values({ provider, accessMode: "read", status: "syncing", authStatus: "connected", configuration, updatedAt: now }).onConflictDoNothing({ target: connector.provider });
   const [row] = await db.select().from(connector).where(eq(connector.provider, provider)).limit(1);
   const [sync] = await db.insert(connectorSync).values({ connectorId: row.id, provider, status: "running", startedAt: now }).returning();

@@ -139,8 +139,10 @@ test("CIL unavailability blocks model execution instead of selecting a local fal
     usage: { prompt_tokens: 12, completion_tokens: 8 },
   });
   try {
+    const correlationId = randomUUID();
     await assert.rejects(routeModelRequest({
-      correlationId: randomUUID(),
+      correlationId,
+      pipeline: { correlationId, stages: ["identity", "constitution", "intent", "context"] },
       queryText: "fallback test",
       semanticDomain: "technical",
       intentType: "ANALYSIS",

@@ -3,9 +3,18 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { universalSystemCallSchema, universalSystemRegistrationSchema } from "@workspace/api-zod";
 import { callUniversalSystem, listUniversalSystems, registerUniversalSystem } from "../lib/universal-systems";
+import { getCILModelInventory } from "../services/internal-services";
 
 const router: IRouter = Router();
 router.get("/systems", async (_req, res) => res.json(await listUniversalSystems()));
+router.get("/systems/cil/model-inventory", async (_req, res): Promise<void> => {
+  try {
+    const inventory = await getCILModelInventory();
+    res.json({ readOnly: true, inventory });
+  } catch (error) {
+    res.status(502).json({ error: "CIL model inventory is unavailable.", detail: error instanceof Error ? error.message : String(error) });
+  }
+});
 router.post("/systems/register", async (req, res): Promise<void> => {
   const parsed = universalSystemRegistrationSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid Universal Systems registration.", issues: parsed.error.issues }); return; }

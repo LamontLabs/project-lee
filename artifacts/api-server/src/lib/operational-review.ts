@@ -11,6 +11,7 @@ import {
   operationalReview,
 } from "@workspace/db";
 import { routeModelRequest } from "./model-router";
+import { runRequestPipeline } from "./request-pipeline";
 import { processExperiences } from "./experience";
 import { getSystemEconomicsSummary } from "./system-economics";
 
@@ -75,14 +76,18 @@ export async function generateOperationalReview(input: ReviewInput) {
     factorBreakdown: { goal: 0.5, recency: 0.5, importance: 0.5, relationship: 0, project: 0.5, confidence: objective.confidence, trust: 0.5, mode: 0.5 },
     estimatedTokens: Math.ceil((objective.title.length + (objective.description?.length ?? 0)) / 4),
   }));
-  const routed = await routeModelRequest({
-    correlationId: randomUUID(),
-    queryText: [
+  const queryText = [
       `Write a ${input.cadence} operational review for ${input.periodStart.toISOString()} through ${input.periodEnd.toISOString()}.`,
       "Ground every claim in the supplied event and objective context. Separate evidence from interpretation and state uncertainty plainly.",
       "Cover what improved, what regressed, assumption performance, opportunities, effort versus value, decision retrospective, strategic observations, and portfolio health.",
       "Write a coherent executive narrative in plain language; do not invent events or metrics.",
-    ].join("\n"),
+    ].join("\n");
+  const pipeline = await runRequestPipeline({ text: queryText, origin: "scheduled", actionType: "operational_review", engineName: "Operational Review", mode: "review", budgetTokens: 3000 });
+  if (!pipeline.ok) throw new Error(`Operational review request pipeline failed: ${pipeline.error}`);
+  const routed = await routeModelRequest({
+    correlationId: pipeline.correlationId,
+    pipeline,
+    queryText,
     semanticDomain: "operational-review",
     intentType: "RETROSPECTIVE",
     riskClassification: "LOW",

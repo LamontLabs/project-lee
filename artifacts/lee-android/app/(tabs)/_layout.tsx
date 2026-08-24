@@ -11,6 +11,7 @@ const tabIcons: Record<string, keyof typeof Feather.glyphMap> = {
   alerts: 'bell',
   ask: 'message-circle',
   approvals: 'check-square',
+  systems: 'activity',
 };
 
 export default function TabLayout() {
@@ -26,12 +27,13 @@ export default function TabLayout() {
         tabBarIcon: ({ color, size }: { color: string; size: number }) => <Feather name={tabIcons[route.name] ?? 'circle'} color={color} size={size} />,
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Brief' }} />
+      <Tabs.Screen name="index" options={{ title: 'Today' }} />
+      <Tabs.Screen name="ask" options={{ title: 'Ask Lee' }} />
       <Tabs.Screen name="capture" options={{ title: 'Capture' }} />
-      <Tabs.Screen name="waiting" options={{ title: 'Waiting' }} />
       <Tabs.Screen name="alerts" options={{ title: 'Alerts' }} />
-      <Tabs.Screen name="ask" options={{ title: 'Ask' }} />
-      <Tabs.Screen name="approvals" options={{ title: 'Approvals' }} />
+      <Tabs.Screen name="systems" options={{ title: 'Systems' }} />
+      <Tabs.Screen name="waiting" options={{ href: null }} />
+      <Tabs.Screen name="approvals" options={{ href: null }} />
     </Tabs>
   );
 }

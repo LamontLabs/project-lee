@@ -1,10 +1,9 @@
-import { randomUUID } from "node:crypto";
 import { Router, type IRouter } from "express";
 import { RouteReasoningRequestBody, RouteReasoningRequestResponse } from "@workspace/api-zod";
 import { costRecord, db, eventLog } from "@workspace/db";
 import { constructContextPacket } from "../lib/context-economy";
 import { routeModelRequest } from "../lib/model-router";
-import { consultIdentity } from "../lib/identity";
+import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 
 const router: IRouter = Router();
 
@@ -17,9 +16,11 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
   }
 
   const input = parsed.data;
-  const correlationId = randomUUID();
+  const pipeline = await runRequestPipeline({ text: input.queryText, origin: "api", actionType: "reasoning_route", engineName: "Reasoning API", mode: "normal", budgetTokens: input.contextBudgetTokens });
+  if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
+  const correlationId = pipeline.correlationId;
   const startedAt = Date.now();
-  const identity = await consultIdentity();
+  const identity = pipeline.identity;
   await db.insert(eventLog).values({
     eventType: "IdentityConsulted",
     aggregateType: "reasoning_request",
@@ -35,6 +36,7 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
   );
   const routed = await routeModelRequest({
     correlationId,
+    pipeline,
     queryText: input.queryText,
     semanticDomain: input.semanticDomain,
     intentType: input.intentType,
@@ -93,7 +95,7 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
       .values({
         correlationId,
         engine: "model-router",
-        provider: routed.model === "CIL" ? "cil" : "openai-managed",
+        provider: routed.provider,
         tier: routed.tier,
         model: routed.model,
         promptTokens: routed.promptTokens,
@@ -105,7 +107,9 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
         metadata: {
           semanticDomain: input.semanticDomain,
           contextTokens: packet.tokens,
-            category: routed.model === "CIL" ? "cil" : "model-router",
+            category: routed.provider,
+            routeId: routed.routeId,
+            costEstimateSource: routed.costEstimateSource,
             ...(routed.cilEvidence ? {
               cilConfidence: routed.cilEvidence.confidence,
               cilLatencyMs: routed.cilEvidence.latency_ms,

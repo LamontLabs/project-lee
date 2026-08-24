@@ -159,12 +159,30 @@ const HEALTH: HealthItem[] = [
   { name: 'Local session', status: 'operational', detail: 'Encrypted private session · founder access only.', lastChecked: 'now' },
 ];
 
-const navItems = [
+const navigationGroups = [
+  { label: 'Primary', items: [
   { href: '/', label: 'Today', icon: Command },
   { href: '/ask', label: 'Ask Lee', icon: MessageSquareText },
+  ] },
+  { label: 'Work', items: [
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/portfolio', label: 'Portfolio', icon: Layers3 },
   { href: '/people', label: 'People', icon: Users },
+  { href: '/objectives', label: 'Objectives', icon: Target },
+  ] },
+  { label: 'Knowledge', items: [
+  { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
+  { href: '/evidence', label: 'Evidence', icon: FileText },
+  { href: '/imports', label: 'Imports', icon: Upload },
+  { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
+  ] },
+  { label: 'Systems', items: [
+  { href: '/connectors', label: 'Connectors', icon: PlugZap },
+  { href: '/governance', label: 'Governance', icon: ShieldAlert },
+  { href: '/costs', label: 'System economics', icon: WalletCards },
+  { href: '/health', label: 'System health', icon: Gauge },
+  ] },
+  { label: 'Advanced', items: [
   { href: '/workspace', label: 'Workspace', icon: Settings2 },
   { href: '/constitution', label: 'Constitution', icon: ShieldCheck },
   { href: '/confidence', label: 'Confidence', icon: Gauge },
@@ -182,11 +200,8 @@ const navItems = [
   { href: '/governance', label: 'Governance', icon: ShieldAlert },
   { href: '/backups', label: 'Backups', icon: Archive },
   { href: '/schedule', label: 'Schedule', icon: CalendarClock },
-  { href: '/objectives', label: 'Objectives', icon: Target },
   { href: '/organization', label: 'Organization', icon: Building2 },
   { href: '/strategy/decision-patterns', label: 'Decision patterns', icon: GitBranch },
-  { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
-  { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
   { href: '/observations', label: 'Observations', icon: Eye },
   { href: '/strategy', label: 'Strategy', icon: Target },
   { href: '/simulations', label: 'Simulations', icon: FlaskConical },
@@ -198,7 +213,7 @@ const navItems = [
   { href: '/settings/identity', label: 'Identity', icon: BrainCircuit },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
-  { href: '/health', label: 'System health', icon: Gauge },
+  ] },
 ];
 
 function formatTime(value: string) {
@@ -310,8 +325,10 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
           <button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden" data-testid="button-close-menu"><PanelLeftClose size={17} /></button>
         </div>
         <div className="mt-9 px-3"><p className="lee-label text-sidebar-foreground/40">Operator view</p></div>
-        <nav className="mt-3 space-y-1" aria-label="Main navigation">
-          {navItems.map((item) => {
+        <nav className="mt-3 space-y-4 overflow-y-auto pr-1" aria-label="Main navigation">
+          {navigationGroups.map((group) => <div key={group.label}>
+            {group.label !== 'Primary' && <p className="lee-label mb-1 px-3 pt-2 text-sidebar-foreground/35">{group.label}</p>}
+            {group.items.map((item) => {
             const Icon = item.icon;
             const active = location === item.href;
             return <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} data-testid={`link-nav-${item.label.toLowerCase().replace(/\s/g, '-')}`} className={cn('group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/62 hover:bg-sidebar-accent hover:text-sidebar-foreground', active && 'bg-sidebar-accent text-sidebar-foreground shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]')}>
@@ -319,7 +336,8 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
               <span>{item.label}</span>
               {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary" />}
             </Link>;
-          })}
+            })}
+          </div>)}
         </nav>
         <div className="mt-auto">
           <button onClick={onAsk} className="group mb-4 flex w-full items-center gap-3 rounded-xl border border-sidebar-primary/30 bg-sidebar-primary/10 px-3 py-3 text-left hover:bg-sidebar-primary/20" data-testid="button-ask-lee-sidebar">

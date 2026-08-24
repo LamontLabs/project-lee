@@ -1,0 +1,413 @@
+--- PAGE 1 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+Project LEE
+Implementation Specification
+UI Simplification + CIL Model-Routing Authority
+Execution document for Replit - create tasks and implement, do not merely review
+Execution Directive
+This is an implementation specification. Do not only read, summarize, or comment on it. Create a task plan 
+in the Project LEE task system and then execute the tasks.
+Required behavior:
+
+Create separate implementation tasks for the CIL authority work, the desktop UI consolidation, the 
+Android/mobile consolidation, and final validation.
+
+Break large workstreams into smaller tasks when needed so each task can be executed, tested, and 
+reviewed independently.
+
+Preserve all working functionality, data, APIs, desktop packaging, Android behavior, and current 
+integrations.
+
+Do not delete internal capabilities merely because they are removed from normal navigation.
+
+Do not claim completion until runtime behavior, typechecks, builds, and relevant tests pass.
+Recommended task sequence:
+1. Enforce CIL as the mandatory pre-model authority and remove duplicate LEE routing authority.
+2. Integrate the read-only CIL model inventory for visibility and economics.
+3. Consolidate the desktop Console navigation and contextualize internal capabilities.
+4. Simplify the Android companion navigation while preserving local-first capture and approvals.
+5. Run regression, build, routing, and UX validation; report all remaining limitations.
+Do not create one giant untestable task if the work is better split into multiple executable tasks.
+
+
+--- PAGE 2 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+Part A - CIL Must Be the Pre-Model Authority
+LEE is already connected to CIL. Do not rebuild the existing signed connection. Harden the authority 
+boundary around that working integration.
+A1. Mandatory CIL-before-model flow
+For every normal LEE-originated AI/reasoning request, enforce:
+Identity -> Constitution -> Intent -> Query Engine -> Context Economy -> CIL API
+CIL then owns the resolution decision:
+
+T1_TRIGRAM - return the governed CIL answer directly; no model call.
+
+T2_SEMANTIC - return the governed CIL answer directly; no model call.
+
+T3_FRONTIER - CIL returns the approved model/provider/route; only then may LEE execute a model 
+call.
+No normal LEE path may choose or call an external/paid model before CIL evaluates the request.
+A2. Remove duplicate CIL routing authority from LEE
+LEE may keep the CIL API client, schemas, auth/signing, health state, correlation IDs, normalized events, 
+telemetry, and UI status. LEE must not independently own:
+
+T1/T2/T3 resolution decisions
+
+cognitive-asset selection
+
+model selection or model-class selection
+
+provider selection
+
+cost-based model-routing policy
+
+CIL-owned contradiction/drift arbitration
+
+fallback model selection after provider failure
+A3. Model Router is execution-only
+The Model Router executes the route CIL selected. It may handle transport, endpoint selection, request 
+formatting, response normalization, telemetry, usage accounting, and safe retries.
+It must not silently replace CIL's model or provider decision.
+A4. Model execution failure returns to CIL
+If a CIL-selected model route fails:
+Model execution failure -> LEE -> CIL reroute request -> new CIL-owned route -> Model Router 
+executes new route
+LEE must not locally choose a replacement model.
+A5. Replit AI Bridge
+Preserve the long-term desktop path:
+LEE Core on K6 -> CIL -> CIL-selected route -> Model Router -> Replit AI Bridge -> Replit-
+managed model -> LEE
+The Replit AI Bridge is an execution gateway that preserves Replit-managed AI access without requiring 
+separate provider API keys on the K6. It does not choose models.
+
+
+--- PAGE 3 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+A6. CIL model inventory is visibility-only
+Integrate the authenticated CIL model-inventory endpoint when available. LEE may display:
+
+total configured, enabled, available, and unavailable models
+
+providers
+
+model IDs and route IDs
+
+availability/health status
+The inventory does not grant LEE model-selection authority. Normal execution must still use the 
+model route returned by CIL.
+A7. Prove CIL economics
+System Economics should measure enough data to demonstrate CIL's actual effect on model spend, 
+including:
+
+T1 and T2 reuse counts/rates
+
+T3 escalation counts/rates
+
+models/providers selected by CIL
+
+frontier calls avoided
+
+measured model cost
+
+estimated equivalent cost without reuse when defensible
+
+measured/estimated savings with clear labeling
+
+latency and failure/reroute counts
+Do not present estimated savings as measured facts.
+
+
+--- PAGE 4 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+Part B - UI Simplification and Consolidation
+Product principle:
+SIMPLE ON THE OUTSIDE. A MONSTER UNDER THE HOOD.
+The current Console exposes too much of LEE's internal architecture directly. Keep the engines, ledgers, 
+diagnostics, and deep controls, but organize normal navigation around owner goals rather than subsystem 
+names.
+B1. Primary desktop navigation
+TODAY
+ASK LEE
+WORK
+  - Projects
+  - Portfolio
+  - People
+  - Objectives
+KNOWLEDGE
+SYSTEMS
+SETTINGS
+Avoid additional top-level destinations unless there is a strong user-facing reason.
+B2. Today
+Today should answer: What deserves my attention? Organize around:
+
+NEEDS YOU - approvals, decisions, blocked/urgent items, consequential holds.
+
+IN MOTION - active projects, active workflows, meaningful momentum.
+
+WATCHING - waiting, risks, drift, stale dependencies, degraded systems.
+
+LEE SUMMARY - what changed, what matters, why, and useful next actions.
+Quiet when healthy. Prominent when actionable.
+Healthy confidence, CIL, CerbaSeal, backups, connectors, economics, and health indicators should not 
+dominate Today unless they need attention.
+B3. Ask Lee
+Ask Lee should be the universal deep-access interface. The user should be able to ask about assumptions, 
+decisions, evidence, risks, waiting, project history, system health, CIL savings, CerbaSeal holds, 
+momentum, lessons, and other information already known by LEE without hunting through technical 
+pages.
+B4. Work
+Work contains Projects, Portfolio, People, and Objectives. Each project should open into one consolidated 
+workspace with:
+
+Overview - state, momentum, readiness, risks, next actions.
+
+Activity - timeline, events, meaningful changes.
+
+Knowledge - Facts, Interpretations, Assumptions, Decisions, Evidence, Strategic Anchors.
+
+People - relationships, commitments, waiting loops.
+
+Systems - repos, services, dependencies, health.
+
+Strategy - recommendations, opportunities, simulations, relevant reflections.
+
+
+--- PAGE 5 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+B5. Knowledge
+Consolidate Evidence, Facts, Interpretations, Assumptions, Decisions, Decision Patterns, Strategic Anchors, 
+Timeline, Institutional Knowledge, Knowledge Map, and related learning/history into one Knowledge area 
+using tabs, filters, expandable sections, and contextual detail.
+B6. Systems
+Consolidate connected Lamont Labs systems, CIL, CerbaSeal, Replit AI Bridge, connectors, APIs, health, 
+governance state, approvals, dependencies, capabilities, and System Economics.
+The normal Systems view should answer:
+
+Is it connected?
+
+Is it healthy?
+
+What is it doing?
+
+Does it need attention?
+
+What can LEE do with it?
+Keep raw contracts, diagnostics, and technical details expandable or under Advanced.
+B7. Settings / Advanced
+Move developer/admin/internal views under Settings -> Advanced -> System Internals, including as 
+appropriate:
+
+Identity and Constitution details
+
+Policies
+
+raw Event Log
+
+Engine and Capability Registries
+
+System Manifest
+
+Query/provenance diagnostics
+
+raw governance history
+
+Self-Test and Self-Improvement
+
+raw System Economics
+
+Backups and Restore/Recovery
+
+scheduler, connector, API, and System Contract diagnostics
+
+detailed technical health information
+
+
+--- PAGE 6 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+Part C - Navigation Consolidation Rules
+Unless there is a strong UX reason otherwise, these should no longer be separate primary-sidebar 
+destinations:
+
+Constitution
+
+Confidence
+
+Assumptions
+
+Decision Impact
+
+Explain
+
+Policies
+
+Decisions
+
+Waiting
+
+Evidence
+
+Imports
+
+Connectors
+
+Costs
+
+Governance
+
+Backups
+
+Schedule
+
+Organization
+
+Decision Patterns
+
+Knowledge Map
+
+Observations
+
+Strategy
+
+Simulations
+
+Reflections
+
+Learning
+
+Institutional
+
+Self-Improvement
+
+System Economics
+
+Identity
+
+Events
+Do not delete their functionality. Move it into Work, Knowledge, Systems, contextual detail, or 
+Settings/Advanced.
+Contextual information rules
+
+Confidence appears where it matters - answers, recommendations, projects, interpretations - rather 
+than needing its own destination.
+
+Governance approvals/holds surface on Today, the affected workflow/project, Systems, and mobile; 
+full history remains available.
+
+Meaningful events surface in Today, Project Activity, Systems, Timeline, and Ask Lee; the raw Event 
+Log lives in Advanced.
+
+Self-Improvement surfaces meaningful adaptations only when relevant; raw controls/logs live in 
+Advanced.
+
+
+--- PAGE 7 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+Part D - Android Companion
+Keep Android simpler than desktop. Target primary navigation:
+TODAY
+ASK LEE
+CAPTURE
+ALERTS / APPROVALS
+SYSTEMS
+Focus mobile on priorities, quick capture, Ask Lee, waiting/alerts, approvals, system status, and 
+lightweight approved controls. Do not reproduce the complete desktop navigation tree.
+Preserve local-first/offline Capture for text, voice, screenshots, photos, links, files, observations, and project 
+updates.
+Part E - Visual Design
+Preserve the current dark LEE identity, branding, restrained typography, and calm professional operating-
+console feel.
+Reduce sidebar clutter, unnecessary cards, duplicated metrics, oversized healthy-status displays, internal 
+architecture terminology, and visual competition. Use hierarchy, whitespace, tabs, drawers, expandable 
+details, and contextual views.
+Non-Negotiable Preservation
+This work must preserve:
+
+all underlying engines and ledgers
+
+all existing data and database structures
+
+existing APIs and backend behavior
+
+current CIL and CerbaSeal connections
+
+Console functionality
+
+Android functionality and offline capture
+
+Windows desktop packaging/build and GitHub release flow
+
+diagnostics and deep system access under Advanced
+
+
+--- PAGE 8 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+Part F - Required Validation and Completion Report
+The created tasks are not complete until the relevant checks pass.
+CIL authority validation
+1. A normal LEE external-model call cannot occur before CIL.
+2. T1/T2 CIL resolution prevents an external model call.
+3. T3 uses the exact CIL-selected route.
+4. Model Router does not override the CIL route.
+5. A failed model execution returns to CIL for rerouting.
+6. No active duplicate CIL routing/model-selection logic remains in LEE.
+7. Model inventory is read-only and does not change routing authority.
+8. System Economics records the evidence needed to measure CIL savings.
+UI/mobile validation
+1. All major capabilities remain reachable after consolidation.
+2. Existing data remains intact.
+3. Today, Ask Lee, Work, Knowledge, Systems, and Advanced all function.
+4. Project consolidated workspace functions.
+5. Android navigation functions and offline Capture remains intact.
+6. Console typecheck and production build pass.
+7. Android typecheck passes.
+8. API typecheck/build passes.
+9. Desktop build/packaging validation remains valid.
+10. Existing behavioral tests continue to pass.
+Final report required from Replit
+
+tasks created and completed
+
+files changed
+
+CIL routing authority changes
+
+duplicate CIL logic removed or disabled
+
+final AI runtime flow
+
+model inventory integration status
+
+CIL economics measurements now available
+
+old vs new desktop navigation
+
+old vs new mobile navigation
+
+pages consolidated
+
+pages moved to Advanced
+
+validation/test/build results
+
+remaining limitations or follow-up tasks
+Final target:
+
+
+--- PAGE 9 ---
+PROJECT LEE - UI CONSOLIDATION + CIL AUTHORITY
+Lamont Labs | Project LEE
+SIMPLE TO USE.
+EASY TO NAVIGATE.
+QUIET WHEN HEALTHY.
+INFORMATION APPEARS WHEN IT MATTERS.
+CIL OWNS MODEL-ROUTING AUTHORITY.
+DEEPLY TECHNICAL DETAIL REMAINS AVAILABLE WHEN NEEDED.
+EXTREMELY SOPHISTICATED UNDER THE HOOD.

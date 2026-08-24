@@ -1,11 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { contextPacket, conversation, conversationMessage, costRecord, db, eventLog, modelRouteDecision } from "@workspace/db";
-import { buildContextPacket, type ConversationMode } from "../lib/context-engine";
-import { estimateCost, MODEL_PRICING } from "../lib/ai-providers";
+import { type ConversationMode } from "../lib/context-engine";
 import { registerAction } from "../lib/governance-engine";
-import { classifyIntent } from "../lib/intent";
 import { pipelineFailureResponse, runRequestPipeline, type RequestPipelineSuccess } from "../lib/request-pipeline";
 import { consultCILRoute, routeModelRequest } from "../lib/model-router";
 
@@ -31,14 +28,14 @@ async function budgetState() {
   return { limits, spent, limited: spent.daily >= limits.daily || spent.weekly >= limits.weekly || spent.monthly >= limits.monthly };
 }
 
-async function preview(query: string, mode: Mode, risk = "LOW", budgetTokens = 3000, intent?: any, pipeline?: RequestPipelineSuccess) {
+async function preview(query: string, mode: Mode, risk: string, budgetTokens: number, pipeline: RequestPipelineSuccess) {
   const state = await budgetState();
-  const packet = pipeline?.context ?? await buildContextPacket(query, mode as ConversationMode, budgetTokens, intent);
+  const packet = pipeline.context;
   const cil = await consultCILRoute({
-    correlationId: pipeline?.correlationId ?? randomUUID(),
+    correlationId: pipeline.correlationId,
     queryText: query,
     semanticDomain: "conversation",
-    intentType: intent?.intentType ?? "unclassified",
+    intentType: pipeline.intent.intentType,
     riskClassification: risk as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
     contextItems: packet.items,
     preferredTier: "auto",
@@ -46,10 +43,12 @@ async function preview(query: string, mode: Mode, risk = "LOW", budgetTokens = 3
   });
   const selectedTier = cil.resolution_tier === "T1_TRIGRAM" ? "T1" : cil.resolution_tier === "T2_SEMANTIC" ? "T2" : "T3";
   const selectedModel = cil.model_route?.model ?? cil.selected_model ?? "CIL";
-  const estimatedCostUsd = cil.cost_usd || (selectedModel === "CIL" ? 0 : estimateCost(selectedModel, packet.tokens + Math.ceil(query.length / 4), 900));
+  const selectedProvider = selectedTier === "T3" ? cil.model_route?.provider ?? "unavailable" : "cil";
+  const routeId = selectedTier === "T3" ? cil.model_route?.route_id ?? null : null;
+  const estimatedCostUsd = cil.cost_usd;
   const route = mode === "no_model" ? "packet_only" : selectedTier === "T1" || selectedTier === "T2" ? "cil_reuse" : "cil_selected_model";
   const reason = mode === "no_model" ? "The selected mode prohibits model execution." : `${selectedTier} route selected by CIL.`;
-  return { packet, selectedModel, selectedTier, estimatedCostUsd, route, reason: `${reason} Intent: ${intent?.intentType ?? "unclassified"}.`, budget: state, intent, cil };
+  return { packet, selectedModel, selectedProvider, routeId, selectedTier, estimatedCostUsd, route, reason: `${reason} Intent: ${pipeline.intent.intentType}.`, budget: state, intent: pipeline.intent, cil };
 }
 
 router.post("/ai/context-preview", async (req, res): Promise<void> => {
@@ -57,7 +56,7 @@ router.post("/ai/context-preview", async (req, res): Promise<void> => {
   if (!query) { res.status(400).json({ error: "message is required." }); return; }
   const pipeline = await runRequestPipeline({ text: query, origin: "console", actionType: "context_preview", engineName: "Context Engine", mode: parseMode(req.body?.mode), budgetTokens: Number(req.body?.budgetTokens ?? 3000), sessionId: String(req.body?.sessionId ?? "preview") });
   if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
-  const result = await preview(query, parseMode(req.body?.mode), String(req.body?.risk ?? "LOW"), Number(req.body?.budgetTokens ?? 3000), pipeline.intent, pipeline);
+  const result = await preview(query, parseMode(req.body?.mode), String(req.body?.risk ?? "LOW"), Number(req.body?.budgetTokens ?? 3000), pipeline);
   res.json({ ...result, packet: { ...result.packet, selectedModel: result.selectedModel, estimatedCostUsd: result.estimatedCostUsd, riskLevel: String(req.body?.risk ?? "LOW") } });
 });
 
@@ -80,18 +79,18 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
   if (!message) { res.status(400).json({ error: "message is required." }); return; }
   const mode = parseMode(req.body?.mode ?? item.mode);
   const risk = String(req.body?.risk ?? "LOW").toUpperCase();
-  const correlationId = randomUUID();
   const startedAt = Date.now();
   const pipeline = await runRequestPipeline({ text: message, origin: "console", actionType: "conversation_message", engineName: "Ask Lee", mode, budgetTokens: Number(req.body?.budgetTokens ?? 3000), sessionId: item.id, payload: { conversationId: item.id } });
   if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
+  const correlationId = pipeline.correlationId;
   const intent = pipeline.intent;
-  const route = await preview(message, mode, risk, Number(req.body?.budgetTokens ?? 3000), intent, pipeline);
+  const route = await preview(message, mode, risk, Number(req.body?.budgetTokens ?? 3000), pipeline);
   const [packet] = route.packet.id ? [null] : await db.insert(contextPacket).values({
     fingerprint: route.packet.fingerprint, intent: message, mode, packet: { items: route.packet.items, excluded: route.packet.excluded }, sourceRefs: route.packet.items.map((entry) => entry.id), excludedRefs: route.packet.excludedRefs, tokenEstimate: route.packet.tokens, estimatedCostUsd: route.estimatedCostUsd, selectedTier: route.selectedTier, selectedModel: route.selectedModel, riskLevel: risk, expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   }).returning();
   const packetId = route.packet.id ?? packet?.id ?? null;
   if (mode !== "private") {
-    await db.insert(modelRouteDecision).values({ correlationId, requestText: message, mode, route: route.route, tier: route.selectedTier, provider: MODEL_PRICING[route.selectedModel]?.provider ?? "none", model: route.selectedModel, reason: route.reason, estimatedCostUsd: route.estimatedCostUsd, status: "selected" });
+    await db.insert(modelRouteDecision).values({ correlationId, requestText: message, mode, route: route.route, tier: route.selectedTier, provider: route.selectedProvider, model: route.selectedModel, reason: route.reason, estimatedCostUsd: route.estimatedCostUsd, status: "selected" });
     await db.insert(eventLog).values({ eventType: "ModelRouteSelected", aggregateType: "conversation", aggregateId: item.id, sourceRef: "model-router", correlationId, occurredAt: new Date(), payload: { correlationId, route: route.route, model: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd, reason: route.reason } });
   }
   if (mode === "governed_action" || (route.estimatedCostUsd > Number(process.env.LEE_STRONG_MODEL_GATE_USD ?? 0.05) && mode !== "deep_think")) {
@@ -114,6 +113,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
   }
    const result = await routeModelRequest({
      correlationId,
+     pipeline,
      queryText: message,
      semanticDomain: "conversation",
      intentType: intent.intentType,
@@ -127,10 +127,10 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
     ? [undefined]
      : await db.insert(conversationMessage).values({ conversationId: item.id, role: "assistant", content: result.answer, contextPacketId: packetId, intentId: intent.id, evidenceRefs: route.packet.items.map((entry) => entry.id) }).returning();
   if (mode !== "private") {
-     await db.insert(costRecord).values({ correlationId, engine: "ask-lee", provider: result.model === "CIL" ? "cil" : MODEL_PRICING[result.model]?.provider ?? "unknown", tier: result.tier, model: result.model, promptTokens: result.promptTokens, completionTokens: result.completionTokens, totalTokens: result.totalTokens, estimatedCostUsd: cost, latencyMs: Date.now() - startedAt, cacheHit: route.packet.reused || result.tier === "T1" || result.tier === "T2", metadata: { conversationId: item.id, mode, route: route.route, budgetLimited: route.budget.limited, cilReroute: result.fallbackUsed ?? false } });
-     await db.insert(eventLog).values({ eventType: "CostRecordCreated", aggregateType: "cost_record", aggregateId: correlationId, sourceRef: "ask-lee", correlationId, occurredAt: new Date(), payload: { provider: result.model === "CIL" ? "cil" : MODEL_PRICING[result.model]?.provider ?? "unknown", model: result.model, totalTokens: result.totalTokens, estimatedCostUsd: cost, cacheHit: route.packet.reused } });
+     await db.insert(costRecord).values({ correlationId, engine: "ask-lee", provider: result.provider, tier: result.tier, model: result.model, promptTokens: result.promptTokens, completionTokens: result.completionTokens, totalTokens: result.totalTokens, estimatedCostUsd: cost, latencyMs: Date.now() - startedAt, cacheHit: route.packet.reused || result.tier === "T1" || result.tier === "T2", metadata: { conversationId: item.id, mode, route: route.route, routeId: result.routeId, costEstimateSource: result.costEstimateSource, budgetLimited: route.budget.limited, cilReroute: result.fallbackUsed ?? false } });
+     await db.insert(eventLog).values({ eventType: "CostRecordCreated", aggregateType: "cost_record", aggregateId: correlationId, sourceRef: "ask-lee", correlationId, occurredAt: new Date(), payload: { provider: result.provider, model: result.model, routeId: result.routeId, totalTokens: result.totalTokens, estimatedCostUsd: cost, cacheHit: route.packet.reused } });
   }
-   res.json({ held: false, correlationId, answer: result.answer, userMessage, assistantMessage, intent, contextPacket: route.packet, estimatedCostUsd: cost, provider: result.model === "CIL" ? "cil" : MODEL_PRICING[result.model]?.provider ?? "unknown", model: result.model, evidenceRefs: route.packet.items.map((entry) => entry.id) });
+   res.json({ held: false, correlationId, answer: result.answer, userMessage, assistantMessage, intent, contextPacket: route.packet, estimatedCostUsd: cost, provider: result.provider, model: result.model, routeId: result.routeId, evidenceRefs: route.packet.items.map((entry) => entry.id) });
 });
 
 export default router;

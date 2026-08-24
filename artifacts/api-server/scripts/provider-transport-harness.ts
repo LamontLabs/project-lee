@@ -108,9 +108,9 @@ test.after(async () => {
 test("OpenAI, Anthropic, and Gemini send their provider credential headers", async () => {
   requests = [];
   const messages = [{ role: "user" as const, content: "header fixture" }];
-  await callProvider("gpt-5-nano", messages);
-  await callProvider("claude-haiku-4-5", messages);
-  await callProvider("gemini-2.5-flash", messages);
+  await callProvider({ model: "gpt-5-nano", provider: "openai", routeId: "fixture-openai" }, messages, randomUUID());
+  await callProvider({ model: "claude-haiku-4-5", provider: "anthropic", routeId: "fixture-anthropic" }, messages, randomUUID());
+  await callProvider({ model: "gemini-2.5-flash", provider: "gemini", routeId: "fixture-gemini" }, messages, randomUUID());
 
   const openai = requests.find((request) => request.path.includes("openai"));
   const anthropic = requests.find((request) => request.path.includes("anthropic"));
@@ -153,11 +153,20 @@ test("provider failures preserve non-JSON and HTTP errors", async () => {
   for (const failure of ["non-json", "http-failure"] as const) {
     mode = failure;
     await assert.rejects(
-      callProvider("gpt-5-nano", [{ role: "user", content: "failure fixture" }]),
+      callProvider({ model: "gpt-5-nano", provider: "openai", routeId: "fixture-failure" }, [{ role: "user", content: "failure fixture" }], randomUUID()),
       failure === "non-json" ? /UNIVERSAL_SYSTEM_NON_JSON_RESPONSE/ : /HTTP 502/,
     );
   }
   mode = "success";
+});
+
+test("an unknown CIL provider never defaults to another adapter", async () => {
+  requests = [];
+  await assert.rejects(
+    callProvider({ model: "unrecognized-model", provider: "openrouter", routeId: "fixture-unsupported" }, [{ role: "user", content: "do not infer a provider" }], randomUUID()),
+    /UNSUPPORTED_CIL_PROVIDER:openrouter/,
+  );
+  assert.equal(requests.length, 0);
 });
 
 test("provider timeout aborts the request", async () => {

@@ -96,3 +96,14 @@ test("Unauthenticated internal request is rejected before it can bypass the pipe
   assert.equal(body.pipeline.failedStage, "constitution");
   assert.deepEqual(body.pipeline.completedStages, ["identity"]);
 });
+
+test("CIL model inventory remains observable and read-only", async () => {
+  const result = await api.get("/api/systems/cil/model-inventory");
+  assert.equal(result.readOnly, true);
+  assert.equal(result.inventory.total_configured, 3);
+  assert.equal(result.inventory.total_available, 3);
+  assert.deepEqual(result.inventory.models.map((model) => model.provider).sort(), ["anthropic", "gemini", "openai"]);
+  const inventoryCall = stubs.calls.find((call) => call.path === "/api/capabilities/models");
+  assert.equal(inventoryCall?.method, "GET");
+  assert.equal(inventoryCall?.body, null);
+});

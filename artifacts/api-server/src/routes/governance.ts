@@ -9,6 +9,7 @@ import { Router, type IRouter } from "express";
 import { classifyAction, registerAction, requiresEvidence } from "../lib/governance-engine";
 import { routeModelRequest } from "../lib/model-router";
 import { checkConstitution } from "../lib/constitution";
+import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 import { governanceService } from "../services/internal-services";
 
 const router: IRouter = Router();
@@ -216,7 +217,10 @@ router.patch("/governance/rules/:id", async (req, res): Promise<void> => {
 router.post("/governance/requests/:id/ask-why", async (req, res): Promise<void> => {
   const [item] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, req.params.id)).limit(1);
   if (!item) { res.status(404).json({ error: "Governance item not found." }); return; }
-   const explanation = await routeModelRequest({ correlationId: randomUUID(), queryText: `Explain this governance request without approving it: ${JSON.stringify({ action: item.actionClass, risk: item.riskLevel, reason: item.reason, evidence: item.evidenceRefs, payload: item.requestPayload })}`, semanticDomain: "governance-explanation", intentType: "EXPLANATION", riskClassification: "LOW", contextItems: [], preferredTier: "auto" });
+   const queryText = `Explain this governance request without approving it: ${JSON.stringify({ action: item.actionClass, risk: item.riskLevel, reason: item.reason, evidence: item.evidenceRefs, payload: item.requestPayload })}`;
+   const pipeline = await runRequestPipeline({ text: queryText, origin: "api", actionType: "governance_explanation", engineName: "Governance Explanation", mode: "review", budgetTokens: 1200 });
+   if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
+   const explanation = await routeModelRequest({ correlationId: pipeline.correlationId, pipeline, queryText, semanticDomain: "governance-explanation", intentType: pipeline.intent.intentType, riskClassification: "LOW", contextItems: pipeline.context.items, preferredTier: "auto" });
    res.json({ explanation: explanation.answer, model: explanation.model, governanceRequestId: item.id });
 });
 

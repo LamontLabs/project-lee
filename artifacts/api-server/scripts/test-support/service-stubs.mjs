@@ -9,6 +9,18 @@ export async function startInternalServiceStubs({ cilStatus = 200 } = {}) {
     response.setHeader("content-type", "application/json");
     if (request.url === "/health") return response.end(JSON.stringify({ status: "ok" }));
     if (request.url === "/policy/current-version") return response.end(JSON.stringify({ policy_pack_version: "2026.7.1", effective_from: "2026-07-01T00:00:00Z" }));
+    if (request.url === "/api/capabilities/models") return response.end(JSON.stringify({
+      correlation_id: request.headers["x-lee-correlation-id"],
+      total_configured: 3,
+      total_enabled: 3,
+      total_available: 3,
+      total_unavailable: 0,
+      models: [
+        { model_id: "gpt-5-nano", provider: "openai", status: "available", enabled: true, route_ids: ["route-openai"] },
+        { model_id: "claude-haiku-4-5", provider: "anthropic", status: "available", enabled: true, route_ids: ["route-anthropic"] },
+        { model_id: "gemini-2.5-flash", provider: "gemini", status: "available", enabled: true, route_ids: ["route-gemini"] },
+      ],
+    }));
     if (request.url === "/v1/query" || request.url === "/query/lee") {
       if (cilStatus !== 200) {
         response.statusCode = cilStatus;

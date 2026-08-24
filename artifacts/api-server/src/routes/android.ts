@@ -2,7 +2,6 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { androidPairing, auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
-import { buildContextPacket } from "../lib/context-engine";
 import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
 import { routeModelRequest } from "../lib/model-router";
@@ -72,10 +71,11 @@ router.post("/android/ask", async (req, res): Promise<void> => {
   };
   try {
      const result = await routeModelRequest({
-       correlationId: randomUUID(),
+       correlationId: pipeline.correlationId,
+       pipeline,
        queryText: message,
        semanticDomain: "android-companion",
-       intentType: "ANDROID_ASK",
+       intentType: pipeline.intent.intentType,
        riskClassification: "LOW",
        contextItems: packet.items,
        preferredTier: "auto",

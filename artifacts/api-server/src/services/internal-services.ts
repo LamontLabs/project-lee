@@ -6,8 +6,10 @@ import { callUniversalSystem, registerUniversalSystem } from "../lib/universal-s
 
 export type ResolutionTier = "T1_TRIGRAM" | "T2_SEMANTIC" | "T3_FRONTIER";
 export type CILQueryRequest = { correlation_id: string; query_text: string; semantic_domain: string; intent: { intent_type: string; risk_classification: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; project_id?: string }; project_id?: string; context_asset_refs: string[]; freshness_requirement: "any" | "current" | "verified"; desired_format: "concise" | "detailed" | "structured" | "narrative"; reuse_permitted: boolean; frontier_escalation_permitted: boolean; cost_ceiling_usd?: number; lee_brain_version: string; source_context_checksum: string; execution_failure?: { model: string; reason: string } };
-export type CILModelRoute = { model: string; provider?: string; route_id?: string };
+export type CILModelRoute = { model: string; provider: string; route_id: string };
 export type CILQueryResponse = { correlation_id: string; resolution_tier: ResolutionTier; answer: string; cognitive_asset_id?: string; asset_version?: string; model_route?: CILModelRoute; selected_model?: string; confidence: number; cost_usd: number; latency_ms: number; semantic_domain: string; reuse_eligible: boolean; drift_detected: boolean; contradiction_detected: boolean; provenance: string[]; governance_status?: "approved" | "nominated" | "unreviewed"; freshness_state: "fresh" | "current" | "stale" | "expired"; recommend_escalation: boolean; escalation_reason?: string };
+export type CILInventoryModel = { model_id: string; provider: string; status: string; enabled: boolean; route_ids: string[] };
+export type CILModelInventory = { correlation_id: string; total_configured: number; total_enabled: number; total_available: number; total_unavailable: number; models: CILInventoryModel[] };
 export type GovernedRequest = Record<string, unknown> & { lee_request_id: string; action_class: string; target_system: string };
 export type GovernedResponse = { lee_request_id?: string; verdict: "ALLOW" | "HOLD" | "REJECT"; reason_codes: string[]; checked_invariants: unknown[]; missing_approvals?: unknown[]; remediation_requirements?: string[]; decision_id: string; decision_envelope: string; evidence_bundle_ref: string; audit_entry_ref: string; policy_version: string; timestamp: string; replay_checksum: string; authorization_expiry?: string; human_confirmation_required: boolean };
 
@@ -24,7 +26,7 @@ function ensureInternalServicesRegistered() {
         healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health",
         failurePolicy: "graceful_degradation",
         credentialEnvKey: "CIL_API_KEY",
-        capabilities: ["query"],
+        capabilities: ["query", "model_inventory"],
         requestEnvelope: "direct",
       });
     }
@@ -37,7 +39,7 @@ async function setHealth(serviceId: string, health: "healthy" | "degraded" | "un
 }
 export async function registerInternalServices() {
   const definitions = [
-    { systemId: "cil", displayName: "CIL Reasoning Runtime", category: "reasoning", baseUrl: process.env.CIL_BASE_URL ?? (process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ? new URL(process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT!).origin : undefined), healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "CIL_API_KEY", capabilities: ["query"], requestEnvelope: "direct" as const },
+    { systemId: "cil", displayName: "CIL Reasoning Runtime", category: "reasoning", baseUrl: process.env.CIL_BASE_URL ?? (process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ? new URL(process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT!).origin : undefined), healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "CIL_API_KEY", capabilities: ["query", "model_inventory"], requestEnvelope: "direct" as const },
     { systemId: "cerbaseal", displayName: "CerbaSeal Governance", category: "governance", baseUrl: process.env.CERBASEAL_BASE_URL, healthEndpoint: "/health", failurePolicy: "fail_closed" as const, credentialEnvKey: "CERBASEAL_API_KEY", capabilities: ["evaluate", "health", "policy"], requestEnvelope: "direct" as const },
     { systemId: "replit-ai-openai", displayName: "Replit AI OpenAI Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL, healthEndpoint: "/models", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_OPENAI_API_KEY", capabilities: ["chat"], requestEnvelope: "direct" as const },
     { systemId: "replit-ai-anthropic", displayName: "Replit AI Anthropic Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL, healthEndpoint: "/v1/messages", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_ANTHROPIC_API_KEY", credentialHeader: "x-api-key", capabilities: ["chat"], requestEnvelope: "direct" as const },
@@ -109,7 +111,7 @@ export const reasoningService: ReasoningService = { async query(request) {
   try {
     const path = endpoint ? new URL(endpoint).pathname : "/query/lee";
     const result = (await callUniversalSystem("cil", path, request, request.correlation_id)).result as Record<string, any>;
-    if (!result || result.correlation_id !== request.correlation_id || !["T1_TRIGRAM", "T2_SEMANTIC", "T3_FRONTIER"].includes(result.resolution_tier) || typeof result.answer !== "string" || typeof result.confidence !== "number" || result.confidence < 0 || result.confidence > 1 || typeof result.cost_usd !== "number" || result.cost_usd < 0 || typeof result.latency_ms !== "number" || result.latency_ms < 0 || result.semantic_domain !== request.semantic_domain || typeof result.reuse_eligible !== "boolean" || typeof result.drift_detected !== "boolean" || typeof result.contradiction_detected !== "boolean" || !Array.isArray(result.provenance) || !["fresh", "current", "stale", "expired"].includes(result.freshness_state) || typeof result.recommend_escalation !== "boolean" || (result.resolution_tier === "T3_FRONTIER" && typeof result.model_route?.model !== "string" && typeof result.selected_model !== "string")) throw new Error("Invalid CIL response schema or correlation");
+    if (!result || result.correlation_id !== request.correlation_id || !["T1_TRIGRAM", "T2_SEMANTIC", "T3_FRONTIER"].includes(result.resolution_tier) || typeof result.answer !== "string" || typeof result.confidence !== "number" || result.confidence < 0 || result.confidence > 1 || typeof result.cost_usd !== "number" || result.cost_usd < 0 || typeof result.latency_ms !== "number" || result.latency_ms < 0 || result.semantic_domain !== request.semantic_domain || typeof result.reuse_eligible !== "boolean" || typeof result.drift_detected !== "boolean" || typeof result.contradiction_detected !== "boolean" || !Array.isArray(result.provenance) || !["fresh", "current", "stale", "expired"].includes(result.freshness_state) || typeof result.recommend_escalation !== "boolean" || (result.resolution_tier === "T3_FRONTIER" && (typeof result.model_route?.model !== "string" || typeof result.model_route?.provider !== "string" || typeof result.model_route?.route_id !== "string"))) throw new Error("Invalid CIL response schema or correlation");
     const response = result as CILQueryResponse;
     await setHealth("cil", "healthy", { lastTier: response.resolution_tier, lastCostUsd: response.cost_usd, lastLatencyMs: response.latency_ms, lastConfidence: response.confidence, lastProvenance: response.provenance, lastCognitiveAssetId: response.cognitive_asset_id, driftDetected: response.drift_detected, contradictionDetected: response.contradiction_detected });
     await emitEvent({ eventType: "CILQueryResolved", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, resolutionTier: response.resolution_tier, confidence: response.confidence, costUsd: response.cost_usd, latencyMs: response.latency_ms, provenance: response.provenance, cognitiveAssetId: response.cognitive_asset_id, assetVersion: response.asset_version } });
@@ -120,6 +122,28 @@ export const reasoningService: ReasoningService = { async query(request) {
     return response;
   } catch (error) { await setHealth("cil", "degraded", { lastError: String(error), lastLatencyMs: Date.now() - started }); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: String(error), fallbackUsed: true } }); throw error; }
 } };
+export async function getCILModelInventory(correlationId = randomUUID()): Promise<CILModelInventory> {
+  await ensureInternalServicesRegistered();
+  await emitEvent({ eventType: "CILModelInventoryRequested", aggregateType: "cil_service", aggregateId: correlationId, correlationId, payload: { correlationId } });
+  try {
+    const raw = (await callUniversalSystem("cil", "/api/capabilities/models", {}, correlationId, { method: "GET" })).result as Record<string, any>;
+    const models = Array.isArray(raw?.models) ? raw.models : [];
+    const inventory: CILModelInventory = {
+      correlation_id: String(raw?.correlation_id ?? ""),
+      total_configured: Number(raw?.total_configured),
+      total_enabled: Number(raw?.total_enabled),
+      total_available: Number(raw?.total_available),
+      total_unavailable: Number(raw?.total_unavailable),
+      models: models.map((model: any) => ({ model_id: String(model?.model_id ?? ""), provider: String(model?.provider ?? ""), status: String(model?.status ?? ""), enabled: Boolean(model?.enabled), route_ids: Array.isArray(model?.route_ids) ? model.route_ids.map(String) : [] })),
+    };
+    if (inventory.correlation_id !== correlationId || !Number.isInteger(inventory.total_configured) || !Number.isInteger(inventory.total_enabled) || !Number.isInteger(inventory.total_available) || !Number.isInteger(inventory.total_unavailable) || inventory.models.some((model) => !model.model_id || !model.provider || !model.status)) throw new Error("Invalid CIL model inventory schema or correlation");
+    await emitEvent({ eventType: "CILModelInventoryResolved", aggregateType: "cil_service", aggregateId: correlationId, correlationId, payload: { correlationId, totalConfigured: inventory.total_configured, totalEnabled: inventory.total_enabled, totalAvailable: inventory.total_available, totalUnavailable: inventory.total_unavailable, providers: [...new Set(inventory.models.map((model) => model.provider))] } });
+    return inventory;
+  } catch (error) {
+    await emitEvent({ eventType: "CILModelInventoryUnavailable", aggregateType: "cil_service", aggregateId: correlationId, correlationId, payload: { correlationId, errorSummary: String(error) } });
+    throw error;
+  }
+}
 export interface GovernanceService { evaluate(request: GovernedRequest): Promise<GovernedResponse>; }
 export const governanceService: GovernanceService = { async evaluate(request) {
    await ensureInternalServicesRegistered();

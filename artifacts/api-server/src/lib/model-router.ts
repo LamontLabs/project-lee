@@ -1,14 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { SelectedContext } from "./context-economy";
 import { checkPolicy } from "./policy";
-import { reasoningService, type CILQueryRequest, type CILQueryResponse } from "../services/internal-services";
-import { callProvider } from "./ai-providers";
+import { reasoningService, type CILModelRoute, type CILQueryRequest, type CILQueryResponse } from "../services/internal-services";
+import { callProvider, type CILSelectedModelRoute } from "./ai-providers";
+import type { RequestPipelineSuccess } from "./request-pipeline";
 
 type RiskClassification = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type PreferredTier = "auto" | "T1" | "T2" | "T3";
 
 type RouteInput = {
   correlationId: string;
+  pipeline: Pick<RequestPipelineSuccess, "correlationId" | "stages">;
   queryText: string;
   semanticDomain: string;
   intentType: string;
@@ -17,10 +19,11 @@ type RouteInput = {
   preferredTier: PreferredTier;
   costCeilingUsd?: number;
 };
+type CILConsultInput = Omit<RouteInput, "pipeline">;
 
 type ExecutionFailure = { model: string; reason: string };
 
-function buildCILRequest(input: RouteInput, executionFailure?: ExecutionFailure, correlationId = input.correlationId) {
+function buildCILRequest(input: CILConsultInput, executionFailure?: ExecutionFailure, correlationId = input.correlationId) {
   const context = input.contextItems.map((item) => item.id);
   const body = {
     correlation_id: correlationId,
@@ -47,11 +50,20 @@ function tierFor(response: CILQueryResponse): "T1" | "T2" | "T3" {
   return response.resolution_tier === "T1_TRIGRAM" ? "T1" : response.resolution_tier === "T2_SEMANTIC" ? "T2" : "T3";
 }
 
-function selectedModel(response: CILQueryResponse) {
-  return response.model_route?.model ?? response.selected_model ?? null;
+function selectedRoute(response: CILQueryResponse): CILSelectedModelRoute | null {
+  const route: CILModelRoute | undefined = response.model_route;
+  if (!route?.model || !route.provider || !route.route_id) return null;
+  return { model: route.model, provider: route.provider, routeId: route.route_id };
 }
 
-export async function consultCILRoute(input: RouteInput, executionFailure?: ExecutionFailure) {
+function requireCompletedPipeline(input: RouteInput) {
+  const requiredStages = ["identity", "constitution", "intent", "context"];
+  if (input.pipeline.correlationId !== input.correlationId || !requiredStages.every((stage) => input.pipeline.stages.includes(stage as RequestPipelineSuccess["stages"][number]))) {
+    throw new Error("REQUEST_PIPELINE_REQUIRED");
+  }
+}
+
+export async function consultCILRoute(input: CILConsultInput, executionFailure?: ExecutionFailure) {
   const correlationId = executionFailure ? `${input.correlationId}:reroute:${randomUUID()}` : input.correlationId;
   return reasoningService.query(buildCILRequest(input, executionFailure, correlationId));
 }
@@ -59,20 +71,23 @@ export async function consultCILRoute(input: RouteInput, executionFailure?: Exec
 async function executeCILRoute(input: RouteInput, cil: CILQueryResponse) {
   const tier = tierFor(cil);
   if (tier !== "T3") {
-    return { tier, model: "CIL", answer: cil.answer, estimatedCostUsd: cil.cost_usd, promptTokens: 0, completionTokens: 0, totalTokens: 0, cilEvidence: cil };
+    return { tier, model: "CIL", provider: "cil", routeId: null, answer: cil.answer, estimatedCostUsd: cil.cost_usd, costEstimateSource: "cil_resolution" as const, promptTokens: 0, completionTokens: 0, totalTokens: 0, cilEvidence: cil };
   }
-  const model = selectedModel(cil);
-  if (!model) throw new Error("CIL returned T3 without an executable model route.");
+  const route = selectedRoute(cil);
+  if (!route) throw new Error("CIL returned T3 without an executable provider/model/route.");
   const contextText = input.contextItems.map((item) => `[${item.kind}:${item.id}] ${item.text}`).join("\n");
-  const response = await callProvider(model, [
+  const response = await callProvider(route, [
     { role: "system", content: "You are Lee, a private founder operating intelligence. Separate observations from conclusions, name uncertainty plainly, and do not invent evidence. Answer the request directly." },
     { role: "user", content: `Domain: ${input.semanticDomain}\nIntent: ${input.intentType}\nRisk: ${input.riskClassification}\n\nContext packet:\n${contextText || "(No context selected)"}\n\nRequest:\n${input.queryText}` },
-  ]);
+  ], input.correlationId);
   return {
     tier,
     model: response.model,
+    provider: response.provider,
+    routeId: response.routeId,
     answer: response.text,
-    estimatedCostUsd: (response.tokensIn * 0.0000002) + (response.tokensOut * 0.000001),
+    estimatedCostUsd: response.estimatedCostUsd ?? cil.cost_usd,
+    costEstimateSource: response.estimatedCostUsd === null ? "cil_route_estimate" as const : "provider_catalog_estimate" as const,
     promptTokens: response.tokensIn,
     completionTokens: response.tokensOut,
     totalTokens: response.tokensIn + response.tokensOut,
@@ -83,8 +98,11 @@ async function executeCILRoute(input: RouteInput, cil: CILQueryResponse) {
 export async function routeModelRequest(input: RouteInput, preconsultedCIL?: CILQueryResponse): Promise<{
   tier: "T1" | "T2" | "T3";
   model: string;
+  provider: string;
+  routeId: string | null;
   answer: string;
   estimatedCostUsd: number;
+  costEstimateSource: "cil_resolution" | "cil_route_estimate" | "provider_catalog_estimate";
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
@@ -92,6 +110,7 @@ export async function routeModelRequest(input: RouteInput, preconsultedCIL?: CIL
   fallbackUsed?: boolean;
   fallbackReason?: string;
 }> {
+  requireCompletedPipeline(input);
   const costPolicy = await checkPolicy("cost", "model_call", { estimatedCostUsd: input.costCeilingUsd ?? 0, tier: input.preferredTier }, "Model Router");
   if (!costPolicy.permitted) throw new Error(`Model call blocked by Cost Policy: ${costPolicy.constraints.join(" ")}`);
   let cil: CILQueryResponse;
@@ -100,13 +119,15 @@ export async function routeModelRequest(input: RouteInput, preconsultedCIL?: CIL
   } catch (error) {
     throw new Error(`CIL_UNAVAILABLE: ${error instanceof Error ? error.message : String(error)}`);
   }
+  if (cil.correlation_id !== input.correlationId) throw new Error("CIL_CORRELATION_MISMATCH");
   try {
     return await executeCILRoute(input, cil);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     if (tierFor(cil) !== "T3") throw error;
     try {
-      const rerouted = await consultCILRoute(input, { model: selectedModel(cil) ?? "unknown", reason });
+      const rerouted = await consultCILRoute(input, { model: selectedRoute(cil)?.model ?? "unknown", reason });
+      if (rerouted.correlation_id === input.correlationId) throw new Error("CIL_REROUTE_CORRELATION_REUSED");
       const result = await executeCILRoute(input, rerouted);
       return { ...result, fallbackUsed: true, fallbackReason: "CIL rerouted after model execution failure." };
     } catch (rerouteError) {

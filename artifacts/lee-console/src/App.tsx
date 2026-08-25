@@ -158,7 +158,7 @@ const HEALTH: HealthItem[] = [
   { name: 'Foundation API', status: 'operational', detail: 'Read/write surface responding within expected bounds.', lastChecked: '18 sec ago' },
   { name: 'Knowledge index', status: 'operational', detail: '5,812 items indexed · provenance links intact.', lastChecked: '42 sec ago' },
   { name: 'GitHub connector', status: 'degraded', detail: 'Webhook delivery delayed. Last successful pull was 19 minutes ago.', lastChecked: '19 min ago' },
-  { name: 'Local session', status: 'operational', detail: 'Encrypted private session · founder access only.', lastChecked: 'now' },
+  { name: 'Local session', status: 'operational', detail: 'Encrypted private session · owner access only.', lastChecked: 'now' },
 ];
 
 const primaryNavigation = [
@@ -277,7 +277,7 @@ function ConsoleStatusBar() {
   }, []);
   const stateTone = ['Offline', 'Recovering', 'Degraded'].includes(data.state) ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary';
   const contractLabel = data.contractState === 'available' ? 'Contract live' : data.contractState === 'degraded' ? 'Contract degraded' : data.contractState === 'offline' ? 'Contract cached' : 'Contract unavailable';
-  return <div className="hidden items-center gap-2 xl:flex"><span title={data.error || `System contract ${data.contractVersion}`} className={cn('rounded-full border px-2.5 py-1 text-[10px]', data.error || data.contractState !== 'available' ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary')}>{data.error ? 'Health degraded' : contractLabel}</span><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Loop {data.loopPhase} · {data.loopCycle}</span><span title={data.stateReason} className={cn('rounded-full border px-2.5 py-1 text-[10px]', stateTone, ['Thinking', 'Recovering'].includes(data.state) && 'animate-pulse')}>Lee {data.state}</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
+  return <div className="hidden items-center gap-2 xl:flex"><span title={data.error || `System contract ${data.contractVersion}`} className={cn('rounded-full border px-2.5 py-1 text-[10px]', data.error || data.contractState !== 'available' ? 'border-accent/40 bg-accent/15 text-accent-foreground' : 'border-primary/20 bg-primary/10 text-primary')}>{data.error ? 'Health degraded' : contractLabel}</span><span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">Loop {data.loopPhase} · {data.loopCycle}</span><span title={data.stateReason} className={cn('rounded-full border px-2.5 py-1 text-[10px]', stateTone, ['Thinking', 'Recovering'].includes(data.state) && 'animate-pulse')}>LEE {data.state}</span><span className="lee-label text-muted-foreground">Cost {data.cost}</span><span className="lee-label text-muted-foreground">Approvals {data.approvals}</span><span className="lee-label text-muted-foreground">Notifications {data.notifications}</span><span className="lee-label text-muted-foreground">Backup {data.backup}</span><Link href="/workspace" className="lee-label rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">Mode {data.mode.replaceAll('_', ' ')}</Link></div>;
 }
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {
@@ -305,24 +305,25 @@ function SkeletonRows({ count = 3 }: { count?: number }) {
 function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () => void; onLock: () => void }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask Lee', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
   const pageTitle = pageTitles[location] ?? 'Console';
+  const moreIsActive = moreNavigation.some((item) => item.href === location);
+  useEffect(() => { if (moreIsActive) setMoreOpen(true); }, [moreIsActive]);
   return (
     <div className="lee-noise min-h-[100dvh] bg-background text-foreground">
-      <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground transition-transform duration-300 md:translate-x-0', mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
+      <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[min(86vw,248px)] flex-col border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground transition-transform duration-300 md:translate-x-0', mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex items-center justify-between px-3">
           <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3" data-testid="link-brand">
             <span className="grid h-9 w-9 place-items-center rounded-xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><BrainCircuit size={19} /></span>
-            <span><span className="block text-[15px] font-semibold tracking-tight">Lee Console</span><span className="lee-label text-sidebar-foreground/45">Project LEE</span></span>
+            <span><span className="block text-[15px] font-semibold tracking-tight">LEE Console</span><span className="lee-label text-sidebar-foreground/45">Private workspace</span></span>
           </Link>
           <button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden" data-testid="button-close-menu"><PanelLeftClose size={17} /></button>
         </div>
-        <div className="mt-9 px-3"><p className="lee-label text-sidebar-foreground/40">Operator view</p></div>
-        <nav className="mt-3 space-y-4 overflow-y-auto pr-1" aria-label="Main navigation">
-          {navigationGroups.map((group) => <div key={group.label}>
-            {group.label !== 'Primary' && <p className="lee-label mb-1 px-3 pt-2 text-sidebar-foreground/35">{group.label}</p>}
-            {group.items.map((item) => {
+        <div className="mt-9 px-3"><p className="lee-label text-sidebar-foreground/40">Your workspace</p></div>
+        <nav className="mt-3 flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Main navigation">
+          {primaryNavigation.map((item) => {
             const Icon = item.icon;
             const active = location === item.href;
             return <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} data-testid={`link-nav-${item.label.toLowerCase().replace(/\s/g, '-')}`} className={cn('group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/62 hover:bg-sidebar-accent hover:text-sidebar-foreground', active && 'bg-sidebar-accent text-sidebar-foreground shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]')}>
@@ -330,27 +331,50 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
               <span>{item.label}</span>
               {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary" />}
             </Link>;
+          })}
+          <p className="lee-label px-3 pb-1 pt-6 text-sidebar-foreground/35">Systems</p>
+          {systemNavigation.map((item) => {
+            const Icon = item.icon;
+            const active = location === item.href;
+            return <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} data-testid={`link-nav-${item.label.toLowerCase().replace(/\s/g, '-')}`} className={cn('group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/62 hover:bg-sidebar-accent hover:text-sidebar-foreground', active && 'bg-sidebar-accent text-sidebar-foreground shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]')}>
+              <Icon size={17} className={cn(active ? 'text-sidebar-primary' : 'text-sidebar-foreground/45 group-hover:text-sidebar-primary')} />
+              <span>{item.label}</span>
+              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary" />}
+            </Link>;
+          })}
+          <button type="button" onClick={() => setMoreOpen((open) => !open)} className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/62 hover:bg-sidebar-accent hover:text-sidebar-foreground" aria-expanded={moreOpen} data-testid="button-toggle-more-navigation">
+            <ListChecks size={17} className="text-sidebar-foreground/45" /><span>More</span><ChevronDown size={15} className={cn('ml-auto transition-transform', moreOpen && 'rotate-180')} />
+          </button>
+          {moreOpen && <div className="mt-1 space-y-1 border-l border-sidebar-border pl-2" data-testid="navigation-more">
+            {moreNavigation.map((item) => {
+              const Icon = item.icon;
+              const active = location === item.href;
+              return <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} data-testid={`link-nav-${item.label.toLowerCase().replace(/\s/g, '-')}`} className={cn('group flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-sidebar-foreground/62 hover:bg-sidebar-accent hover:text-sidebar-foreground', active && 'bg-sidebar-accent text-sidebar-foreground shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]')}>
+                <Icon size={16} className={cn(active ? 'text-sidebar-primary' : 'text-sidebar-foreground/45 group-hover:text-sidebar-primary')} />
+                <span>{item.label}</span>
+                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-sidebar-primary" />}
+              </Link>;
             })}
-          </div>)}
+          </div>}
         </nav>
         <div className="mt-auto">
           <button onClick={onAsk} className="group mb-4 flex w-full items-center gap-3 rounded-xl border border-sidebar-primary/30 bg-sidebar-primary/10 px-3 py-3 text-left hover:bg-sidebar-primary/20" data-testid="button-ask-lee-sidebar">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"><MessageSquareText size={16} /></span>
-            <span><span className="block text-sm font-medium">Ask Lee</span><span className="text-[11px] text-sidebar-foreground/50">Private reasoning surface</span></span>
+            <span><span className="block text-sm font-medium">Ask LEE</span><span className="text-[11px] text-sidebar-foreground/50">Ask the system</span></span>
             <ArrowUpRight size={14} className="ml-auto text-sidebar-primary transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </button>
           <Link href="/settings" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-sidebar-foreground/62 hover:bg-sidebar-accent hover:text-sidebar-foreground" data-testid="link-nav-settings">
             <Settings2 size={17} className="text-sidebar-foreground/45" /><span>Settings</span>
           </Link>
           <div className="mt-4 flex items-center gap-2 border-t border-sidebar-border px-3 pt-4">
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-sidebar-primary/20 text-xs font-bold text-sidebar-primary">LM</span>
-            <div className="min-w-0"><p className="truncate text-xs font-medium">Lee Morgan</p><p className="truncate text-[10px] text-sidebar-foreground/40">Owner · private</p></div>
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-sidebar-primary/20 text-[9px] font-bold text-sidebar-primary">YOU</span>
+            <div className="min-w-0"><p className="truncate text-xs font-medium">Workspace owner</p><p className="truncate text-[10px] text-sidebar-foreground/40">Private access</p></div>
             <LockKeyhole size={13} className="ml-auto text-sidebar-primary/70" />
           </div>
         </div>
       </aside>
       {mobileOpen && <button aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-30 bg-sidebar/40 backdrop-blur-sm md:hidden" data-testid="button-close-menu-overlay" />}
-      <div className="min-h-[100dvh] md:pl-[248px]">
+      <div className="min-h-[100dvh] overflow-x-hidden md:pl-[248px]">
         <header className="sticky top-0 z-20 flex h-[68px] items-center justify-between border-b border-border/70 bg-background/85 px-5 backdrop-blur-xl md:px-9">
           <div className="flex items-center gap-3">
             <button onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-muted-foreground hover:bg-muted md:hidden" data-testid="button-open-menu"><Menu size={19} /></button>
@@ -359,10 +383,10 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
           <div className="flex items-center gap-2">
             <ConsoleStatusBar />
             <button onClick={() => setAccessOpen(true)} className="hidden items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 sm:flex" data-testid="button-private-access"><ShieldCheck size={14} /> Private access <ChevronDown size={13} /></button>
-            <button onClick={onAsk} className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary" aria-label="Ask Lee" data-testid="button-ask-lee-header"><Command size={16} /></button>
+            <button onClick={onAsk} className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary" aria-label="Ask LEE" data-testid="button-ask-lee-header"><Command size={16} /></button>
           </div>
         </header>
-        <main className="lee-shell-grid min-h-[calc(100dvh-68px)] px-5 py-7 md:px-9 md:py-9"><RecoveryModeBanner />{children}</main>
+        <main className="lee-shell-grid min-h-[calc(100dvh-68px)] px-4 py-6 sm:px-5 md:px-9 md:py-9"><RecoveryModeBanner />{children}</main>
       </div>
       {accessOpen && <PrivateAccessDialog onClose={() => setAccessOpen(false)} onLock={onLock} />}
     </div>
@@ -374,8 +398,8 @@ function PrivateAccessDialog({ onClose, onLock }: { onClose: () => void; onLock:
     <div className="w-full max-w-md rounded-2xl border border-card-border bg-card p-6 shadow-2xl lee-enter" data-testid="dialog-private-access">
       <div className="flex items-start justify-between"><div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><LockKeyhole size={19} /></div><button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" aria-label="Close private access" data-testid="button-close-private-access"><X size={17} /></button></div>
       <p className="lee-label mt-6 text-primary">Access boundary</p><h2 className="mt-2 text-xl font-semibold">This console is private by design.</h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Only the founder session can inspect or change Project LEE state. No shared workspace, team role, or public link is active.</p>
-      <div className="mt-5 rounded-xl border border-border bg-muted/50 p-3.5"><div className="flex items-center gap-3"><CircleCheck className="text-primary" size={17} /><div><p className="text-sm font-medium">Founder session verified</p><p className="text-xs text-muted-foreground">Local session · last verified just now</p></div></div></div>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Only the workspace owner can inspect or change Project LEE state. No shared workspace, team role, or public link is active.</p>
+      <div className="mt-5 rounded-xl border border-border bg-muted/50 p-3.5"><div className="flex items-center gap-3"><CircleCheck className="text-primary" size={17} /><div><p className="text-sm font-medium">Owner session verified</p><p className="text-xs text-muted-foreground">Private session · verified just now</p></div></div></div>
       <div className="mt-6 flex gap-2"><button onClick={onClose} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90" data-testid="button-continue-private">Continue privately</button><button onClick={() => { onLock(); onClose(); }} className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted" data-testid="button-lock-console">Lock console</button></div>
     </div>
   </div>;
@@ -421,7 +445,7 @@ function HomePage({ onAsk }: { onAsk: () => void }) {
         <SectionHeading eyebrow="Focus vector" title="Objectives in motion" detail="The few outcomes that currently shape the day." action={<Link href="/objectives" className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:gap-2.5" data-testid="link-view-objectives">View all <ArrowUpRight size={14} /></Link>} />
          <div className="space-y-2.5">{activeObjectives.length ? activeObjectives.map((objective) => { const critical = objective.metadata?.priorityLabel === 'CRITICAL' || objective.priority === 'critical'; const health = objective.healthStatus?.toLowerCase() ?? objective.status; return <Link href="/objectives" key={objective.id} className="group flex items-center gap-4 rounded-xl border border-transparent bg-muted/55 px-4 py-3.5 hover:border-primary/20 hover:bg-primary/5" data-testid={`card-home-objective-${objective.id}`}><span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold', critical ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground')}>{critical ? '01' : objective.id.slice(-2)}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-semibold">{objective.title}</p><StatusPill status={health} /></div><p className="mt-1 truncate text-xs text-muted-foreground">{objective.purpose ?? objective.description}</p></div><div className="hidden text-right sm:block"><p className="lee-label text-muted-foreground">Confidence</p><p className="mt-1 text-sm font-semibold">{Math.round(objective.confidence * 100)}%</p></div><ArrowUpRight size={16} className="text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" /></Link>; }) : <EmptyState title="No active objectives" detail="Create an Executive Objective to orient the day." />}</div>
       </Panel>
-      <Panel className="lee-enter lee-enter-delay-2 relative overflow-hidden border-primary/20 bg-primary/[0.06]"><div className="absolute -right-12 -top-16 h-40 w-40 rounded-full border border-primary/15" /><div className="absolute -right-3 -top-7 h-24 w-24 rounded-full border border-primary/15" /><div className="relative"><div className="flex items-center justify-between"><span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Sparkles size={17} /></span><span className="lee-label text-primary">Lee / ready</span></div><h3 className="mt-9 text-2xl font-semibold tracking-tight">Ask the system<br />what it sees.</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Bring a decision, a loose thread, or a question. The answer stays inside this private session.</p><button onClick={onAsk} className="mt-7 flex w-full items-center justify-between rounded-xl bg-foreground px-4 py-3 text-sm font-semibold text-background hover:-translate-y-0.5" data-testid="button-ask-lee-home"><span>Open Ask Lee</span><ArrowUpRight size={16} /></button></div></Panel>
+      <Panel className="lee-enter lee-enter-delay-2 relative overflow-hidden border-primary/20 bg-primary/[0.06]"><div className="absolute -right-12 -top-16 h-40 w-40 rounded-full border border-primary/15" /><div className="absolute -right-3 -top-7 h-24 w-24 rounded-full border border-primary/15" /><div className="relative"><div className="flex items-center justify-between"><span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Sparkles size={17} /></span><span className="lee-label text-primary">LEE / ready</span></div><h3 className="mt-9 text-2xl font-semibold tracking-tight">Ask the system<br />what it sees.</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Bring a decision, a loose thread, or a question. The answer stays inside this private session.</p><button onClick={onAsk} className="mt-7 flex w-full items-center justify-between rounded-xl bg-foreground px-4 py-3 text-sm font-semibold text-background hover:-translate-y-0.5" data-testid="button-ask-lee-home"><span>Open Ask LEE</span><ArrowUpRight size={16} /></button></div></Panel>
      </div>
      <div className="mt-5"><TimeSignals /></div>
      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
@@ -1090,7 +1114,7 @@ function AskDialog({ onClose }: { onClose: () => void }) {
   const [question, setQuestion] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const submit = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); if (question.trim()) setSubmitted(true); };
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/30 p-5 backdrop-blur-sm"><div className="w-full max-w-xl rounded-2xl border border-card-border bg-card p-6 shadow-2xl lee-enter" role="dialog" aria-modal="true" data-testid="dialog-ask-lee"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><BrainCircuit size={19} /></span><div><p className="lee-label text-primary">Private reasoning surface</p><h2 className="mt-1 text-xl font-semibold">Ask Lee</h2></div></div><button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" data-testid="button-close-ask-lee"><X size={17} /></button></div>{submitted ? <div className="mt-7 rounded-xl border border-primary/25 bg-primary/10 p-5"><div className="flex items-center gap-2 text-primary"><CircleCheck size={17} /><p className="text-sm font-semibold">Question held for the private session.</p></div><p className="mt-2 text-sm leading-relaxed text-muted-foreground">LEE will ground the response in current objectives, evidence, and system state. This first pass keeps the interaction local.</p><button onClick={() => { setSubmitted(false); setQuestion(''); }} className="mt-4 text-xs font-semibold text-primary hover:underline" data-testid="button-ask-another">Ask another question</button></div> : <form onSubmit={submit}><p className="mt-6 text-sm leading-relaxed text-muted-foreground">What deserves a sharper read right now?</p><textarea autoFocus value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about an objective, a signal, or a decision..." className="mt-4 min-h-32 w-full resize-none rounded-xl border border-input bg-background p-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground focus:border-primary" data-testid="textarea-ask-lee" /><div className="mt-4 flex items-center justify-between"><span className="lee-label text-muted-foreground">Private · founder context only</span><button type="submit" disabled={!question.trim()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-submit-ask-lee">Send to Lee <ArrowUpRight size={14} /></button></div></form>}</div></div>;
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/30 p-5 backdrop-blur-sm"><div className="w-full max-w-xl rounded-2xl border border-card-border bg-card p-6 shadow-2xl lee-enter" role="dialog" aria-modal="true" data-testid="dialog-ask-lee"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><BrainCircuit size={19} /></span><div><p className="lee-label text-primary">Private reasoning surface</p><h2 className="mt-1 text-xl font-semibold">Ask LEE</h2></div></div><button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted" data-testid="button-close-ask-lee"><X size={17} /></button></div>{submitted ? <div className="mt-7 rounded-xl border border-primary/25 bg-primary/10 p-5"><div className="flex items-center gap-2 text-primary"><CircleCheck size={17} /><p className="text-sm font-semibold">Question held for the private session.</p></div><p className="mt-2 text-sm leading-relaxed text-muted-foreground">LEE will ground the response in current objectives, evidence, and system state. This first pass keeps the interaction local.</p><button onClick={() => { setSubmitted(false); setQuestion(''); }} className="mt-4 text-xs font-semibold text-primary hover:underline" data-testid="button-ask-another">Ask another question</button></div> : <form onSubmit={submit}><p className="mt-6 text-sm leading-relaxed text-muted-foreground">What deserves a sharper read right now?</p><textarea autoFocus value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about an objective, a signal, or a decision..." className="mt-4 min-h-32 w-full resize-none rounded-xl border border-input bg-background p-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground focus:border-primary" data-testid="textarea-ask-lee" /><div className="mt-4 flex items-center justify-between"><span className="lee-label text-muted-foreground">Private · founder context only</span><button type="submit" disabled={!question.trim()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-submit-ask-lee">Ask LEE <ArrowUpRight size={14} /></button></div></form>}</div></div>;
 }
 
 function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
@@ -1123,7 +1147,7 @@ function LiveCollectionPage({ eyebrow, title, detail, endpoint, emptyTitle, empt
   return <div className="mx-auto max-w-[1280px]"><SectionHeading eyebrow={eyebrow} title={title} detail={detail} /><Panel>{error && <div className="mb-5 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-muted-foreground">{error}</div>}{items === null ? <SkeletonRows /> : items.length ? <div className="grid gap-3 md:grid-cols-2">{items.map((item, index) => <div key={item.id ?? index} className="rounded-xl border border-border bg-muted/40 p-4"><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon size={16} /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.name ?? item.title ?? item.subject ?? item.originalFilename ?? item.eventType ?? `Record ${index + 1}`}</p><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description ?? item.body ?? item.status ?? item.sourceRef ?? 'Live record from the Lee API.'}</p>{item.createdBy && <p className="mt-2 text-[11px] text-muted-foreground">{item.createdBy === 'owner' ? 'Owner-created' : `Created by ${item.createdBy}`} · {item.verifiedBy ? `Verified by ${item.verifiedBy}` : <span className={item.generatedBy ? 'text-accent-foreground' : ''}>{item.generatedBy ? 'Unverified' : 'Never verified'}</span>}</p>}</div><div className="flex flex-col items-end gap-2"><span className="lee-label text-muted-foreground">{item.status ?? 'live'}</span>{item.id && item.createdBy && !item.verifiedBy && <button onClick={async () => { await fetch(`/api/ownership/${title === 'People' ? 'person' : title === 'Evidence' ? 'fact' : 'object'}/${item.id}/verify`, { method: 'POST' }); setItems((current) => current?.map((row) => row.id === item.id ? { ...row, verifiedBy: 'owner', verifiedAt: new Date().toISOString() } : row) ?? null); }} className="text-[10px] font-semibold text-primary hover:underline">Mark verified</button>}</div></div></div>)}</div> : <EmptyState title={emptyTitle} detail={emptyDetail} />}</Panel></div>;
 }
 
-function AskPage() {
+function LegacyAskPage() {
   const [message, setMessage] = useState('');
   const [mode, setMode] = useState('normal');
   const [notice, setNotice] = useState('');
@@ -1153,6 +1177,60 @@ function AskPage() {
   const intent = packet?.intent;
   const correctIntent = async (intentType: string) => { if (!intent?.id) return; const response = await fetch(`/api/intents/${intent.id}/correct`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intentType }) }); if (response.ok) { const corrected = await response.json(); setPacket((current: any) => ({ ...current, intent: corrected })); setNotice('Intent corrected and sent to Learning.'); } };
   return <div className="mx-auto grid w-full max-w-[1280px] gap-5 xl:grid-cols-[1fr_360px]"><div><SectionHeading eyebrow="Private reasoning surface" title="Ask Lee" detail="Prepare a bounded context packet first. Review the route and estimated cost before Lee executes." /><Panel><div className="min-h-64 rounded-xl border border-dashed border-border bg-muted/30 p-5">{answer ? <div><p className="lee-label text-primary">Lee’s response</p><p className="mt-4 whitespace-pre-wrap text-sm leading-7">{answer}</p>{packet?.packet?.items?.length > 0 && <p className="mt-5 text-xs text-muted-foreground">Grounded in {packet.packet.items.length} evidence items.</p>}</div> : <EmptyState title="No response in this session" detail="Your questions and answers remain inside the private founder session." />}</div><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What should Lee help you see?" className="mt-4 min-h-28 w-full resize-none rounded-xl border border-input bg-background p-4 text-sm outline-none focus:border-primary" /><div className="mt-3 flex flex-wrap items-center gap-2"><select value={mode} onChange={(event) => { setMode(event.target.value); setPacket(null); }} className="h-10 rounded-xl border border-input bg-background px-3 text-sm">{['normal','deep_think','build','write','review','pilot','low_cost','private','no_model','governed_action'].map((item) => <option key={item} value={item}>{modeLabel(item)}</option>)}</select><button onClick={() => void prepare()} disabled={busy} className="ml-auto rounded-xl border border-primary/30 px-4 py-2.5 text-xs font-semibold text-primary disabled:opacity-50">{busy ? 'Working…' : 'Prepare context'}</button><button onClick={() => void run()} disabled={busy || !packet} className="rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">Run Lee</button></div>{notice && <p className="mt-3 text-sm text-primary">{notice}</p>}</Panel></div><div className="space-y-5"><Panel><p className="lee-label text-primary">Intent confirmation</p><h3 className="mt-2 text-lg font-semibold">{intent ? `Understood as: ${modeLabel(intent.intentType)}` : 'Awaiting a question'}</h3>{intent && <><p className="mt-2 text-xs text-muted-foreground">{Math.round(intent.confidence * 100)}% confidence · {intent.retrievalMode} retrieval · {intent.audienceProfile} audience</p><select value={intent.intentType} onChange={(event) => void correctIntent(event.target.value)} className="mt-4 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"><option value={intent.intentType}>{modeLabel(intent.intentType)}</option>{['question_factual','question_exploratory','explanation_seeking','recommendation_request','review_request','status_check','capture_input'].filter((item) => item !== intent.intentType).map((item) => <option key={item} value={item}>{modeLabel(item)}</option>)}</select></>}</Panel><Panel><p className="lee-label text-primary">Context packet preview</p><h3 className="mt-2 text-lg font-semibold">{packet ? 'Ready for your decision' : 'Awaiting a question'}</h3><div className="mt-5 space-y-3 text-sm text-muted-foreground"><div className="flex justify-between"><span>Mode</span><span className="font-medium text-foreground">{modeLabel(mode)}</span></div><div className="flex justify-between"><span>Route</span><span className="font-medium text-foreground">{packet?.route?.replace('_', ' ') ?? 'Not selected'}</span></div><div className="flex justify-between"><span>Model</span><span className="font-medium text-foreground">{packet?.selectedModel ?? 'Not selected'}</span></div><div className="flex justify-between"><span>Estimated cost</span><span className="font-medium text-foreground">{packet ? `$${Number(packet.estimatedCostUsd).toFixed(4)}` : 'Calculated on prepare'}</span></div><div className="flex justify-between"><span>Context</span><span className="font-medium text-foreground">{packet ? `${packet.packet.tokens} tokens · ${packet.packet.items.length} items` : 'Not assembled'}</span></div></div>{packet?.packet?.excludedRefs?.length > 0 && <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{packet.packet.excludedRefs.length} stale or lower-relevance items excluded from this packet.</p>}</Panel><Panel><p className="lee-label text-muted-foreground">Actions</p><div className="mt-4 grid gap-2"><button className="rounded-xl border border-border px-3 py-2.5 text-left text-xs font-semibold hover:bg-muted">Save as decision</button><button className="rounded-xl border border-border px-3 py-2.5 text-left text-xs font-semibold hover:bg-muted">Create task</button><button className="rounded-xl border border-border px-3 py-2.5 text-left text-xs font-semibold hover:bg-muted">Mark as scratch</button></div></Panel></div></div>;
+}
+
+function AskPage() {
+  const [message, setMessage] = useState('');
+  const [mode, setMode] = useState('normal');
+  const [notice, setNotice] = useState('');
+  const [packet, setPacket] = useState<any>(null);
+  const [conversationId, setConversationId] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [busy, setBusy] = useState(false);
+  const modeLabel = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  const prepare = async () => {
+    if (!message.trim()) { setNotice('Add a question first.'); return; }
+    setBusy(true); setNotice('');
+    try {
+      const response = await fetch('/api/ai/context-preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message, mode }) });
+      const result = await response.json();
+      if (!response.ok) setNotice(result.error ?? 'Unable to prepare context.'); else { setPacket(result); setNotice('Context is ready. Nothing has run yet.'); }
+    } catch { setNotice('Unable to prepare context right now.'); }
+    setBusy(false);
+  };
+
+  const ask = async () => {
+    if (!packet || !message.trim()) return;
+    setBusy(true); setNotice('');
+    try {
+      let id = conversationId;
+      if (!id) {
+        const created = await fetch('/api/ai/conversations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }) }).then((response) => response.json());
+        id = created.id;
+        setConversationId(id);
+      }
+      const response = await fetch(`/api/ai/conversations/${id}/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message, mode }) });
+      const result = await response.json();
+      if (result.held) setNotice('This request is waiting for approval.'); else if (result.packetOnly) { setAnswer('Context-only mode selected. No model was called.'); } else if (!response.ok) setNotice(result.error ?? 'LEE could not complete this request.'); else setAnswer(result.answer ?? '');
+    } catch { setNotice('Unable to ask LEE right now.'); }
+    setBusy(false);
+  };
+
+  return <div className="mx-auto max-w-4xl">
+    <SectionHeading eyebrow="Private reasoning" title="Ask LEE" detail="Write one question, review the context, then ask the system." />
+    <Panel>
+      {answer ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-5"><p className="lee-label text-primary">LEE response</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{answer}</p></div> : <p className="text-sm text-muted-foreground">Start with a decision, loose thread, or question that deserves a clearer read.</p>}
+      <textarea value={message} onChange={(event) => { setMessage(event.target.value); setPacket(null); }} placeholder="What should the system help you see?" className="mt-5 min-h-32 w-full resize-none rounded-xl border border-input bg-background p-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground focus:border-primary" data-testid="textarea-ask-lee" />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <select value={mode} onChange={(event) => { setMode(event.target.value); setPacket(null); }} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm sm:w-auto">{['normal', 'deep_think', 'build', 'write', 'review', 'pilot', 'low_cost', 'private', 'no_model', 'governed_action'].map((item) => <option key={item} value={item}>{modeLabel(item)}</option>)}</select>
+        <button onClick={() => void prepare()} disabled={busy || !message.trim()} className="rounded-xl border border-primary/30 px-4 py-2.5 text-xs font-semibold text-primary disabled:opacity-50">{busy ? 'Working…' : 'Review context'}</button>
+        <button onClick={() => void ask()} disabled={busy || !packet} className="rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">Ask LEE</button>
+      </div>
+      {packet && <div className="mt-4 rounded-xl border border-border bg-muted/35 p-4 text-xs text-muted-foreground"><span className="font-semibold text-foreground">Context ready</span><span className="ml-2">· {packet.packet?.items?.length ?? 0} items · {packet.selectedModel ?? 'model not selected'} · {packet.estimatedCostUsd != null ? `$${Number(packet.estimatedCostUsd).toFixed(4)}` : 'cost pending'}</span></div>}
+      {notice && <p className="mt-4 text-sm text-primary" role="status">{notice}</p>}
+    </Panel>
+  </div>;
 }
 
 function ImportsPage() {

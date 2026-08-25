@@ -1,8 +1,31 @@
 import { Router, type IRouter } from "express";
+import { db, economicPriceEvidence, economicUsageRecord } from "@workspace/db";
 import { getSystemEconomicsSummary, runSystemEconomicsCycle, systemEconomicsContract } from "../lib/system-economics";
 import { runCILCostBenchmark } from "../lib/cil-cost-benchmark";
+import { z } from "zod";
 
 const router: IRouter = Router();
+const economicUsageRequestSchema = z.object({
+  operation: z.string().min(1).max(64),
+  category: z.enum(["storage", "backup", "embedding", "network"]),
+  quantity: z.number().finite().nonnegative(),
+  unit: z.string().min(1).max(32),
+  provider: z.string().min(1).max(96),
+  sourceRef: z.string().min(1),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  recordedAt: z.coerce.date().default(() => new Date()),
+});
+const economicPriceRequestSchema = z.object({
+  operation: z.string().min(1).max(64),
+  category: z.enum(["storage", "backup", "embedding", "network"]),
+  unit: z.string().min(1).max(32),
+  priceUsd: z.number().finite().nonnegative(),
+  provider: z.string().min(1).max(96),
+  sourceRef: z.string().min(1),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  effectiveAt: z.coerce.date(),
+  recordedAt: z.coerce.date().default(() => new Date()),
+});
 
 router.get("/economics/summary", async (_req, res): Promise<void> => {
   res.json(await getSystemEconomicsSummary());
@@ -17,6 +40,28 @@ router.get("/economics/cil-benchmark", (_req, res): void => {
 });
 router.get("/economics/contract", (_req, res): void => {
   res.json(systemEconomicsContract());
+});
+
+router.post("/economics/usage", async (req, res): Promise<void> => {
+  const parsed = economicUsageRequestSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid measured usage record.", details: parsed.error.flatten() }); return; }
+  const [record] = await db.insert(economicUsageRecord).values(parsed.data).returning();
+  res.status(201).json(record);
+});
+
+router.post("/economics/prices", async (req, res): Promise<void> => {
+  const parsed = economicPriceRequestSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid price evidence.", details: parsed.error.flatten() }); return; }
+  const [record] = await db.insert(economicPriceEvidence).values(parsed.data).returning();
+  res.status(201).json(record);
+});
+
+router.get("/economics/ledger", async (_req, res): Promise<void> => {
+  const [usage, prices] = await Promise.all([
+    db.select().from(economicUsageRecord),
+    db.select().from(economicPriceEvidence),
+  ]);
+  res.json({ usage, prices });
 });
 
 export default router;

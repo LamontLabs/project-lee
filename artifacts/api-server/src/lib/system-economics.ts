@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
-import { backupArchive, connectorSync, costRecord, db, eventLog, normalizedConnectorEvent, semanticIndex, sourceVault, systemEconomicsCycle } from "@workspace/db";
+import { backupArchive, connectorSync, costRecord, db, economicPriceEvidence, economicUsageRecord, eventLog, normalizedConnectorEvent, semanticIndex, sourceVault, systemEconomicsCycle } from "@workspace/db";
 import { runCILCostBenchmark } from "./cil-cost-benchmark";
 
 const MONTHLY_COST_CEILING_USD = 100;
@@ -19,6 +19,7 @@ export const ECONOMIC_DIMENSIONS = [
   "model.tokens", "model.cost_usd", "model.latency_ms",
   "storage.event_log_rows", "storage.backup_growth_bytes", "storage.backup_bytes", "storage.embedding_index_bytes",
   "storage.source_vault_bytes", "connector.api_volume", "connector.normalized_events",
+  "storage.cost_usd", "network.cost_usd",
   "engine.cost_usd", "project.cost_usd", "brief.cost_usd", "simulation.cost_usd", "cil.benchmark_savings_usd",
 ] as const;
 
@@ -56,7 +57,7 @@ function monthWindow(now = new Date()) {
 
 export async function runSystemEconomicsCycle(now = new Date()) {
   const { start, end, daysInMonth, elapsedDays } = monthWindow(now);
-  const [records, events, backups, semanticRows, sourceRows, connectorSyncs, connectorEvents] = await Promise.all([
+  const [records, events, backups, semanticRows, sourceRows, connectorSyncs, connectorEvents, usageRecords, priceRecords] = await Promise.all([
     db.select().from(costRecord).where(and(gte(costRecord.recordedAt, start), lte(costRecord.recordedAt, end))),
     db.select().from(eventLog).where(and(gte(eventLog.occurredAt, start), lte(eventLog.occurredAt, end))),
     db.select().from(backupArchive),
@@ -64,6 +65,8 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     db.select().from(sourceVault),
     db.select().from(connectorSync).where(and(gte(connectorSync.startedAt, start), lte(connectorSync.startedAt, end))),
     db.select().from(normalizedConnectorEvent).where(and(gte(normalizedConnectorEvent.createdAt, start), lte(normalizedConnectorEvent.createdAt, end))),
+    db.select().from(economicUsageRecord).where(and(gte(economicUsageRecord.recordedAt, start), lte(economicUsageRecord.recordedAt, end))),
+    db.select().from(economicPriceEvidence).where(lte(economicPriceEvidence.effectiveAt, end)),
   ]);
   const totalCostUsd = records.reduce((sum, record) => sum + record.estimatedCostUsd, 0);
   const projectedMonthlyCostUsd = totalCostUsd / elapsedDays * daysInMonth;
@@ -126,7 +129,28 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     semantic: provenance(semanticRows.map((row) => row.id), "semantic_index:current"),
     sources: provenance(sourceRows.map((row) => row.id), "source_vault:current"),
     connector: provenance([...connectorSyncs.map((row) => row.id), ...connectorEvents.map((row) => row.id)], "connector_sync:period"),
+    usage: provenance(usageRecords.map((row) => row.id), "economic_usage_record:period"),
+    pricing: provenance(priceRecords.map((row) => row.id), "economic_price_evidence:effective"),
   };
+  const pricedUsage = usageRecords.map((usage) => {
+    const price = priceRecords
+      .filter((candidate) => candidate.operation === usage.operation && candidate.category === usage.category && candidate.unit === usage.unit && candidate.provider === usage.provider && candidate.effectiveAt <= usage.recordedAt)
+      .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime())[0];
+    return { usage, price };
+  });
+  const categorySpend = (categories: string[]) => {
+    const rows = pricedUsage.filter(({ usage }) => categories.includes(usage.category));
+    const missing = rows.filter(({ price }) => !price);
+    if (!rows.length || missing.length) {
+      return metric(null, "UNAVAILABLE", "USD", "economic_usage_record × economic_price_evidence", observedAt,
+        [...metricProvenance.usage, ...metricProvenance.pricing, ...missing.map(({ usage }) => `missing-price:${usage.operation}:${usage.unit}`)]);
+    }
+    return metric(sum(rows.map(({ usage, price }) => usage.quantity * (price?.priceUsd ?? 0))), "MEASURED", "USD",
+      "economic_usage_record × economic_price_evidence", observedAt,
+      [...rows.map(({ usage }) => usage.id), ...rows.map(({ price }) => price?.id ?? "")].filter(Boolean));
+  };
+  const storageSpend = categorySpend(["storage", "backup", "embedding"]);
+  const networkSpend = categorySpend(["network"]);
   const metrics: Record<string, EconomicMetric | Record<string, EconomicMetric>> = {
     "total_cost_usd": metric(totalCostUsd, "MEASURED", "USD", "cost_record.estimated_cost_usd", observedAt, metricProvenance.records),
     "projected_monthly_cost_usd": metric(projectedMonthlyCostUsd, "ESTIMATED", "USD", "system-economics.month_projection", observedAt, metricProvenance.records),
@@ -154,6 +178,8 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     "project.cost_usd": projectCosts.size ? Object.fromEntries([...projectCosts.entries()].map(([projectId, value]) => [projectId, metric(value.cost, "MEASURED", "USD", "cost_record.metadata.projectId", observedAt, value.ids)])) : metric(null, "UNAVAILABLE", "USD", "cost_record.metadata.projectId", observedAt, metricProvenance.records),
     "brief.cost_usd": metric(sum(records.filter((record) => /brief/i.test(record.engine)).map((record) => record.estimatedCostUsd)), "MEASURED", "USD", "cost_record.engine", observedAt, provenance(records.filter((record) => /brief/i.test(record.engine)).map((record) => record.id), "cost_record:engine:brief")),
     "simulation.cost_usd": metric(sum(records.filter((record) => /simulation/i.test(record.engine)).map((record) => record.estimatedCostUsd)), "MEASURED", "USD", "cost_record.engine", observedAt, provenance(records.filter((record) => /simulation/i.test(record.engine)).map((record) => record.id), "cost_record:engine:simulation")),
+     "storage.cost_usd": storageSpend,
+     "network.cost_usd": networkSpend,
   };
   const alerts: string[] = [];
   if (projectedMonthlyCostUsd > MONTHLY_COST_CEILING_USD) alerts.push(`Projected monthly cost exceeds the $${MONTHLY_COST_CEILING_USD} ceiling.`);
@@ -167,9 +193,9 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     projectedMonthlyCostUsd,
     costByCategory: {
       computational: metrics["engine.cost_usd"],
-      storage: metric(null, "UNAVAILABLE", "USD", "no storage price ledger", observedAt, ["system-economics:storage-pricing-unavailable"]),
+      storage: storageSpend,
       background: metric(null, "UNAVAILABLE", "USD", "no background price ledger", observedAt, ["system-economics:background-pricing-unavailable"]),
-      network: metric(null, "UNAVAILABLE", "USD", "no network price ledger", observedAt, ["system-economics:network-pricing-unavailable"]),
+      network: networkSpend,
     },
     byEngine: [...byEngine.entries()].map(([engine, value]) => ({ engine, requestCount: value.requestCount, estimatedCostUsd: value.estimatedCostUsd, totalTokens: value.totalTokens, latencyP50Ms: percentile(value.latencyMs, 0.5), latencyP95Ms: percentile(value.latencyMs, 0.95) })),
     byTier: [...byTier.entries()].map(([tier, value]) => ({ tier, ...value })),

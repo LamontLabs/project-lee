@@ -4,6 +4,7 @@
 - [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.
 - [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.
 - [Cost ledger boundary](cost-ledger-boundary.md) — every reasoning resolution records tier, model, token counts, provider, and estimated cost in an additive ledger.
+- [Resource pricing boundary](resource-pricing-boundary.md) — measured resource usage reconciles to spend only through dated provider price evidence; missing prices stay unavailable.
 - [Brain snapshot integrity](brain-snapshot-integrity.md) — snapshots use canonical sorted-key JSON with Date normalization before SHA-256 verification.
 - [Backup legacy integrity repair](backup-legacy-integrity-repair.md) — portable backups must include provenance targets and append auditable lineage for pre-event canonical objects.
 - [Persisted scheduler boundary](persisted-scheduler-boundary.md) — scheduled jobs, dependencies, attempts, and lifecycle events survive restarts; unknown handlers fail visibly.

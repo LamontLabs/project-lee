@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { backupArchive, db, eventLog } from "@workspace/db";
+import { backupArchive, db, economicUsageRecord, eventLog } from "@workspace/db";
 import { collectPortableBackup, digest, verifyPortableBackup } from "../lib/backup-restore";
 
 const router: IRouter = Router();
@@ -34,6 +34,16 @@ router.post("/backups/create", async (_req, res) => {
     sourceRef: "backup-engine",
     occurredAt: new Date(),
     payload: { backupId: saved.backupId, manifest: result.manifest },
+  });
+  await db.insert(economicUsageRecord).values({
+    operation: "backup",
+    category: "backup",
+    quantity: result.sizeBytes,
+    unit: "bytes",
+    provider: "backup-engine",
+    sourceRef: saved.id,
+    metadata: { backupId: saved.backupId },
+    recordedAt: saved.createdAt,
   });
   res.status(201).json(saved);
 });

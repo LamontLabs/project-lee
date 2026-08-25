@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { db, sourceChunk, sourceVault, understandingReviewItem, understandingRun } from "@workspace/db";
 import { importSource, listReviewItems } from "../lib/understanding-pipeline";
+import { ObjectNotFoundError } from "../lib/objectStorage";
 import { storage } from "./storage";
 
 const router: IRouter = Router();
@@ -22,6 +23,7 @@ router.post("/imports", async (req, res): Promise<void> => {
     res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error) {
     req.log.error({ error }, "Import pipeline failed");
+    if (error instanceof ObjectNotFoundError) { res.status(404).json({ error: "The imported object is no longer available. No source was created." }); return; }
     res.status(500).json({ error: error instanceof Error ? error.message : "Import pipeline failed." });
   }
 });
@@ -54,10 +56,16 @@ router.patch("/imports/review/:id", async (req, res): Promise<void> => {
 router.post("/imports/:sourceId/retry", async (req, res): Promise<void> => {
   const [source] = await db.select().from(sourceVault).where(eq(sourceVault.id, req.params.sourceId)).limit(1);
   if (!source) { res.status(404).json({ error: "Source not found." }); return; }
-  const stored = source.rawContent ? null : await storage.read(source.storagePath);
-  if (!source.rawContent && !stored) { res.status(404).json({ error: "Source content not available for retry." }); return; }
-  const result = await importSource({ filename: source.originalFilename, mimeType: source.mimeType, content: stored?.buffer.toString("utf8") ?? source.rawContent!, storagePath: stored ? source.storagePath : undefined, metadata: source.metadata, importedFrom: source.importedFrom ?? undefined });
-  res.json(result);
+  try {
+    const stored = source.rawContent ? null : await storage.read(source.storagePath);
+    if (!source.rawContent && !stored) { res.status(404).json({ error: "Source content not available for retry." }); return; }
+    const result = await importSource({ filename: source.originalFilename, mimeType: source.mimeType, content: stored?.buffer.toString("utf8") ?? source.rawContent!, storagePath: stored ? source.storagePath : undefined, metadata: source.metadata, importedFrom: source.importedFrom ?? undefined, sourceId: source.id });
+    res.json(result);
+  } catch (error) {
+    req.log.error({ error, sourceId: source.id, storagePath: source.storagePath }, "Import retry failed");
+    if (error instanceof ObjectNotFoundError) { res.status(404).json({ error: "The stored object is unavailable. The source remains available for recovery when storage is restored." }); return; }
+    res.status(502).json({ error: error instanceof Error ? error.message : "Unable to read source content for retry." });
+  }
 });
 
 export default router;

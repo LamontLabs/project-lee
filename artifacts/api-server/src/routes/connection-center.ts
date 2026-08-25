@@ -5,6 +5,7 @@ import { authorizeConnectionCapability, createConnection, listConnections, oauth
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { importSource } from "../lib/understanding-pipeline";
+import { ObjectNotFoundError } from "../lib/objectStorage";
 
 const router: IRouter = Router();
 const createSchema = z.object({
@@ -107,6 +108,7 @@ router.post("/connections/:id/import", async (req, res): Promise<void> => {
     res.status(result.duplicate ? 200 : 201).json(result);
   } catch (error) {
     req.log.error({ error, connectionId: row.id }, "Connection import failed");
+    if (error instanceof ObjectNotFoundError) { res.status(404).json({ error: "The imported object is no longer available. No source was created." }); return; }
     res.status(500).json({ error: error instanceof Error ? error.message : "Connection import failed." });
   }
 });

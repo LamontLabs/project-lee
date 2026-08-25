@@ -7,7 +7,7 @@ import { extractUnderstanding } from "./understanding";
 
 export type ImportInput = {
   filename: string; mimeType: string; content: string; metadata?: Record<string, unknown>;
-  storagePath?: string; importedFrom?: Record<string, unknown>;
+  storagePath?: string; importedFrom?: Record<string, unknown>; sourceId?: string;
 };
 
 function checksum(value: string) { return createHash("sha256").update(value).digest("hex"); }
@@ -60,18 +60,32 @@ async function detectEntities(text: string) {
 export async function importSource(input: ImportInput) {
   const raw = parseContent(input);
   const digest = checksum(raw);
-  const [duplicate] = await db.select().from(sourceVault).where(eq(sourceVault.checksum, digest)).limit(1);
-  if (duplicate) return { duplicate: true, source: duplicate, run: null, reviewCount: 0 };
   const now = new Date();
-  const [source] = await db.insert(sourceVault).values({
-    originalFilename: input.filename, mimeType: input.mimeType, checksum: digest,
-    storagePath: input.storagePath ?? `sources/${digest}`, rawContent: input.storagePath ? null : raw,
-    metadata: input.metadata ?? {}, importedFrom: input.importedFrom, createdBy: "owner", currentOwner: "owner",
-    processingStatus: "parsing",
-  }).returning();
-  await db.insert(eventLog).values({ eventType: "SourceUploaded", aggregateType: "source_vault", aggregateId: source.id, sourceRef: source.id, occurredAt: now, payload: { sourceId: source.id, filename: input.filename, mimeType: input.mimeType } });
+  let source: typeof sourceVault.$inferSelect;
+  if (input.sourceId) {
+    const [existing] = await db.select().from(sourceVault).where(eq(sourceVault.id, input.sourceId)).limit(1);
+    if (!existing) throw new Error("Source not found.");
+    source = existing;
+  } else {
+    const [duplicate] = await db.select().from(sourceVault).where(eq(sourceVault.checksum, digest)).limit(1);
+    if (duplicate) return { duplicate: true, source: duplicate, run: null, reviewCount: 0 };
+    const [created] = await db.insert(sourceVault).values({
+      originalFilename: input.filename, mimeType: input.mimeType, checksum: digest,
+      storagePath: input.storagePath ?? `sources/${digest}`, rawContent: input.storagePath ? null : raw,
+      metadata: input.metadata ?? {}, importedFrom: input.importedFrom, createdBy: "owner", currentOwner: "owner",
+      processingStatus: "parsing",
+    }).returning();
+    if (!created) throw new Error("Source could not be created.");
+    source = created;
+  }
+  if (input.sourceId) await db.update(sourceVault).set({ processingStatus: "parsing", updatedAt: now }).where(eq(sourceVault.id, source.id));
+  await db.insert(eventLog).values({ eventType: input.sourceId ? "UnderstandingPipelineRetryStarted" : "SourceUploaded", aggregateType: "source_vault", aggregateId: source.id, sourceRef: source.id, occurredAt: now, payload: { sourceId: source.id, filename: input.filename, mimeType: input.mimeType, retry: Boolean(input.sourceId) } });
+  let run: typeof understandingRun.$inferSelect | undefined;
+  try {
   const chunks = chunkText(raw);
-  const [run] = await db.insert(understandingRun).values({ sourceType: input.mimeType, sourceRef: source.id, rawContent: raw, status: "chunking", startedAt: now, metadata: { filename: input.filename } }).returning();
+  [run] = await db.insert(understandingRun).values({ sourceType: input.mimeType, sourceRef: source.id, rawContent: raw, status: "chunking", startedAt: now, metadata: { filename: input.filename } }).returning();
+  if (!run) throw new Error("Understanding run could not be created.");
+  const activeRun = run;
   const chunkRows = [];
   let cursor = 0;
   for (let index = 0; index < chunks.length; index += 1) {
@@ -92,7 +106,7 @@ export async function importSource(input: ImportInput) {
     const facts = await db.insert(factLedger).values(extraction.facts.map((fact) => ({ subject: fact.subject, predicate: fact.predicate, object: fact.object, factType: "extracted", sourceEvidence: [source.id], sourceRef: source.id, confidence: fact.confidence, generatedBy: { engineId: "Understanding Pipeline", runType: "source_extraction" }, observedAt: now, firstSeen: now, status: "active", canonLevel: "candidate" }))).returning();
     const interpretations = await db.insert(interpretationLedger).values(extraction.interpretations.map((item) => ({ statement: item.statement, interpretationType: "inference", inputFacts: facts.map((fact) => fact.id), inputInterpretations: [], basis: source.id, sourceRef: source.id, confidence: item.confidence, whyChain: [{ step_type: "fact_confirmed", statement: "The interpretation is grounded in extracted facts.", evidence_id: facts[0]?.id ?? source.id, confidence: item.confidence, engine_name: "Understanding Pipeline" }, { step_type: "freshness_threshold", statement: "The source is part of the current understanding run.", evidence_id: source.id, confidence: 0.5, engine_name: "Understanding Pipeline" }], generatedBy: { engineId: "Understanding Pipeline", runType: "source_interpretation" }, validFrom: now, status: "active", canonLevel: "working", generatedByEngine: "Understanding Pipeline" }))).returning();
     factCount += facts.length; interpretationCount += interpretations.length;
-    await db.insert(provenanceRecord).values([...facts.map((fact) => ({ runId: run.id, recordType: "fact", recordId: fact.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: fact.confidence })), ...interpretations.map((item) => ({ runId: run.id, recordType: "interpretation", recordId: item.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: item.confidence }))]);
+    await db.insert(provenanceRecord).values([...facts.map((fact) => ({ runId: activeRun.id, recordType: "fact", recordId: fact.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: fact.confidence })), ...interpretations.map((item) => ({ runId: activeRun.id, recordType: "interpretation", recordId: item.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: item.confidence }))]);
     const suggestions = [
       ...entities.projects.map((item) => ({ itemType: "project", proposedValue: { id: item.id, name: item.name }, confidence: 0.9 })),
       ...entities.people.map((item) => ({ itemType: "person", proposedValue: { id: item.id, name: item.name }, confidence: 0.9 })),
@@ -105,7 +119,7 @@ export async function importSource(input: ImportInput) {
     const contradictions = facts.filter((fact) => lockedFacts.some((existing) => existing.subject.toLowerCase() === fact.subject.toLowerCase() && existing.object.toLowerCase() !== fact.object.toLowerCase())).map((fact) => ({ itemType: "contradiction", proposedValue: { statement: `${fact.subject}: ${fact.object}`, contradiction: true }, confidence: 0.8 }));
     suggestions.push(...contradictions);
     if (suggestions.length) {
-      await db.insert(understandingReviewItem).values(suggestions.map((suggestion) => ({ sourceId: source.id, runId: run.id, chunkId: chunk.id, itemType: suggestion.itemType, confidence: suggestion.confidence, proposedValue: suggestion.proposedValue, evidenceExcerpt: chunk.content.slice(0, 500) })));
+      await db.insert(understandingReviewItem).values(suggestions.map((suggestion) => ({ sourceId: source.id, runId: activeRun.id, chunkId: chunk.id, itemType: suggestion.itemType, confidence: suggestion.confidence, proposedValue: suggestion.proposedValue, evidenceExcerpt: chunk.content.slice(0, 500) })));
       reviewCount += suggestions.length;
     }
     for (const entity of [...entities.projects.map((item) => ({ type: "project", id: item.id, label: item.name })), ...entities.people.map((item) => ({ type: "person", id: item.id, label: item.name }))]) {
@@ -115,10 +129,20 @@ export async function importSource(input: ImportInput) {
     await db.insert(eventLog).values({ eventType: "ChunkEntitiesDetected", aggregateType: "source_chunk", aggregateId: chunk.id, sourceRef: source.id, occurredAt: new Date(), payload: { chunkId: chunk.id, entities: { projects: entities.projects.length, people: entities.people.length, decisions: entities.decisions.length, tasks: entities.tasks.length, risks: entities.risks.length, opportunities: entities.opportunities.length }, reviewCount: suggestions.length } });
   }
   const status = reviewCount ? "reviewing" : "completed";
-  const [updatedRun] = await db.update(understandingRun).set({ status, factCount, interpretationCount, completedAt: reviewCount ? null : new Date() }).where(eq(understandingRun.id, run.id)).returning();
+  const [updatedRun] = await db.update(understandingRun).set({ status, factCount, interpretationCount, completedAt: reviewCount ? null : new Date() }).where(eq(understandingRun.id, activeRun.id)).returning();
   await db.update(sourceVault).set({ processingStatus: status, updatedAt: new Date() }).where(eq(sourceVault.id, source.id));
-  await db.insert(eventLog).values({ eventType: reviewCount ? "ReviewItemsCreated" : "UnderstandingPipelineCompleted", aggregateType: "understanding_run", aggregateId: run.id, sourceRef: source.id, occurredAt: new Date(), payload: { runId: run.id, sourceId: source.id, factCount, interpretationCount, reviewCount } });
+  await db.insert(eventLog).values({ eventType: reviewCount ? "ReviewItemsCreated" : "UnderstandingPipelineCompleted", aggregateType: "understanding_run", aggregateId: activeRun.id, sourceRef: source.id, occurredAt: new Date(), payload: { runId: activeRun.id, sourceId: source.id, factCount, interpretationCount, reviewCount } });
   return { duplicate: false, source, run: updatedRun, reviewCount };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Understanding processing failed.";
+    const failedAt = new Date();
+    if (run) {
+      await db.update(understandingRun).set({ status: "failed", completedAt: null, metadata: { ...run.metadata, error: message, failedAt: failedAt.toISOString() } }).where(eq(understandingRun.id, run.id));
+    }
+    await db.update(sourceVault).set({ processingStatus: "failed", updatedAt: failedAt, metadata: { ...source.metadata, processingError: message, failedAt: failedAt.toISOString() } }).where(eq(sourceVault.id, source.id));
+    await db.insert(eventLog).values({ eventType: "UnderstandingPipelineFailed", aggregateType: "understanding_run", aggregateId: run?.id ?? source.id, sourceRef: source.id, occurredAt: failedAt, payload: { sourceId: source.id, runId: run?.id ?? null, error: message, storagePath: source.storagePath, importedFrom: source.importedFrom ?? null } });
+    throw error;
+  }
 }
 
 export async function listReviewItems(status = "needs_review") {

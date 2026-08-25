@@ -7,6 +7,8 @@ type Connection = {
   permissions: string[]; capabilities: Array<Record<string, unknown>>; dependencies: Array<Record<string, unknown>>;
   credentialConfigured: boolean; grantedScopes?: string[]; lastHealthCheck?: string | null; lastError?: string | null;
 };
+type SetupStep = { key: string; label: string; status: string; detail?: string; updatedAt: string };
+type SetupRun = { status: string; steps: SetupStep[]; summary?: { providers?: number; connections?: number; authorized?: number; needsOwner?: number; healthy?: number; failed?: number }; lastError?: string | null };
 
 const methods = [
   ["oauth", "Sign in / OAuth"], ["api", "API or service"], ["system_contract", "LEE System Contract"],
@@ -26,6 +28,8 @@ export default function ConnectionCenterPage() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [setup, setSetup] = useState<SetupRun | null>(null);
+  const [setupRunning, setSetupRunning] = useState(false);
   const selected = connections.find((item) => item.id === selectedId) ?? connections[0] ?? null;
   const load = async () => {
     setLoading(true);
@@ -33,7 +37,20 @@ export default function ConnectionCenterPage() {
     catch (error) { setNotice(error instanceof Error ? error.message : "Connection list unavailable."); }
     finally { setLoading(false); }
   };
+  const loadSetup = async () => {
+    try { const response = await fetch("/api/desktop-setup", { cache: "no-store" }); if (response.ok) setSetup(await response.json()); } catch { /* the connection inventory remains usable if setup status is unavailable */ }
+  };
   useEffect(() => { void load(); }, []);
+  useEffect(() => { void loadSetup(); }, []);
+  const runSetup = async () => {
+    setSetupRunning(true); setNotice("LEE is checking providers, existing connections, and safe defaults…");
+    try {
+      const response = await fetch("/api/desktop-setup/run", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) setNotice(data?.error ?? "Desktop setup could not start."); else { setSetup(data); setNotice(data.status === "complete" ? "LEE setup completed." : "LEE setup completed with owner actions or attention items."); await load(); }
+    } catch { setNotice("Desktop setup could not reach the API."); }
+    finally { setSetupRunning(false); }
+  };
   const mutate = async (url: string, init?: RequestInit, success?: string) => {
     const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
     const data = await response.json().catch(() => ({}));
@@ -80,7 +97,14 @@ export default function ConnectionCenterPage() {
       <div className="flex gap-2"><button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-refresh-connections"><RefreshCw size={15} /> Refresh</button><button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90" data-testid="button-add-connection"><Plus size={15} /> Add connection</button></div>
     </div>
     {notice && <div className="mb-5 flex items-center justify-between rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm" data-testid="status-connection-notice"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
-    {loading ? <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> Loading connection inventory…</div> : <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
+     <section className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-5">
+       <div className="flex flex-wrap items-start justify-between gap-4">
+         <div><p className="lee-label text-primary">Automatic setup</p><h3 className="mt-2 text-lg font-semibold">Let LEE prepare the desktop</h3><p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">LEE can register providers, reuse existing connections, verify safe access, and link connector defaults. Sign-in, secrets, sending, and consequential actions always stay under your control.</p></div>
+         <button onClick={() => void runSetup()} disabled={setupRunning} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-run-desktop-setup">{setupRunning && <Loader2 className="animate-spin" size={15} />} {setupRunning ? "Setting up…" : setup ? "Run setup again" : "Set up LEE"}</button>
+       </div>
+       {setup && <div className="mt-4"><div className="flex flex-wrap gap-2 text-[11px]"><span className={`rounded-full border px-2.5 py-1 font-semibold ${setup.status === "complete" ? "border-primary/25 bg-primary/10 text-primary" : "border-accent/35 bg-accent/10 text-accent-foreground"}`}>{setup.status === "complete" ? "Ready" : setup.status.replaceAll("_", " ")}</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.providers ?? 0} providers</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.healthy ?? 0} health checks passed</span>{Boolean(setup.summary?.needsOwner) && <span className="rounded-full border border-accent/35 bg-accent/10 px-2.5 py-1 text-accent-foreground">{setup.summary?.needsOwner} owner action{setup.summary?.needsOwner === 1 ? "" : "s"}</span>}</div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{setup.steps.map((item) => <div key={item.key} className="rounded-xl border border-border bg-card/70 p-3"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${item.status === "complete" ? "bg-primary" : item.status === "needs_owner" ? "bg-accent" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground"}`} /><p className="text-xs font-semibold">{item.label}</p></div><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{item.detail}</p></div>)}</div>{setup.lastError && <p className="mt-3 text-xs text-destructive">{setup.lastError}</p>}</div>}
+     </section>
+     {loading ? <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> Loading connection inventory…</div> : <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
       <section className="rounded-2xl border border-card-border bg-card/80 p-3 shadow-[0_14px_40px_hsl(205_30%_20%/0.04)]">
         <div className="flex items-center justify-between px-3 pb-3 pt-2"><p className="lee-label text-muted-foreground">{connections.length} connection{connections.length === 1 ? "" : "s"}</p><ShieldCheck size={16} className="text-primary" /></div>
         {connections.length ? <div className="space-y-1">{connections.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className={`w-full rounded-xl border px-3.5 py-3.5 text-left ${selected?.id === item.id ? "border-primary/30 bg-primary/5" : "border-transparent hover:border-border hover:bg-muted/60"}`} data-testid={`button-select-connection-${item.id}`}><div className="flex items-start gap-3"><span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-secondary text-secondary-foreground"><Link2 size={15} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{item.displayName}</span><span className="mt-1 block text-xs capitalize text-muted-foreground">{item.targetType.replaceAll("_", " ")} · {item.method.replaceAll("_", " ")}</span><span className={`mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold ${tone(item.status)}`}>{statusCopy[item.status] ?? item.status}</span></span></div></button>)}</div> : <div className="p-6"><div className="rounded-xl border border-dashed border-border p-6 text-center"><Link2 className="mx-auto mb-3 text-muted-foreground" size={20} /><p className="text-sm font-semibold">No connections yet</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Start with a sign-in or one clear setup flow. LEE will discover the rest.</p></div></div>}

@@ -76,6 +76,7 @@ import universalSystemsRouter from "./universal-systems";
 import connectionCenterRouter from "./connection-center";
 import storageRouter from "./storage";
 import emailRouter from "./email";
+import desktopSetupRouter from "./desktop-setup";
 
 const router: IRouter = Router();
 
@@ -151,6 +152,7 @@ router.use(androidPairingRouter);
   router.use(connectionCenterRouter);
   router.use(storageRouter);
 router.use(emailRouter);
+router.use(desktopSetupRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

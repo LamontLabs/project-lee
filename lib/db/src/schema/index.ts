@@ -46,4 +46,5 @@ export * from "./uncertainty";
 export * from "./resource-allocation";
 export * from "./execution-readiness";
 export * from "./android-pairing";
+export * from "./desktop-setup";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

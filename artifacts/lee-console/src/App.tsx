@@ -161,31 +161,29 @@ const HEALTH: HealthItem[] = [
   { name: 'Local session', status: 'operational', detail: 'Encrypted private session · founder access only.', lastChecked: 'now' },
 ];
 
-const navigationGroups = [
-  { label: 'Primary', items: [
+const primaryNavigation = [
   { href: '/', label: 'Today', icon: Command },
-  { href: '/ask', label: 'Ask Lee', icon: MessageSquareText },
-  ] },
-  { label: 'Work', items: [
+  { href: '/ask', label: 'Ask LEE', icon: MessageSquareText },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/portfolio', label: 'Portfolio', icon: Layers3 },
   { href: '/people', label: 'People', icon: Users },
+];
+
+const systemNavigation = [
+  { href: '/connections', label: 'Connections', icon: PlugZap },
+  { href: '/health', label: 'System health', icon: Gauge },
+  { href: '/governance', label: 'Governance', icon: ShieldAlert },
+  { href: '/backups', label: 'Backups', icon: Archive },
+];
+
+const moreNavigation = [
   { href: '/objectives', label: 'Objectives', icon: Target },
-  ] },
-  { label: 'Knowledge', items: [
+  { href: '/portfolio', label: 'Portfolio', icon: Layers3 },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { href: '/evidence', label: 'Evidence', icon: FileText },
   { href: '/imports', label: 'Imports', icon: Upload },
   { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
-  ] },
-  { label: 'Systems', items: [
-  { href: '/connections', label: 'Connections', icon: PlugZap },
   { href: '/connectors', label: 'Connectors', icon: PlugZap },
-  { href: '/governance', label: 'Governance', icon: ShieldAlert },
   { href: '/costs', label: 'System economics', icon: WalletCards },
-  { href: '/health', label: 'System health', icon: Gauge },
-  ] },
-  { label: 'Advanced', items: [
   { href: '/workspace', label: 'Workspace', icon: Settings2 },
   { href: '/constitution', label: 'Constitution', icon: ShieldCheck },
   { href: '/confidence', label: 'Confidence', icon: Gauge },
@@ -196,12 +194,6 @@ const navigationGroups = [
   { href: '/settings/policies', label: 'Policies', icon: ShieldCheck },
   { href: '/decisions', label: 'Decisions', icon: Scale },
   { href: '/waiting', label: 'Waiting', icon: Clock3 },
-  { href: '/evidence', label: 'Evidence', icon: FileText },
-  { href: '/imports', label: 'Imports', icon: Upload },
-  { href: '/connectors', label: 'Connectors', icon: PlugZap },
-  { href: '/costs', label: 'Costs', icon: WalletCards },
-  { href: '/governance', label: 'Governance', icon: ShieldAlert },
-  { href: '/backups', label: 'Backups', icon: Archive },
   { href: '/schedule', label: 'Schedule', icon: CalendarClock },
   { href: '/organization', label: 'Organization', icon: Building2 },
   { href: '/strategy/decision-patterns', label: 'Decision patterns', icon: GitBranch },
@@ -216,7 +208,6 @@ const navigationGroups = [
   { href: '/settings/identity', label: 'Identity', icon: BrainCircuit },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
-  ] },
 ];
 
 function formatTime(value: string) {

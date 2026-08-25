@@ -28,6 +28,16 @@ Register remote projects with `MCP_PROJECTS_JSON`:
 
 `tokenEnv` is the name of an environment variable, not the credential itself. Set each project key as a Replit Secret. The bridge rejects non-HTTPS endpoints, unknown project IDs, missing credentials, unsafe paths, oversized files, and unregistered commands.
 
+## Guided Console setup
+
+The private Lee Console Projects screen includes a compact **Connect project agents** panel. The owner can:
+
+1. Register a project using its ID, display name, HTTPS endpoint, and the *name* of its server-side credential secret.
+2. Test that project independently. A failed test reports only that project's setup error and does not change the health state of other projects.
+3. View the configured capabilities and copy the exact MCP JSON endpoint configuration.
+
+The setup panel never accepts or returns a credential value. Projects added from the panel are available to the running bridge process; put the same sanitized project metadata in `MCP_PROJECTS_JSON` for restart-safe deployment configuration. The MCP client still supplies the bridge credential from its own secret store.
+
 ## Enable a connected project
 
 Run the project-agent routes in the connected project’s API service and set:

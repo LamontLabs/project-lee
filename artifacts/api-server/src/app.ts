@@ -11,6 +11,7 @@ import internalServicesRouter from "./routes/internal-services";
 import { internalServiceAuth } from "./middlewares/private-auth";
 import mcpBridgeRouter from "./routes/mcp-bridge";
 import projectBridgeRouter from "./routes/project-bridge";
+import mcpProjectsRouter from "./routes/mcp-projects";
 
 const app: Express = express();
 
@@ -41,6 +42,7 @@ app.use("/mcp", mcpBridgeRouter);
 app.use("/api/project-bridge", projectBridgeRouter);
 app.use(privateAuth());
 app.use(recoveryModeGuard);
+app.use("/api/mcp-projects", mcpProjectsRouter);
 const internalPipeline = async (req: any, res: any, next: any) => {
   const pipeline = await runRequestPipeline({ text: String(req.body?.message ?? `${req.method} ${req.path}`), origin: "internal", actionType: `${req.method} ${req.path}`, engineName: "Internal API", mode: "normal", budgetTokens: 800 });
   if (!pipeline.ok) {

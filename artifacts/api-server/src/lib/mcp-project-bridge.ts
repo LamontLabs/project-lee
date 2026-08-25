@@ -23,6 +23,7 @@ export type Change = { path: string; content: string };
 type PendingChange = { projectId: string; changes: Change[]; expiresAt: number };
 
 const pendingChanges = new Map<string, PendingChange>();
+const runtimeProjects = new Map<string, ProjectConfig>();
 
 function constantTimeEquals(left: string, right: string) {
   const a = Buffer.from(left);
@@ -51,7 +52,15 @@ export function configuredProjects(): ProjectConfig[] {
 }
 
 export function projectFor(id: string) {
-  return configuredProjects().find((project) => project.id === id);
+  return runtimeProjects.get(id) ?? configuredProjects().find((project) => project.id === id);
+}
+
+export function registerProject(project: ProjectConfig) {
+  runtimeProjects.set(project.id, project);
+}
+
+export function registeredProjects() {
+  return [...runtimeProjects.values()];
 }
 
 function configuredToken(project: ProjectConfig) {
@@ -94,7 +103,9 @@ async function remoteRequest(project: ProjectConfig, path: string, init: Request
 }
 
 export async function listProjects() {
-  return configuredProjects().map(({ id, name, endpoint, capabilities }) => ({ id, name, endpoint, capabilities: capabilities ?? ["inspect", "read", "preview", "apply", "check"] }));
+  const projects = new Map(configuredProjects().map((project) => [project.id, project]));
+  for (const project of runtimeProjects.values()) projects.set(project.id, project);
+  return [...projects.values()].map(({ id, name, endpoint, capabilities }) => ({ id, name, endpoint, capabilities: capabilities ?? ["inspect", "read", "preview", "apply", "check"] }));
 }
 
 export async function inspectProject(projectId: string) {

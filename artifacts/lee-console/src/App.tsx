@@ -405,7 +405,48 @@ function PrivateAccessDialog({ onClose, onLock }: { onClose: () => void; onLock:
   </div>;
 }
 
+function ProjectConnectionsPanel() {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [setup, setSetup] = useState<any>(null);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ id: '', name: '', endpoint: '', tokenEnv: '' });
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ good: boolean; text: string } | null>(null);
+  const load = useCallback(async () => {
+    const [projectsResponse, setupResponse] = await Promise.all([fetch('/api/mcp-projects', { cache: 'no-store' }), fetch('/api/mcp-projects/setup', { cache: 'no-store' })]);
+    if (projectsResponse.ok) setProjects((await projectsResponse.json()).projects ?? []);
+    if (setupResponse.ok) setSetup(await setupResponse.json());
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  const register = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setBusy('register'); setNotice(null);
+    const response = await fetch('/api/mcp-projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) { setOpen(false); setForm({ id: '', name: '', endpoint: '', tokenEnv: '' }); setNotice({ good: true, text: `${body.project.name} is registered. Test it to verify the project agent.` }); await load(); }
+    else setNotice({ good: false, text: body.error ?? 'Project could not be registered.' });
+    setBusy(null);
+  };
+  const test = async (id: string) => {
+    setBusy(id); setNotice(null);
+    const response = await fetch(`/api/mcp-projects/${encodeURIComponent(id)}/test`, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    setNotice({ good: response.ok, text: response.ok ? `${body.project?.name ?? id} is connected and responding.` : `${body.error ?? 'Connection failed.'} ${body.requiredSetup ?? ''}` });
+    await load(); setBusy(null);
+  };
+  const copy = async () => { if (setup) { await navigator.clipboard?.writeText(JSON.stringify(setup.configuration, null, 2)); setNotice({ good: true, text: 'Credential-free MCP configuration copied.' }); } };
+  return <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-5" data-testid="panel-project-connections">
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="lee-label text-primary">Multi-project bridge</p><h2 className="mt-1 text-lg font-semibold">Connect project agents</h2><p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">Register each project once, test its isolated agent, and give your MCP client the endpoint without exposing credentials.</p></div><button onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90" data-testid="button-add-project-connection"><Plus size={15} /> Add project</button></div>
+    {open && <form onSubmit={register} className="mt-5 grid gap-3 border-t border-primary/15 pt-5 md:grid-cols-2" data-testid="form-project-connection"><input required placeholder="Project ID (for example, frontend)" value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-sm" data-testid="input-project-id" /><input required placeholder="Project name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-sm" data-testid="input-project-name" /><input required type="url" placeholder="https://your-project.example" value={form.endpoint} onChange={(event) => setForm({ ...form, endpoint: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-sm md:col-span-2" data-testid="input-project-endpoint" /><input placeholder="Server-side credential name (optional)" value={form.tokenEnv} onChange={(event) => setForm({ ...form, tokenEnv: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-sm" data-testid="input-project-token-env" /><div className="flex items-center justify-end gap-2"><button type="button" onClick={() => setOpen(false)} className="rounded-xl border border-border px-3.5 py-2 text-xs font-semibold">Cancel</button><button disabled={busy === 'register'} className="rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground">{busy === 'register' ? 'Registering…' : 'Register project'}</button></div><p className="text-xs text-muted-foreground md:col-span-2">Enter only the secret’s name, never its value. The bridge reads the credential server-side.</p></form>}
+    {notice && <div className={`mt-4 rounded-xl border p-3 text-xs leading-relaxed ${notice.good ? 'border-primary/25 bg-primary/5 text-foreground' : 'border-destructive/25 bg-destructive/5 text-destructive'}`} role="status">{notice.text}</div>}
+    <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_.9fr]"><div className="space-y-2">{projects.length ? projects.map((project) => <div key={project.id} className="rounded-xl border border-border bg-card p-3.5"><div className="flex flex-wrap items-center gap-3"><div className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-primary"><Server size={15} /></div><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{project.name}</p><p className="truncate text-xs text-muted-foreground">{project.endpoint}</p></div><span className={`inline-flex items-center gap-1 text-xs font-semibold ${project.credentialConfigured ? 'text-primary' : 'text-muted-foreground'}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{project.credentialConfigured ? 'Credential ready' : 'Credential needed'}</span><button onClick={() => void test(project.id)} disabled={busy === project.id} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-muted disabled:opacity-50" data-testid={`button-test-project-${project.id}`}><RefreshCw size={13} className={busy === project.id ? 'animate-spin' : ''} /> Test</button></div><div className="mt-3 flex flex-wrap gap-1.5">{project.capabilities.map((capability: string) => <span key={capability} className="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{capability}</span>)}</div></div>) : <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No project agents registered yet. Add one to begin.</div>}</div><div className="rounded-xl border border-border bg-card p-4"><div className="flex items-center justify-between gap-3"><div><p className="lee-label text-primary">MCP client setup</p><p className="mt-1 text-sm font-semibold">Credential-free configuration</p></div><button onClick={() => void copy()} className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold hover:bg-muted" data-testid="button-copy-mcp-config">Copy JSON</button></div><pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">{setup ? JSON.stringify(setup.configuration, null, 2) : 'Loading configuration…'}</pre><p className="mt-3 text-xs leading-relaxed text-muted-foreground">Endpoint: <span className="font-mono">{setup?.mcpEndpoint ?? 'Loading…'}</span>. Store the bridge credential in your MCP client’s secret store.</p></div></div>
+  </div>;
+}
+
 function ProjectsPage() {
+  return <><ProjectConnectionsPanel /><ProjectTrajectoryPage /></>;
+}
+
+function ProjectTrajectoryPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [momentum, setMomentum] = useState<any[]>([]);
   const [uncertainty, setUncertainty] = useState<any[]>([]);

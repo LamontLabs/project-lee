@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { connection, connector, db, desktopSetupRun, eventLog, type DesktopSetupStep } from "@workspace/db";
 import { listProviders, registerProviders } from "./provider-abstraction";
 import { testConnection } from "./connection-center";
@@ -18,6 +18,8 @@ export async function getLatestDesktopSetup() {
 }
 
 export async function runDesktopSetup() {
+  const [active] = await db.select().from(desktopSetupRun).where(eq(desktopSetupRun.status, "running")).orderBy(desc(desktopSetupRun.updatedAt)).limit(1);
+  if (active) return publicRun(active);
   const now = new Date();
   const [run] = await db.insert(desktopSetupRun).values({
     status: "running",

@@ -73,6 +73,27 @@ export function registeredProjects() {
   return [...runtimeProjects.values()];
 }
 
+function projectPersistenceMetadata(project: ProjectConfig) {
+  return {
+    id: project.id,
+    name: project.name,
+    endpoint: project.endpoint,
+    ...(project.tokenEnv ? { tokenEnv: project.tokenEnv } : {}),
+    adapter: project.adapter ?? "auto",
+    ...(project.capabilities ? { capabilities: project.capabilities } : {}),
+  };
+}
+
+/**
+ * Returns the restart-safe MCP_PROJECTS_JSON value without resolving any
+ * credential references. Runtime registrations replace only their own ID.
+ */
+export function persistedProjectsJson() {
+  const projects = new Map(configuredProjects().map((project) => [project.id, project]));
+  for (const project of runtimeProjects.values()) projects.set(project.id, project);
+  return JSON.stringify([...projects.values()].map(projectPersistenceMetadata), null, 2);
+}
+
 function configuredToken(project: ProjectConfig) {
   return project.tokenEnv ? process.env[project.tokenEnv] : undefined;
 }

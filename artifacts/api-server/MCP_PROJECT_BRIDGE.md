@@ -45,6 +45,8 @@ The private Lee Console Projects screen includes a compact **Connect project age
 
 The setup panel never accepts or returns a credential value. Projects added from the panel are available to the running bridge process; put the same sanitized project metadata in `MCP_PROJECTS_JSON` for restart-safe deployment configuration. The MCP client still supplies the bridge credential from its own secret store.
 
+The setup panel never accepts or returns a credential value. Projects added from the panel are available to the running bridge process. The registration response includes a `persistence` object with the exact sanitized `MCP_PROJECTS_JSON` value to store in the bridge deployment for restart-safe configuration. If multiple projects are registered, preserve the complete returned array: updating one project replaces only that project ID and does not remove the others. The persisted value contains `tokenEnv` names only, never credential values. Set each referenced secret separately. The MCP client still supplies the bridge credential from its own secret store.
+
 ## Enable a connected project
 
 Expose either the legacy project-agent routes or the standard adapter routes in the connected project’s API service, and set:

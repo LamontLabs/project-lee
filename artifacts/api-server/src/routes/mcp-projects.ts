@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { inspectProject, configuredProjects, registeredProjects, registerProject, type ProjectConfig } from "../lib/mcp-project-bridge";
+import { inspectProject, configuredProjects, persistedProjectsJson, registeredProjects, registerProject, type ProjectConfig } from "../lib/mcp-project-bridge";
 
 const router = Router();
 function allProjects() {
@@ -61,7 +61,14 @@ router.post("/", (req, res) => {
     capabilities: Array.isArray(body.capabilities) ? body.capabilities.map(String).slice(0, 10) : undefined,
   };
   registerProject(project);
-  res.status(201).json({ project: publicProject(project), note: "Registered for this bridge process. Persist MCP_PROJECTS_JSON for restart-safe configuration." });
+  res.status(201).json({
+    project: publicProject(project),
+    persistence: {
+      environmentVariable: "MCP_PROJECTS_JSON",
+      value: persistedProjectsJson(),
+      note: "Store this sanitized value as MCP_PROJECTS_JSON to restore registered projects after a restart. Credential references are names only; set their corresponding secrets separately.",
+    },
+  });
 });
 
 router.post("/:id/test", async (req, res) => {

@@ -34,13 +34,27 @@ test("existing Repls can use the standard adapter without Lee internals", () => 
 test("project registration projects safe metadata without exposing credentials", () => {
   assert.match(projectsSource, /router\.post\("\/", \(req, res\) =>/);
   assert.match(projectsSource, /registerProject\(project\)/);
-  assert.match(projectsSource, /res\.status\(201\)\.json\(\{ project: publicProject\(project\)/);
+  assert.match(projectsSource, /res\.status\(201\)\.json\(\{[\s\S]*project: publicProject\(project\)/);
   for (const field of ["id", "name", "endpoint", "adapter", "capabilities", "credentialConfigured"]) {
     assert.match(projectsSource, new RegExp(`${field}:`));
   }
   assert.match(projectsSource, /credentialConfigured: Boolean\(project\.tokenEnv && process\.env\[project\.tokenEnv\]\)/);
   assert.doesNotMatch(projectsSource, /tokenEnv:\s*project\.tokenEnv/);
   assert.match(projectsSource, /Credential reference must be an environment variable name, not a credential/);
+});
+
+test("restart-safe persistence keeps projects isolated and credential-free", () => {
+  assert.match(bridgeSource, /export function persistedProjectsJson\(\)/);
+  assert.match(bridgeSource, /const projects = new Map\(configuredProjects\(\)\.map\(\(project\) => \[project\.id, project\]\)\)/);
+  assert.match(bridgeSource, /for \(const project of runtimeProjects\.values\(\)\) projects\.set\(project\.id, project\)/);
+  assert.match(bridgeSource, /projectPersistenceMetadata/);
+  assert.match(bridgeSource, /project\.tokenEnv \? \{ tokenEnv: project\.tokenEnv \} : \{\}/);
+  assert.match(projectsSource, /environmentVariable: "MCP_PROJECTS_JSON"/);
+  assert.match(projectsSource, /value: persistedProjectsJson\(\)/);
+  assert.match(docs, /exact sanitized `MCP_PROJECTS_JSON` value/);
+  assert.match(docs, /replaces only that project ID/);
+  assert.match(docs, /never credential values/);
+  assert.doesNotMatch(projectsSource, /value: process\.env/);
 });
 
 test("missing credentials return isolated, credential-free failure guidance", () => {

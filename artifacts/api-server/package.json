@@ -21,6 +21,7 @@
     "test:cil-protocol": "node scripts/cil-protocol.test.mjs",
     "test:api-first-boundary": "node --test scripts/api-first-boundary.test.mjs",
     "test:provider-transport": "node scripts/provider-transport.test.mjs",
+    "test:mcp-project-bridge": "node scripts/mcp-project-bridge-contract.test.mjs",
     "test:cil-cost-benchmark": "node scripts/cil-cost-benchmark.test.mjs",
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",

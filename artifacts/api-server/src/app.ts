@@ -9,6 +9,8 @@ import { pipelineFailureResponse, runRequestPipeline } from "./lib/request-pipel
 import internalRouter from "./routes/internal";
 import internalServicesRouter from "./routes/internal-services";
 import { internalServiceAuth } from "./middlewares/private-auth";
+import mcpBridgeRouter from "./routes/mcp-bridge";
+import projectBridgeRouter from "./routes/project-bridge";
 
 const app: Express = express();
 
@@ -35,6 +37,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/mcp", mcpBridgeRouter);
+app.use("/api/project-bridge", projectBridgeRouter);
 app.use(privateAuth());
 app.use(recoveryModeGuard);
 const internalPipeline = async (req: any, res: any, next: any) => {

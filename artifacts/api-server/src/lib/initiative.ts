@@ -3,7 +3,7 @@ import { db, initiativeItem, initiativeLimitConfig, operationalPattern, worldSta
 import { emitEvent } from "./foundation-events";
 
 const rank: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
-async function createIfNew(input: { category: string; observation: string; significance: string; evidenceRefs?: string[]; actionHint?: string; dedupeKey: string; metadata?: Record<string, unknown> }) {
+export async function createIfNew(input: { category: string; observation: string; significance: string; evidenceRefs?: string[]; actionHint?: string; dedupeKey: string; metadata?: Record<string, unknown> }) {
   const now = new Date();
   const [recent] = await db.select().from(initiativeItem).where(and(eq(initiativeItem.dedupeKey, input.dedupeKey), gte(initiativeItem.generatedAt, new Date(now.getTime() - 72 * 3600000)))).limit(1);
   if (recent) return null;

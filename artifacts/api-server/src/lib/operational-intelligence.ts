@@ -8,6 +8,7 @@ import { currentProjectMomentum } from "./project-momentum";
 import { currentOperationalCapacity } from "./operational-capacity";
 import { currentPortfolioState } from "./portfolio-intelligence";
 import { invalidateQueryCache, queryEngine } from "./query-engine";
+import { createIfNew } from "./initiative";
 
 const weight: Record<string, number> = { CRITICAL: 100, HIGH: 80, MEDIUM: 50, LOW: 20 };
 export const OPERATIONAL_INTELLIGENCE_REACTIVE_EVENTS: DomainEventType[] = [
@@ -24,7 +25,7 @@ function whyChain(summary: string, evidenceRefs: string[]) {
   ];
 }
 
-function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]; significance?: string; value?: unknown }) {
+function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]; significance?: string; value?: unknown; metadata?: Record<string, unknown> }) {
   const evidenceRefs = [...new Set(input.evidenceRefs ?? [])];
   if (evidenceRefs.length === 0) evidenceRefs.push(input.id);
   return {
@@ -32,9 +33,77 @@ function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]
     text: input.text,
     ...(input.significance ? { significance: input.significance } : {}),
     ...(input.value !== undefined ? { value: input.value } : {}),
+    ...(input.metadata ? { metadata: input.metadata } : {}),
     evidenceRefs,
     whyChain: whyChain(input.text, evidenceRefs),
   };
+}
+
+type ActionableEmail = {
+  id: string;
+  threadId: string;
+  subject: string;
+  from: Array<{ name?: string; email: string }>;
+  snippet: string;
+  date: Date;
+  unread: boolean;
+  hasAttachments: boolean;
+  webUrl?: string;
+};
+
+/**
+ * Promote only explainably actionable unread Gmail messages into the existing
+ * Initiative/Today flow. Email remains a source signal, never a second inbox.
+ */
+export async function recordActionableEmail(message: ActionableEmail) {
+  if (!message.unread) return null;
+  const sender = message.from[0];
+  const text = `${message.subject} ${message.snippet}`.toLowerCase();
+  const senderText = `${sender?.name ?? ""} ${sender?.email ?? ""}`.toLowerCase();
+  const reasons: string[] = [];
+  const categories: string[] = [];
+  if (/\b(urgent|asap|immediately|critical|time[- ]sensitive|overdue)\b/.test(text)) reasons.push("urgent language");
+  if (/\b(deadline|due\b|renew|expires?|schedule|confirm|approve|sign|payment|invoice|quote|contract)\b/.test(text)) reasons.push("commitment or deadline language");
+  if (/\b(decision|decide|choose|review|feedback|proposal|option)\b/.test(text)) { reasons.push("decision language"); categories.push("decisions"); }
+  if (/\b(waiting|awaiting|follow[- ]?up|response|reply|remind|status update|next step)\b/.test(text)) { reasons.push("open-loop language"); categories.push("waiting"); }
+  if (/\b(project|launch|milestone|build|release|client|customer|pilot)\b/.test(text)) { reasons.push("project language"); categories.push("projects"); }
+  if (sender?.email && !/no[-_]?reply|noreply|notifications?|mailer-daemon/.test(senderText)) categories.push("people");
+  if (message.hasAttachments) reasons.push("attachment present");
+  const promotional = /\b(unsubscribe|newsletter|sale|discount|promotion|digest|marketing)\b/.test(text) || /no[-_]?reply|mailer-daemon/.test(senderText);
+  if (promotional || reasons.length === 0) return null;
+  if (/\b(commitment|deadline|payment|invoice|contract|approve|sign)\b/.test(reasons.join(" "))) categories.push("commitments");
+  const significance = reasons.some((reason) => reason === "urgent language") ? "CRITICAL" : reasons.length >= 2 ? "HIGH" : "MEDIUM";
+  const senderLabel = sender?.name || sender?.email || "A contact";
+  const subject = message.subject || "(no subject)";
+  const evidenceRef = `gmail:${message.id}`;
+  const item = await createIfNew({
+    category: `email_${categories[0] ?? "action"}`,
+    significance,
+    observation: `${senderLabel} sent “${subject}”.`,
+    evidenceRefs: [evidenceRef, `gmail:thread:${message.threadId}`],
+    actionHint: `Review the message: ${reasons.join(", ")}.`,
+    dedupeKey: `gmail:actionable:${message.id}`,
+    metadata: {
+      sourceType: "email",
+      provider: "gmail",
+      canonicalRef: evidenceRef,
+      threadRef: `gmail:thread:${message.threadId}`,
+      webUrl: message.webUrl,
+      reason: reasons,
+      relatedAreas: [...new Set(categories)],
+      unreadAtSync: message.date.toISOString(),
+    },
+  });
+  if (item) {
+    await emitEvent({
+      eventType: "EmailReceived",
+      aggregateType: "email",
+      aggregateId: message.id,
+      sourceRef: evidenceRef,
+      payload: { initiativeId: item.id, subject, significance, reason: reasons },
+    });
+  }
+  return item;
 }
 
 export async function generateOperationalContext() {
@@ -52,8 +121,8 @@ export async function generateOperationalContext() {
   const active = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt && (!item.expiresAt || new Date(item.expiresAt) > new Date())).filter((item) => capacity.state !== "LOW" || item.significance === "CRITICAL").filter((item) => capacity.state !== "RECOVERY" || item.significance === "CRITICAL");
   const scored = active.map((item) => ({ ...item, score: (weight[item.significance] ?? 10) + (new Date(item.generatedAt).getTime() > Date.now() - 21600000 ? 15 : 0) })).sort((a, b) => b.score - a.score);
   const limit = capacity.state === "CONSTRAINED" ? 2 : capacity.state === "LOW" || capacity.state === "RECOVERY" ? 1 : 5;
-  const changedItems = scored.slice(0, limit).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, value: item.score }));
-  const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance }));
+  const changedItems = scored.slice(0, limit).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, value: item.score, metadata: item.metadata }));
+  const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, metadata: item.metadata }));
   const driftingItems = objects.filter((item: any) => item.ageState === "STALE" || item.ageState === "OLD").slice(0, 10).map((item: any) => evidenceItem({ id: item.id, text: `${item.title ?? item.name ?? "Knowledge item"} is ${item.ageState.toLowerCase()}.`, evidenceRefs: item.sourceRefs, value: item.ageState }));
   const momentumRisk = momentum.filter((item) => item.classification === "Dormant" || item.classification === "Stalled").map((item) => evidenceItem({ id: item.projectId, text: `Project ${item.projectId} momentum is ${item.classification.toLowerCase()}.`, evidenceRefs: [item.id], value: item.score }));
   const technicalRisk = world.signals.filter((signal) => signal.signalType === "technical" || signal.currentValue?.alert).map((signal) => evidenceItem({ id: signal.id, text: signal.signalName, evidenceRefs: [signal.id], value: signal.currentValue }));

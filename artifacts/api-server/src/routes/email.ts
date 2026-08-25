@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { connection, connector, connectorSync, db, eventLog, normalizedConnectorEvent } from "@workspace/db";
 import { emailProviderFor, type EmailAddress } from "../lib/email-provider";
 import { executeProviderWrite } from "../lib/provider-abstraction";
+import { recordActionableEmail } from "../lib/operational-intelligence";
 
 const router: IRouter = Router();
 const gmailConnection = async (id: string) => {
@@ -70,7 +71,8 @@ router.post("/email/sync", async (req, res): Promise<void> => {
     for (const message of result.messages) {
       const existing = await db.select({ id: normalizedConnectorEvent.id }).from(normalizedConnectorEvent).where(eq(normalizedConnectorEvent.externalId, `gmail:${message.id}`)).limit(1);
       if (existing.length) continue;
-      await db.insert(normalizedConnectorEvent).values({ syncId: sync.id, provider: "gmail", externalId: `gmail:${message.id}`, eventType: message.unread ? "EmailReceived" : "ThreadUpdated", sourceRef: `gmail:${message.threadId}`, occurredAt: message.date, payload: { id: message.id, threadId: message.threadId, subject: message.subject, from: message.from, to: message.to, date: message.date.toISOString(), labels: message.labels, unread: message.unread, hasAttachments: message.hasAttachments } });
+      await db.insert(normalizedConnectorEvent).values({ syncId: sync.id, provider: "gmail", externalId: `gmail:${message.id}`, eventType: message.unread ? "EmailReceived" : "ThreadUpdated", sourceRef: `gmail:${message.threadId}`, occurredAt: message.date, payload: { id: message.id, threadId: message.threadId, subject: message.subject, from: message.from, to: message.to, date: message.date.toISOString(), snippet: message.snippet, labels: message.labels, unread: message.unread, hasAttachments: message.hasAttachments, webUrl: message.webUrl } });
+      await recordActionableEmail(message);
       storedCount++;
     }
     await db.update(connectorSync).set({ status: "completed", normalizedCount: storedCount, completedAt: new Date() }).where(eq(connectorSync.id, sync.id));

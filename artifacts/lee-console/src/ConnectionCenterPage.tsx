@@ -5,7 +5,7 @@ type Connection = {
   id: string; displayName: string; targetType: string; method: string; status: string; authStatus: string;
   baseUrl?: string | null; healthEndpoint?: string | null; contractVersion?: string | null;
   permissions: string[]; capabilities: Array<Record<string, unknown>>; dependencies: Array<Record<string, unknown>>;
-  credentialConfigured: boolean; lastHealthCheck?: string | null; lastError?: string | null;
+  credentialConfigured: boolean; grantedScopes?: string[]; lastHealthCheck?: string | null; lastError?: string | null;
 };
 
 const methods = [

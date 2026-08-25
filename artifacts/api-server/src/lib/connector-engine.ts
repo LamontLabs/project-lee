@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { connector, connectorSync, db, eventLog, normalizedConnectorEvent, sourceVault } from "@workspace/db";
 import { connectorProviders, providerAdapters, type ConnectorProvider } from "./connectors";
 import { getOAuthAccessToken } from "./connection-center";
+import { emailProviderFor } from "./email-provider";
 
 const connectors = new ReplitConnectors();
 
@@ -39,8 +40,10 @@ async function collect(provider: ConnectorProvider, configuration: Record<string
     return (events.items ?? []).map((event: any) => ({ id: `calendar:${event.id}`, eventType: "meeting_detected", sourceRef: `google-calendar:${event.id}`, occurredAt: event.start?.dateTime ?? event.start?.date, payload: { id: event.id, summary: event.summary, description: event.description, start: event.start, end: event.end, attendees: event.attendees } }));
   }
   if (provider === "gmail") {
-    const messages = await proxyJson("gmail", "/gmail/v1/users/me/messages?maxResults=50&labelIds=INBOX");
-    return (messages.messages ?? []).map((message: any) => ({ id: `gmail:${message.id}`, eventType: "thread_imported", sourceRef: `gmail:${message.id}`, occurredAt: new Date().toISOString(), payload: message }));
+    const connectionId = typeof configuration.connectionId === "string" ? configuration.connectionId : null;
+    if (!connectionId) throw new Error("Gmail sync requires a connected Gmail OAuth connection.");
+    const messages = await emailProviderFor("gmail", connectionId).listMessages({ query: "in:anywhere", maxResults: 100 });
+    return messages.messages.map((message) => ({ id: `gmail:${message.id}`, eventType: message.unread ? "EmailReceived" : "ThreadUpdated", sourceRef: `gmail:${message.threadId}`, occurredAt: message.date.toISOString(), payload: { id: message.id, threadId: message.threadId, subject: message.subject, from: message.from, to: message.to, date: message.date.toISOString(), labels: message.labels, unread: message.unread, hasAttachments: message.hasAttachments } }));
   }
   throw new Error("Replit awareness requires a configured Replit connector.");
 }

@@ -11,7 +11,7 @@ export const oauthProviders = {
   github: { authorization: "https://github.com/login/oauth/authorize", token: "https://github.com/login/oauth/access_token", scopes: ["read:user", "repo"], supportsRefresh: false },
   google_drive: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/drive.readonly"], supportsRefresh: true },
   google_calendar: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/calendar.readonly"], supportsRefresh: true },
-  gmail: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/gmail.readonly"], supportsRefresh: true },
+  gmail: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send"], supportsRefresh: true },
 } as const;
 export type OAuthProvider = keyof typeof oauthProviders;
 const oauthSecret = () => createHash("sha256").update(process.env.SESSION_SECRET ?? "development-session-secret").digest();
@@ -130,8 +130,8 @@ async function audit(eventType: string, row: typeof connection.$inferSelect, pay
 }
 
 export async function listConnections() {
-  const rows = await db.select().from(connection).orderBy(connection.updatedAt);
-  return rows.map(publicConnection);
+  const rows = await db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt);
+  return rows.map(({ connection: row, credential }) => ({ ...publicConnection(row), grantedScopes: credential?.scopes ?? [] }));
 }
 
 export async function createConnection(input: {

@@ -409,7 +409,7 @@ function ProjectConnectionsPanel() {
   const [projects, setProjects] = useState<any[]>([]);
   const [setup, setSetup] = useState<any>(null);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ id: '', name: '', endpoint: '', tokenEnv: '' });
+  const [form, setForm] = useState({ id: '', name: '', endpoint: '', tokenEnv: '', adapter: 'auto' });
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ good: boolean; text: string } | null>(null);
   const load = useCallback(async () => {
@@ -422,7 +422,7 @@ function ProjectConnectionsPanel() {
     event.preventDefault(); setBusy('register'); setNotice(null);
     const response = await fetch('/api/mcp-projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) });
     const body = await response.json().catch(() => ({}));
-    if (response.ok) { setOpen(false); setForm({ id: '', name: '', endpoint: '', tokenEnv: '' }); setNotice({ good: true, text: `${body.project.name} is registered. Test it to verify the project agent.` }); await load(); }
+    if (response.ok) { setOpen(false); setForm({ id: '', name: '', endpoint: '', tokenEnv: '', adapter: 'auto' }); setNotice({ good: true, text: `${body.project.name} is registered. Test it to verify the project contract.` }); await load(); }
     else setNotice({ good: false, text: body.error ?? 'Project could not be registered.' });
     setBusy(null);
   };

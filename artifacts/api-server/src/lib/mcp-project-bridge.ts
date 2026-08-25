@@ -16,6 +16,7 @@ export type ProjectConfig = {
   endpoint: string;
   tokenEnv?: string;
   capabilities?: string[];
+  adapter?: "auto" | "project-agent" | "replit-standard";
 };
 
 export type Change = { path: string; content: string };
@@ -24,6 +25,7 @@ type PendingChange = { projectId: string; changes: Change[]; expiresAt: number }
 
 const pendingChanges = new Map<string, PendingChange>();
 const runtimeProjects = new Map<string, ProjectConfig>();
+const resolvedAdapters = new Map<string, Exclude<ProjectConfig["adapter"], "auto" | undefined>>();
 
 function constantTimeEquals(left: string, right: string) {
   const a = Buffer.from(left);
@@ -45,7 +47,11 @@ export function configuredProjects(): ProjectConfig[] {
       item && typeof item.id === "string" && /^[a-zA-Z0-9_-]{1,64}$/.test(item.id) &&
       typeof item.name === "string" && typeof item.endpoint === "string" &&
       /^https:\/\//i.test(item.endpoint),
-    ).map((item) => ({ ...item, endpoint: item.endpoint.replace(/\/+$/, "") }));
+    ).map((item) => ({
+      ...item,
+      endpoint: item.endpoint.replace(/\/+$/, ""),
+      adapter: item.adapter === "project-agent" || item.adapter === "replit-standard" ? item.adapter : "auto",
+    }));
   } catch {
     return [];
   }
@@ -56,6 +62,10 @@ export function projectFor(id: string) {
 }
 
 export function registerProject(project: ProjectConfig) {
+  if (project.adapter && !["auto", "project-agent", "replit-standard"].includes(project.adapter)) {
+    throw new Error("Unsupported project adapter.");
+  }
+  resolvedAdapters.delete(project.id);
   runtimeProjects.set(project.id, project);
 }
 
@@ -89,7 +99,9 @@ async function recordBridgeAudit(action: string, projectId: string | undefined, 
   await db.insert(auditLog).values({ action, actor: "mcp-project-bridge", targetType: "mcp_project", targetId: projectId ?? "bridge", outcome, metadata }).catch(() => undefined);
 }
 
-async function remoteRequest(project: ProjectConfig, path: string, init: RequestInit = {}) {
+type RemoteError = Error & { status?: number };
+
+async function remoteRequestAt(project: ProjectConfig, path: string, init: RequestInit = {}) {
   const token = configuredToken(project);
   if (!token) throw new Error(`No server-side credential is configured for project ${project.id}.`);
   const response = await fetch(`${project.endpoint}${path}`, {
@@ -98,8 +110,49 @@ async function remoteRequest(project: ProjectConfig, path: string, init: Request
     signal: AbortSignal.timeout(20_000),
   });
   const body: any = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`${project.id} returned ${response.status}: ${String(body.error ?? "Project request failed")}`);
+  if (!response.ok) {
+    const error = new Error(`${project.id} returned ${response.status}: ${String(body.error ?? "Project request failed")}`) as RemoteError;
+    error.status = response.status;
+    throw error;
+  }
   return body;
+}
+
+const adapterRoutes = {
+  "project-agent": {
+    inspect: "/api/project-bridge/inspect",
+    read: "/api/project-bridge/files/read",
+    preview: "/api/project-bridge/changes/preview",
+    apply: "/api/project-bridge/changes/apply",
+    check: "/api/project-bridge/checks/run",
+  },
+  "replit-standard": {
+    inspect: "/api/inspect",
+    read: "/api/files/read",
+    preview: "/api/changes/preview",
+    apply: "/api/changes/apply",
+    check: "/api/checks/run",
+  },
+} as const;
+
+type AdapterOperation = keyof typeof adapterRoutes["project-agent"];
+
+async function remoteRequest(project: ProjectConfig, operation: AdapterOperation, init: RequestInit = {}) {
+  const configuredAdapter = project.adapter ?? "auto";
+  const knownAdapter = configuredAdapter === "auto" ? resolvedAdapters.get(project.id) : configuredAdapter;
+  if (knownAdapter) return remoteRequestAt(project, adapterRoutes[knownAdapter][operation], init);
+
+  try {
+    const result = await remoteRequestAt(project, adapterRoutes["project-agent"].inspect);
+    resolvedAdapters.set(project.id, "project-agent");
+    if (operation === "inspect") return result;
+  } catch (error) {
+    // Auto-detection may fall back only when the companion route is absent.
+    // Auth, permission, timeout, and server failures must remain visible.
+    if ((error as RemoteError)?.status !== 404) throw error;
+  }
+  resolvedAdapters.set(project.id, "replit-standard");
+  return remoteRequestAt(project, adapterRoutes["replit-standard"][operation], init);
 }
 
 export async function listProjects() {
@@ -111,7 +164,7 @@ export async function listProjects() {
 export async function inspectProject(projectId: string) {
   const project = projectFor(projectId);
   if (!project) throw new Error(`Unknown project: ${projectId}`);
-  const result: any = await remoteRequest(project, "/api/project-bridge/inspect");
+  const result: any = await remoteRequest(project, "inspect");
   await recordBridgeAudit("mcp_project_inspect", projectId, "success");
   return { project: { id: project.id, name: project.name }, ...result };
 }
@@ -119,7 +172,7 @@ export async function inspectProject(projectId: string) {
 export async function readProjectFile(projectId: string, path: string) {
   const project = projectFor(projectId);
   if (!project) throw new Error(`Unknown project: ${projectId}`);
-  const result = await remoteRequest(project, "/api/project-bridge/files/read", { method: "POST", body: JSON.stringify({ path: validatePath(path) }) });
+  const result = await remoteRequest(project, "read", { method: "POST", body: JSON.stringify({ path: validatePath(path) }) });
   await recordBridgeAudit("mcp_project_file_read", projectId, "success", { path });
   return result;
 }
@@ -130,7 +183,7 @@ export async function previewProjectChanges(projectId: string, changes: Change[]
   if (!Array.isArray(changes) || changes.length === 0 || changes.length > 50) throw new Error("Provide between 1 and 50 changes.");
   const cleanChanges = changes.map((change) => ({ path: validatePath(String(change.path)), content: String(change.content) }));
   if (cleanChanges.some((change) => Buffer.byteLength(change.content) > MAX_FILE_BYTES)) throw new Error("A changed file exceeds the size limit.");
-  const result: any = await remoteRequest(project, "/api/project-bridge/changes/preview", { method: "POST", body: JSON.stringify({ changes: cleanChanges }) });
+  const result: any = await remoteRequest(project, "preview", { method: "POST", body: JSON.stringify({ changes: cleanChanges }) });
   const confirmationToken = createHash("sha256").update(`${projectId}:${JSON.stringify(cleanChanges)}:${Date.now()}`).digest("hex");
   pendingChanges.set(confirmationToken, { projectId, changes: cleanChanges, expiresAt: Date.now() + CHANGE_TTL_MS });
   await recordBridgeAudit("mcp_project_change_preview", projectId, "success", { paths: cleanChanges.map((change) => change.path) });
@@ -143,7 +196,7 @@ export async function applyProjectChanges(projectId: string, changes: Change[], 
   const project = projectFor(projectId);
   if (!project) throw new Error(`Unknown project: ${projectId}`);
   const token = configuredToken(project);
-  const result = await remoteRequest(project, "/api/project-bridge/changes/apply", { method: "POST", headers: { "x-project-bridge-confirmation": changeConfirmationSignature(String(token), pending.changes) }, body: JSON.stringify({ changes: pending.changes, confirmationToken }) });
+  const result = await remoteRequest(project, "apply", { method: "POST", headers: { "x-project-bridge-confirmation": changeConfirmationSignature(String(token), pending.changes) }, body: JSON.stringify({ changes: pending.changes, confirmationToken }) });
   pendingChanges.delete(confirmationToken);
   await recordBridgeAudit("mcp_project_change_apply", projectId, "success", { paths: pending.changes.map((change) => change.path) });
   return result;
@@ -152,7 +205,7 @@ export async function applyProjectChanges(projectId: string, changes: Change[], 
 export async function runProjectCheck(projectId: string, command: string) {
   const project = projectFor(projectId);
   if (!project) throw new Error(`Unknown project: ${projectId}`);
-  const result: any = await remoteRequest(project, "/api/project-bridge/checks/run", { method: "POST", body: JSON.stringify({ command: allowedCommand(command) }) });
+  const result: any = await remoteRequest(project, "check", { method: "POST", body: JSON.stringify({ command: allowedCommand(command) }) });
   await recordBridgeAudit("mcp_project_check_run", projectId, result.exitCode === 0 ? "success" : "failed", { command });
   return result;
 }

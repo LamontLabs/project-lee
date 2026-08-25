@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../src/routes/mcp-bridge.ts", import.meta.url), "utf8");
 const agentSource = await readFile(new URL("../src/routes/project-bridge.ts", import.meta.url), "utf8");
+const bridgeSource = await readFile(new URL("../src/lib/mcp-project-bridge.ts", import.meta.url), "utf8");
 const docs = await readFile(new URL("../MCP_PROJECT_BRIDGE.md", import.meta.url), "utf8");
 
 test("MCP bridge exposes a guarded JSON-RPC tool surface", () => {
@@ -17,4 +18,14 @@ test("project agent enforces scoped operations and signed writes", () => {
   assert.match(agentSource, /x-project-bridge-confirmation/);
   assert.match(docs, /Replit custom MCP/);
   assert.match(docs, /MCP_PROJECTS_JSON/);
+});
+
+test("existing Repls can use the standard adapter without Lee internals", () => {
+  assert.match(bridgeSource, /replit-standard/);
+  assert.match(bridgeSource, /adapterRoutes/);
+  assert.match(bridgeSource, /status !== 404/);
+  for (const route of ["/api/inspect", "/api/files/read", "/api/changes/preview", "/api/changes/apply", "/api/checks/run"]) {
+    assert.match(docs, new RegExp(route.replaceAll("/", "\\/")));
+  }
+  assert.match(docs, /does not share project databases|without copying Lee’s internal database/);
 });

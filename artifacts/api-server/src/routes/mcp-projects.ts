@@ -13,6 +13,7 @@ function publicProject(project: ProjectConfig) {
     id: project.id,
     name: project.name,
     endpoint: project.endpoint,
+    adapter: project.adapter ?? "auto",
     capabilities: project.capabilities ?? ["inspect", "read", "preview", "apply", "check"],
     credentialConfigured: Boolean(project.tokenEnv && process.env[project.tokenEnv]),
   };
@@ -28,7 +29,11 @@ router.get("/setup", (req, res) => {
     mcpEndpoint: `${origin}/mcp`,
     configuration: { mcpServers: { lee: { url: `${origin}/mcp` } } },
     authentication: "The MCP client must send Authorization: Bearer <bridge credential>. Keep that credential in the MCP client's secret store; it is never shown here.",
-    projectAgentPath: "/api/project-bridge",
+    adapters: {
+      auto: "Try the companion project-agent contract first, then the standard Replit contract when the route is absent.",
+      "project-agent": "Legacy companion routes under /api/project-bridge/*.",
+      "replit-standard": "Common Replit HTTP routes under /api/{inspect,files/read,changes/preview,changes/apply,checks/run}.",
+    },
   });
 });
 
@@ -37,8 +42,9 @@ router.post("/", (req, res) => {
   const id = String(body.id ?? "").trim();
   const name = String(body.name ?? "").trim();
   const endpoint = String(body.endpoint ?? "").trim().replace(/\/+$/, "");
+  const adapter = body.adapter === undefined || body.adapter === "" ? "auto" : String(body.adapter);
   const tokenEnv = String(body.tokenEnv ?? "").trim();
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(id) || !name || name.length > 120 || !/^https:\/\//i.test(endpoint)) {
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(id) || !name || name.length > 120 || !/^https:\/\//i.test(endpoint) || !["auto", "project-agent", "replit-standard"].includes(adapter)) {
     res.status(400).json({ error: "Provide a project ID, name, and HTTPS project endpoint." });
     return;
   }
@@ -51,6 +57,7 @@ router.post("/", (req, res) => {
     name,
     endpoint,
     tokenEnv: tokenEnv || undefined,
+    adapter: adapter as ProjectConfig["adapter"],
     capabilities: Array.isArray(body.capabilities) ? body.capabilities.map(String).slice(0, 10) : undefined,
   };
   registerProject(project);

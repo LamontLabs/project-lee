@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   assumptionLedger,
   anchorLedger,
@@ -27,6 +27,9 @@ import {
   universalObject,
   understandingRun,
   experienceRecord,
+  observation,
+  opportunity,
+  strategicObjective,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 
@@ -58,6 +61,9 @@ const tableSources = {
   brief,
   simulation,
   experienceRecord,
+  observation,
+  opportunity,
+  strategicObjective,
 } as const;
 
 type PortablePayload = { [K in keyof typeof tableSources]?: unknown[] };
@@ -86,7 +92,7 @@ export function digest(value: unknown) {
 }
 
 export async function collectPortableBackup() {
-  await repairLegacyUniversalObjectEvents();
+  const reconciliation = await reconcileLegacyIntegrity();
   const payload: Record<string, unknown[]> = {};
   for (const [name, table] of Object.entries(tableSources)) {
     payload[name as keyof typeof tableSources] = await db.select().from(table as any);
@@ -104,7 +110,10 @@ export async function collectPortableBackup() {
     backup_format_version: BACKUP_FORMAT_VERSION,
     tables: Object.keys(tableSources),
     record_counts: recordCounts,
-    migrations: { compatible_schema_versions: [DB_SCHEMA_VERSION], applied: [] },
+    migrations: {
+      compatible_schema_versions: [DB_SCHEMA_VERSION],
+      applied: reconciliation.migrations,
+    },
     integrity: { algorithm: "sha256", canonicalization: "sorted-keys-date-iso", payload_checksum: digest(payload) },
     production_restore_allowed: false,
   };
@@ -112,33 +121,99 @@ export async function collectPortableBackup() {
   return { backupId, manifest, payload, sizeBytes };
 }
 
-async function repairLegacyUniversalObjectEvents() {
+type ReconciliationResult = { migrations: string[]; repairedObjects: string[]; migratedProvenance: string[] };
+
+function objectEventPayload(object: any) {
+  return {
+    objectId: object.id,
+    objectType: object.objectType,
+    name: object.name,
+    description: object.description,
+    status: object.status,
+    sourceRefs: object.sourceRefs,
+    createdAt: object.createdAt instanceof Date ? object.createdAt.toISOString() : object.createdAt,
+    updatedAt: object.updatedAt instanceof Date ? object.updatedAt.toISOString() : object.updatedAt,
+    createdBy: object.createdBy,
+    modifiedBy: object.modifiedBy,
+    currentOwner: object.currentOwner,
+    importedFrom: object.importedFrom,
+    generatedBy: object.generatedBy,
+    legacyRepair: true,
+  };
+}
+
+async function reconcileLegacyIntegrity(): Promise<ReconciliationResult> {
+  const result: ReconciliationResult = { migrations: [], repairedObjects: [], migratedProvenance: [] };
   const [objects, events] = await Promise.all([
     db.select().from(universalObject),
-    db.select({ aggregateId: eventLog.aggregateId }).from(eventLog).where(eq(eventLog.aggregateType, "universal_object")),
+    db.select().from(eventLog).where(eq(eventLog.aggregateType, "universal_object")),
   ]);
-  const eventAggregateIds = new Set(events.map((event) => event.aggregateId));
+  const createdAggregateIds = new Set(events.filter((event) => event.eventType === "UniversalObjectCreated").map((event) => event.aggregateId));
   for (const object of objects) {
-    if (eventAggregateIds.has(object.id)) continue;
-    await emitEvent({
-      eventType: "UniversalObjectCreated",
-      aggregateType: "universal_object",
-      aggregateId: object.id,
-      actor: "legacy-integrity-repair",
-      sourceRef: object.sourceRefs[0] ?? "legacy-integrity-repair",
-      payload: {
-        objectId: object.id,
-        objectType: object.objectType,
-        name: object.name,
-        description: object.description,
-        status: object.status,
-        sourceRefs: object.sourceRefs,
-        createdAt: object.createdAt.toISOString(),
-        createdBy: object.createdBy,
-        legacyRepair: true,
-      },
-    });
+    const payload = objectEventPayload(object);
+    if (!createdAggregateIds.has(object.id)) {
+      await emitEvent({ eventType: "UniversalObjectCreated", aggregateType: "universal_object", aggregateId: object.id, actor: "legacy-integrity-repair", sourceRef: object.sourceRefs[0] ?? "legacy-integrity-repair", payload });
+      result.repairedObjects.push(object.id);
+    } else {
+      const aggregateEvents = events.filter((event) => event.aggregateId === object.id).sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+      const rebuilt = aggregateEvents.reduce((state, event) => ({ ...state, ...event.payload }), { id: object.id });
+      const fields = ["objectType", "name", "description", "status", "sourceRefs", "createdBy", "modifiedBy", "currentOwner", "importedFrom", "generatedBy"];
+      const differs = fields.some((field) => canonicalJson((rebuilt as Record<string, unknown>)[field]) !== canonicalJson((object as any)[field]));
+      if (differs) {
+        await emitEvent({ eventType: "UniversalObjectUpdated", aggregateType: "universal_object", aggregateId: object.id, actor: "legacy-integrity-repair", sourceRef: object.sourceRefs[0] ?? "legacy-integrity-repair", payload });
+        result.repairedObjects.push(object.id);
+      }
+    }
   }
+  const provenance = await db.select().from(provenanceRecord);
+  const durableIds = new Set([
+    ...(await db.select({ id: sourceVault.id }).from(sourceVault)).map((row) => row.id),
+    ...(await db.select({ id: sourceChunk.id }).from(sourceChunk)).map((row) => row.id),
+    ...events.map((event) => event.id),
+    ...(await db.select({ id: factLedger.id }).from(factLedger)).map((row) => row.id),
+    ...(await db.select({ id: interpretationLedger.id }).from(interpretationLedger)).map((row) => row.id),
+    ...objects.map((object) => object.id),
+  ]);
+  const legacyFactRefs = (await db.select().from(factLedger)).flatMap((fact) =>
+    (fact.sourceEvidence ?? []).filter((ref) => !durableIds.has(ref)).map((ref) => ({ fact, ref })),
+  );
+  const legacy = provenance.filter((row) => !durableIds.has(row.sourceRef));
+  const migrationEvents = legacy.length
+    ? await db.select().from(eventLog).where(inArray(eventLog.eventType, ["LegacyProvenanceMigrated"]))
+    : [];
+  for (const row of legacy) {
+    const existing = migrationEvents.find((event) => event.payload.provenanceRecordId === row.id && event.payload.originalSourceRef === row.sourceRef);
+    const migration = existing ?? await emitEvent({
+      eventType: "LegacyProvenanceMigrated",
+      aggregateType: "provenance_record",
+      aggregateId: row.recordId,
+      actor: "legacy-integrity-repair",
+      sourceRef: row.sourceRef,
+      payload: { provenanceRecordId: row.id, recordType: row.recordType, recordId: row.recordId, originalSourceRef: row.sourceRef, migration: "external-reference-to-event-evidence" },
+    });
+    await db.update(provenanceRecord).set({ sourceRef: migration.id }).where(eq(provenanceRecord.id, row.id));
+    result.migratedProvenance.push(row.id);
+  }
+  const factMigrationEvents = legacyFactRefs.length
+    ? await db.select().from(eventLog).where(inArray(eventLog.eventType, ["LegacyProvenanceMigrated"]))
+    : [];
+  for (const { fact, ref } of legacyFactRefs) {
+    const existing = factMigrationEvents.find((event) => event.payload.recordType === "fact" && event.payload.recordId === fact.id && event.payload.originalSourceRef === ref);
+    const migration = existing ?? await emitEvent({
+      eventType: "LegacyProvenanceMigrated",
+      aggregateType: "fact_ledger",
+      aggregateId: fact.id,
+      actor: "legacy-integrity-repair",
+      sourceRef: ref,
+      payload: { recordType: "fact", recordId: fact.id, originalSourceRef: ref, migration: "external-reference-to-event-evidence" },
+    });
+    const sourceEvidence = (fact.sourceEvidence ?? []).map((candidate) => candidate === ref ? migration.id : candidate);
+    await db.update(factLedger).set({ sourceEvidence }).where(eq(factLedger.id, fact.id));
+    result.migratedProvenance.push(`${fact.id}:${ref}`);
+  }
+  if (result.repairedObjects.length) result.migrations.push("legacy-universal-object-event-reconciliation");
+  if (result.migratedProvenance.length) result.migrations.push("legacy-provenance-event-evidence-reconciliation");
+  return result;
 }
 
 function rows(payload: PortablePayload, name: keyof PortablePayload) {
@@ -165,7 +240,6 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
     ...rows(payload, "sourceVault").map((row) => row.id),
     ...rows(payload, "sourceChunk").map((row) => row.id),
     ...eventRows.map((row) => row.id),
-    ...eventRows.map((row) => row.sourceRef).filter(Boolean),
   ]);
   const factIds = new Set(rows(payload, "factLedger").map((row) => row.id));
   const interpretationIds = new Set(rows(payload, "interpretationLedger").map((row) => row.id));
@@ -179,7 +253,7 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
   const unresolvedProvenance = rows(payload, "provenanceRecord").filter((row) => !allEvidenceIds.has(row.sourceRef) || !allRecordIds.has(row.recordId));
   const invalidProvenance = unresolvedProvenance.filter((row) => uuidPattern.test(String(row.sourceRef)) || !allRecordIds.has(row.recordId));
   const legacyProvenanceRefs = unresolvedProvenance.filter((row) => !uuidPattern.test(String(row.sourceRef)) && allRecordIds.has(row.recordId));
-  checks.push({ name: "foreign-key-and-provenance-integrity", result: invalidFacts.length || invalidInterpretations.length || invalidProvenance.length ? "FAIL" : legacyFactRefs.length || legacyProvenanceRefs.length ? "WARN" : "PASS", evidence: { invalidFacts, invalidInterpretations, invalidProvenanceCount: invalidProvenance.length, legacyExternalEvidenceRefs: legacyFactRefs.length, legacyProvenanceRefs: legacyProvenanceRefs.length } });
+  checks.push({ name: "foreign-key-and-provenance-integrity", result: invalidFacts.length || invalidInterpretations.length || invalidProvenance.length || legacyFactRefs.length || legacyProvenanceRefs.length ? "FAIL" : "PASS", evidence: { invalidFacts, invalidInterpretations, invalidProvenanceCount: invalidProvenance.length, legacyExternalEvidenceRefs: legacyFactRefs.length, legacyProvenanceRefs: legacyProvenanceRefs.length, reconciliationRequired: legacyFactRefs.length > 0 || legacyProvenanceRefs.length > 0 } });
 
   const events = rows(payload, "eventLog").slice().sort((a, b) => new Date(a.createdAt ?? a.occurredAt).getTime() - new Date(b.createdAt ?? b.occurredAt).getTime() || String(a.id).localeCompare(String(b.id)));
   const eventIds = new Set(events.map((event) => event.id));
@@ -199,8 +273,8 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
       canonicalProjectionMismatches.push({ id: row.id, reason: "missing-rebuilt-object" });
       continue;
     }
-    for (const field of ["objectType", "name", "status"]) {
-      if (rebuilt[field] !== undefined && String(rebuilt[field]) !== String(row[field])) {
+    for (const field of ["objectType", "name", "description", "status", "sourceRefs", "createdBy", "modifiedBy", "currentOwner", "importedFrom", "generatedBy"]) {
+      if (rebuilt[field] !== undefined && canonicalJson(rebuilt[field]) !== canonicalJson(row[field])) {
         canonicalProjectionMismatches.push({ id: row.id, field, expected: row[field], actual: rebuilt[field] });
       }
     }

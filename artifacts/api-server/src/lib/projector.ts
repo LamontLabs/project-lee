@@ -77,9 +77,13 @@ async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boo
       ...(typeof payload.name === "string" ? { name: payload.name } : {}),
       ...(typeof payload.description === "string" ? { description: payload.description } : {}),
       ...(typeof payload.status === "string" ? { status: payload.status } : {}),
+      ...(Array.isArray(payload.sourceRefs) ? { sourceRefs: payload.sourceRefs.filter((value): value is string => typeof value === "string") } : {}),
       version: event.sequenceNumber,
       updatedAt: event.occurredAt,
       ...(typeof payload.modifiedBy === "string" ? { modifiedBy: payload.modifiedBy } : {}),
+      ...(typeof payload.currentOwner === "string" ? { currentOwner: payload.currentOwner } : {}),
+      ...(payload.importedFrom && typeof payload.importedFrom === "object" ? { importedFrom: payload.importedFrom as Record<string, unknown> } : {}),
+      ...(payload.generatedBy && typeof payload.generatedBy === "object" ? { generatedBy: payload.generatedBy as Record<string, unknown> } : {}),
     }).where(eq(universalObject.id, event.aggregateId));
   }
   return null;

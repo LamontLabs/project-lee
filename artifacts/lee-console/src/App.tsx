@@ -83,6 +83,7 @@ import ConnectionCenterPage from './ConnectionCenterPage';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFoundPage from '@/pages/not-found';
 import type { SystemContract } from '@workspace/api-zod';
+import { getGetCilModelInventoryQueryKey, useGetCilModelInventory } from '@workspace/api-client-react';
 
 function NotFound() {
   const [path] = useLocation();
@@ -837,13 +838,116 @@ function BootstrapPage() {
   return <div className="mx-auto max-w-[1150px]"><SectionHeading eyebrow="Knowledge intake" title="Project Bootstrap" detail="Read the repository’s observable structure first, then ask only what the evidence cannot answer." action={<button onClick={() => void bootstrap()} disabled={busy} className="rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground">{busy ? 'Analyzing repository…' : 'Bootstrap repository'}</button>} />{run && <Panel className="mb-5 border-primary/25 bg-primary/[0.05]"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="lee-label text-primary">Latest run · {run.status}</p><p className="mt-1 text-sm">{run.factsCreatedCount} facts · {run.interpretationsCreatedCount} interpretations · {run.issuesFlagged} issues</p></div><span className="text-xs text-muted-foreground">{run.completedAt ? formatDate(run.completedAt) : 'running'}</span></div></Panel>}{run?.status === 'completed' && <div className="grid gap-4 md:grid-cols-2"><Panel><p className="lee-label text-primary">Technology stack</p><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{JSON.stringify(report.technologyStack, null, 2)}</pre></Panel><Panel><p className="lee-label text-primary">Repository map</p><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{JSON.stringify(report.repositoryMap, null, 2)}</pre></Panel><Panel><p className="lee-label text-primary">Documentation & configuration</p><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{JSON.stringify({ documentation: report.documentation, configuration: report.configuration }, null, 2)}</pre></Panel><Panel><p className="lee-label text-primary">Questions & issues</p><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{JSON.stringify({ questions: report.questions, issues: report.issues }, null, 2)}</pre></Panel></div>}<Panel className="mt-5"><div className="flex items-center justify-between"><div><p className="lee-label text-muted-foreground">Bootstrap history</p><h3 className="mt-1 text-lg font-semibold">Repository analyses</h3></div><span className="lee-label text-muted-foreground">{history.length} runs</span></div>{history.length ? <div className="mt-3 divide-y divide-border">{history.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-3 py-3"><span className="text-sm font-medium">{formatDate(item.startedAt)}</span><span className="text-xs text-muted-foreground">{item.status} · {item.factsCreatedCount} facts · {item.issuesFlagged} issues</span></div>)}</div> : <p className="mt-4 text-sm text-muted-foreground">No bootstrap runs yet.</p>}</Panel></div>;
 }
 
+function CILModelInventoryPanel() {
+  const inventoryQuery = useGetCilModelInventory({
+    query: {
+      queryKey: getGetCilModelInventoryQueryKey(),
+      staleTime: 60_000,
+      refetchInterval: 60_000,
+      retry: 1,
+    },
+  });
+  const inventory = inventoryQuery.data?.inventory;
+  const unavailable = inventoryQuery.isError && !inventory;
+  const stale = Boolean(inventory && (inventoryQuery.isError || inventoryQuery.isStale));
+  const statusLabel = inventoryQuery.isPending && !inventory ? 'Loading' : unavailable ? 'Unavailable' : stale ? 'Stale' : 'Live';
+  const statusClass = unavailable
+    ? 'border-destructive/30 bg-destructive/10 text-destructive'
+    : stale
+      ? 'border-accent/35 bg-accent/15 text-foreground'
+      : 'border-primary/25 bg-primary/10 text-primary';
+
+  return (
+    <div className="mx-auto mt-5 max-w-[1280px]">
+      <Panel>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="lee-label text-primary">CIL diagnostics</p>
+            <h3 className="mt-1 text-lg font-semibold">Model inventory</h3>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Read-only visibility into the models CIL reports. This surface cannot select providers, models, or routes.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-semibold', statusClass)} data-testid="status-cil-model-inventory">
+              {statusLabel}
+            </span>
+            <button
+              onClick={() => void inventoryQuery.refetch()}
+              disabled={inventoryQuery.isFetching}
+              className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
+              data-testid="button-refresh-cil-model-inventory"
+            >
+              <RefreshCw size={14} className={inventoryQuery.isFetching ? 'animate-spin' : ''} />
+              {inventoryQuery.isFetching ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+
+        {inventoryQuery.isPending && !inventory && (
+          <div className="mt-5 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground" data-testid="state-cil-model-inventory-loading">
+            Loading the live CIL model inventory…
+          </div>
+        )}
+        {unavailable && (
+          <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive" data-testid="state-cil-model-inventory-unavailable">
+            CIL model inventory is unavailable. Retry when the CIL capability endpoint is reachable.
+          </div>
+        )}
+        {inventory && (
+          <>
+            {stale && (
+              <div className="mt-5 rounded-xl border border-accent/35 bg-accent/15 p-4 text-sm" data-testid="state-cil-model-inventory-stale">
+                Showing the last known inventory because the latest check did not complete successfully.
+              </div>
+            )}
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                ['Configured', inventory.total_configured],
+                ['Enabled', inventory.total_enabled],
+                ['Available', inventory.total_available],
+                ['Unavailable', inventory.total_unavailable],
+              ].map(([label, value]) => (
+                <div className="rounded-xl bg-muted/50 p-3" key={label}>
+                  <p className="lee-label text-muted-foreground">{label}</p>
+                  <p className="mt-2 text-xl font-semibold">{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 overflow-x-auto">
+              <div className="min-w-[720px]">
+                <div className="grid grid-cols-[1.2fr_1fr_.8fr_.7fr_1.5fr] gap-4 border-b border-border px-3 pb-3">
+                  {['Model', 'Provider', 'Status', 'Enabled', 'Route IDs'].map((label) => <span className="lee-label text-muted-foreground" key={label}>{label}</span>)}
+                </div>
+                {inventory.models.length ? inventory.models.map((model) => (
+                  <div className="grid grid-cols-[1.2fr_1fr_.8fr_.7fr_1.5fr] items-center gap-4 border-b border-border/70 px-3 py-3 last:border-0" key={`${model.provider}-${model.model_id}`}>
+                    <span className="break-all text-xs font-semibold">{model.model_id}</span>
+                    <span className="break-all text-xs text-muted-foreground">{model.provider}</span>
+                    <span className="text-xs">{model.status}</span>
+                    <span className={cn('text-xs font-semibold', model.enabled ? 'text-primary' : 'text-muted-foreground')}>{model.enabled ? 'Yes' : 'No'}</span>
+                    <span className="break-all text-xs text-muted-foreground">{model.route_ids.length ? model.route_ids.join(' · ') : 'None reported'}</span>
+                  </div>
+                )) : <p className="px-3 py-4 text-sm text-muted-foreground">CIL returned no configured models.</p>}
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">Correlation evidence:</span> {inventory.correlation_id}
+              {inventoryQuery.isFetching && <span className="ml-2 text-primary">Checking for a newer inventory…</span>}
+            </div>
+          </>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 function InternalServicesPage() {
   const [items, setItems] = useState<any[]>([]); const load = async () => setItems(await fetch('/api/internal-services/health', { cache: 'no-store' }).then((r) => r.json()));
   useEffect(() => { void load(); }, []);
   return <div className="mx-auto max-w-[1050px]"><SectionHeading eyebrow="Connected Lamont Labs systems" title="Connected systems" detail="LEE calls independent specialist systems through authenticated contracts. Credentials are never displayed." action={<button onClick={() => void load()} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted"><RefreshCw size={14} className="mr-2 inline" />Check health</button>} /><div className="grid gap-4 md:grid-cols-2">{items.map((item) => <Panel key={item.serviceId}><div className="flex items-start justify-between"><div><p className="lee-label text-primary">{item.category}</p><h3 className="mt-1 text-lg font-semibold">{item.displayName}</h3></div><StatusPill status={item.currentHealth === 'healthy' ? 'verified' : item.currentHealth === 'degraded' ? 'evolving' : 'offline'} /></div><div className="mt-5 grid grid-cols-2 gap-3 text-xs"><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Health</p><p className="mt-1 font-medium">{item.currentHealth}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Failure policy</p><p className="mt-1 font-medium">{item.failurePolicy}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Credential</p><p className="mt-1 font-medium">{item.credentialEnvKey} · {item.baseUrl ? 'configured' : 'missing'}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Last call</p><p className="mt-1 font-medium">{item.lastCallAt ? formatDate(item.lastCallAt) : 'none'}</p></div></div></Panel>)}</div><Panel className="mt-5"><p className="lee-label text-primary">Safety boundary</p><p className="mt-2 text-sm leading-relaxed text-muted-foreground">CIL unavailability produces an explicit degraded or held reasoning route; it never triggers silent local cognitive logic. CerbaSeal unavailability places consequential actions on HOLD; there is no authorization fallback.</p></Panel></div>;
 }
 
-function HealthPage() { return <><HealthDetailPage /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><AgingHealthPanel /><BootHistoryPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
+function HealthPage() { return <><HealthDetailPage /><CILModelInventoryPanel /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><AgingHealthPanel /><BootHistoryPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

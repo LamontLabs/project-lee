@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, CircleAlert, FileUp, FolderOpen, Link2, Loader2, Plus, RefreshCw, ShieldCheck, Unplug, X } from "lucide-react";
+import type { LocalServiceDiscoveryPayload } from "./DesktopSetupPanel";
 
 type Connection = {
   id: string; displayName: string; targetType: string; method: string; status: string; authStatus: string;
@@ -8,7 +9,9 @@ type Connection = {
   credentialConfigured: boolean; grantedScopes?: string[]; lastHealthCheck?: string | null; lastError?: string | null;
 };
 type SetupStep = { key: string; label: string; status: string; detail?: string; updatedAt: string };
-type SetupRun = { status: string; steps: SetupStep[]; summary?: { providers?: number; connections?: number; authorized?: number; needsOwner?: number; healthy?: number; failed?: number }; lastError?: string | null };
+type DiscoveryCandidate = LocalServiceDiscoveryPayload["candidates"][number] & { status: "new" | "existing"; connectionId?: string };
+type DiscoveryReport = { candidates: DiscoveryCandidate[]; failures: LocalServiceDiscoveryPayload["failures"]; attempted?: number; completedAt?: string };
+type SetupRun = { status: string; steps: SetupStep[]; summary?: { providers?: number; connections?: number; authorized?: number; needsOwner?: number; healthy?: number; failed?: number; discovery?: DiscoveryReport }; lastError?: string | null };
 
 const methods = [
   ["oauth", "Sign in / OAuth"], ["api", "API or service"], ["system_contract", "LEE System Contract"],
@@ -45,11 +48,21 @@ export default function ConnectionCenterPage() {
   const runSetup = async () => {
     setSetupRunning(true); setNotice("LEE is checking providers, existing connections, and safe defaults…");
     try {
-      const response = await fetch("/api/desktop-setup/run", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      const discovery = window.leeRuntime ? await window.leeRuntime.discoverLocalServices().catch(() => null) : null;
+      const response = await fetch("/api/desktop-setup/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(discovery ? { discovery } : {}) });
       const data = await response.json().catch(() => null);
       if (!response.ok) setNotice(data?.error ?? "Desktop setup could not start."); else { setSetup(data); setNotice(data.status === "complete" ? "LEE setup completed." : "LEE setup completed with owner actions or attention items."); await load(); }
     } catch { setNotice("Desktop setup could not reach the API."); }
     finally { setSetupRunning(false); }
+  };
+  const acceptDiscovery = async (candidate: DiscoveryCandidate) => {
+    setNotice(`Reviewing ${candidate.displayName}…`);
+    const response = await fetch("/api/desktop-setup/discoveries/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(candidate) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { setNotice(data.error ?? "Local service connection could not be created."); return; }
+    setSetup((current) => current ? { ...current, summary: { ...current.summary, discovery: current.summary?.discovery ? { ...current.summary.discovery, candidates: current.summary.discovery.candidates.map((item) => item.discoveryKey === candidate.discoveryKey ? { ...item, status: "existing", connectionId: data.connection?.id } : item) } : current.summary?.discovery } } : current);
+    setNotice(data.reused ? `${candidate.displayName} is already connected; LEE reused it.` : `${candidate.displayName} was added as an OBSERVE-only connection.`);
+    await load();
   };
   const mutate = async (url: string, init?: RequestInit, success?: string) => {
     const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -102,7 +115,7 @@ export default function ConnectionCenterPage() {
          <div><p className="lee-label text-primary">Automatic setup</p><h3 className="mt-2 text-lg font-semibold">Let LEE prepare the desktop</h3><p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">LEE can register providers, reuse existing connections, verify safe access, and link connector defaults. Sign-in, secrets, sending, and consequential actions always stay under your control.</p></div>
          <button onClick={() => void runSetup()} disabled={setupRunning} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-run-desktop-setup">{setupRunning && <Loader2 className="animate-spin" size={15} />} {setupRunning ? "Setting up…" : setup ? "Run setup again" : "Set up LEE"}</button>
        </div>
-       {setup && <div className="mt-4"><div className="flex flex-wrap gap-2 text-[11px]"><span className={`rounded-full border px-2.5 py-1 font-semibold ${setup.status === "complete" ? "border-primary/25 bg-primary/10 text-primary" : "border-accent/35 bg-accent/10 text-accent-foreground"}`}>{setup.status === "complete" ? "Ready" : setup.status.replaceAll("_", " ")}</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.providers ?? 0} providers</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.healthy ?? 0} health checks passed</span>{Boolean(setup.summary?.needsOwner) && <span className="rounded-full border border-accent/35 bg-accent/10 px-2.5 py-1 text-accent-foreground">{setup.summary?.needsOwner} owner action{setup.summary?.needsOwner === 1 ? "" : "s"}</span>}</div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{setup.steps.map((item) => <div key={item.key} className="rounded-xl border border-border bg-card/70 p-3"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${item.status === "complete" ? "bg-primary" : item.status === "needs_owner" ? "bg-accent" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground"}`} /><p className="text-xs font-semibold">{item.label}</p></div><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{item.detail}</p></div>)}</div>{setup.lastError && <p className="mt-3 text-xs text-destructive">{setup.lastError}</p>}</div>}
+       {setup && <div className="mt-4"><div className="flex flex-wrap gap-2 text-[11px]"><span className={`rounded-full border px-2.5 py-1 font-semibold ${setup.status === "complete" ? "border-primary/25 bg-primary/10 text-primary" : "border-accent/35 bg-accent/10 text-accent-foreground"}`}>{setup.status === "complete" ? "Ready" : setup.status.replaceAll("_", " ")}</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.providers ?? 0} providers</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.healthy ?? 0} health checks passed</span>{Boolean(setup.summary?.needsOwner) && <span className="rounded-full border border-accent/35 bg-accent/10 px-2.5 py-1 text-accent-foreground">{setup.summary?.needsOwner} owner action{setup.summary?.needsOwner === 1 ? "" : "s"}</span>}</div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{setup.steps.map((item) => <div key={item.key} className="rounded-xl border border-border bg-card/70 p-3"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${item.status === "complete" ? "bg-primary" : item.status === "needs_owner" ? "bg-accent" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground"}`} /><p className="text-xs font-semibold">{item.label}</p></div><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{item.detail}</p></div>)}</div>{setup.summary?.discovery && <DiscoveryReview report={setup.summary.discovery} onAccept={(candidate) => void acceptDiscovery(candidate)} />}{setup.lastError && <p className="mt-3 text-xs text-destructive">{setup.lastError}</p>}</div>}
      </section>
      {loading ? <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> Loading connection inventory…</div> : <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
       <section className="rounded-2xl border border-card-border bg-card/80 p-3 shadow-[0_14px_40px_hsl(205_30%_20%/0.04)]">
@@ -114,6 +127,15 @@ export default function ConnectionCenterPage() {
        </section>
     </div>}
      {open && <AddConnectionDialog onClose={() => setOpen(false)} onCreated={(item) => { setOpen(false); setConnections((current) => [item, ...current]); setSelectedId(item.id); setNotice("Connection created in Pending state. Start sign-in to authorize it."); }} />}
+  </div>;
+}
+
+function DiscoveryReview({ report, onAccept }: { report: DiscoveryReport; onAccept: (candidate: DiscoveryCandidate) => void }) {
+  if (!report.candidates.length && !report.failures.length) return null;
+  return <div className="mt-4 rounded-xl border border-primary/20 bg-background/50 p-4" data-testid="local-service-discovery">
+    <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 shrink-0 text-primary" size={16} /><div><p className="text-sm font-semibold">Local services found</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">These approved loopback contracts were checked on this computer. Review a candidate before LEE creates a connection.</p></div></div>
+    {report.candidates.length > 0 && <div className="mt-3 space-y-2">{report.candidates.map((candidate) => <div key={candidate.discoveryKey} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5"><div className="min-w-0"><p className="truncate text-xs font-semibold">{candidate.displayName}</p><p className="mt-1 text-[11px] text-muted-foreground">{candidate.contractId === "k6" ? "K6 provider-neutral contract" : "LEE provider-neutral contract"} · {candidate.baseUrl}{candidate.healthEndpoint}</p></div>{candidate.status === "existing" ? <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">Already connected</span> : <button onClick={() => onAccept(candidate)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground" data-testid={`button-review-local-service-${candidate.contractId}`}><Check size={13} /> Review and connect</button>}</div>)}</div>}
+    {report.failures.length > 0 && <div className="mt-3 rounded-lg border border-accent/25 bg-accent/5 p-3"><p className="text-xs font-semibold text-accent-foreground">Allowlisted checks needing attention</p><ul className="mt-1.5 space-y-1">{report.failures.map((failure) => <li key={`${failure.contractId}-${failure.endpoint}`} className="text-[11px] leading-relaxed text-muted-foreground">{failure.displayName}: {failure.reason}.</li>)}</ul></div>}
   </div>;
 }
 

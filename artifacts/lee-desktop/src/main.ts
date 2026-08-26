@@ -56,6 +56,7 @@ app.whenReady().then(async () => {
   ]));
   tray.on("double-click", () => window?.show());
   ipcMain.handle("lee:runtime-status", () => supervisor.status);
+  ipcMain.handle("lee:discover-local-services", () => supervisor.discoverLocalServices());
   await boot();
 });
 app.on("window-all-closed", () => { /* Tray keeps LEE alive until the user chooses Exit LEE. */ });

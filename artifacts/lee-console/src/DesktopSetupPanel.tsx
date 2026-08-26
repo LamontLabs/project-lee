@@ -13,9 +13,32 @@ type RuntimeSnapshot = {
   migrationLogPath: string;
 };
 
+export type LocalServiceDiscoveryPayload = {
+  candidates: Array<{
+    discoveryKey: string;
+    contractId: "lee-system" | "k6";
+    provider: "lee" | "k6";
+    displayName: string;
+    targetType: "local_system" | "service";
+    method: "local";
+    baseUrl: string;
+    healthEndpoint: string;
+    contractVersion: string;
+    capabilities: Array<Record<string, string>>;
+    dependencies: Array<Record<string, string | boolean>>;
+    observedAt: string;
+  }>;
+  failures: Array<{ contractId: "lee-system" | "k6"; displayName: string; endpoint: string; reason: string }>;
+  attempted: number;
+  completedAt: string;
+};
+
 declare global {
   interface Window {
-    leeRuntime?: { status: () => Promise<RuntimeSnapshot> };
+    leeRuntime?: {
+      status: () => Promise<RuntimeSnapshot>;
+      discoverLocalServices: () => Promise<LocalServiceDiscoveryPayload>;
+    };
   }
 }
 

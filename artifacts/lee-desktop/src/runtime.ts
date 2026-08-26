@@ -15,6 +15,53 @@ export type RuntimeSnapshot = {
   migrationLogPath: string;
 };
 
+export type LocalServiceDiscoveryCandidate = {
+  discoveryKey: string;
+  contractId: "lee-system" | "k6";
+  provider: "lee" | "k6";
+  displayName: string;
+  targetType: "local_system" | "service";
+  method: "local";
+  baseUrl: string;
+  healthEndpoint: string;
+  contractVersion: string;
+  capabilities: Array<Record<string, string>>;
+  dependencies: Array<Record<string, string | boolean>>;
+  observedAt: string;
+};
+
+export type LocalServiceProbeFailure = {
+  contractId: "lee-system" | "k6";
+  displayName: string;
+  endpoint: string;
+  reason: "Not reachable" | "Timed out" | "Unsupported response" | "Not a compatible service contract" | `Returned HTTP ${number}`;
+};
+
+export type LocalServiceDiscovery = {
+  candidates: LocalServiceDiscoveryCandidate[];
+  failures: LocalServiceProbeFailure[];
+  attempted: number;
+  completedAt: string;
+};
+
+type LocalServiceAllowlistEntry = {
+  contractId: "lee-system" | "k6";
+  provider: "lee" | "k6";
+  displayName: string;
+  targetType: "local_system" | "service";
+  defaultPort: number;
+  paths: readonly string[];
+};
+
+/**
+ * This list is intentionally finite. Discovery never enumerates ports, interfaces,
+ * hostnames, or paths supplied by a caller.
+ */
+export const LOCAL_SERVICE_ALLOWLIST: readonly LocalServiceAllowlistEntry[] = [
+  { contractId: "lee-system", provider: "lee", displayName: "LEE System Contract", targetType: "local_system", defaultPort: 4317, paths: ["/api/contract", "/api/system-contract"] },
+  { contractId: "k6", provider: "k6", displayName: "K6 Service Contract", targetType: "service", defaultPort: 6420, paths: ["/k6/contract", "/api/contract"] },
+];
+
 type RuntimeConfig = {
   databaseUrl?: string;
   apiPort?: number;
@@ -28,6 +75,121 @@ const appData = process.env.APPDATA ?? join(homedir(), ".config");
 export const dataDir = join(appData, "Project LEE");
 const configPath = join(dataDir, "config.json");
 const databaseDir = join(dataDir, "database");
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringValue(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.length <= 160 && !/(api[_-]?key|secret|password|token|private[_-]?key|credential)/i.test(value) ? value : fallback;
+}
+
+function safeValue(value: unknown): string | null {
+  return typeof value === "string" && value.length <= 160 && !/(api[_-]?key|secret|password|token|private[_-]?key|credential)/i.test(value) ? value : null;
+}
+
+function safeCapabilities(value: unknown): Array<Record<string, string>> {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const result: Record<string, string> = {};
+    for (const key of ["id", "name", "engineId", "state"]) {
+      const safe = safeValue(item[key]);
+      if (safe) result[key] = safe;
+    }
+    return Object.keys(result).length ? [result] : [];
+  });
+}
+
+function safeDependencies(value: unknown): Array<Record<string, string | boolean>> {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const result: Record<string, string | boolean> = {};
+    for (const key of ["id", "engine", "name", "state", "required"]) {
+      const safe = safeValue(item[key]);
+      if (safe || typeof item[key] === "boolean") result[key] = safe ?? item[key] as boolean;
+    }
+    return Object.keys(result).length ? [result] : [];
+  });
+}
+
+function compatibleContract(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false;
+  return typeof value.contractVersion === "string" || typeof value.contract_version === "string";
+}
+
+function probeFailure(error: unknown): LocalServiceProbeFailure["reason"] {
+  if (error instanceof Error && error.name === "AbortError") return "Timed out";
+  return "Not reachable";
+}
+
+export async function discoverLocalServices(
+  entries: readonly LocalServiceAllowlistEntry[] = LOCAL_SERVICE_ALLOWLIST,
+  fetcher: typeof fetch = fetch,
+  apiPort?: number,
+): Promise<LocalServiceDiscovery> {
+  const candidates: LocalServiceDiscoveryCandidate[] = [];
+  const failures: LocalServiceProbeFailure[] = [];
+  let attempted = 0;
+  for (const entry of entries) {
+    const port = entry.contractId === "lee-system" ? apiPort ?? entry.defaultPort : entry.defaultPort;
+    const baseUrl = `http://127.0.0.1:${port}`;
+    let found: LocalServiceDiscoveryCandidate | null = null;
+    let lastFailure: LocalServiceProbeFailure["reason"] = "Not reachable";
+    for (const path of entry.paths) {
+      attempted += 1;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 1500);
+      try {
+        const response = await fetcher(`${baseUrl}${path}`, {
+          method: "GET",
+          headers: { accept: "application/json", "X-LEE-Identity": "lee", "X-LEE-Discovery": "local-allowlist" },
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          lastFailure = `Returned HTTP ${response.status}`;
+          continue;
+        }
+        const contentLength = Number(response.headers.get("content-length") ?? 0);
+        if (contentLength > 256 * 1024) {
+          lastFailure = "Unsupported response";
+          continue;
+        }
+        let payload: unknown;
+        try { payload = await response.json(); } catch { lastFailure = "Unsupported response"; continue; }
+        if (!compatibleContract(payload)) {
+          lastFailure = "Not a compatible service contract";
+          continue;
+        }
+        const contract = payload as Record<string, unknown>;
+        const identity = isRecord(contract.identity) ? contract.identity : {};
+        found = {
+          discoveryKey: `${entry.contractId}|${baseUrl}|${path}`,
+          contractId: entry.contractId,
+          provider: entry.provider,
+          displayName: stringValue(identity.displayName, entry.displayName),
+          targetType: entry.targetType,
+          method: "local",
+          baseUrl,
+          healthEndpoint: path,
+          contractVersion: stringValue(contract.contractVersion ?? contract.contract_version, "v1"),
+          capabilities: safeCapabilities(contract.capabilities),
+          dependencies: safeDependencies(contract.dependencies),
+          observedAt: new Date().toISOString(),
+        };
+        break;
+      } catch (error) {
+        lastFailure = probeFailure(error);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    if (found) candidates.push(found);
+    else failures.push({ contractId: entry.contractId, displayName: entry.displayName, endpoint: baseUrl, reason: lastFailure });
+  }
+  return { candidates, failures, attempted, completedAt: new Date().toISOString() };
+}
 
 function loadConfig(): RuntimeConfig {
   if (!existsSync(configPath)) return {};
@@ -65,6 +227,10 @@ export class RuntimeSupervisor {
   }
 
   get status(): RuntimeSnapshot { return this.snapshot; }
+
+  discoverLocalServices(): Promise<LocalServiceDiscovery> {
+    return discoverLocalServices(LOCAL_SERVICE_ALLOWLIST, fetch, this.port);
+  }
 
   async start(): Promise<RuntimeSnapshot> {
     ensureRuntimeDirectories();

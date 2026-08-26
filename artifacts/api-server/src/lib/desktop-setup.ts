@@ -1,7 +1,169 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { connection, connector, db, desktopSetupRun, eventLog, type DesktopSetupStep } from "@workspace/db";
 import { listProviders, registerProviders } from "./provider-abstraction";
-import { testConnection } from "./connection-center";
+import { createConnection, testConnection } from "./connection-center";
+
+export type LocalServiceDiscoveryCandidate = {
+  discoveryKey?: string;
+  contractId: "lee-system" | "k6";
+  provider: "lee" | "k6";
+  displayName: string;
+  targetType: "local_system" | "service";
+  method: "local";
+  baseUrl: string;
+  healthEndpoint: string;
+  contractVersion: string;
+  capabilities: Array<Record<string, unknown>>;
+  dependencies: Array<Record<string, unknown>>;
+  observedAt?: string;
+};
+
+export type LocalServiceProbeFailure = {
+  contractId: "lee-system" | "k6";
+  displayName: string;
+  endpoint: string;
+  reason: string;
+};
+
+export type LocalServiceDiscovery = {
+  candidates: LocalServiceDiscoveryCandidate[];
+  failures: LocalServiceProbeFailure[];
+  attempted?: number;
+  completedAt?: string;
+};
+
+type ReviewedDiscoveryCandidate = LocalServiceDiscoveryCandidate & {
+  discoveryKey: string;
+  status: "new" | "existing";
+  connectionId?: string;
+};
+
+const DISCOVERY_CONTRACTS = {
+  "lee-system": { provider: "lee", targetType: "local_system", displayName: "LEE System Contract" },
+  k6: { provider: "k6", targetType: "service", displayName: "K6 Service Contract" },
+} as const;
+
+function isLoopbackUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:")
+      && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "[::1]")
+      && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function safeDiscoveryText(value: unknown, fallback: string, max = 160): string {
+  return typeof value === "string" && value.length > 0 && value.length <= max && !/(api[_-]?key|secret|password|token|private[_-]?key|credential)/i.test(value) ? value : fallback;
+}
+
+function safeProbeReason(value: unknown): string {
+  if (value === "Not reachable" || value === "Timed out" || value === "Unsupported response" || value === "Not a compatible service contract") return value;
+  if (typeof value === "string" && /^Returned HTTP [1-5][0-9]{2}$/.test(value)) return value;
+  return "The allowlisted contract was not available.";
+}
+
+function safeDiscoveryRecords(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const result: Record<string, unknown> = {};
+    for (const key of ["id", "name", "engineId", "engine", "state", "required"]) {
+      const current = (item as Record<string, unknown>)[key];
+      if ((typeof current === "string" && current.length <= 160) || typeof current === "boolean") result[key] = current;
+    }
+    return Object.keys(result).length ? [result] : [];
+  });
+}
+
+function normalizeDiscoveryCandidate(value: unknown): LocalServiceDiscoveryCandidate | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  const contractId = input.contractId === "lee-system" || input.contractId === "k6" ? input.contractId : null;
+  const contract = contractId ? DISCOVERY_CONTRACTS[contractId] : null;
+  const baseUrl = typeof input.baseUrl === "string" ? input.baseUrl.replace(/\/$/, "") : "";
+  const healthEndpoint = typeof input.healthEndpoint === "string" ? input.healthEndpoint : "";
+  if (!contract || !isLoopbackUrl(baseUrl) || !/^\/[a-zA-Z0-9._/:-]*$/.test(healthEndpoint)) return null;
+  return {
+    discoveryKey: `${contractId}|${baseUrl}|${healthEndpoint}`,
+    contractId,
+    provider: contract.provider,
+    displayName: safeDiscoveryText(input.displayName, contract.displayName),
+    targetType: contract.targetType,
+    method: "local",
+    baseUrl,
+    healthEndpoint,
+    contractVersion: safeDiscoveryText(input.contractVersion, "v1", 32),
+    capabilities: safeDiscoveryRecords(input.capabilities),
+    dependencies: safeDiscoveryRecords(input.dependencies),
+    observedAt: typeof input.observedAt === "string" ? input.observedAt : undefined,
+  };
+}
+
+function normalizeDiscoveryReport(value: unknown): LocalServiceDiscovery {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { candidates: [], failures: [] };
+  const input = value as Record<string, unknown>;
+  const candidates = (Array.isArray(input.candidates) ? input.candidates : [])
+    .map(normalizeDiscoveryCandidate)
+    .filter((candidate): candidate is LocalServiceDiscoveryCandidate => Boolean(candidate));
+  const deduped = [...new Map(candidates.map((candidate) => [candidate.discoveryKey, candidate])).values()];
+  const failures = (Array.isArray(input.failures) ? input.failures : []).slice(0, 20).flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const row = item as Record<string, unknown>;
+    if (row.contractId !== "lee-system" && row.contractId !== "k6") return [];
+    const endpoint = typeof row.endpoint === "string" && isLoopbackUrl(row.endpoint) ? new URL(row.endpoint).origin : "Loopback service";
+    return [{
+      contractId: row.contractId,
+      displayName: DISCOVERY_CONTRACTS[row.contractId].displayName,
+      endpoint,
+      reason: safeProbeReason(row.reason),
+    }];
+  });
+  return { candidates: deduped, failures, attempted: typeof input.attempted === "number" ? Math.max(0, Math.min(100, input.attempted)) : undefined, completedAt: typeof input.completedAt === "string" ? input.completedAt : undefined };
+}
+
+function sameConnection(row: typeof connection.$inferSelect, candidate: LocalServiceDiscoveryCandidate): boolean {
+  return row.method === "local" && row.baseUrl === candidate.baseUrl && (row.healthEndpoint ?? "/health") === candidate.healthEndpoint;
+}
+
+function publicConnection(row: typeof connection.$inferSelect) {
+  const { credentialRef: _credentialRef, ...safe } = row;
+  return { ...safe, credentialConfigured: Boolean(row.credentialRef) };
+}
+
+async function reviewDiscovery(discovery: LocalServiceDiscovery) {
+  const rows = await db.select().from(connection);
+  const candidates: ReviewedDiscoveryCandidate[] = discovery.candidates.map((candidate) => {
+    const existing = rows.find((row) => sameConnection(row, candidate));
+    return existing
+      ? { ...candidate, status: "existing" as const, connectionId: existing.id }
+      : { ...candidate, status: "new" as const };
+  });
+  return { candidates, failures: discovery.failures, attempted: discovery.attempted, completedAt: discovery.completedAt };
+}
+
+export async function acceptDiscoveredService(value: unknown) {
+  const candidate = normalizeDiscoveryCandidate(value);
+  if (!candidate) throw new Error("This local service is not an approved discovery candidate.");
+  const rows = await db.select().from(connection);
+  const existing = rows.find((row) => sameConnection(row, candidate));
+  if (existing) return { connection: publicConnection(existing), reused: true };
+  const created = await createConnection({
+    displayName: candidate.displayName,
+    targetType: candidate.targetType,
+    method: candidate.method,
+    baseUrl: candidate.baseUrl,
+    healthEndpoint: candidate.healthEndpoint,
+    contractVersion: candidate.contractVersion,
+    permissions: ["OBSERVE"],
+    capabilities: candidate.capabilities,
+    dependencies: candidate.dependencies,
+    configuration: { discoveryKey: candidate.discoveryKey, discoverySource: "desktop_local_allowlist", discoveredAt: candidate.observedAt ?? new Date().toISOString() },
+  });
+  const checked = await testConnection(created.id);
+  return { connection: checked ?? created, reused: false };
+}
 
 const step = (key: string, label: string, status: DesktopSetupStep["status"], detail: string, extra: Partial<DesktopSetupStep> = {}): DesktopSetupStep => ({
   key, label, status, detail, updatedAt: new Date().toISOString(), ...extra,
@@ -17,7 +179,7 @@ export async function getLatestDesktopSetup() {
   return publicRun(run ?? null);
 }
 
-export async function runDesktopSetup() {
+export async function runDesktopSetup(input: { discovery?: unknown } = {}) {
   const [active] = await db.select().from(desktopSetupRun).where(eq(desktopSetupRun.status, "running")).orderBy(desc(desktopSetupRun.updatedAt)).limit(1);
   if (active) return publicRun(active);
   const now = new Date();
@@ -41,6 +203,18 @@ export async function runDesktopSetup() {
 
     const rows = await db.select().from(connection);
     await update(step("connections", "Existing connections", "complete", `${rows.length} existing connection${rows.length === 1 ? "" : "s"} reused; no duplicates created.`));
+
+    const discovery = await reviewDiscovery(normalizeDiscoveryReport(input.discovery));
+    const discoveredCount = discovery.candidates.length;
+    const newCount = discovery.candidates.filter((candidate) => candidate.status === "new").length;
+    const existingCount = discoveredCount - newCount;
+    await update(step("local_discovery", "Local service discovery", "complete",
+      discoveredCount
+        ? `${discoveredCount} approved local service${discoveredCount === 1 ? "" : "s"} found; ${newCount ? `${newCount} await owner review` : "existing connections reused"}.${discovery.failures.length ? ` ${discovery.failures.length} allowlisted probe${discovery.failures.length === 1 ? "" : "s"} need attention.` : ""}`
+        : discovery.failures.length
+          ? `No approved local services found. ${discovery.failures.length} allowlisted probe${discovery.failures.length === 1 ? "" : "s"} summarized below.`
+          : "No local service discovery report was supplied.",
+      { provider: "local", ...(existingCount ? {} : {}) }));
 
     const oauthRows = rows.filter((row) => row.method === "oauth");
     const connected = rows.filter((row) => row.status === "connected");
@@ -88,7 +262,7 @@ export async function runDesktopSetup() {
     const ownerCount = steps.filter((item) => item.status === "needs_owner").length;
     const failureCount = steps.filter((item) => item.status === "failed").length;
     const status = failureCount ? "degraded" : ownerCount ? "needs_owner" : "complete";
-    const summary = { providers: providers.length, connections: rows.length, authorized: connected.length, needsOwner: needsOwner.length, healthy, failed, connectorDefaults: defaults, consequentialActionsReleased: false };
+    const summary = { providers: providers.length, connections: rows.length, authorized: connected.length, needsOwner: needsOwner.length, healthy, failed, connectorDefaults: defaults, consequentialActionsReleased: false, discovery };
     const [completed] = await db.update(desktopSetupRun).set({ status, steps, summary, lastError: failureCount ? "One or more safe health checks need attention." : null, completedAt: new Date(), updatedAt: new Date() }).where(eq(desktopSetupRun.id, run.id)).returning();
     await db.insert(eventLog).values({ eventType: "DesktopSetupCompleted", aggregateType: "desktop_setup_run", aggregateId: run.id, sourceRef: "desktop-setup", occurredAt: new Date(), payload: { status, summary } });
     return publicRun(completed);

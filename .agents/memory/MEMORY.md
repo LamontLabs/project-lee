@@ -53,3 +53,4 @@
 - [Universal transport boundary](universal-transport-boundary.md) — external capability requests share registered-system transport metadata and audit behavior.
 - [OAuth credential boundary](oauth-credential-boundary.md) — signed callback state and encrypted provider credentials stay server-side; projections expose status only.
 - [Development fixture cleanup](development-fixture-cleanup.md) — removing seeded canonical records also requires clearing derived projections and query caches or stale activity resurfaces.
+- [Local discovery boundary](local-discovery-boundary.md) — desktop discovery is finite loopback probing; the server normalizes provider-neutral candidates before owner-reviewed connection creation.

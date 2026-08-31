@@ -106,6 +106,16 @@ export async function recordActionableEmail(message: ActionableEmail) {
   return item;
 }
 
+/**
+ * A Gmail notification is only a freshness hint. Today is rebuilt after the
+ * corresponding normalized events have been accepted, and never for a
+ * duplicate or empty sync.
+ */
+export async function refreshOperationalContextAfterEmailSync(normalizedCount: number) {
+  if (normalizedCount <= 0) return null;
+  return generateOperationalContext();
+}
+
 export async function generateOperationalContext() {
   await invalidateQueryCache("operational-intelligence");
   const [initiativeResults, memory, world, objectResults, momentum, capacity, portfolio] = await Promise.all([

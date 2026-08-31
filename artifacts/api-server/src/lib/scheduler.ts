@@ -11,6 +11,7 @@ import { generateInitiatives } from "./initiative";
 import { generateOperationalContext } from "./operational-intelligence";
 import { runExecutiveLoopTick } from "./executive-loop";
 import { runRequestPipeline } from "./request-pipeline";
+import { renewGmailWatches } from "./gmail-sync";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -115,6 +116,9 @@ export async function executeScheduledJob(id: string) {
   if (job.jobType === "operational_intelligence_refresh") {
     try { await generateOperationalContext(); } catch (error) { handlerError = error instanceof Error ? error.message : "Operational intelligence refresh failed."; }
   }
+  if (job.jobType === "gmail_watch_renewal") {
+    try { await renewGmailWatches(); } catch (error) { handlerError = error instanceof Error ? error.message : "Gmail watch renewal failed."; }
+  }
   if (job.jobType === "executive_loop_tick") {
     try { await runExecutiveLoopTick(); } catch (error) { handlerError = error instanceof Error ? error.message : "Executive Loop tick failed."; }
   }
@@ -136,6 +140,7 @@ export async function executeScheduledJob(id: string) {
     job.jobType === "operational_memory_scan" ||
     job.jobType === "initiative_scan" ||
     job.jobType === "operational_intelligence_refresh" ||
+    job.jobType === "gmail_watch_renewal" ||
     job.jobType === "executive_loop_tick" ||
     job.jobType === "morning_brief" ||
     job.jobType === "evening_reflection" ||
@@ -162,9 +167,16 @@ export async function executeScheduledJob(id: string) {
     return { job: failed, eventId: event.id, message: handlerError ?? "Job failed: no registered handler." };
   }
 
+  const recurringGmailWatch = job.jobType === "gmail_watch_renewal";
   const [completed] = await db
     .update(scheduledJob)
-    .set({ status: "completed", completedAt: now, updatedAt: now, lastError: null })
+    .set({
+      status: recurringGmailWatch ? "pending" : "completed",
+      runAt: recurringGmailWatch ? new Date(now.getTime() + 30 * 60_000) : job.runAt,
+      completedAt: recurringGmailWatch ? null : now,
+      updatedAt: now,
+      lastError: null,
+    })
     .where(eq(scheduledJob.id, id))
     .returning();
   const [event] = await db.insert(eventLog).values({

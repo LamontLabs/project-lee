@@ -15,7 +15,7 @@ const EVENT_TYPES = [
     "IntentClassified","IntentCorrected","ExplanationGenerated","ExplanationInvalidated","ProjectMomentumChanged","OpportunityDetected","OpportunityResolved","OperationalCapacityChanged","AnchorCreated","AnchorRetired","AnchorContradictionDetected","PortfolioStateUpdated","PortfolioRiskDetected","PortfolioOpportunityDetected","SimulationCreated","SimulationScenarioMatched","TimeMachineSnapshotGenerated","UncertaintyLevelChanged","ResourceAllocationUpdated","ExecutionReadinessUpdated","PortfolioDependencyGraphUpdated","ExecutiveLoopReviewRecorded",
     "UniversalObjectCreated","UniversalObjectUpdated","SourceVaultRecordCreated","ImpactNodeCreated","ImpactEdgeCreated","ConstitutionProvisionCreated","OperationalAdaptationApplied","OperationalAdaptationRejected",
     "ConnectionCreated","ConnectionAuthenticationSucceeded","ConnectionAuthenticationFailed","ConnectionPermissionsChanged","ConnectionCapabilitiesChanged","ConnectionHealthChanged","ConnectionReauthorizationRequired","ConnectionReauthorizationCompleted","ConnectionDisconnected","ConnectionContractChanged",
-    "RequestPipelineStageStarted","RequestPipelineStageCompleted","RequestPipelineFailed","EventDeliveryTested","LegacyProvenanceMigrated",
+     "RequestPipelineStageStarted","RequestPipelineStageCompleted","RequestPipelineFailed","EventDeliveryTested","LegacyProvenanceMigrated","GmailWatchRenewed","GmailWatchRenewalFailed","GmailHistoryGapRecovered","EmailSyncCompleted","EmailSyncFailed",
 ] as const;
 export type DomainEventType = typeof EVENT_TYPES[number];
 export const DOMAIN_EVENT_CATALOG = Object.fromEntries(EVENT_TYPES.map((eventType) => [eventType, {

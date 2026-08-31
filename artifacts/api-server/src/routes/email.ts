@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { connection, connector, connectorSync, db, eventLog, normalizedConnectorEvent } from "@workspace/db";
+import { connection, connector, db } from "@workspace/db";
 import { emailProviderFor, type EmailAddress } from "../lib/email-provider";
 import { executeProviderWrite } from "../lib/provider-abstraction";
-import { recordActionableEmail } from "../lib/operational-intelligence";
+import { ensureGmailWatch, syncGmailConnection } from "../lib/gmail-sync";
 
 const router: IRouter = Router();
 const gmailConnection = async (id: string) => {
@@ -13,7 +13,11 @@ const gmailConnection = async (id: string) => {
   return emailProviderFor("gmail", id);
 };
 const addresses = (value: unknown): EmailAddress[] => Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")).map((item) => ({ email: String(item.email ?? ""), ...(item.name ? { name: String(item.name) } : {}) })).filter((item) => item.email.includes("@")) : [];
-const errorResponse = (res: any, error: unknown) => res.status(error instanceof Error && error.message.includes("valid Gmail") ? 400 : error instanceof Error && error.message.includes("connected Gmail") ? 409 : 502).json({ error: error instanceof Error ? error.message : "Email provider request failed." });
+const errorResponse = (res: any, error: unknown) => {
+  const message = error instanceof Error ? error.message : "Email provider request failed.";
+  const badRequest = /valid Gmail|connected Gmail|Pub\/Sub|notification|topic is required|topic must use/.test(message);
+  res.status(badRequest ? (message.includes("connected Gmail") ? 409 : 400) : 502).json({ error: message });
+};
 
 router.get("/email/messages", async (req, res): Promise<void> => {
   try { const provider = await gmailConnection(String(req.query.connectionId)); res.json(await provider.listMessages({ query: typeof req.query.query === "string" ? req.query.query : undefined, pageToken: typeof req.query.pageToken === "string" ? req.query.pageToken : undefined, maxResults: Number(req.query.maxResults ?? 50) })); } catch (error) { errorResponse(res, error); }
@@ -56,29 +60,57 @@ router.post("/email/send", async (req, res): Promise<void> => {
     res.status(result.executed ? 201 : 202).json(result);
   } catch (error) { errorResponse(res, error); }
 });
+
+router.post("/email/gmail/watch", async (req, res): Promise<void> => {
+  try {
+    const connectionId = String(req.body?.connectionId);
+    const topicName = typeof req.body?.topicName === "string" ? req.body.topicName : undefined;
+    const sync = await syncGmailConnection({ connectionId, source: "manual" });
+    const watch = await ensureGmailWatch(connectionId, { force: true, topicName });
+    res.status(201).json({ watch, baselineSync: sync });
+  } catch (error) { errorResponse(res, error); }
+});
+
+function gmailPushPayload(body: unknown) {
+  const message = body && typeof body === "object" && "message" in body ? (body as { message?: { data?: unknown } }).message : undefined;
+  if (!message || typeof message.data !== "string" || !message.data) throw new Error("A Gmail Pub/Sub notification payload is required.");
+  let parsed: unknown;
+  try { parsed = JSON.parse(Buffer.from(message.data, "base64").toString("utf8")); } catch { throw new Error("The Gmail Pub/Sub notification data is invalid."); }
+  if (!parsed || typeof parsed !== "object") throw new Error("The Gmail Pub/Sub notification data is invalid.");
+  const emailAddress = (parsed as Record<string, unknown>).emailAddress;
+  const historyId = (parsed as Record<string, unknown>).historyId;
+  if (typeof emailAddress !== "string" || !emailAddress || typeof historyId !== "string" || !/^\d+$/.test(historyId)) throw new Error("The Gmail Pub/Sub notification is missing a valid emailAddress or historyId.");
+  return { emailAddress, historyId };
+}
+
+/**
+ * Google Pub/Sub is the only unauthenticated-looking route in this router.
+ * private-auth explicitly allows this exact path; the watched mailbox address
+ * still has to match the server-side watch configuration.
+ */
+router.post("/email/gmail/webhook", async (req, res): Promise<void> => {
+  try {
+    const notification = gmailPushPayload(req.body);
+    const [row] = await db.select().from(connector).where(eq(connector.provider, "gmail")).limit(1);
+    const configuration = row?.configuration && typeof row.configuration === "object" ? row.configuration : {};
+    const watch = configuration.watch && typeof configuration.watch === "object" ? configuration.watch as Record<string, unknown> : {};
+    if (!row || typeof configuration.connectionId !== "string") { res.status(409).json({ error: "No configured Gmail watch is available." }); return; }
+    if (typeof watch.emailAddress !== "string" || watch.emailAddress.toLowerCase() !== notification.emailAddress.toLowerCase()) { res.status(403).json({ error: "The Gmail notification mailbox is not the configured watch." }); return; }
+    const result = await syncGmailConnection({ connectionId: configuration.connectionId, source: "push", notificationHistoryId: notification.historyId });
+    const renewedWatch = await ensureGmailWatch(configuration.connectionId);
+    res.status(202).json({ accepted: true, notificationHistoryId: notification.historyId, sync: result, watch: renewedWatch });
+  } catch (error) {
+    errorResponse(res, error);
+  }
+});
+
 router.post("/email/sync", async (req, res): Promise<void> => {
   try {
     const connectionId = String(req.body?.connectionId);
-    const provider = await gmailConnection(connectionId);
-    const [row] = await db.select().from(connector).where(eq(connector.provider, "gmail")).limit(1);
-    const configuredHistoryId = typeof row?.configuration?.historyId === "string" ? row.configuration.historyId : undefined;
-    const result = await provider.sync(configuredHistoryId);
-    const syncAt = new Date();
-    await db.insert(connector).values({ provider: "gmail", accessMode: "read", status: "syncing", authStatus: "connected", scopes: [], configuration: { connectionId }, updatedAt: syncAt }).onConflictDoNothing({ target: connector.provider });
-    const [current] = await db.select().from(connector).where(eq(connector.provider, "gmail")).limit(1);
-    const [sync] = await db.insert(connectorSync).values({ connectorId: current.id, provider: "gmail", status: "running", receivedCount: result.messages.length, startedAt: syncAt }).returning();
-    let storedCount = 0;
-    for (const message of result.messages) {
-      const existing = await db.select({ id: normalizedConnectorEvent.id }).from(normalizedConnectorEvent).where(eq(normalizedConnectorEvent.externalId, `gmail:${message.id}`)).limit(1);
-      if (existing.length) continue;
-      await db.insert(normalizedConnectorEvent).values({ syncId: sync.id, provider: "gmail", externalId: `gmail:${message.id}`, eventType: message.unread ? "EmailReceived" : "ThreadUpdated", sourceRef: `gmail:${message.threadId}`, occurredAt: message.date, payload: { id: message.id, threadId: message.threadId, subject: message.subject, from: message.from, to: message.to, date: message.date.toISOString(), snippet: message.snippet, labels: message.labels, unread: message.unread, hasAttachments: message.hasAttachments, webUrl: message.webUrl } });
-      await recordActionableEmail(message);
-      storedCount++;
-    }
-    await db.update(connectorSync).set({ status: "completed", normalizedCount: storedCount, completedAt: new Date() }).where(eq(connectorSync.id, sync.id));
-    await db.update(connector).set({ status: "healthy", authStatus: "connected", lastSyncAt: new Date(), lastError: null, configuration: { ...(current.configuration ?? {}), connectionId, ...(result.nextHistoryId ? { historyId: result.nextHistoryId } : {}) }, eventCount: current.eventCount + storedCount, updatedAt: new Date() }).where(eq(connector.id, current.id));
-    await db.insert(eventLog).values({ eventType: "EmailSyncCompleted", aggregateType: "connector_sync", aggregateId: sync.id, sourceRef: "gmail", occurredAt: new Date(), payload: { provider: "gmail", fullSync: result.fullSync, receivedCount: result.messages.length, normalizedCount: storedCount, duplicateCount: result.duplicateCount } });
-    res.json({ ...result, storedCount, syncId: sync.id });
+    // The shared sync service preserves the provider boundary, cursor safety,
+    // duplicateCount, existing-record deduplication, and the granted scopes
+    // never leave Connection Center.
+    res.json(await syncGmailConnection({ connectionId, source: "manual" }));
   } catch (error) { errorResponse(res, error); }
 });
 

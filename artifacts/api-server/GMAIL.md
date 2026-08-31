@@ -35,4 +35,10 @@ The API routes under `/api/email` provide inbox/approved-mail listing, Gmail sea
 
 Sending is different from drafting: `/api/email/send` always calls `executeProviderWrite` with `send_email`, requiring owner confirmation, human confirmation, evidence, Constitution checks, and a fresh CerbaSeal authorization according to current policy. A Gmail permission or UI control cannot bypass that boundary.
 
-Incremental sync uses Gmail `historyId`. The first sync establishes a baseline; later syncs request only changes since the stored cursor, deduplicate message IDs, and advance the cursor only after the normalized event transaction succeeds. Expired history cursors should be handled by a deliberate full resync rather than silently replaying the mailbox.
+Incremental sync uses Gmail `historyId`. The first sync establishes a baseline; later syncs request only changes since the stored cursor, paginate history changes, deduplicate message IDs, and advance the cursor only after the normalized event transaction succeeds. Expired history cursors are recovered by a deliberate, auditable full resync rather than silently replaying the mailbox.
+
+## Push freshness
+
+To reduce Today latency, configure a Google Cloud Pub/Sub topic in `GMAIL_PUBSUB_TOPIC_NAME` using the full topic name `projects/{project}/topics/{topic}`. After a connected Gmail account has completed its baseline sync, call `POST /api/email/gmail/watch` with the connection ID and optional topic name. The endpoint establishes the baseline, registers the Gmail watch, and stores only the watch metadata server-side.
+
+Configure the Pub/Sub push subscription to deliver to `POST /api/email/gmail/webhook`. Gmail sends an opaque notification containing the mailbox address and a history cursor; the webhook verifies the address against the stored watch, reuses the existing incremental sync, and acknowledges only after normalization. Watch renewal runs through the persisted scheduler before expiry. A stale or expired Gmail history cursor triggers an auditable full sync. Today is refreshed only when that sync accepts at least one new normalized Gmail event.

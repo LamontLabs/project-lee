@@ -8,3 +8,9 @@ Portable backup collection must include every canonical table referenced by prov
 **Why:** A checksum-valid backup is not sufficient if provenance targets are omitted or canonical objects cannot be rebuilt from the immutable Event Log; silently downgrading those checks would hide a restore-integrity failure.
 
 **How to apply:** When adding a provenance-bearing ledger or canonical object type, update the backup table set and provide an explicit append-only lineage repair path with regression coverage for replay and isolated restore. Migrate external references to durable Event Log IDs while preserving the original value in the migration event payload.
+
+Append-only repair events can be appended after a legacy update even though they semantically establish the object first. The projector must recognize the explicit legacy-repair create marker as the predecessor during reset/rebuild, and rebuild results must report the last event for that projection rather than an unrelated global-log event.
+
+**Why:** Repair cannot rewrite the original event sequence, so a literal chronological replay would otherwise report a false missing-object conflict and leave the checkpoint/result cursors inconsistent.
+
+**How to apply:** Keep the exception scoped to marked repair creates; ordinary update-only histories remain conflicts. Scope projection cursors and returned last-event IDs to events handled by that projection.

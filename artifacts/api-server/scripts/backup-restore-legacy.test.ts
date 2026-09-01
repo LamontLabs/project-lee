@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { eq } from "drizzle-orm";
-import { db, eventLog, provenanceRecord, universalObject } from "@workspace/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { db, eventLog, projectionCheckpoint, projectionEventReceipt, provenanceRecord, universalObject } from "@workspace/db";
 import { collectPortableBackup, digest, verifyPortableBackup } from "../src/lib/backup-restore";
+import { rebuildProjection } from "../src/lib/projector";
 
 test("legacy backup reconciliation repairs update-only objects and external provenance before verification", async () => {
   const objectId = randomUUID();
@@ -120,6 +121,61 @@ test("legacy backup reconciliation repairs update-only objects and external prov
       unresolvedEvidence.checks.find((check) => check.name === "canonical-state-equality")?.result,
       "FAIL",
     );
+
+    const fixtureEventIds = payload.eventLog
+      .filter((event) => event.aggregateId === objectId && ["UniversalObjectCreated", "UniversalObjectUpdated"].includes(event.eventType))
+      .map((event) => event.id);
+    const dryRunProjection = await rebuildProjection("universal_objects", { dryRun: true });
+    assert.deepEqual(
+      dryRunProjection.conflicts.filter((conflict) => fixtureEventIds.includes(conflict.eventId)),
+      [],
+      "dry-run replay must not conflict on the repaired create-plus-update history",
+    );
+
+    const resetProjection = await rebuildProjection("universal_objects", { reset: true });
+    assert.deepEqual(
+      resetProjection.conflicts.filter((conflict) => fixtureEventIds.includes(conflict.eventId)),
+      [],
+      "reset replay must not conflict on the repaired create-plus-update history",
+    );
+    const [projected] = await db.select().from(universalObject).where(eq(universalObject.id, objectId)).limit(1);
+    assert.ok(projected, "reset replay must restore the repaired object");
+    assert.deepEqual(
+      {
+        objectType: projected.objectType,
+        name: projected.name,
+        description: projected.description,
+        status: projected.status,
+        sourceRefs: projected.sourceRefs,
+        version: projected.version,
+        createdBy: projected.createdBy,
+        modifiedBy: projected.modifiedBy,
+        currentOwner: projected.currentOwner,
+      },
+      {
+        objectType: object.objectType,
+        name: object.name,
+        description: object.description,
+        status: object.status,
+        sourceRefs: object.sourceRefs,
+        version: repairedCreate.sequenceNumber,
+        createdBy: object.createdBy,
+        modifiedBy: object.modifiedBy,
+        currentOwner: object.currentOwner,
+      },
+    );
+
+    const receipts = await db.select().from(projectionEventReceipt).where(and(
+      eq(projectionEventReceipt.projectionName, "universal_objects"),
+      inArray(projectionEventReceipt.eventId, fixtureEventIds),
+    ));
+    assert.equal(receipts.length, fixtureEventIds.length, "replayed fixture events must each have a receipt");
+    assert.ok(receipts.every((receipt) => /^[0-9a-f]{64}$/i.test(receipt.eventHash)), "replayed receipts must retain event hashes");
+    const [checkpoint] = await db.select().from(projectionCheckpoint).where(eq(projectionCheckpoint.projectionName, "universal_objects")).limit(1);
+    assert.ok(checkpoint, "reset replay must retain a projection checkpoint");
+    assert.equal(checkpoint.lastEventId, resetProjection.lastEventId);
+    assert.equal(checkpoint.conflictCount, resetProjection.conflicts.length);
+    assert.equal(checkpoint.status, resetProjection.conflicts.length ? "conflicted" : "ready");
   } finally {
     await db.delete(provenanceRecord).where(eq(provenanceRecord.id, provenanceId ?? ""));
     await db.delete(universalObject).where(eq(universalObject.id, objectId));

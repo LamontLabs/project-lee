@@ -63,6 +63,7 @@ async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boo
         sourceRefs: Array.isArray(payload.sourceRefs) ? payload.sourceRefs.filter((value): value is string => typeof value === "string") : [],
         version: event.sequenceNumber,
         createdBy: typeof payload.createdBy === "string" ? payload.createdBy : "owner",
+         modifiedBy: typeof payload.modifiedBy === "string" ? payload.modifiedBy : undefined,
         currentOwner: typeof payload.currentOwner === "string" ? payload.currentOwner : "owner",
         importedFrom: payload.importedFrom && typeof payload.importedFrom === "object" ? payload.importedFrom as Record<string, unknown> : undefined,
         generatedBy: payload.generatedBy && typeof payload.generatedBy === "object" ? payload.generatedBy as Record<string, unknown> : undefined,
@@ -70,7 +71,15 @@ async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boo
     }
     return null;
   }
-  if (!existing) return "Update targets an object that is not present.";
+  if (!existing) {
+    const [repairedCreate] = await db.select({ payload: eventLog.payload }).from(eventLog).where(and(
+      eq(eventLog.eventType, "UniversalObjectCreated"),
+      eq(eventLog.aggregateType, event.aggregateType),
+      eq(eventLog.aggregateId, event.aggregateId),
+    )).limit(1);
+    if (repairedCreate?.payload.legacyRepair === true) return null;
+    return "Update targets an object that is not present.";
+  }
   if (event.sequenceNumber < existing.version) return null;
   if (!dryRun) {
     await db.update(universalObject).set({
@@ -142,9 +151,11 @@ export async function rebuildProjection(projection: ProjectionName, options: { d
   let processed = 0;
   let skipped = 0;
   let conflictCount = checkpoint?.conflictCount ?? 0;
+  let lastEventId = checkpoint?.lastEventId ?? null;
   const conflicts: ProjectionConflict[] = [];
   for (const event of events) {
     if (projectionForEvent(event.eventType) !== projection) continue;
+    lastEventId = event.id;
     const result = await projectEvent(event, { dryRun });
     if (result.conflict) {
       conflictCount += 1;
@@ -158,7 +169,7 @@ export async function rebuildProjection(projection: ProjectionName, options: { d
       await db.insert(projectionCheckpoint).values({ projectionName: projection, lastCreatedAt: event.createdAt, lastEventId: event.id, processedCount: (checkpoint?.processedCount ?? 0) + processed, conflictCount, status: conflicts.length ? "conflicted" : "ready", updatedAt: new Date() }).onConflictDoUpdate({ target: projectionCheckpoint.projectionName, set: { lastCreatedAt: event.createdAt, lastEventId: event.id, processedCount: (checkpoint?.processedCount ?? 0) + processed, conflictCount, status: conflicts.length ? "conflicted" : "ready", updatedAt: new Date() } });
     }
   }
-  return { projection, processed, skipped, conflicts, lastEventId: events.at(-1)?.id ?? checkpoint?.lastEventId ?? null, dryRun };
+  return { projection, processed, skipped, conflicts, lastEventId, dryRun };
 }
 
 export async function rebuildAllProjections(options: { dryRun?: boolean; reset?: boolean } = {}) {

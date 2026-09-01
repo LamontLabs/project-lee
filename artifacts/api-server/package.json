@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:manifest": "node --test scripts/manifest-contract.test.mjs",
     "test:system-contract": "node --test scripts/manifest-contract.test.mjs",
+    "test:system-economics-pricing": "node scripts/system-economics-pricing.test.mjs",
     "test:resource-allocation-lifecycle": "node --test scripts/resource-allocation-lifecycle.test.mjs",
     "test:behavioral": "node --test scripts/behavioral-test-foundation.test.mjs",
     "test:pipeline": "pnpm run build && node --test scripts/request-pipeline.test.mjs",

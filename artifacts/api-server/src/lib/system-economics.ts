@@ -13,6 +13,31 @@ export type EconomicMetric = {
   provenance: string[];
 };
 
+export type EconomicUsagePricingRecord = {
+  id: string;
+  operation: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  provider: string;
+  recordedAt: Date;
+};
+
+export type EconomicPricePricingRecord = {
+  id: string;
+  operation: string;
+  category: string;
+  unit: string;
+  priceUsd: number;
+  provider: string;
+  effectiveAt: Date;
+};
+
+export type PricedEconomicUsage = {
+  usage: EconomicUsagePricingRecord;
+  price?: EconomicPricePricingRecord;
+};
+
 export const ECONOMIC_DIMENSIONS = [
   "cil.t1_calls", "cil.t2_calls", "cil.t3_frontier_calls", "cil.frontier_calls", "cil.avoided_calls",
   "cil.tokens", "cil.model_cost_usd", "cil.latency_ms", "cil.savings_usd",
@@ -37,6 +62,44 @@ export function systemEconomicsContract() {
 
 function metric(value: number | null, status: MetricStatus, unit: string, source: string, observedAt: Date, provenance: string[]): EconomicMetric {
   return { value, status, unit, source, observedAt: observedAt.toISOString(), provenance };
+}
+
+export function matchEconomicUsageToPrices(
+  usageRecords: readonly EconomicUsagePricingRecord[],
+  priceRecords: readonly EconomicPricePricingRecord[],
+): PricedEconomicUsage[] {
+  return usageRecords.map((usage) => {
+    const price = priceRecords
+      .filter((candidate) => candidate.operation === usage.operation
+        && candidate.category === usage.category
+        && candidate.unit === usage.unit
+        && candidate.provider === usage.provider
+        && candidate.effectiveAt <= usage.recordedAt)
+      .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime())[0];
+    return { usage, price };
+  });
+}
+
+export function reconcileEconomicCategorySpend(
+  usageRecords: readonly EconomicUsagePricingRecord[],
+  priceRecords: readonly EconomicPricePricingRecord[],
+  categories: readonly string[],
+  observedAt: Date,
+): EconomicMetric {
+  const pricedUsage = matchEconomicUsageToPrices(usageRecords, priceRecords);
+  const rows = pricedUsage.filter(({ usage }) => categories.includes(usage.category));
+  const missing = rows.filter(({ price }) => !price);
+  const usageProvenance = usageRecords.map((usage) => usage.id);
+  const pricingProvenance = priceRecords.map((price) => price.id);
+  if (!rows.length || missing.length) {
+    return metric(null, "UNAVAILABLE", "USD", "economic_usage_record × economic_price_evidence", observedAt,
+      [...(usageProvenance.length ? usageProvenance : ["economic_usage_record:period"]),
+        ...(pricingProvenance.length ? pricingProvenance : ["economic_price_evidence:effective"]),
+        ...missing.map(({ usage }) => `missing-price:${usage.operation}:${usage.unit}`)]);
+  }
+  return metric(sum(rows.map(({ usage, price }) => usage.quantity * (price?.priceUsd ?? 0))), "MEASURED", "USD",
+    "economic_usage_record × economic_price_evidence", observedAt,
+    [...rows.map(({ usage }) => usage.id), ...rows.map(({ price }) => price?.id ?? "")].filter(Boolean));
 }
 
 function sum(values: number[]) { return values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0); }
@@ -132,25 +195,8 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     usage: provenance(usageRecords.map((row) => row.id), "economic_usage_record:period"),
     pricing: provenance(priceRecords.map((row) => row.id), "economic_price_evidence:effective"),
   };
-  const pricedUsage = usageRecords.map((usage) => {
-    const price = priceRecords
-      .filter((candidate) => candidate.operation === usage.operation && candidate.category === usage.category && candidate.unit === usage.unit && candidate.provider === usage.provider && candidate.effectiveAt <= usage.recordedAt)
-      .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime())[0];
-    return { usage, price };
-  });
-  const categorySpend = (categories: string[]) => {
-    const rows = pricedUsage.filter(({ usage }) => categories.includes(usage.category));
-    const missing = rows.filter(({ price }) => !price);
-    if (!rows.length || missing.length) {
-      return metric(null, "UNAVAILABLE", "USD", "economic_usage_record × economic_price_evidence", observedAt,
-        [...metricProvenance.usage, ...metricProvenance.pricing, ...missing.map(({ usage }) => `missing-price:${usage.operation}:${usage.unit}`)]);
-    }
-    return metric(sum(rows.map(({ usage, price }) => usage.quantity * (price?.priceUsd ?? 0))), "MEASURED", "USD",
-      "economic_usage_record × economic_price_evidence", observedAt,
-      [...rows.map(({ usage }) => usage.id), ...rows.map(({ price }) => price?.id ?? "")].filter(Boolean));
-  };
-  const storageSpend = categorySpend(["storage", "backup", "embedding"]);
-  const networkSpend = categorySpend(["network"]);
+  const storageSpend = reconcileEconomicCategorySpend(usageRecords, priceRecords, ["storage", "backup", "embedding"], observedAt);
+  const networkSpend = reconcileEconomicCategorySpend(usageRecords, priceRecords, ["network"], observedAt);
   const metrics: Record<string, EconomicMetric | Record<string, EconomicMetric>> = {
     "total_cost_usd": metric(totalCostUsd, "MEASURED", "USD", "cost_record.estimated_cost_usd", observedAt, metricProvenance.records),
     "projected_monthly_cost_usd": metric(projectedMonthlyCostUsd, "ESTIMATED", "USD", "system-economics.month_projection", observedAt, metricProvenance.records),

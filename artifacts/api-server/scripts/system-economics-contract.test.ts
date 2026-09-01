@@ -17,7 +17,7 @@ test("System Economics labels every dimension and reconciles ledger totals", asy
   const contract = systemEconomicsContract();
   const cycle = await runSystemEconomicsCycle(new Date());
   const summary = cycle.summary as any;
-  assert.equal(contract.dimensions.length, 24);
+  assert.equal(contract.dimensions.length, 26);
   for (const dimension of contract.dimensions) assert.ok(summary.metrics[dimension], `Missing metric ${dimension}`);
   for (const [key, value] of Object.entries(summary.metrics)) {
     if (value && typeof value === "object" && "status" in (value as object)) assertMetric(value, `metrics.${key}`);

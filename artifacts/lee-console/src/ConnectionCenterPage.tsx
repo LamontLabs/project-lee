@@ -37,6 +37,7 @@ export default function ConnectionCenterPage() {
   const [localContracts, setLocalContracts] = useState<LocalContract[]>([]);
   const [contractForm, setContractForm] = useState({ contractId: "", provider: "", displayName: "", description: "", port: "8080", paths: "/api/contract" });
   const [contractSaving, setContractSaving] = useState(false);
+  const desktopLaunch = new URLSearchParams(window.location.search).get("desktop") === "1";
   const selected = connections.find((item) => item.id === selectedId) ?? connections[0] ?? null;
   const load = async () => {
     setLoading(true);
@@ -62,6 +63,7 @@ export default function ConnectionCenterPage() {
     } catch { setNotice("Desktop setup could not reach the API."); }
     finally { setSetupRunning(false); }
   };
+  useEffect(() => { if (desktopLaunch) void runSetup(); }, []);
   const acceptDiscovery = async (candidate: DiscoveryCandidate) => {
     setNotice(`Reviewing ${candidate.displayName}…`);
     const response = await fetch("/api/desktop-setup/discoveries/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(candidate) });
@@ -141,6 +143,11 @@ export default function ConnectionCenterPage() {
       <div className="flex gap-2"><button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-refresh-connections"><RefreshCw size={15} /> Refresh</button><button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90" data-testid="button-add-connection"><Plus size={15} /> Add connection</button></div>
     </div>
     {notice && <div className="mb-5 flex items-center justify-between rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm" data-testid="status-connection-notice"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notice"><X size={15} /></button></div>}
+      {desktopLaunch && <section className="mb-5 rounded-2xl border border-primary/25 bg-primary/10 p-5" data-testid="desktop-welcome">
+        <p className="lee-label text-primary">Desktop startup</p><h3 className="mt-2 text-xl font-semibold">Welcome to Project LEE</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">LEE is preparing its private runtime and checking the connections that are safe to discover on this computer. You can keep working while it finishes.</p>
+        <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3"><div className="rounded-xl border border-primary/15 bg-background/40 p-3"><p className="font-semibold">1. Private foundation</p><p className="mt-1 text-muted-foreground">Database, migrations, brain, and Event Log stay local.</p></div><div className="rounded-xl border border-primary/15 bg-background/40 p-3"><p className="font-semibold">2. Safe discovery</p><p className="mt-1 text-muted-foreground">Only approved loopback ports and fixed paths are checked.</p></div><div className="rounded-xl border border-primary/15 bg-background/40 p-3"><p className="font-semibold">3. Owner decisions</p><p className="mt-1 text-muted-foreground">Sign-in, secrets, sending, and consequential actions remain yours.</p></div></div>
+      </section>}
      <section className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-5">
        <div className="flex flex-wrap items-start justify-between gap-4">
          <div><p className="lee-label text-primary">Automatic setup</p><h3 className="mt-2 text-lg font-semibold">Let LEE prepare the desktop</h3><p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">LEE can register providers, reuse existing connections, verify safe access, and link connector defaults. Sign-in, secrets, sending, and consequential actions always stay under your control.</p></div>

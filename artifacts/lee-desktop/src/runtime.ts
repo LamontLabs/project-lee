@@ -1,7 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 export type RuntimeState = "starting" | "live" | "degraded" | "unavailable" | "stopped";
 export type RuntimeSnapshot = {
@@ -80,7 +80,9 @@ type RuntimeConfig = {
   migrationCommand?: string;
 };
 
-const appData = process.env.APPDATA ?? join(homedir(), ".config");
+const appData = process.env.APPDATA
+  ?? process.env.XDG_CONFIG_HOME
+  ?? (process.platform === "darwin" ? join(homedir(), "Library", "Application Support") : join(homedir(), ".config"));
 export const dataDir = join(appData, "Project LEE");
 const configPath = join(dataDir, "config.json");
 const databaseDir = join(dataDir, "database");
@@ -121,6 +123,14 @@ function safeDependencies(value: unknown): Array<Record<string, string | boolean
     }
     return Object.keys(result).length ? [result] : [];
   });
+}
+
+function findPostgresBin(): string | null {
+  const command = process.platform === "win32" ? "where" : "which";
+  const result = spawnSync(command, [process.platform === "win32" ? "initdb.exe" : "initdb"], { encoding: "utf8", windowsHide: true });
+  if (result.status !== 0) return null;
+  const executable = result.stdout.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+  return executable ? dirname(executable) : null;
 }
 
 function compatibleContract(value: unknown): value is Record<string, unknown> {
@@ -301,7 +311,7 @@ export class RuntimeSupervisor {
     }
     this.snapshot = { ...this.snapshot, migration: "complete" };
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
-    const command = config.apiCommand ?? process.execPath.replace(/electron(?:\.exe)?$/i, "node.exe");
+    const command = config.apiCommand ?? process.execPath;
     const args = config.apiArgs ?? [apiPath];
     const childEnv = {
       ...process.env,
@@ -341,7 +351,9 @@ export class RuntimeSupervisor {
   }
 
   private async ensurePostgres(config: RuntimeConfig): Promise<string | null> {
-    const bin = config.postgresBin ?? (this.production ? join(process.resourcesPath, "postgres", "bin") : process.env.LEE_POSTGRES_BIN);
+    const bin = config.postgresBin
+      ?? (this.production ? join(process.resourcesPath, "postgres", "bin") : process.env.LEE_POSTGRES_BIN)
+      ?? findPostgresBin();
     if (!bin) return null;
     const executable = (name: string) => join(bin, process.platform === "win32" ? `${name}.exe` : name);
     const initdb = executable("initdb");

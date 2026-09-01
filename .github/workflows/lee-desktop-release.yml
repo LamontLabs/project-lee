@@ -21,6 +21,13 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Set release version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == lee-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#lee-v}"
+            node -e "const fs=require('fs'); const p='artifacts/lee-desktop/package.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); data.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(data,null,2)+'\n')" "$VERSION"
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @workspace/api-zod exec tsc -p tsconfig.json
       - run: pnpm --filter @workspace/api-server run build
@@ -38,6 +45,9 @@ jobs:
           New-Item -ItemType Directory -Force artifacts/lee-desktop/resources/postgres | Out-Null
           Copy-Item "$env:RUNNER_TEMP\postgresql\pgsql\*" artifacts/lee-desktop/resources/postgres -Recurse -Force
       - run: pnpm --filter @workspace/lee-desktop run package
+        env:
+          CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
       - name: Add checksums
         shell: pwsh
         run: |
@@ -49,6 +59,82 @@ jobs:
         with:
           name: lee-windows-installer
           path: artifacts/lee-desktop/release/*.exe
+          if-no-files-found: error
+
+  macos-package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set release version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == lee-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#lee-v}"
+            node -e "const fs=require('fs'); const p='artifacts/lee-desktop/package.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); data.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(data,null,2)+'\n')" "$VERSION"
+          fi
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/api-zod exec tsc -p tsconfig.json
+      - run: pnpm --filter @workspace/api-server run build
+      - run: pnpm --filter @workspace/lee-console run build
+        env:
+          PORT: 4173
+          BASE_PATH: /
+      - name: Build macOS packages
+        run: pnpm --filter @workspace/lee-desktop run package
+        env:
+          CSC_LINK: ${{ secrets.LEE_MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.LEE_MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lee-macos-installers
+          path: |
+            artifacts/lee-desktop/release/*.dmg
+            artifacts/lee-desktop/release/*.zip
+          if-no-files-found: error
+
+  linux-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Set release version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == lee-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#lee-v}"
+            node -e "const fs=require('fs'); const p='artifacts/lee-desktop/package.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); data.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(data,null,2)+'\n')" "$VERSION"
+          fi
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/api-zod exec tsc -p tsconfig.json
+      - run: pnpm --filter @workspace/api-server run build
+      - run: pnpm --filter @workspace/lee-console run build
+        env:
+          PORT: 4173
+          BASE_PATH: /
+      - name: Build Linux packages
+        run: pnpm --filter @workspace/lee-desktop run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lee-linux-installers
+          path: |
+            artifacts/lee-desktop/release/*.AppImage
+            artifacts/lee-desktop/release/*.deb
           if-no-files-found: error
 
   windows-installer-validation:
@@ -68,7 +154,10 @@ jobs:
           & "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\scripts\windows-smoke-test.ps1" -InstallerPath $installer.FullName
 
   publish-release:
-    needs: windows-installer-validation
+    needs:
+      - windows-installer-validation
+      - macos-package
+      - linux-package
     runs-on: windows-latest
     permissions:
       contents: write
@@ -77,15 +166,23 @@ jobs:
         with:
           name: lee-windows-installer
           path: artifacts/lee-desktop/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: lee-macos-installers
+          path: artifacts/lee-desktop/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: lee-linux-installers
+          path: artifacts/lee-desktop/release
       - name: Add checksums
         shell: pwsh
         run: |
-          Get-ChildItem artifacts/lee-desktop/release/*.exe | ForEach-Object {
+          Get-ChildItem artifacts/lee-desktop/release/* -File | Where-Object { $_.Extension -notlike ".sha256" } | ForEach-Object {
             (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name | Out-File ($_.FullName + ".sha256") -Encoding ascii
           }
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/lee-desktop/release/*.exe
+            artifacts/lee-desktop/release/*
             artifacts/lee-desktop/release/*.sha256
           generate_release_notes: true

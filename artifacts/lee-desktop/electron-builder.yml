@@ -13,15 +13,28 @@ extraResources:
     to: api-server
   - from: resources/console
     to: console
-  - from: resources/postgres
-    to: postgres
 linux:
+  icon: resources/lee.png
   target:
-    - dir
+    - AppImage
+    - deb
   category: Utility
   executableName: Project-LEE
+  syncDesktopName: true
+  synopsis: Private founder operating system
+mac:
+  icon: resources/lee.png
+  target:
+    - dmg
+    - zip
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
 win:
   icon: resources/lee.png
+  extraResources:
+    - from: resources/postgres
+      to: postgres
   target:
     - target: nsis
       arch:
@@ -33,6 +46,7 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Project LEE
   runAfterFinish: true
+  differentialPackage: true
 publish:
   provider: github
   releaseType: release

@@ -12,6 +12,7 @@ type RuntimeSnapshot = {
   reason: string | null;
   migrationLogPath: string;
 };
+type UpdateState = { status: "unsupported" | "idle" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "error"; version?: string; message?: string };
 
 export type LocalServiceDiscoveryPayload = {
   candidates: Array<{
@@ -38,6 +39,11 @@ declare global {
     leeRuntime?: {
       status: () => Promise<RuntimeSnapshot>;
       discoverLocalServices: () => Promise<LocalServiceDiscoveryPayload>;
+      updateStatus: () => Promise<UpdateState>;
+      checkForUpdates: () => Promise<UpdateState>;
+      downloadUpdate: () => Promise<UpdateState>;
+      installUpdate: () => Promise<UpdateState>;
+      onUpdateState: (listener: (state: UpdateState) => void) => () => void;
     };
   }
 }
@@ -52,13 +58,16 @@ function StateIcon({ state }: { state: CheckState | "pending" }) {
 
 export function DesktopSetupPanel() {
   const [runtime, setRuntime] = useState<RuntimeSnapshot | null>(null);
+  const [update, setUpdate] = useState<UpdateState | null>(null);
   useEffect(() => {
     if (!window.leeRuntime) return;
     let active = true;
     const refresh = () => window.leeRuntime!.status().then((value) => { if (active) setRuntime(value); }).catch(() => undefined);
     void refresh();
+    void window.leeRuntime.updateStatus().then((value) => { if (active) setUpdate(value); }).catch(() => undefined);
+    const unsubscribe = window.leeRuntime.onUpdateState((value) => { if (active) setUpdate(value); });
     const timer = window.setInterval(refresh, 2000);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => { active = false; window.clearInterval(timer); unsubscribe(); };
   }, []);
   if (!runtime) return null;
 
@@ -81,6 +90,12 @@ export function DesktopSetupPanel() {
           {labels.map((label) => <Status key={label} label={label} state={runtime.checks[label] ?? "unavailable"} />)}
         </div>
         {runtime.migration === "failed" && <p className="mt-3 text-xs text-amber-200">Migration log: {runtime.migrationLogPath}</p>}
+        {update && update.status !== "unsupported" && update.status !== "idle" && update.status !== "not-available" && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sidebar-primary/30 bg-sidebar-accent/40 px-3 py-2.5 text-xs">
+          <span>{update.status === "available" ? `A new LEE version is ready${update.version ? ` · ${update.version}` : ""}.` : update.status === "downloaded" ? `LEE ${update.version ?? "update"} is ready to install.` : update.status === "downloading" ? `Downloading LEE update${update.message ? ` · ${update.message}` : ""}` : update.status === "checking" ? "Checking for LEE updates…" : update.message ?? "LEE update check failed."}</span>
+          {update.status === "available" && <button onClick={() => void window.leeRuntime?.downloadUpdate()} className="rounded-lg bg-sidebar-primary px-3 py-1.5 font-semibold text-sidebar-primary-foreground">Download update</button>}
+          {update.status === "downloaded" && <button onClick={() => void window.leeRuntime?.installUpdate()} className="rounded-lg bg-sidebar-primary px-3 py-1.5 font-semibold text-sidebar-primary-foreground">Restart and update</button>}
+          {update.status === "error" && <button onClick={() => void window.leeRuntime?.checkForUpdates()} className="rounded-lg border border-sidebar-primary/30 px-3 py-1.5 font-semibold text-sidebar-primary">Try again</button>}
+        </div>}
       </div>
     </section>
   );

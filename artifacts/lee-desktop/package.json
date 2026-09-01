@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Project LEE Windows desktop shell and local runtime supervisor.",
-  "author": "Lamont Labs",
+  "author": {
+    "name": "Lamont Labs",
+    "email": "noreply@lamontlabs.com"
+  },
+  "desktopName": "project-lee",
   "repository": {
     "type": "git",
     "url": "https://github.com/lamontlabs/project-lee"
@@ -24,7 +28,10 @@
     "@types/node": "catalog:",
     "electron": "^38.2.2",
     "electron-builder": "^26.0.12",
-    "typescript": "~5.9.3",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

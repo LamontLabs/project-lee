@@ -6,12 +6,12 @@ import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
 import { queryEngine } from "./query-engine";
 import { checkPolicy } from "./policy";
-import { connectedEmailProvider, type EmailProvider, type EmailSearchFilters, type EmailThread } from "./email-provider";
+import { connectedEmailProvider, type ConnectedEmailProvider, type EmailProvider, type EmailSearchFilters, type EmailThread } from "./email-provider";
 import { parseEmailSearchFilters } from "./intent";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
-type EmailCandidate = {
+export type EmailCandidate = {
   item: ContextInput;
   provider: EmailProvider;
   threadId: string;
@@ -32,9 +32,13 @@ function emailThreadText(thread: EmailThread) {
   return `Gmail · Email thread\nSource: gmail:${thread.id}\nThread ID: ${thread.id}\nSubject: ${thread.subject}\nParticipants: ${thread.participants.map((address) => address.email).join(", ") || "unknown"}\n\n${messages.join("\n\n---\n\n")}`;
 }
 
-async function retrieveEmailCandidates(query: string, intent?: { intentSubtype?: string | null; emailFilters?: EmailSearchFilters }) {
+export async function retrieveEmailCandidates(
+  query: string,
+  intent?: { intentSubtype?: string | null; emailFilters?: EmailSearchFilters },
+  resolveProvider: () => Promise<ConnectedEmailProvider | null> = connectedEmailProvider,
+) {
   if (intent?.intentSubtype !== "email_search") return { candidates: [] as EmailCandidate[], unavailable: false };
-  const resolved = await connectedEmailProvider();
+  const resolved = await resolveProvider();
   if (!resolved) return { candidates: [] as EmailCandidate[], unavailable: true };
   const result = await resolved.provider.search(intent.emailFilters ?? parseEmailSearchFilters(query), { maxResults: 12 });
   const uniqueThreads = [...new Map(result.messages.map((message) => [message.threadId, message])).values()];
@@ -62,7 +66,7 @@ async function retrieveEmailCandidates(query: string, intent?: { intentSubtype?:
   return { candidates, unavailable: false };
 }
 
-async function hydrateSelectedEmailContext(items: SelectedContext[], candidates: EmailCandidate[]) {
+export async function hydrateSelectedEmailContext(items: SelectedContext[], candidates: EmailCandidate[]) {
   const byId = new Map(candidates.map((candidate) => [candidate.item.id, candidate]));
   return Promise.all(items.map(async (item) => {
     const candidate = byId.get(item.id);

@@ -7,6 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 test("all desktop packages include the relocatable PostgreSQL runtime", async () => {
   const builder = await read("electron-builder.yml");
   const runtime = await read("src/runtime.ts");
+  const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
@@ -16,6 +17,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /DYLD_LIBRARY_PATH/);
   assert.match(runtime, /PGSHAREDIR/);
   assert.match(runtime, /postgres-socket/);
+  assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);
+  assert.match(main, /quitAndInstall/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
 });
 
@@ -29,4 +32,7 @@ test("release jobs stage and smoke-test PostgreSQL on every supported desktop pl
   assert.match(workflow, /Smoke test bundled macOS runtime/);
   assert.match(workflow, /Smoke test bundled Linux runtime/);
   assert.match(workflow, /xvfb-run --auto-servernum/);
+  assert.match(workflow, /windows-update-smoke\.ps1/);
+  assert.match(workflow, /download-release-assets\.mjs/);
+  assert.match(workflow, /update-verification-\$\{\{ matrix\.platform \}\}\.json/);
 });

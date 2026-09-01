@@ -24,6 +24,7 @@
     "package": "pnpm run build && node scripts/prepare-runtime.mjs && electron-builder --config electron-builder.yml --publish never",
     "smoke:unix": "node scripts/unix-runtime-smoke.mjs",
     "test:runtime-contract": "node --test scripts/desktop-runtime-contract.test.mjs",
+    "verify:update-feed": "node scripts/verify-updater-feed.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

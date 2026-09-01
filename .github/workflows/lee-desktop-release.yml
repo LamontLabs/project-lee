@@ -319,3 +319,92 @@ jobs:
         with:
           files: artifacts/lee-desktop/release/*
           generate_release_notes: true
+
+  signed-update-validation:
+    needs: publish-release
+    if: startsWith(github.ref, 'refs/tags/lee-v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            runner: windows-latest
+          - platform: macos
+            runner: macos-latest
+          - platform: linux
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download published current and previous stable releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/lee-update/current" "$RUNNER_TEMP/lee-update/previous"
+          node artifacts/lee-desktop/scripts/download-release-assets.mjs \
+            --platform "${{ matrix.platform }}" \
+            --current-dir "$RUNNER_TEMP/lee-update/current" \
+            --previous-dir "$RUNNER_TEMP/lee-update/previous" \
+            --record "$RUNNER_TEMP/lee-update/selection.json"
+          node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); fs.appendFileSync(process.env.GITHUB_ENV, `LEE_UPDATE_VERSION=${r.currentVersion}\n`, "utf8")' "$RUNNER_TEMP/lee-update/selection.json"
+      - name: Verify Windows signed update installation
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\scripts\windows-update-smoke.ps1" `
+            -CurrentDir "$env:RUNNER_TEMP\lee-update\current" `
+            -PreviousDir "$env:RUNNER_TEMP\lee-update\previous" `
+            -ExpectedVersion "$env:LEE_UPDATE_VERSION" `
+            -Output "$env:GITHUB_WORKSPACE\update-verification-windows.json" `
+            -Selection "$env:RUNNER_TEMP\lee-update\selection.json"
+      - name: Verify macOS or Linux signed update installation
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y xvfb
+          fi
+          command -v xvfb-run >/dev/null 2>&1 || [[ "${{ matrix.platform }}" == "macos" ]] || { echo "xvfb-run is required for Linux updater validation." >&2; exit 1; }
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
+              node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
+              --platform "${{ matrix.platform }}" \
+              --current-dir "$RUNNER_TEMP/lee-update/current" \
+              --previous-dir "$RUNNER_TEMP/lee-update/previous" \
+              --expected-version "$LEE_UPDATE_VERSION" \
+              --record "$RUNNER_TEMP/lee-update/selection.json" \
+              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.platform }}.json"
+          else
+            node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
+              --platform "${{ matrix.platform }}" \
+              --current-dir "$RUNNER_TEMP/lee-update/current" \
+              --previous-dir "$RUNNER_TEMP/lee-update/previous" \
+              --expected-version "$LEE_UPDATE_VERSION" \
+              --record "$RUNNER_TEMP/lee-update/selection.json" \
+              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.platform }}.json"
+          fi
+      - name: Write signed update verification checklist
+        shell: bash
+        run: |
+          node artifacts/lee-desktop/scripts/write-update-verification-checklist.mjs \
+            --input "$GITHUB_WORKSPACE/update-verification-${{ matrix.platform }}.json" \
+            --output "$GITHUB_WORKSPACE/UPDATE-VERIFICATION-${{ matrix.platform }}.md"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lee-update-verification-${{ matrix.platform }}
+          path: |
+            update-verification-${{ matrix.platform }}.json
+            UPDATE-VERIFICATION-${{ matrix.platform }}.md
+          if-no-files-found: error
+      - name: Retain verification evidence with the published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" "update-verification-${{ matrix.platform }}.json" "UPDATE-VERIFICATION-${{ matrix.platform }}.md" --clobber

@@ -14,6 +14,10 @@ type UpdateState = { status: "unsupported" | "idle" | "checking" | "available" |
 let updateState: UpdateState = { status: "idle" };
 
 const isProduction = app.isPackaged;
+const smokeUpdateFeedUrl = process.env.LEE_SMOKE_UPDATE_FEED_URL;
+const smokeUpdateExpectedVersion = process.env.LEE_SMOKE_UPDATE_EXPECTED_VERSION;
+const smokeUpdateResultFile = process.env.LEE_SMOKE_UPDATE_RESULT_FILE;
+const smokeUpdateInstall = process.env.LEE_SMOKE_UPDATE_INSTALL === "1";
 const hasSingleInstance = app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
 else app.on("second-instance", () => { window?.show(); window?.focus(); });
@@ -21,22 +25,37 @@ app.setAppUserModelId("com.lamontlabs.projectlee");
 
 function setUpdateState(next: UpdateState): void {
   updateState = next;
+  if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify(updateState, null, 2), "utf8");
   window?.webContents.send("lee:update-state", updateState);
+}
+
+function finishSmokeUpdate(status: "not-available" | "error", message?: string): void {
+  setUpdateState({ status, message });
+  setTimeout(() => app.quit(), 100);
 }
 
 function configureUpdates(): void {
   if (!isProduction) { setUpdateState({ status: "unsupported", message: "Updates are available in packaged builds." }); return; }
+  if (smokeUpdateFeedUrl) autoUpdater.setFeedURL({ provider: "generic", url: smokeUpdateFeedUrl });
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
   autoUpdater.allowDowngrade = false;
   autoUpdater.on("checking-for-update", () => setUpdateState({ status: "checking" }));
-  autoUpdater.on("update-available", (info) => setUpdateState({ status: "available", version: info.version }));
-  autoUpdater.on("update-not-available", () => setUpdateState({ status: "not-available" }));
+  autoUpdater.on("update-available", (info) => {
+    setUpdateState({ status: "available", version: info.version });
+    if (smokeUpdateFeedUrl) void autoUpdater.downloadUpdate();
+  });
+  autoUpdater.on("update-not-available", () => smokeUpdateFeedUrl ? finishSmokeUpdate("not-available") : setUpdateState({ status: "not-available" }));
   autoUpdater.on("download-progress", (progress) => setUpdateState({ status: "downloading", message: `${Math.round(progress.percent)}% downloaded` }));
-  autoUpdater.on("update-downloaded", (info) => setUpdateState({ status: "downloaded", version: info.version }));
-  autoUpdater.on("error", (error) => setUpdateState({ status: "error", message: error.message }));
-  setTimeout(() => { void checkForUpdates(); }, 10_000);
+  autoUpdater.on("update-downloaded", (info) => {
+    setUpdateState({ status: "downloaded", version: info.version });
+    if (smokeUpdateInstall) setTimeout(() => autoUpdater.quitAndInstall(), 100);
+  });
+  autoUpdater.on("error", (error) => smokeUpdateFeedUrl ? finishSmokeUpdate("error", error.message) : setUpdateState({ status: "error", message: error.message }));
+  if (!(smokeUpdateFeedUrl && smokeUpdateExpectedVersion === app.getVersion())) {
+    setTimeout(() => { void checkForUpdates(); }, smokeUpdateFeedUrl ? 1_000 : 10_000);
+  }
 }
 
 async function checkForUpdates(): Promise<UpdateState> {
@@ -112,7 +131,15 @@ async function boot(): Promise<void> {
   if (process.env.LEE_SMOKE_DISCOVERY_FILE) {
     await writeSmokeDiscovery(process.env.LEE_SMOKE_DISCOVERY_FILE);
   }
-  if (app.commandLine.hasSwitch("lee-smoke-exit")) app.quit();
+  const awaitingSmokeUpdate = Boolean(
+    smokeUpdateFeedUrl &&
+    smokeUpdateExpectedVersion &&
+    app.getVersion() !== smokeUpdateExpectedVersion,
+  );
+  if (smokeUpdateFeedUrl && smokeUpdateExpectedVersion && app.getVersion() === smokeUpdateExpectedVersion) {
+    if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify({ status: "installed", version: app.getVersion() }, null, 2), "utf8");
+  }
+  if (app.commandLine.hasSwitch("lee-smoke-exit") && !awaitingSmokeUpdate) app.quit();
 }
 
 app.on("before-quit", () => { isQuitting = true; supervisor?.stop(); consoleServer?.server.close(); });

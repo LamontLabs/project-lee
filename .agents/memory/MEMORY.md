@@ -57,3 +57,4 @@
 - [Runtime and control planes](runtime-control-plane.md) — service consumption and scoped project management are separate boundaries with independent readiness layers.
 - [Cross-artifact visual language](cross-artifact-visual-language.md) — LEE UI uses black lacquer surfaces, crimson accents, red grid lines, grain, and restrained metallic sheen.
 - [Packaged desktop migration boundary](desktop-migration-boundary.md) — installed desktop startup migrates from bundled SQL and a runner, never the development workspace.
+- [Signed update validation](signed-update-validation.md) — published desktop feeds need tamper rejection, valid install, and retained evidence on each platform.

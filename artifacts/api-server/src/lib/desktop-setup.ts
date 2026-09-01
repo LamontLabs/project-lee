@@ -84,7 +84,7 @@ function safeDiscoveryRecords(value: unknown): Array<Record<string, unknown>> {
   });
 }
 
-function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscoveryCandidate | null {
+export function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscoveryCandidate | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
   const contractId = typeof input.contractId === "string" ? input.contractId : null;
@@ -95,15 +95,15 @@ function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalSe
   if (!contract || !isLoopbackUrl(baseUrl) || !/^\/[a-zA-Z0-9._/:-]*$/.test(healthEndpoint) || !contract.paths.includes(healthEndpoint)) return null;
   const parsedUrl = new URL(baseUrl);
   const port = Number(parsedUrl.port || (parsedUrl.protocol === "https:" ? 443 : 80));
-  if (port !== contract.port || parsedUrl.pathname !== "/") return null;
+  if (port !== contract.port || parsedUrl.pathname !== "/" || parsedUrl.search || parsedUrl.hash) return null;
   return {
-    discoveryKey: `${contractId}|${baseUrl}|${healthEndpoint}`,
+    discoveryKey: `${contractId}|${parsedUrl.origin}|${healthEndpoint}`,
     contractId,
     provider: contract.provider,
     displayName: safeDiscoveryText(input.displayName, safeContractDisplayName(contract)),
     targetType: contract.targetType,
     method: "local",
-    baseUrl,
+    baseUrl: parsedUrl.origin,
     healthEndpoint,
     contractVersion: safeDiscoveryText(input.contractVersion, "v1", 32),
     capabilities: safeDiscoveryRecords(input.capabilities),
@@ -112,7 +112,7 @@ function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalSe
   };
 }
 
-function normalizeDiscoveryReport(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscovery {
+export function normalizeDiscoveryReport(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscovery {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { candidates: [], failures: [] };
   const input = value as Record<string, unknown>;
   const candidates = (Array.isArray(input.candidates) ? input.candidates : [])
@@ -133,7 +133,7 @@ function normalizeDiscoveryReport(value: unknown, contracts: readonly LocalServi
       reason: safeProbeReason(row.reason),
     }];
   });
-  return { candidates: deduped, failures, attempted: typeof input.attempted === "number" ? Math.max(0, Math.min(100, input.attempted)) : undefined, completedAt: typeof input.completedAt === "string" ? input.completedAt : undefined };
+  return { candidates: deduped, failures, attempted: typeof input.attempted === "number" ? Math.max(0, Math.min(100, input.attempted)) : undefined, completedAt: safeObservedAt(input.completedAt) };
 }
 
 function sameConnection(row: typeof connection.$inferSelect, candidate: LocalServiceDiscoveryCandidate): boolean {

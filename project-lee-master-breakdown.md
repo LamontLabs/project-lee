@@ -1,11 +1,11 @@
 # Project LEE — Master Breakdown
 *Learning Environment Engine · Pronounced: Lee*
 *Named after the founder's grandmother.*
-*Version 12.0 — 69 Tasks · July 13, 2026*
+*Version 12.1 — 69 Tasks · September 1, 2026*
 
 ---
 
-## The Vision (v12.0)
+## The Vision (v12.1)
 
 > Project LEE is evolving into a founder operating system whose most valuable asset is not its language model, but its continuously refined understanding of reality, accumulated experience, and ability to help its owner make consistently better decisions over time.
 
@@ -21,46 +21,70 @@ The primary asset is the accumulated knowledge, governance, memory, experience, 
 ## The Lamont Labs Operating Stack
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Project LEE                           │
-│              Operating Intelligence                      │
-│                                                          │
-│  Identity · Context · Projects · People · Timelines     │
-│  Facts · Interpretations · Experience · Wisdom          │
-│  Objectives · Simulations · Reviews · Self-Improvement  │
-│  Portfolio · Dependencies · Readiness · Allocation      │
-└──────────────────┬───────────────────┬───────────────────┘
-                   │                   │
-     ReasoningService             GovernanceService
-                   │                   │
-    ┌──────────────▼──┐     ┌──────────▼────────────┐
-    │      CIL        │     │      CerbaSeal         │
-    │ T1/T2/T3        │     │ ALLOW / HOLD / REJECT  │
-    └─────────────────┘     └────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                         Project LEE                          │
+│                   Operating Intelligence                     │
+│                                                              │
+│ Identity · Brain · Knowledge · Event Log · Projects          │
+│ People · Decisions · Objectives · Portfolio · Timeline       │
+│ Operational Intelligence · Readiness · Allocation            │
+└──────────────┬──────────────────────┬────────────────────────┘
+               │ Runtime service plane│ Management / control plane
+               │                      │
+     ┌─────────▼─────────┐   ┌────────▼───────────────────────┐
+     │ CIL API            │   │ MCP Project Bridge             │
+     │ Cognitive authority│   │ Inspect · read · modify · test │
+     └─────────┬─────────┘   │ coordinate project work         │
+               │             └────────┬───────────────────────┘
+     ┌─────────▼─────────┐            │
+     │ LEE Model Router  │            ▼
+     │ Execution only    │   Replit projects / Lamont Labs code
+     └─────────┬─────────┘
+               │
+     ┌─────────▼─────────┐   ┌────────────────────────────────┐
+     │ Replit AI Bridge  │   │ Universal Systems API           │
+     │ Execute selected  │   │ Independent service contracts  │
+     │ provider/model    │   │ and normalized transport        │
+     └────────────────────┘   └────────────────────────────────┘
 
-CIL:       cognitive-infrastructure-layer.replit.app
-CerbaSeal: cerbaseal.replit.app
-Auth:      Bearer + HMAC-SHA256 on every request
+     ┌────────────────────┐
+     │ CerbaSeal API      │
+     │ Governance authority│
+     │ ALLOW/HOLD/REJECT  │
+     └────────────────────┘
+
+CIL, CerbaSeal, Replit AI Bridge, and the MCP Project Bridge are connected
+systems with independent ownership, deployments, credentials, and databases.
+LEE calls them through authenticated versioned contracts; it does not duplicate
+their authority or access their databases directly.
 ```
 
 ---
 
-## Request Processing Order (v11.0+)
+## Request Processing Order (v12.1)
 
 ```
 1. Identity     →  who am I, how do I operate, when do I speak?
-2. Constitution  →  what am I allowed to do?
-3. Intent        →  what is being asked?
-4. Context       →  what is relevant? (Context Economy)
-5. CIL           →  do we have reusable reasoning?
-6. CerbaSeal     →  is this action authorized? (consequential only)
+2. Constitution  →  what is LEE allowed to do?
+3. Intent        →  what is being asked and what is its risk?
+4. Query Engine  →  what knowledge and evidence are relevant?
+5. Context Economy → what fits the bounded context packet?
+6. CIL API       →  T1 reuse, T2 reuse, or a CIL-selected T3 route
+7. Model Router  →  execute the exact CIL-selected model route, if required
+8. CerbaSeal     →  may a consequential action execute?
 ```
 
 The Identity Engine is first. Every request — from a human, from a scheduled engine, from the Executive Loop — passes through Identity before anything else.
 
+For normal model-backed reasoning, CIL is mandatory. If CIL is unavailable, LEE
+may continue with local, context-only, extraction, and recovery operations, but
+it must not independently select or call a frontier model. If a CIL-selected
+execution route fails, LEE returns the failure to CIL and executes only the new
+route CIL returns.
+
 ---
 
-## Architecture Principles (v12.0 — 43 principles)
+## Architecture Principles (v12.1 — 46 principles)
 
 **1–22.** Foundations (v9.0).
 
@@ -105,6 +129,18 @@ The Identity Engine is first. Every request — from a human, from a scheduled e
 **42.** LEE must learn from herself. Operational Self-Improvement tracks what works and adapts LEE's operational behaviors accordingly — transparently, conservatively, and reversibly.
 
 **43.** Every operation has an economic cost. System Economics provides a complete, unified accounting of what every capability costs to operate, and whether the value produced justifies it.
+
+**44.** CIL owns normal cognitive routing. LEE may prepare context and execute a
+CIL decision, but it never duplicates reuse, escalation, provider, model, or
+post-failure route-selection logic.
+
+**45.** Runtime service access and project management are different planes.
+LEE uses service APIs to consume independent capabilities; it uses the MCP
+Project Bridge to inspect, change, test, and coordinate project repositories.
+
+**46.** External authorities remain external. CIL owns cognitive routing,
+CerbaSeal owns consequential governance, and the MCP Project Bridge owns its
+scoped project-management contract. LEE never bypasses or reimplements them.
 
 ---
 
@@ -350,6 +386,150 @@ Reviews are stored permanently, indexed in the Intelligence Graph, and retrievab
 
 ---
 
+## Runtime Service Plane vs. Management / Control Plane
+
+LEE has two intentionally separate kinds of external connectivity.
+
+### Runtime service plane
+
+This is how LEE consumes another system as a capability:
+
+- CIL API — cognitive reuse and route selection
+- CerbaSeal API — consequential-action governance
+- Gmail API — normalized email evidence and events
+- Google Drive and other storage/document APIs
+- GitHub and other development-provider APIs
+- Future Lamont Labs systems such as Greyline and QuantraCore
+- Replit AI Bridge — execution of the route CIL selected
+
+The runtime service plane uses provider-neutral adapters or authenticated
+Universal Systems API contracts. A service call must never turn into a project
+management operation.
+
+### Management / control plane
+
+This is how LEE works on the projects themselves:
+
+- Inspect a registered project
+- Read allowed project files
+- Preview a change
+- Apply an exact confirmed change
+- Run allowlisted checks
+- Inspect logs and service state
+- Restart approved services
+- Coordinate dependent work across projects
+- Prepare deployment work for owner review
+
+The multi-project MCP bridge belongs here. It is for working on CIL, CerbaSeal,
+LEE, K6, and other Lamont Labs projects as projects. It is not the way LEE uses
+CIL reasoning. Normal reasoning is always `LEE → CIL API`.
+
+The bridge is scoped, authenticated, preview-first, workspace-relative, and
+does not expose arbitrary shell, secrets, deletion, silent synchronization, or
+unreviewed consequential writes.
+
+## Layered Readiness
+
+LEE does not have one binary ready/not-ready state. Each capability surface has
+its own readiness state so an external outage does not hide a healthy local
+foundation.
+
+### CORE READY
+
+- Database healthy
+- Event Log healthy
+- Brain loaded
+- System Contract available
+- API running
+- Console available
+- Local knowledge available
+
+### AI READY
+
+- CIL API reachable
+- CIL can return T1/T2 resolution or an approved T3 route
+- At least one approved execution provider is healthy
+- LEE Model Router can execute only CIL-selected routes
+
+### GOVERNANCE READY
+
+- CerbaSeal API reachable
+- Policy/version checks pass
+- Authenticated governance requests are valid
+- Consequential ALLOW releases can be verified
+
+### LAB READY
+
+- MCP Project Bridge connected
+- Required project agents connected
+- Selected Lamont Labs systems healthy
+- Provider connections healthy
+
+The Console should communicate this as separate signals, for example:
+
+```
+LEE Core           Ready
+AI                 Ready
+Governed Actions   Unavailable — CerbaSeal offline
+Project Operations Degraded — project bridge unavailable
+```
+
+The system remains quiet when each surface is healthy and becomes prominent
+only when an owner action or meaningful degradation exists.
+
+## K6 Host Model
+
+During transition, K6 may be discovered through the approved local contract at
+`127.0.0.1:6420`. Once LEE Desktop runs as the K6-hosted system, the conceptual
+model becomes:
+
+```
+LEE Host → K6
+K6 → individually registered local specialist services
+```
+
+K6 is then the physical/runtime host, not merely another provider. Individual
+local K6 services still use the owner-controlled local contract registry and
+remain bounded by loopback-only discovery and owner review.
+
+## Connection Center
+
+The Connection Center is a core product subsystem, not merely a settings page.
+It is the owner-facing control surface for:
+
+- Accounts: Google, GitHub, and future accounts
+- Lamont Labs systems: CIL, CerbaSeal, QuantraCore, Greyline, and others
+- Replit projects through the MCP management bridge
+- Local systems and K6 service contracts
+- Universal Systems API contracts
+- Files and folders
+- Webhooks and event sources
+- Provider adapters and authorization state
+
+Every connection should answer, without exposing technical details by default:
+
+- Is it connected?
+- Is it healthy?
+- What can LEE do with it?
+- What authority does LEE have?
+- Does anything need the owner's attention?
+
+Tokens, URLs, scopes, ports, raw contracts, and diagnostics remain available
+under Advanced rather than being the default experience.
+
+## Gmail Provider Boundary
+
+Email-specific behavior belongs in the provider layer:
+
+```
+LEE → EmailProvider → GmailProvider → Gmail API
+```
+
+Today, People, Projects, Waiting, and Operational Intelligence consume
+normalized email events and evidence. They do not contain Gmail-specific logic.
+Moving LEE from Replit to the K6 host therefore does not change the email
+architecture.
+
 ## Configured Environment
 
 ### CIL (Reasoning Service)
@@ -481,9 +661,9 @@ Examples of this principle in v12.0:
 
 ---
 
-## Foundational Completeness Assessment (v12.0)
+## Foundational Completeness Assessment (v12.1)
 
-After v12.0, LEE has all architectural components to function as a founder operating system that compounds in value over years:
+After v12.1, LEE has all architectural components to function as a founder operating system that compounds in value over years:
 
 **Complete:**
 - Foundation & Governance (Layer 0–1)
@@ -503,8 +683,9 @@ Observe → Understand → Prioritize → Simulate → Decide → Review → Lea
 
 ---
 
-*Master Breakdown — Version 12.0 · 69 Tasks · July 13, 2026*
-*v12.0 adds: Operational Review Engine · Experience & Institutional Knowledge · Operational Self-Improvement · System Economics*
-*New architecture principles: #40–#43*
+*Master Breakdown — Version 12.1 · 69 Tasks · September 1, 2026*
+*v12.0 added: Operational Review Engine · Experience & Institutional Knowledge · Operational Self-Improvement · System Economics*
+*v12.1 clarifies: CIL authority · external service boundaries · MCP control plane · layered readiness*
+*New architecture principles: #40–#46*
 *Task #8 (Cost Engine) superseded by Task #69 (System Economics)*
 *All production endpoints configured · CIL and CerbaSeal credentials stored*

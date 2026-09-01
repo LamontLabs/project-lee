@@ -177,8 +177,8 @@ export async function generateOperationalReview(input: ReviewInput) {
           driftDetected: routed.cilEvidence.drift_detected,
           contradictionDetected: routed.cilEvidence.contradiction_detected,
         } : {
-          fallbackUsed: routed.fallbackUsed ?? false,
-          fallbackReason: routed.fallbackReason,
+          cilRerouted: routed.cilRerouted ?? false,
+          cilRerouteReason: routed.cilRerouteReason,
         }),
       },
     }).returning();

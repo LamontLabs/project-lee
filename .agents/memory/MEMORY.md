@@ -1,6 +1,6 @@
 - [Foundation event immutability](foundation-event-immutability.md) — event history is protected by a PostgreSQL trigger, not only application conventions.
 - [Understanding output contract](understanding-output-contract.md) — extraction always returns source-backed facts, interpretations, provenance, and a completion event.
-- [Model routing boundary](model-routing-boundary.md) — context is budgeted before routing, with optional HMAC-signed CIL and managed-model fallback.
+- [Model routing boundary](model-routing-boundary.md) — context is budgeted before mandatory CIL routing; LEE executes CIL decisions and never locally selects a model.
 - [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.
 - [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.
 - [Cost ledger boundary](cost-ledger-boundary.md) — every reasoning resolution records tier, model, token counts, provider, and estimated cost in an additive ledger.
@@ -54,3 +54,4 @@
 - [OAuth credential boundary](oauth-credential-boundary.md) — signed callback state and encrypted provider credentials stay server-side; projections expose status only.
 - [Development fixture cleanup](development-fixture-cleanup.md) — removing seeded canonical records also requires clearing derived projections and query caches or stale activity resurfaces.
 - [Local discovery boundary](local-discovery-boundary.md) — desktop discovery is finite loopback probing; the server normalizes provider-neutral candidates before owner-reviewed connection creation.
+- [Runtime and control planes](runtime-control-plane.md) — service consumption and scoped project management are separate boundaries with independent readiness layers.

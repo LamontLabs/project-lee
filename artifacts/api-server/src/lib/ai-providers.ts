@@ -104,8 +104,8 @@ export type ProviderStreamEvent =
   | { type: "usage"; tokensIn: number; tokensOut: number };
 
 /**
- * Stream provider output when the provider supports it. The fallback keeps the
- * route usable for providers without a streaming adapter while preserving the
+ * Stream provider output when the provider supports it. The compatibility path
+ * keeps the route usable for providers without a streaming adapter while preserving the
  * same event contract.
  */
 export async function* streamProvider(route: CILSelectedModelRoute, messages: ChatMessage[], correlationId: string, signal?: AbortSignal): AsyncGenerator<ProviderStreamEvent> {

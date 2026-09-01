@@ -420,9 +420,10 @@ T2 — Vector Cache
   → Response time: <200ms
   → Use when: semantically similar but not identical queries
 
-T3 — Frontier Escalation
+T3 — CIL-selected execution
   → Cold cache or similarity below threshold
-  → Calls frontier model (Claude / GPT-4o / Gemini per CIL config)
+  → CIL selects the approved model/provider route
+  → LEE executes that route through the Replit AI Bridge
   → Response time: 1–10s
   → Always occurs on first query of a new type`}
         </CodeBlock>
@@ -448,10 +449,10 @@ T3 — Frontier Escalation
 
         <H3>CIL degradation — what happens when CIL is down</H3>
         <Ul items={[
-          "CIL unavailable: explicit degraded/held reasoning result (no local T1/T2/T3 substitute)",
+          "CIL unavailable: explicit degraded/no-model or held reasoning result (no local T1/T2/T3 substitute)",
           "Understanding Pipeline processes documents using local extraction only",
           "Operational Confidence is depressed (CIL health is a component of Operational Confidence)",
-          "CIL health is surfaced on the Console Internal Services page",
+          "CIL health is surfaced independently from CerbaSeal and Project Operations",
           "Every CIL call attempt is logged as a domain event (CILCallFailed)",
           "When CIL restores, the queue of failed reasoning requests is NOT automatically replayed — owner initiates replay",
         ]} />

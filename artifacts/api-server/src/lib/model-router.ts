@@ -107,8 +107,8 @@ export async function routeModelRequest(input: RouteInput, preconsultedCIL?: CIL
   completionTokens: number;
   totalTokens: number;
   cilEvidence?: Pick<CILQueryResponse, "confidence" | "cost_usd" | "latency_ms" | "provenance" | "cognitive_asset_id" | "asset_version" | "drift_detected" | "contradiction_detected" | "freshness_state" | "reuse_eligible" | "recommend_escalation" | "escalation_reason">;
-  fallbackUsed?: boolean;
-  fallbackReason?: string;
+  cilRerouted?: boolean;
+  cilRerouteReason?: string;
 }> {
   requireCompletedPipeline(input);
   const costPolicy = await checkPolicy("cost", "model_call", { estimatedCostUsd: input.costCeilingUsd ?? 0, tier: input.preferredTier }, "Model Router");
@@ -129,7 +129,7 @@ export async function routeModelRequest(input: RouteInput, preconsultedCIL?: CIL
       const rerouted = await consultCILRoute(input, { model: selectedRoute(cil)?.model ?? "unknown", reason });
       if (rerouted.correlation_id === input.correlationId) throw new Error("CIL_REROUTE_CORRELATION_REUSED");
       const result = await executeCILRoute(input, rerouted);
-      return { ...result, fallbackUsed: true, fallbackReason: "CIL rerouted after model execution failure." };
+      return { ...result, cilRerouted: true, cilRerouteReason: "CIL selected a new route after model execution failure." };
     } catch (rerouteError) {
       throw new Error(`CIL_REROUTE_FAILED: ${rerouteError instanceof Error ? rerouteError.message : String(rerouteError)}`);
     }

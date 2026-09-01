@@ -121,8 +121,8 @@ router.post("/reasoning/route", async (req, res): Promise<void> => {
               freshnessState: routed.cilEvidence.freshness_state,
               reuseEligible: routed.cilEvidence.reuse_eligible,
             } : {
-              fallbackUsed: routed.fallbackUsed ?? false,
-              fallbackReason: routed.fallbackReason,
+              cilRerouted: routed.cilRerouted ?? false,
+              cilRerouteReason: routed.cilRerouteReason,
             }),
         },
       })

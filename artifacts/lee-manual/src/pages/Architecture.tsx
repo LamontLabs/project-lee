@@ -52,8 +52,21 @@ export function ArchitecturePage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground mb-2">Architecture Explorer</h1>
         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          LEE's architecture is organized into 11 layers (0–9, with 6b). Each layer owns a distinct set of responsibilities. No layer bypasses another's API. The request pipeline is always: Identity → Constitution → Intent → Context → CIL → CerbaSeal.
+          LEE's architecture is organized into 11 layers (0–9, with 6b). Each layer owns a distinct set of responsibilities. No layer bypasses another's API. The request pipeline is always: Identity → Constitution → Intent → Query → Context Economy → CIL → Model Router → CerbaSeal.
         </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Runtime service plane</p>
+          <h2 className="mt-2 text-base font-semibold text-foreground">Consume independent capabilities</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">LEE calls CIL for cognitive routing, CerbaSeal for consequential governance, Gmail and other providers for normalized data, and the Replit AI Bridge to execute the route CIL selected.</p>
+        </div>
+        <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-violet-400">Management / control plane</p>
+          <h2 className="mt-2 text-base font-semibold text-foreground">Work on registered projects</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">The MCP Project Bridge handles scoped inspection, reads, previews, changes, checks, and coordination. It is not an indirect path for using CIL.</p>
+        </div>
       </div>
 
       <div>

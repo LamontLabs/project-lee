@@ -149,7 +149,7 @@ async function runEngineSuite() {
       const valid = response.correlation_id === correlationId && ["T1_TRIGRAM", "T2_SEMANTIC", "T3_FRONTIER"].includes(response.resolution_tier) && Array.isArray(response.provenance);
       return { result: valid ? "PASS" : "FAIL", message: valid ? "CIL returned a correlated, provenance-bearing resolution." : "CIL returned an invalid response.", evidence: { response } };
     } catch (error) {
-      return { result: "WARN", message: "CIL is unavailable in this runtime; fallback was explicit.", evidence: { correlationId, unavailable: true, error: error instanceof Error ? error.message : String(error) } };
+      return { result: "WARN", message: "CIL is unavailable in this runtime; model execution was correctly blocked.", evidence: { correlationId, unavailable: true, modelExecutionBlocked: true, error: error instanceof Error ? error.message : String(error) } };
     }
   });
   const cerbaseal = await diagnostic("cerbaseal-fail-closed", "CerbaSeal returns a verdict or holds when unavailable", async () => {

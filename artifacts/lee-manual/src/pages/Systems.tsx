@@ -22,7 +22,7 @@ export function SystemsPage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground mb-2">LEE, CIL, and CerbaSeal</h1>
         <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-          Three distinct systems with distinct ownership boundaries. LEE is the operating environment. CIL is the reasoning service. CerbaSeal is the governance service. LEE calls both. Neither can be accessed by LEE's database queries.
+          Independent systems with distinct ownership boundaries. LEE owns its local operating intelligence. CIL owns cognitive routing. CerbaSeal owns consequential governance. The Replit AI Bridge executes CIL's selected route. The MCP Project Bridge manages registered projects. LEE calls each through its contract and never reaches into another system's database.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export function SystemsPage() {
             {[
               { tier: "T1", name: "Trigram Reuse", description: "Exact or near-exact match. Zero new inference cost." },
               { tier: "T2", name: "Vector Similarity", description: "Similar past reasoning found and adapted. Low inference cost." },
-              { tier: "T3", name: "Frontier Escalation", description: "No match. Full frontier model reasoning. Full cost." },
+                { tier: "T3", name: "CIL-selected execution", description: "No match. CIL selects the approved model/provider route; LEE executes that route through the Replit AI Bridge." },
             ].map(t => (
               <div key={t.tier} className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
                 <span className="font-mono text-sm font-bold text-blue-400">{t.tier}</span>
@@ -167,6 +167,52 @@ export function SystemsPage() {
             </Link>
           </div>
         </div>
+
+        <div className="bg-card border border-card-border rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center font-mono font-bold text-cyan-400">A</div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Replit AI Bridge</h2>
+              <p className="text-xs text-muted-foreground">Execution Gateway · Separate Provider Boundary</p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            Receives the exact model and provider route selected by CIL and executes it. The bridge is an execution surface, not a second reasoning authority. It cannot choose a local replacement when CIL is unavailable or when a route fails.
+          </p>
+          <div className="rounded-lg bg-cyan-500/5 border border-cyan-500/15 p-3 text-xs text-muted-foreground">
+            <span className="font-semibold text-cyan-400">Boundary:</span> CIL selects · LEE Model Router dispatches · Replit AI Bridge executes · execution failures return to CIL for rerouting.
+          </div>
+        </div>
+
+        <div className="bg-card border border-card-border rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center font-mono font-bold text-violet-400">M</div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">MCP Project Bridge</h2>
+              <p className="text-xs text-muted-foreground">Management / Control Plane · Scoped Project Operations</p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            Gives LEE a controlled way to inspect registered projects, read allowed files, preview and apply exact changes, run checks, inspect logs, and coordinate work. MCP is not an indirect path to consume CIL reasoning.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
+            <div><p className="font-semibold text-foreground mb-1">Allowed</p><p>Scoped inspection · reads · previews · confirmed changes · allowlisted checks · coordination</p></div>
+            <div><p className="font-semibold text-foreground mb-1">Never exposed</p><p>Arbitrary shell · secrets · silent sync · unreviewed deletion or deployment</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card border border-card-border rounded-xl p-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Layered readiness</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["LEE Core", "Database, Event Log, Brain, API, Console, local knowledge", "border-emerald-500/20 bg-emerald-500/5"],
+            ["AI", "CIL plus an approved execution provider", "border-blue-500/20 bg-blue-500/5"],
+            ["Governed Actions", "CerbaSeal reachable and valid", "border-violet-500/20 bg-violet-500/5"],
+            ["Project Operations", "MCP bridge and selected Lab systems", "border-amber-500/20 bg-amber-500/5"],
+          ].map(([name, detail, colorClass]) => <div key={name} className={`rounded-lg border ${colorClass} p-3`}><p className="text-sm font-semibold text-foreground">{name}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</p></div>)}
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">These are independent signals. A CerbaSeal outage holds consequential actions without making a healthy local Core appear offline; an MCP outage degrades project operations without stopping LEE's local knowledge.</p>
       </div>
 
       <div className="bg-card border border-card-border rounded-xl p-5">

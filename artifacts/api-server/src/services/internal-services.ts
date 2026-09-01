@@ -106,7 +106,7 @@ export const reasoningService: ReasoningService = { async query(request) {
   await ensureInternalServicesRegistered();
   await emitEvent({ eventType: "CILQueryRequested", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, semanticDomain: request.semantic_domain, projectId: request.project_id ?? request.intent.project_id, riskClassification: request.intent.risk_classification, costCeilingUsd: request.cost_ceiling_usd } });
   const endpoint = process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT;
-  if (!endpoint) { await setHealth("cil", "unavailable"); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: "CIL_LEE_ENDPOINT is not configured", fallbackUsed: true } }); throw new Error("CIL unavailable"); }
+   if (!endpoint) { await setHealth("cil", "unavailable"); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: "CIL_LEE_ENDPOINT is not configured", modelExecutionBlocked: true } }); throw new Error("CIL unavailable"); }
   const started = Date.now();
   try {
     const path = endpoint ? new URL(endpoint).pathname : "/query/lee";
@@ -120,7 +120,7 @@ export const reasoningService: ReasoningService = { async query(request) {
     if (response.drift_detected) await emitEvent({ eventType: "CILDriftDetected", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, cognitiveAssetId: response.cognitive_asset_id } });
     if (response.contradiction_detected) await emitEvent({ eventType: "CILContradictionDetected", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, cognitiveAssetId: response.cognitive_asset_id } });
     return response;
-  } catch (error) { await setHealth("cil", "degraded", { lastError: String(error), lastLatencyMs: Date.now() - started }); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: String(error), fallbackUsed: true } }); throw error; }
+   } catch (error) { await setHealth("cil", "degraded", { lastError: String(error), lastLatencyMs: Date.now() - started }); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: String(error), modelExecutionBlocked: true } }); throw error; }
 } };
 export async function getCILModelInventory(correlationId = randomUUID()): Promise<CILModelInventory> {
   await ensureInternalServicesRegistered();

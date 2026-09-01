@@ -1,13 +1,13 @@
 # CIL ↔ Project LEE Integration Specification
 
 *From the Project LEE side — what CIL needs to implement to accept LEE as a client.*
-*Version 1.0 · July 2026*
+*Version 1.1 · September 2026*
 
 ---
 
 ## Overview
 
-Project LEE is the operating intelligence layer in the Lamont Labs stack. She calls CIL through a `ReasoningService` interface before escalating any query to a frontier model. The goal is cost reduction through reuse: if CIL has an approved cognitive asset that resolves the query, LEE never calls a frontier model at all.
+Project LEE is the operating intelligence layer in the Lamont Labs stack. She calls CIL through a `ReasoningService` interface before any model execution. CIL is the mandatory cognitive-routing authority: it decides whether the request is satisfied by T1/T2 reuse or whether an approved T3 model route may execute. The goal is cost reduction through reuse: if CIL has an approved cognitive asset that resolves the query, LEE never calls a model at all.
 
 LEE calls CIL for **informational and reasoning requests only** — summarizing, explaining, analyzing, synthesizing. She does not call CIL for consequential actions (those go to CerbaSeal).
 
@@ -20,7 +20,7 @@ LEE and CIL maintain **independent databases**. LEE never accesses CIL's databas
 1. One authenticated HTTP endpoint that accepts a structured query package from LEE
 2. A structured response that includes resolution tier, answer, reuse metadata, and cost
 3. A service identity and credential system LEE can authenticate against
-4. Graceful 4xx/5xx error responses (LEE degrades gracefully when CIL is unavailable)
+4. Graceful 4xx/5xx error responses (LEE enters explicit no-model or held reasoning when CIL is unavailable)
 
 ---
 
@@ -220,7 +220,9 @@ interface CILErrorResponse {
 | 500 | Internal CIL error |
 | 503 | CIL temporarily unavailable — include `retry_after_seconds` |
 
-**On any 5xx or timeout:** LEE marks CIL as DEGRADED for 5 minutes, routes the query directly to its frontier tier, and emits a `CILUnavailable` event into its own Event Log. This is LEE's responsibility — CIL does not need to do anything special for this path.
+**On any 5xx or timeout:** LEE marks CIL as DEGRADED, refuses model execution for that request, and emits a `CILUnavailable` event into its own Event Log. LEE may still perform local extraction, context-only operations, or recovery work. It must not route directly to a frontier model.
+
+**On model execution failure:** LEE sends the failed CIL-selected route and a bounded failure reason back to CIL as a new correlated reroute request. CIL selects the next permitted route. LEE's Model Router executes only that new CIL decision; it never chooses the replacement model or provider locally.
 
 ---
 
@@ -246,7 +248,7 @@ CILReuseHit        — correlation_id, cognitive_asset_id, asset_version, tier  
 CILFrontierEscalated — correlation_id, escalation_reason  (when T3)
 CILDriftDetected   — correlation_id, cognitive_asset_id  (when drift_detected: true)
 CILContradictionDetected — correlation_id, cognitive_asset_id  (when contradiction_detected: true)
-CILUnavailable     — timestamp, error_summary, fallback_used  (on 5xx / timeout)
+CILUnavailable     — timestamp, error_summary, model_execution_blocked  (on 5xx / timeout)
 ```
 
 These events stay in LEE's Event Log. They are not shared back to CIL.

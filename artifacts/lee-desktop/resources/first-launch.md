@@ -9,5 +9,9 @@ application-data directory. The Windows installer includes a private PostgreSQL
 runtime and initializes it on first launch. macOS and Linux builds use the same
 runtime supervisor and currently require a configured PostgreSQL binary.
 
-External CIL, CerbaSeal, and Replit AI Bridge services remain API-connected
-dependencies. Credentials are never accepted by the desktop installer.
+External CIL, CerbaSeal, Replit AI Bridge, and MCP Project Bridge services remain
+API-connected dependencies with independent readiness states. CIL is mandatory
+before model execution; if it is unavailable, LEE continues only with local or
+no-model work. CerbaSeal remains fail-closed for consequential actions, while
+MCP unavailability affects project operations only. Credentials are never
+accepted by the desktop installer.

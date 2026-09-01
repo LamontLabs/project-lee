@@ -158,6 +158,10 @@ jobs:
         run: |
           app_path="$(find artifacts/lee-desktop/release -path '*/Project LEE.app/Contents/MacOS/Project LEE' -print -quit)"
           [[ -n "$app_path" ]] || { echo "Unpacked macOS app executable is missing." >&2; exit 1; }
+          node artifacts/lee-desktop/scripts/verify-packaged-migrations.mjs \
+            --resources-root "$GITHUB_WORKSPACE/$(dirname "$app_path")/../Resources" \
+            --source-file artifacts/lee-desktop/src/runtime.ts \
+            --platform macos
           pnpm --filter @workspace/lee-desktop run smoke:unix -- "$GITHUB_WORKSPACE/$app_path"
       - name: Verify macOS signatures and notarization
         shell: bash
@@ -244,6 +248,8 @@ jobs:
         run: pnpm --filter @workspace/lee-desktop run package
       - name: Build unpacked Linux app for runtime smoke test
         run: pnpm --filter @workspace/lee-desktop exec electron-builder --config electron-builder.yml --dir --publish never
+      - name: Verify packaged Linux migration assets
+        run: node artifacts/lee-desktop/scripts/verify-packaged-migrations.mjs --resources-root artifacts/lee-desktop/release/linux-unpacked/resources --source-file artifacts/lee-desktop/src/runtime.ts --platform linux
       - name: Smoke test bundled Linux runtime
         shell: bash
         run: |
@@ -273,6 +279,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/download-artifact@v4
         with:
           name: lee-windows-installer

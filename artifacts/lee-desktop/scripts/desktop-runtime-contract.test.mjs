@@ -9,6 +9,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const runtime = await read("src/runtime.ts");
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
+  const migrationCheck = await read("scripts/verify-packaged-migrations.mjs");
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
   assert.doesNotMatch(builder, /win:[\s\S]*extraResources:/);
@@ -20,6 +21,9 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);
   assert.match(main, /quitAndInstall/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
+  assert.match(prepare, /verifyPackagedMigrations/);
+  assert.match(migrationCheck, /_journal\.json/);
+  assert.match(migrationCheck, /workspace fallback disabled/);
 });
 
 test("release jobs stage and smoke-test PostgreSQL on every supported desktop platform", async () => {
@@ -35,4 +39,8 @@ test("release jobs stage and smoke-test PostgreSQL on every supported desktop pl
   assert.match(workflow, /windows-update-smoke\.ps1/);
   assert.match(workflow, /download-release-assets\.mjs/);
   assert.match(workflow, /update-verification-\$\{\{ matrix\.platform \}\}\.json/);
+  assert.match(workflow, /Verify packaged Linux migration assets/);
+  assert.match(workflow, /verify-packaged-migrations\.mjs/);
+  assert.match(workflow, /--platform windows/);
+  assert.match(workflow, /--platform macos/);
 });

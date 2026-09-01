@@ -1,5 +1,5 @@
 import { cp, mkdir, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -44,3 +44,6 @@ await build({
   external: ["pg-native"],
   logLevel: "info",
 });
+const { assertProductionMigrationSource, verifyPackagedMigrations } = await import("./verify-packaged-migrations.mjs");
+assertProductionMigrationSource(readFileSync(resolve(desktop, "src/runtime.ts"), "utf8"));
+verifyPackagedMigrations(resources, process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : "linux");

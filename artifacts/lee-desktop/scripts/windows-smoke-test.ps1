@@ -205,6 +205,10 @@ try {
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"
   $appExe = $appExe.FullName
+  node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `
+    --resources-root (Join-Path (Split-Path $appExe) "resources") `
+    --source-file (Join-Path $PSScriptRoot "..\src\runtime.ts") `
+    --platform windows
 
   $commonEnvironment = @{
     APPDATA = $appData

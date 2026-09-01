@@ -28,6 +28,40 @@ function setupWindow(url: string): void {
   });
 }
 
+async function writeSmokeDiscovery(filePath: string): Promise<void> {
+  const browserWindow = window;
+  if (!browserWindow) throw new Error("LEE smoke discovery requires a BrowserWindow.");
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("LEE smoke discovery renderer did not become ready."));
+    }, 15000);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      browserWindow.webContents.removeListener("did-finish-load", onLoad);
+      browserWindow.webContents.removeListener("did-fail-load", onFail);
+    };
+    const onFail = (_event: Electron.Event, errorCode: number, errorDescription: string) => {
+      cleanup();
+      reject(new Error(`LEE smoke discovery renderer failed to load (${errorCode}: ${errorDescription}).`));
+    };
+    const onLoad = () => {
+      void browserWindow.webContents.executeJavaScript("window.leeRuntime.discoverLocalServices()", true)
+        .then((discovery) => {
+          cleanup();
+          writeFileSync(filePath, JSON.stringify(discovery, null, 2), "utf8");
+          resolve();
+        })
+        .catch((error: unknown) => {
+          cleanup();
+          reject(error);
+        });
+    };
+    browserWindow.webContents.once("did-finish-load", onLoad);
+    browserWindow.webContents.once("did-fail-load", onFail);
+  });
+}
+
 async function boot(): Promise<void> {
   supervisor = new RuntimeSupervisor(app.getAppPath(), isProduction);
   const runtime = await supervisor.start();
@@ -39,6 +73,9 @@ async function boot(): Promise<void> {
     setupWindow(consoleServer.url);
   } else {
     setupWindow(process.env.LEE_CONSOLE_URL ?? "http://127.0.0.1:5173/");
+  }
+  if (process.env.LEE_SMOKE_DISCOVERY_FILE) {
+    await writeSmokeDiscovery(process.env.LEE_SMOKE_DISCOVERY_FILE);
   }
   if (app.commandLine.hasSwitch("lee-smoke-exit")) app.quit();
 }

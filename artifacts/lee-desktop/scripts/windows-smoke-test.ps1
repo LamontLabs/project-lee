@@ -8,6 +8,9 @@ $testRoot = Join-Path $env:RUNNER_TEMP "lee-windows-smoke-$([guid]::NewGuid())"
 $installDir = Join-Path $testRoot "install"
 $appData = Join-Path $testRoot "appdata"
 $statusFile = Join-Path $testRoot "runtime-status.json"
+$discoveryFile = Join-Path $testRoot "local-discovery.json"
+$mockScript = Join-Path $testRoot "mock-k6.ps1"
+$mockLog = Join-Path $testRoot "mock-k6-requests.log"
 $configFile = Join-Path $appData "Project LEE\config.json"
 $migrationLog = Join-Path $appData "Project LEE\logs\migration.log"
 $databaseDir = Join-Path $appData "Project LEE\database"
@@ -42,6 +45,41 @@ function Invoke-Lee([hashtable] $environment, [string] $label) {
   $status = Get-Content $statusFile -Raw | ConvertFrom-Json
   Remove-Item $statusFile -Force
   return $status
+}
+
+function Wait-ForFile([string] $path, [int] $timeoutSeconds, [string] $label) {
+  $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)
+  while (-not (Test-Path $path) -and [DateTime]::UtcNow -lt $deadline) {
+    Start-Sleep -Milliseconds 250
+  }
+  Assert-True (Test-Path $path) "$label did not produce $path"
+}
+
+function Start-K6Mock([ValidateSet("contract", "timeout")] [string] $mode) {
+  Remove-Item $mockLog -Force -ErrorAction SilentlyContinue
+  $process = Start-Process -FilePath "powershell.exe" -ArgumentList @(
+    "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+    "-File", $mockScript, "-LogPath", $mockLog, "-Mode", $mode
+  ) -PassThru -WindowStyle Hidden
+  Start-Sleep -Milliseconds 500
+  Assert-True (-not $process.HasExited) "K6 mock server did not start in $mode mode"
+  return $process
+}
+
+function Stop-Mock([System.Diagnostics.Process] $process) {
+  if ($null -ne $process -and -not $process.HasExited) {
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    $process.WaitForExit(5000)
+  }
+}
+
+function Invoke-Discovery([hashtable] $environment, [string] $label) {
+  Remove-Item $discoveryFile -Force -ErrorAction SilentlyContinue
+  $status = Invoke-Lee ($environment + @{ LEE_SMOKE_DISCOVERY_FILE = $discoveryFile }) $label
+  Wait-ForFile $discoveryFile 10 "$label discovery"
+  $discovery = Get-Content $discoveryFile -Raw | ConvertFrom-Json
+  Remove-Item $discoveryFile -Force
+  return @{ Status = $status; Discovery = $discovery }
 }
 
 function Invoke-TrayExit([System.Diagnostics.Process] $process) {
@@ -117,6 +155,42 @@ public static class LeeMouse {
 
 try {
   Assert-True (Test-Path $InstallerPath) "installer is missing: $InstallerPath"
+  @'
+param(
+  [Parameter(Mandatory = $true)]
+  [string] $LogPath,
+  [Parameter(Mandatory = $true)]
+  [ValidateSet("contract", "timeout")]
+  [string] $Mode
+)
+
+$ErrorActionPreference = "Stop"
+$listener = [System.Net.HttpListener]::new()
+$listener.Prefixes.Add("http://127.0.0.1:6420/")
+$listener.Start()
+try {
+  while ($true) {
+    $context = $listener.GetContext()
+    Add-Content -Path $LogPath -Value "$($context.Request.HttpMethod) $($context.Request.Url.AbsolutePath)" -Encoding utf8
+    if ($Mode -eq "timeout") {
+      Start-Sleep -Seconds 3
+    }
+    if ($Mode -eq "contract" -and $context.Request.Url.AbsolutePath -eq "/k6/contract") {
+      $payload = '{"contractVersion":"v1","identity":{"displayName":"Smoke K6 Contract"},"capabilities":[{"id":"k6.smoke","name":"Smoke contract"}],"dependencies":[]}'
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+      $context.Response.StatusCode = 200
+      $context.Response.ContentType = "application/json"
+      $context.Response.ContentLength64 = $bytes.Length
+      $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+    } else {
+      $context.Response.StatusCode = 404
+    }
+    $context.Response.Close()
+  }
+} finally {
+  $listener.Stop()
+}
+'@ | Set-Content $mockScript -Encoding utf8
   $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
@@ -223,7 +297,63 @@ try {
   Assert-True (Test-Path (Join-Path $databaseDir "PG_VERSION")) "restart did not reuse the configured database directory"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived restart Exit LEE"
 
-  Write-Host "LEE Windows installer smoke test passed: clean launch, private PostgreSQL, migration failure reporting, failed-startup and degraded-startup tray Exit LEE cleanup, and restart reuse."
+  $mock = Start-K6Mock "contract"
+  try {
+    $discoveryRun = Invoke-Discovery $commonEnvironment "allowlisted local discovery"
+    $discovery = $discoveryRun.Discovery
+    $k6Candidate = @($discovery.candidates | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $k6Candidate) "approved K6 mock contract was not returned through Electron discovery IPC"
+    Assert-True ($k6Candidate.baseUrl -eq "http://127.0.0.1:6420") "K6 discovery escaped the approved loopback port"
+    Assert-True ($k6Candidate.healthEndpoint -eq "/k6/contract") "K6 discovery used an unapproved path"
+    Assert-True ($discovery.attempted -le 4) "discovery attempted more probes than the finite allowlist permits"
+    $requests = @(Get-Content $mockLog -ErrorAction SilentlyContinue)
+    Assert-True ($requests.Count -eq 1 -and $requests[0] -eq "GET /k6/contract") "discovery probed an unexpected K6 host, port, or path"
+
+    Stop-Mock $mock
+    $mock = Start-K6Mock "timeout"
+    $timeoutRun = Invoke-Discovery $commonEnvironment "timed out local discovery"
+    $timeoutFailure = @($timeoutRun.Discovery.failures | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $timeoutFailure -and $timeoutFailure.reason -eq "Timed out") "unresponsive K6 contract did not produce the safe timeout summary"
+
+    Stop-Mock $mock
+    $unreachableRun = Invoke-Discovery $commonEnvironment "unreachable local discovery"
+    $unreachableFailure = @($unreachableRun.Discovery.failures | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $unreachableFailure) "unreachable K6 contract was not reported"
+    Assert-True ($unreachableFailure.reason -in @("Not reachable", "Timed out", "Unsupported response", "Not a compatible service contract") -or $unreachableFailure.reason -match "^Returned HTTP [1-5]\d{2}$") "unreachable K6 failure exposed an unsafe raw error"
+
+    $mock = Start-K6Mock "contract"
+    Remove-Item $statusFile, $discoveryFile -Force -ErrorAction SilentlyContinue
+    $reviewProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
+      APPDATA = $appData
+      LEE_MIGRATION_COMMAND = "cmd /c exit 0"
+      LEE_SMOKE_STATUS_FILE = $statusFile
+      LEE_SMOKE_DISCOVERY_FILE = $discoveryFile
+    } -PassThru
+    Assert-True ($null -ne $reviewProcess) "discovery review launch did not start"
+    Wait-ForFile $statusFile 120 "discovery review launch"
+    Wait-ForFile $discoveryFile 15 "discovery review launch"
+    $reviewStatus = Get-Content $statusFile -Raw | ConvertFrom-Json
+    $reviewDiscovery = Get-Content $discoveryFile -Raw | ConvertFrom-Json
+    $reviewCandidate = @($reviewDiscovery.candidates | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $reviewCandidate) "review launch did not discover the K6 contract"
+    $connectionsBefore = @(Invoke-RestMethod -Uri "$($reviewStatus.apiUrl)/api/connections" -Method Get)
+    Assert-True (-not @($connectionsBefore | Where-Object { $_.baseUrl -eq $reviewCandidate.baseUrl -and $_.healthEndpoint -eq $reviewCandidate.healthEndpoint })) "discovery persisted a connection before owner review"
+    $reviewBody = $reviewDiscovery | ConvertTo-Json -Depth 20
+    $reviewed = Invoke-RestMethod -Uri "$($reviewStatus.apiUrl)/api/desktop-setup/run" -Method Post -ContentType "application/json" -Body $reviewBody
+    $reviewedCandidate = @($reviewed.summary.discovery.candidates | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $reviewedCandidate -and $reviewedCandidate.status -eq "new") "discovery review did not leave the new service awaiting owner acceptance"
+    $connectionsAfterReview = @(Invoke-RestMethod -Uri "$($reviewStatus.apiUrl)/api/connections" -Method Get)
+    Assert-True (-not @($connectionsAfterReview | Where-Object { $_.baseUrl -eq $reviewCandidate.baseUrl -and $_.healthEndpoint -eq $reviewCandidate.healthEndpoint })) "discovery review persisted a connection without acceptance"
+    $accepted = Invoke-RestMethod -Uri "$($reviewStatus.apiUrl)/api/desktop-setup/discoveries/accept" -Method Post -ContentType "application/json" -Body ($reviewCandidate | ConvertTo-Json -Depth 20)
+    Assert-True ($accepted.connection.baseUrl -eq $reviewCandidate.baseUrl) "owner acceptance did not create the reviewed local connection"
+    Assert-True ($accepted.reused -eq $false) "owner acceptance unexpectedly reused a connection in the fresh smoke database"
+    Stop-ProcessTree $reviewProcess.Id
+    $reviewProcess.WaitForExit(10000)
+  } finally {
+    Stop-Mock $mock
+  }
+
+  Write-Host "LEE Windows installer smoke test passed: clean launch, bounded Electron local discovery, safe timeout/unreachable summaries, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }

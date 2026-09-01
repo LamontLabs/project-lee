@@ -14,6 +14,9 @@ export type ContextInput = {
   modeRelevance?: number;
   goalMatch?: number;
   ageState?: string;
+  provider?: string;
+  sourceRef?: string;
+  tokenBudget?: number;
 };
 
 export type SelectedContext = ContextInput & {
@@ -76,7 +79,7 @@ export function constructContextPacket(
     score: scoreContextValue(query, item, weights).value,
     contextValueScore: scoreContextValue(query, item, weights).value * (item.ageState === "STALE" ? 0.5 : 1),
     factorBreakdown: scoreContextValue(query, item, weights).factors,
-    estimatedTokens: estimateTokens(item.text),
+    estimatedTokens: item.tokenBudget ?? estimateTokens(item.text),
   }));
   const ranked = scored.sort((a, b) => b.score - a.score);
   const selected: SelectedContext[] = [];

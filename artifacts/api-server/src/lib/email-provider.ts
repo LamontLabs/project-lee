@@ -1,4 +1,6 @@
 import { getOAuthAccessToken, setConnectionStatus } from "./connection-center";
+import { connection, db } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
 
 export type EmailAddress = { name?: string; email: string };
 export type EmailAttachment = { id: string; filename: string; mimeType: string; size: number; messageId: string };
@@ -30,6 +32,7 @@ export type EmailSyncResult = {
 };
 export type GmailWatch = { historyId: string; expiration: Date };
 export type GmailProfile = { emailAddress?: string; historyId?: string };
+export type ConnectedEmailProvider = { provider: EmailProvider; providerName: string; connectionId: string };
 
 export interface EmailProvider {
   listMessages(options?: { query?: string; pageToken?: string; maxResults?: number; includeSpamTrash?: boolean }): Promise<{ messages: EmailMessage[]; nextPageToken?: string }>;
@@ -236,4 +239,16 @@ export class GmailProvider implements EmailProvider {
 export function emailProviderFor(provider: string, connectionId: string): EmailProvider {
   if (provider === "gmail") return new GmailProvider(connectionId);
   throw new Error(`No email provider is registered for ${provider}.`);
+}
+
+/**
+ * Resolve the newest connected communication account without exposing its
+ * credential or provider-specific connection details to the retrieval layer.
+ */
+export async function connectedEmailProvider(): Promise<ConnectedEmailProvider | null> {
+  const rows = await db.select().from(connection).where(eq(connection.status, "connected")).orderBy(desc(connection.updatedAt));
+  const row = rows.find((candidate) => candidate.method === "oauth" && typeof candidate.configuration?.oauthProvider === "string");
+  if (!row) return null;
+  const providerName = String(row.configuration.oauthProvider);
+  return { provider: emailProviderFor(providerName, row.id), providerName, connectionId: row.id };
 }

@@ -8,6 +8,7 @@ function classifyType(text: string) {
   if (/simulate|scenario|what if|model the outcome/.test(input)) return "simulation_request";
   if (/recommend|should i|what would you suggest/.test(input)) return "recommendation_request";
   if (/strategy|strategic|long.term/.test(input)) return "strategy_request";
+  if (isEmailSearchRequest(input)) return /related|everything|conversation|mentioned|concern|thread/.test(input) ? "question_exploratory" : "question_factual";
   if (/draft|write|compose|email|message/.test(input)) return "draft_request";
   if (/review|critique|audit/.test(input)) return "review_request";
   if (/capture|remember|save this|log this/.test(input)) return "capture_input";
@@ -17,14 +18,24 @@ function classifyType(text: string) {
   if (/\bwhat\b|\bwho\b|\bwhen\b|\bwhere\b|\bhow many\b|\bis there\b/.test(input)) return /related|everything|conversation|mentioned|concern/.test(input) ? "question_exploratory" : "question_factual";
   return "question_exploratory";
 }
+
+function isEmailSearchRequest(text: string) {
+  const referencesEmail = /\b(email|emails|gmail|inbox|mailbox|thread|threads)\b/.test(text);
+  const asksToRead = /\?|what|who|when|where|which|whether|find|search|show|look up|check|latest|unread|received/.test(text);
+  const asksToWrite = /\bdraft\b|\bcompose\b|\bwrite\b|\breply\b|\bforward\b|^\s*send\b/.test(text);
+  return referencesEmail && asksToRead && !asksToWrite;
+}
+
 export async function classifyIntent(rawInput: string, sessionContext: Record<string, unknown> = {}, source = "ask_lee", sessionId?: string) {
   const text = rawInput.trim(); if (!text) throw new Error("rawInput is required.");
   const objects = await db.select({ id: universalObject.id, objectType: universalObject.objectType, name: universalObject.name, description: universalObject.description }).from(universalObject).limit(500);
-  const lower = text.toLowerCase(); const matches = objects.filter((object) => lower.includes(object.name.toLowerCase()) || (object.description && lower.includes(object.description.toLowerCase()))); const intentType = classifyType(text);
+  const lower = text.toLowerCase(); const matches = objects.filter((object) => lower.includes(object.name.toLowerCase()) || (object.description && lower.includes(object.description.toLowerCase()))); const emailSearch = isEmailSearchRequest(lower); const intentType = classifyType(text);
   const confidence = Math.min(0.98, 0.58 + (matches.length ? 0.15 : 0) + (text.includes("?") ? 0.1 : 0)); const explanation = intentType === "explanation_seeking" ? "object" : null; const retrievalMode = intentType === "question_exploratory" || intentType === "explanation_seeking" ? "semantic" : intentType === "capture_input" ? "none" : "structured"; const complexity = /complex|compare|tradeoff|deep|architecture|strategy/.test(lower) ? "strong" : text.length > 240 ? "mid" : "cheap";
-  const [created] = await db.insert(intentRecord).values({ rawInput: text, intentType, intentSubtype: sessionContext.subtype ? String(sessionContext.subtype) : null, detectedProjectIds: matches.filter((item) => /project|initiative/i.test(item.objectType)).map((item) => item.id), detectedPersonIds: matches.filter((item) => /person|relationship/i.test(item.objectType)).map((item) => item.id), detectedObjectIds: matches.map((item) => item.id), audienceProfile: /investor|board/.test(lower) ? "Investor" : /developer|technical|code/.test(lower) ? "Technical" : "Founder", urgency: /urgent|asap|today|critical/.test(lower) ? "time_sensitive" : "routine", requiresModel: !["capture_input", "navigation_request"].includes(intentType), modelComplexityEstimate: complexity, retrievalMode, explanationType: explanation, confidence, source, sessionId }).returning();
+  const subtype = emailSearch ? "email_search" : sessionContext.subtype ? String(sessionContext.subtype) : null;
+  const effectiveRetrievalMode = emailSearch ? "semantic" : retrievalMode;
+  const [created] = await db.insert(intentRecord).values({ rawInput: text, intentType, intentSubtype: subtype, detectedProjectIds: matches.filter((item) => /project|initiative/i.test(item.objectType)).map((item) => item.id), detectedPersonIds: matches.filter((item) => /person|relationship/i.test(item.objectType)).map((item) => item.id), detectedObjectIds: matches.map((item) => item.id), audienceProfile: /investor|board/.test(lower) ? "Investor" : /developer|technical|code/.test(lower) ? "Technical" : "Founder", urgency: /urgent|asap|today|critical/.test(lower) ? "time_sensitive" : "routine", requiresModel: !["capture_input", "navigation_request"].includes(intentType), modelComplexityEstimate: complexity, retrievalMode: effectiveRetrievalMode, explanationType: explanation, confidence, source, sessionId }).returning();
   await db.insert(costRecord).values({ correlationId: created.id, engine: "Intent Engine", provider: "local", tier: "T1", model: "local-rule-classifier", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: 0, latencyMs: 0, cacheHit: false, metadata: { modelVersion: "intent-rules-v1" } });
-  await db.insert(eventLog).values({ eventType: "IntentClassified", aggregateType: "intent", aggregateId: created.id, sourceRef: "intent-engine", occurredAt: new Date(), payload: { intentType, confidence, retrievalMode, source, detectedObjectCount: matches.length } });
+  await db.insert(eventLog).values({ eventType: "IntentClassified", aggregateType: "intent", aggregateId: created.id, sourceRef: "intent-engine", occurredAt: new Date(), payload: { intentType, intentSubtype: subtype, confidence, retrievalMode: effectiveRetrievalMode, source, detectedObjectCount: matches.length } });
   return created;
 }
 export async function correctIntent(id: string, correctedType: string, requester = "founder") {

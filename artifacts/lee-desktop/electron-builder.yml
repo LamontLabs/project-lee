@@ -7,12 +7,18 @@ directories:
 files:
   - dist/**
   - resources/**
+  - "!resources/migrate-runtime.mjs"
+  - "!resources/migrations/**"
   - "!**/*.map"
 extraResources:
   - from: resources/api-server
     to: api-server
   - from: resources/console
     to: console
+  - from: resources/migrate-runtime.mjs
+    to: migrate-runtime.mjs
+  - from: resources/migrations
+    to: migrations
 linux:
   icon: resources/lee.png
   target:

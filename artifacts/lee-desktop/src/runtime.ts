@@ -399,7 +399,7 @@ export class RuntimeSupervisor {
       ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     this.child = spawn(command, args, {
-      cwd: this.root,
+      cwd: this.production ? process.resourcesPath : this.root,
       env: childEnv,
       stdio: "ignore",
       windowsHide: true,
@@ -462,9 +462,38 @@ export class RuntimeSupervisor {
   }
 
   private runMigrations(config: RuntimeConfig, databaseUrl: string): boolean {
-    const command = config.migrationCommand ?? process.env.LEE_MIGRATION_COMMAND ?? "pnpm --filter @workspace/db push";
-    const result = spawnSync(command, { shell: true, cwd: this.root, env: { ...process.env, DATABASE_URL: databaseUrl }, encoding: "utf8", windowsHide: true });
-    writeFileSync(join(dataDir, "logs", "migration.log"), `${result.stdout ?? ""}\n${result.stderr ?? ""}`, { mode: 0o600 });
+    const configuredCommand = config.migrationCommand ?? process.env.LEE_MIGRATION_COMMAND;
+    const bundledMigration = this.production && !configuredCommand;
+    const command = configuredCommand ?? (bundledMigration
+      ? process.execPath
+      : "pnpm --filter @workspace/db push");
+    const args = bundledMigration
+      ? [join(process.resourcesPath, "migrate-runtime.mjs")]
+      : [];
+    const migrationEnv = {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      ...(bundledMigration
+        ? {
+          ELECTRON_RUN_AS_NODE: "1",
+          LEE_MIGRATIONS_DIR: join(process.resourcesPath, "migrations"),
+        }
+        : {}),
+    };
+    const migrationOptions = {
+      cwd: bundledMigration ? dataDir : this.root,
+      env: migrationEnv,
+      encoding: "utf8",
+      windowsHide: true,
+    } as const;
+    const result = bundledMigration
+      ? spawnSync(command, args, migrationOptions)
+      : spawnSync(command, { ...migrationOptions, shell: true });
+    writeFileSync(
+      join(dataDir, "logs", "migration.log"),
+      `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? `\n${result.error.message}\n` : ""}`,
+      { mode: 0o600 },
+    );
     return result.status === 0;
   }
 

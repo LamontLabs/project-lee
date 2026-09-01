@@ -26,6 +26,7 @@
     "test:mcp-project-bridge": "node scripts/mcp-project-bridge-contract.test.mjs",
     "test:gmail-email-provider": "node --test scripts/gmail-email-provider-contract.test.mjs",
     "test:ask-lee-email": "node --test scripts/ask-lee-email-contract.test.mjs",
+    "test:ask-lee-email-filters": "node scripts/ask-lee-email-filters.test.mjs",
     "test:cil-cost-benchmark": "node scripts/cil-cost-benchmark.test.mjs",
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",

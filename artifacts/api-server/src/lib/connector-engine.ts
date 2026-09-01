@@ -42,7 +42,7 @@ async function collect(provider: ConnectorProvider, configuration: Record<string
   if (provider === "gmail") {
     const connectionId = typeof configuration.connectionId === "string" ? configuration.connectionId : null;
     if (!connectionId) throw new Error("Gmail sync requires a connected Gmail OAuth connection.");
-    const messages = await emailProviderFor("gmail", connectionId).listMessages({ query: "in:anywhere", maxResults: 100 });
+    const messages = await emailProviderFor("gmail", connectionId).listMessages({ includeSpamTrash: true, maxResults: 100 });
     return messages.messages.map((message) => ({ id: `gmail:${message.id}`, eventType: message.unread ? "EmailReceived" : "ThreadUpdated", sourceRef: `gmail:${message.threadId}`, occurredAt: message.date.toISOString(), payload: { id: message.id, threadId: message.threadId, subject: message.subject, from: message.from, to: message.to, date: message.date.toISOString(), labels: message.labels, unread: message.unread, hasAttachments: message.hasAttachments } }));
   }
   throw new Error("Replit awareness requires a configured Replit connector.");

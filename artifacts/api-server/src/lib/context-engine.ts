@@ -6,7 +6,8 @@ import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
 import { queryEngine } from "./query-engine";
 import { checkPolicy } from "./policy";
-import { connectedEmailProvider, type EmailProvider, type EmailThread } from "./email-provider";
+import { connectedEmailProvider, type EmailProvider, type EmailSearchFilters, type EmailThread } from "./email-provider";
+import { parseEmailSearchFilters } from "./intent";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
@@ -15,14 +16,6 @@ type EmailCandidate = {
   provider: EmailProvider;
   threadId: string;
 };
-
-function emailSearchTerms(query: string) {
-  const terms = query
-    .replace(/[?.,!]/g, " ")
-    .split(/\s+/)
-    .filter((term) => term.length > 2 && !/^(what|when|where|which|who|have|has|did|does|can|could|would|please|show|find|search|look|check|tell|about|email|emails|gmail|inbox|mailbox|thread|threads|latest|unread|received|from|with|my|me|the|and|for)$/i.test(term));
-  return terms.join(" ").trim() || query.trim();
-}
 
 function emailCandidateText(message: Awaited<ReturnType<EmailProvider["search"]>>["messages"][number]) {
   const sender = message.from.map((address) => address.name ? `${address.name} <${address.email}>` : address.email).join(", ") || "Unknown sender";
@@ -39,11 +32,11 @@ function emailThreadText(thread: EmailThread) {
   return `Gmail · Email thread\nSource: gmail:${thread.id}\nThread ID: ${thread.id}\nSubject: ${thread.subject}\nParticipants: ${thread.participants.map((address) => address.email).join(", ") || "unknown"}\n\n${messages.join("\n\n---\n\n")}`;
 }
 
-async function retrieveEmailCandidates(query: string, intent?: { intentSubtype?: string | null }) {
+async function retrieveEmailCandidates(query: string, intent?: { intentSubtype?: string | null; emailFilters?: EmailSearchFilters }) {
   if (intent?.intentSubtype !== "email_search") return { candidates: [] as EmailCandidate[], unavailable: false };
   const resolved = await connectedEmailProvider();
   if (!resolved) return { candidates: [] as EmailCandidate[], unavailable: true };
-  const result = await resolved.provider.search(emailSearchTerms(query), { maxResults: 12 });
+  const result = await resolved.provider.search(intent.emailFilters ?? parseEmailSearchFilters(query), { maxResults: 12 });
   const uniqueThreads = [...new Map(result.messages.map((message) => [message.threadId, message])).values()];
   const candidates = uniqueThreads.map((message) => ({
     item: {
@@ -81,7 +74,7 @@ async function hydrateSelectedEmailContext(items: SelectedContext[], candidates:
   }));
 }
 
-export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string }) {
+export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string; emailFilters?: EmailSearchFilters }) {
   const retrievalFilters = intent?.retrievalMode === "semantic" ? { text: query } : {};
   const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
   const [objectResults, factResults, interpretationResults, waiting, eventResults, founder, trust, objectives, learningRules, constitution, assumptions, emailResult] = await Promise.all([

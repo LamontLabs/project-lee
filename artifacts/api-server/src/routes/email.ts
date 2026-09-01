@@ -20,10 +20,10 @@ const errorResponse = (res: any, error: unknown) => {
 };
 
 router.get("/email/messages", async (req, res): Promise<void> => {
-  try { const provider = await gmailConnection(String(req.query.connectionId)); res.json(await provider.listMessages({ query: typeof req.query.query === "string" ? req.query.query : undefined, pageToken: typeof req.query.pageToken === "string" ? req.query.pageToken : undefined, maxResults: Number(req.query.maxResults ?? 50) })); } catch (error) { errorResponse(res, error); }
+  try { const provider = await gmailConnection(String(req.query.connectionId)); res.json(await provider.listMessages({ filters: typeof req.query.query === "string" ? { text: req.query.query } : undefined, pageToken: typeof req.query.pageToken === "string" ? req.query.pageToken : undefined, maxResults: Number(req.query.maxResults ?? 50) })); } catch (error) { errorResponse(res, error); }
 });
 router.get("/email/search", async (req, res): Promise<void> => {
-  try { const provider = await gmailConnection(String(req.query.connectionId)); const query = String(req.query.q ?? "").trim(); if (!query) { res.status(400).json({ error: "q is required." }); return; } res.json(await provider.search(query, { pageToken: typeof req.query.pageToken === "string" ? req.query.pageToken : undefined })); } catch (error) { errorResponse(res, error); }
+  try { const provider = await gmailConnection(String(req.query.connectionId)); const query = String(req.query.q ?? "").trim(); if (!query) { res.status(400).json({ error: "q is required." }); return; } res.json(await provider.search({ text: query }, { pageToken: typeof req.query.pageToken === "string" ? req.query.pageToken : undefined })); } catch (error) { errorResponse(res, error); }
 });
 router.get("/email/unread", async (req, res): Promise<void> => {
   try { const provider = await gmailConnection(String(req.query.connectionId)); res.json({ messages: await provider.listUnread() }); } catch (error) { errorResponse(res, error); }

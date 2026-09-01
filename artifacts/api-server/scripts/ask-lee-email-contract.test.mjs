@@ -8,6 +8,7 @@ test("email questions use the existing intent boundary without turning read ques
   const intent = await source("lib/intent.ts");
   assert.match(intent, /intentSubtype: subtype/);
   assert.match(intent, /emailSearch \? "email_search"/);
+  assert.match(intent, /emailFilters/);
   assert.match(intent, /if \(isEmailSearchRequest\(input\)\) return/);
   assert.match(intent, /isEmailSearchRequest[\s\S]*asksToWrite[\s\S]*return referencesEmail/);
   assert.match(intent, /if \(\/draft\|write\|compose\|email\|message\/\.test\(input\)\) return "draft_request"/);
@@ -16,7 +17,8 @@ test("email questions use the existing intent boundary without turning read ques
 test("selected email threads are hydrated only after context selection and retain Gmail provenance", async () => {
   const context = await source("lib/context-engine.ts");
   assert.match(context, /connectedEmailProvider/);
-  assert.match(context, /\.provider\.search\(emailSearchTerms\(query\)/);
+  assert.match(context, /\.provider\.search\(intent\.emailFilters \?\? parseEmailSearchFilters\(query\)/);
+  assert.match(context, /EmailSearchFilters/);
   assert.match(context, /constructContextPacket\(query, contextItems/);
   assert.match(context, /hydrateSelectedEmailContext\(selected\.items/);
   assert.match(context, /\.provider\.getThread\(candidate\.threadId\)/);

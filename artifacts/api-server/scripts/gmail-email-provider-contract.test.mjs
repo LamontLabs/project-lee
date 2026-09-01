@@ -8,7 +8,14 @@ const connections = await readFile(new URL("../src/lib/connection-center.ts", im
 
 test("Gmail stays behind the provider-neutral EmailProvider contract", () => {
   assert.match(provider, /export interface EmailProvider/);
+  assert.match(provider, /export type EmailSearchFilters/);
   assert.match(provider, /export class GmailProvider implements EmailProvider/);
+  assert.match(provider, /function toGmailQuery/);
+  assert.match(provider, /filters\.sender/);
+  assert.match(provider, /filters\.subject/);
+  assert.match(provider, /filters\.after/);
+  assert.match(provider, /filters\.before/);
+  assert.match(provider, /filters\.unread/);
   assert.match(provider, /emailProviderFor\(provider: string/);
   assert.match(routes, /emailProviderFor\("gmail", id\)/);
   assert.doesNotMatch(provider, /console\.(log|error|warn)\([^)]*(token|credential|authorization)/i);

@@ -23,6 +23,19 @@ export type EmailMessage = {
 };
 export type EmailThread = { id: string; subject: string; messages: EmailMessage[]; participants: EmailAddress[]; lastMessageAt?: Date; labels: string[] };
 export type EmailDraft = { id: string; message: EmailMessage; };
+/**
+ * Provider-neutral mailbox search criteria. Date bounds are inclusive calendar
+ * dates; adapters translate them to their own query language and timezone
+ * semantics.
+ */
+export type EmailSearchFilters = {
+  text?: string;
+  sender?: string;
+  subject?: string;
+  after?: string;
+  before?: string;
+  unread?: boolean;
+};
 export type EmailSyncResult = {
   messages: EmailMessage[];
   nextHistoryId?: string;
@@ -35,9 +48,9 @@ export type GmailProfile = { emailAddress?: string; historyId?: string };
 export type ConnectedEmailProvider = { provider: EmailProvider; providerName: string; connectionId: string };
 
 export interface EmailProvider {
-  listMessages(options?: { query?: string; pageToken?: string; maxResults?: number; includeSpamTrash?: boolean }): Promise<{ messages: EmailMessage[]; nextPageToken?: string }>;
+  listMessages(options?: { filters?: EmailSearchFilters; pageToken?: string; maxResults?: number; includeSpamTrash?: boolean }): Promise<{ messages: EmailMessage[]; nextPageToken?: string }>;
   listUnread(): Promise<EmailMessage[]>;
-  search(query: string, options?: { pageToken?: string; maxResults?: number }): Promise<{ messages: EmailMessage[]; nextPageToken?: string }>;
+  search(filters: EmailSearchFilters, options?: { pageToken?: string; maxResults?: number }): Promise<{ messages: EmailMessage[]; nextPageToken?: string }>;
   getMessage(messageId: string, includeBody?: boolean): Promise<EmailMessage>;
   getThread(threadId: string): Promise<EmailThread>;
   getAttachment(messageId: string, attachmentId: string): Promise<{ filename?: string; mimeType?: string; dataBase64: string }>;
@@ -114,6 +127,31 @@ function encodedMessage(input: { to: EmailAddress[]; cc?: EmailAddress[]; subjec
   return Buffer.from(lines).toString("base64url");
 }
 
+function gmailQuoted(value: string) {
+  return `"${value.replace(/["\\]/g, " ").replace(/\s+/g, " ").trim()}"`;
+}
+
+function gmailDate(value: string, inclusiveEnd = false) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime())) return null;
+  if (inclusiveEnd) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10).replaceAll("-", "/");
+}
+
+function toGmailQuery(filters: EmailSearchFilters = {}) {
+  const terms = [
+    filters.text?.trim() ? gmailQuoted(filters.text.trim()) : "",
+    filters.sender?.trim() ? `from:${gmailQuoted(filters.sender.trim())}` : "",
+    filters.subject?.trim() ? `subject:${gmailQuoted(filters.subject.trim())}` : "",
+    filters.after && gmailDate(filters.after) ? `after:${gmailDate(filters.after)}` : "",
+    filters.before && gmailDate(filters.before, true) ? `before:${gmailDate(filters.before, true)}` : "",
+    filters.unread === true ? "is:unread" : filters.unread === false ? "is:read" : "",
+  ];
+  return terms.filter(Boolean).join(" ");
+}
+
 export class GmailProvider implements EmailProvider {
   readonly provider = "gmail";
   constructor(private readonly connectionId: string) {}
@@ -134,14 +172,15 @@ export class GmailProvider implements EmailProvider {
   private async raw(id: string, includeBody = false) {
     return this.request<GmailMessage>(`/messages/${encodeURIComponent(id)}?format=${includeBody ? "full" : "metadata"}${includeBody ? "" : "&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Date"}`);
   }
-  async listMessages(options: { query?: string; pageToken?: string; maxResults?: number; includeSpamTrash?: boolean } = {}) {
-    const params = new URLSearchParams({ maxResults: String(Math.min(options.maxResults ?? 50, 100)), ...(options.query ? { q: options.query } : {}), ...(options.pageToken ? { pageToken: options.pageToken } : {}), ...(options.includeSpamTrash ? { includeSpamTrash: "true" } : {}) });
+  async listMessages(options: { filters?: EmailSearchFilters; pageToken?: string; maxResults?: number; includeSpamTrash?: boolean } = {}) {
+    const query = toGmailQuery(options.filters);
+    const params = new URLSearchParams({ maxResults: String(Math.min(options.maxResults ?? 50, 100)), ...(query ? { q: query } : {}), ...(options.pageToken ? { pageToken: options.pageToken } : {}), ...(options.includeSpamTrash ? { includeSpamTrash: "true" } : {}) });
     const result = await this.request<GmailResponse>(`/messages?${params}`);
     const messages = await Promise.all((result.messages ?? []).map((item) => this.raw(item.id)));
     return { messages: messages.map((item) => toEmail(item)), nextPageToken: result.nextPageToken };
   }
-  listUnread() { return this.listMessages({ query: "is:unread" }).then((result) => result.messages); }
-  search(query: string, options: { pageToken?: string; maxResults?: number } = {}) { return this.listMessages({ ...options, query }); }
+  listUnread() { return this.listMessages({ filters: { unread: true } }).then((result) => result.messages); }
+  search(filters: EmailSearchFilters, options: { pageToken?: string; maxResults?: number } = {}) { return this.listMessages({ ...options, filters }); }
   async getMessage(messageId: string, includeBody = true) { return toEmail(await this.raw(messageId, includeBody), includeBody); }
   async getThread(threadId: string) {
     const result = await this.request<{ id: string; messages?: GmailMessage[] }>(`/threads/${encodeURIComponent(threadId)}?format=full`);
@@ -190,7 +229,7 @@ export class GmailProvider implements EmailProvider {
     const messages: EmailMessage[] = [];
     let pageToken: string | undefined;
     do {
-      const listed = await this.listMessages({ query: "in:anywhere", maxResults: 100, ...(pageToken ? { pageToken } : {}) });
+      const listed = await this.listMessages({ includeSpamTrash: true, maxResults: 100, ...(pageToken ? { pageToken } : {}) });
       messages.push(...listed.messages);
       pageToken = listed.nextPageToken;
     } while (pageToken);

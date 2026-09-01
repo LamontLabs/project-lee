@@ -1,0 +1,53 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="red" x1="90" y1="80" x2="920" y2="950" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B102A"/>
+      <stop offset="0.45" stop-color="#FF3157"/>
+      <stop offset="0.53" stop-color="#FF7890"/>
+      <stop offset="0.7" stop-color="#E71943"/>
+      <stop offset="1" stop-color="#6D0B20"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientTransform="translate(340 170) rotate(52) scale(760 520)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFCFD7" stop-opacity="0.46"/>
+      <stop offset="0.32" stop-color="#FF6A84" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#FF163F" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.95 0 1 0 0 0.04 0 0 1 0 0.18 0 0 0 .42 0"/>
+      <feBlend in="SourceGraphic" mode="normal"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.08"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="210" fill="#090708"/>
+  <rect x="34" y="34" width="956" height="956" rx="182" fill="url(#red)" filter="url(#glow)"/>
+  <rect x="48" y="48" width="928" height="928" rx="168" fill="url(#shine)"/>
+  <rect x="48" y="48" width="928" height="928" rx="168" fill="#0B0809" fill-opacity="0.12" filter="url(#grain)"/>
+  <rect x="52" y="52" width="920" height="920" rx="164" stroke="#FFB5C1" stroke-opacity="0.55" stroke-width="5"/>
+  <rect x="68" y="68" width="888" height="888" rx="148" stroke="#680D21" stroke-opacity="0.7" stroke-width="8"/>
+
+  <g filter="url(#glow)" stroke="#FFF7F8" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M493 303C445 252 362 273 362 345C315 325 267 363 282 418C236 440 244 509 287 529C264 589 315 632 365 615C383 672 459 678 493 637"/>
+    <path d="M493 303C542 252 625 273 625 345C672 325 720 363 705 418C751 440 743 509 700 529C723 589 672 632 622 615C604 672 528 678 493 637"/>
+    <path d="M493 303V637"/>
+    <path d="M362 419H433L461 451"/>
+    <path d="M625 419H554L526 451"/>
+    <path d="M365 550H431L464 516"/>
+    <path d="M622 550H556L523 516"/>
+    <path d="M493 451H493"/>
+  </g>
+  <g fill="#FFF7F8">
+    <circle cx="362" cy="419" r="18"/>
+    <circle cx="625" cy="419" r="18"/>
+    <circle cx="365" cy="550" r="18"/>
+    <circle cx="622" cy="550" r="18"/>
+    <circle cx="493" cy="303" r="18"/>
+  </g>
+</svg>

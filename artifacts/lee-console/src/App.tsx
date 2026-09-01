@@ -316,7 +316,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
       <aside className={cn('fixed inset-y-0 left-0 z-40 flex w-[min(86vw,248px)] flex-col border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground transition-transform duration-300 md:translate-x-0', mobileOpen ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex items-center justify-between px-3">
           <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3" data-testid="link-brand">
-            <span className="lee-metal grid h-9 w-9 place-items-center rounded-xl border border-sidebar-primary/60 text-white"><BrainCircuit size={19} /></span>
+            <img src="/console/favicon.svg" alt="" className="h-9 w-9 rounded-xl border border-sidebar-primary/60 shadow-[0_0_22px_hsl(var(--brand-red)/.24)]" />
             <span><span className="block text-[15px] font-semibold tracking-tight">LEE Console</span><span className="lee-label text-sidebar-foreground/45">Private workspace</span></span>
           </Link>
           <button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden" data-testid="button-close-menu"><PanelLeftClose size={17} /></button>

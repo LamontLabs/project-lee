@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useLee } from '@/context/LeeContext';
@@ -29,7 +29,7 @@ export default function PairingScreen() {
 
   return (
     <Screen>
-      <View style={styles.mark}><Text style={[styles.markText, { color: colors.primary }]}>L</Text></View>
+      <Image source={require('../assets/images/icon.png')} style={styles.mark} accessibilityLabel="Project LEE" />
       <Eyebrow>Private companion</Eyebrow>
       <Title subtitle="Pair this device with your Lee Console. Your token stays on this device and is used for every request.">Keep Lee close.</Title>
       <View style={styles.form}>
@@ -49,8 +49,7 @@ export default function PairingScreen() {
 
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  mark: { width: 48, height: 48, borderRadius: 15, backgroundColor: '#27361f', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  markText: { fontSize: 30, fontFamily: 'Inter_700Bold' },
+  mark: { width: 54, height: 54, borderRadius: 17, marginBottom: 18 },
   form: { gap: 10, marginTop: 10 },
   label: { fontSize: 11, letterSpacing: 1.1, fontFamily: 'Inter_700Bold', marginTop: 8 },
   input: { minHeight: 54, borderWidth: 1, borderRadius: 12, paddingHorizontal: 15, fontSize: 15, fontFamily: 'Inter_400Regular' },

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = async (path) => readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
+const databaseSource = async (path) => readFile(new URL(`../../../lib/db/src/${path}`, import.meta.url), "utf8");
 
 test("email questions use the existing intent boundary without turning read questions into drafts", async () => {
   const intent = await source("lib/intent.ts");
@@ -33,4 +34,14 @@ test("email retrieval has no body or credential data in pipeline audit payloads"
   const email = await source("lib/email-provider.ts");
   assert.doesNotMatch(pipeline, /bodyText|snippet|access_token|refresh_token/);
   assert.doesNotMatch(email, /console\.(log|error|warn)\([^)]*(body|snippet|token|credential)/i);
+});
+
+test("email intent history persists only the normalized provider-neutral criteria", async () => {
+  const intent = await source("lib/intent.ts");
+  const schema = await databaseSource("schema/intent.ts");
+  assert.match(schema, /emailFilters: jsonb\("email_filters"\)/);
+  assert.match(intent, /persistEmailSearchFilters/);
+  assert.match(intent, /emailFilters: persistedEmailFilters/);
+  assert.match(intent, /filters\.(text|sender|subject|after|before)/);
+  assert.doesNotMatch(intent, /persistEmailSearchFilters[\s\S]{0,1200}(bodyText|snippet|access_token|refresh_token)/);
 });

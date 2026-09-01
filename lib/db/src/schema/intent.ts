@@ -1,4 +1,14 @@
 import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+
+export type IntentEmailSearchFilters = {
+  text?: string;
+  sender?: string;
+  subject?: string;
+  after?: string;
+  before?: string;
+  unread?: boolean;
+};
+
 export const intentRecord = pgTable("intent_record", {
   id: uuid("id").defaultRandom().primaryKey(),
   rawInput: text("raw_input").notNull(),
@@ -13,6 +23,7 @@ export const intentRecord = pgTable("intent_record", {
   modelComplexityEstimate: varchar("model_complexity_estimate", { length: 16 }).notNull().default("cheap"),
   retrievalMode: varchar("retrieval_mode", { length: 16 }).notNull().default("structured"),
   explanationType: varchar("explanation_type", { length: 48 }),
+  emailFilters: jsonb("email_filters").$type<IntentEmailSearchFilters | null>(),
   confidence: real("confidence").notNull().default(0.5),
   source: varchar("source", { length: 24 }).notNull().default("ask_lee"),
   sessionId: text("session_id"),

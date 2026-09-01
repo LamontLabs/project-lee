@@ -34,7 +34,7 @@ function emailThreadText(thread: EmailThread) {
 
 export async function retrieveEmailCandidates(
   query: string,
-  intent?: { intentSubtype?: string | null; emailFilters?: EmailSearchFilters },
+  intent?: { intentSubtype?: string | null; emailFilters?: EmailSearchFilters | null },
   resolveProvider: () => Promise<ConnectedEmailProvider | null> = connectedEmailProvider,
 ) {
   if (intent?.intentSubtype !== "email_search") return { candidates: [] as EmailCandidate[], unavailable: false };
@@ -78,7 +78,7 @@ export async function hydrateSelectedEmailContext(items: SelectedContext[], cand
   }));
 }
 
-export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string; emailFilters?: EmailSearchFilters }) {
+export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string; emailFilters?: EmailSearchFilters | null }) {
   const retrievalFilters = intent?.retrievalMode === "semantic" ? { text: query } : {};
   const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
   const [objectResults, factResults, interpretationResults, waiting, eventResults, founder, trust, objectives, learningRules, constitution, assumptions, emailResult] = await Promise.all([

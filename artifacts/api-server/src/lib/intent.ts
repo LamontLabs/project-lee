@@ -117,6 +117,18 @@ function isEmailSearchRequest(text: string) {
   return referencesEmail && asksToRead && !asksToWrite;
 }
 
+function persistEmailSearchFilters(filters: EmailSearchFilters | undefined) {
+  if (!filters) return null;
+  return {
+    ...(typeof filters.text === "string" && filters.text ? { text: filters.text } : {}),
+    ...(typeof filters.sender === "string" && filters.sender ? { sender: filters.sender } : {}),
+    ...(typeof filters.subject === "string" && filters.subject ? { subject: filters.subject } : {}),
+    ...(typeof filters.after === "string" && filters.after ? { after: filters.after } : {}),
+    ...(typeof filters.before === "string" && filters.before ? { before: filters.before } : {}),
+    ...(typeof filters.unread === "boolean" ? { unread: filters.unread } : {}),
+  };
+}
+
 export async function classifyIntent(rawInput: string, sessionContext: Record<string, unknown> = {}, source = "ask_lee", sessionId?: string) {
   const text = rawInput.trim(); if (!text) throw new Error("rawInput is required.");
   const objects = await db.select({ id: universalObject.id, objectType: universalObject.objectType, name: universalObject.name, description: universalObject.description }).from(universalObject).limit(500);
@@ -124,8 +136,9 @@ export async function classifyIntent(rawInput: string, sessionContext: Record<st
   const confidence = Math.min(0.98, 0.58 + (matches.length ? 0.15 : 0) + (text.includes("?") ? 0.1 : 0)); const explanation = intentType === "explanation_seeking" ? "object" : null; const retrievalMode = intentType === "question_exploratory" || intentType === "explanation_seeking" ? "semantic" : intentType === "capture_input" ? "none" : "structured"; const complexity = /complex|compare|tradeoff|deep|architecture|strategy/.test(lower) ? "strong" : text.length > 240 ? "mid" : "cheap";
   const subtype = emailSearch ? "email_search" : sessionContext.subtype ? String(sessionContext.subtype) : null;
   const emailFilters = emailSearch ? parseEmailSearchFilters(text) : undefined;
+  const persistedEmailFilters = persistEmailSearchFilters(emailFilters);
   const effectiveRetrievalMode = emailSearch ? "semantic" : retrievalMode;
-  const [created] = await db.insert(intentRecord).values({ rawInput: text, intentType, intentSubtype: subtype, detectedProjectIds: matches.filter((item) => /project|initiative/i.test(item.objectType)).map((item) => item.id), detectedPersonIds: matches.filter((item) => /person|relationship/i.test(item.objectType)).map((item) => item.id), detectedObjectIds: matches.map((item) => item.id), audienceProfile: /investor|board/.test(lower) ? "Investor" : /developer|technical|code/.test(lower) ? "Technical" : "Founder", urgency: /urgent|asap|today|critical/.test(lower) ? "time_sensitive" : "routine", requiresModel: !["capture_input", "navigation_request"].includes(intentType), modelComplexityEstimate: complexity, retrievalMode: effectiveRetrievalMode, explanationType: explanation, confidence, source, sessionId }).returning();
+  const [created] = await db.insert(intentRecord).values({ rawInput: text, intentType, intentSubtype: subtype, emailFilters: persistedEmailFilters, detectedProjectIds: matches.filter((item) => /project|initiative/i.test(item.objectType)).map((item) => item.id), detectedPersonIds: matches.filter((item) => /person|relationship/i.test(item.objectType)).map((item) => item.id), detectedObjectIds: matches.map((item) => item.id), audienceProfile: /investor|board/.test(lower) ? "Investor" : /developer|technical|code/.test(lower) ? "Technical" : "Founder", urgency: /urgent|asap|today|critical/.test(lower) ? "time_sensitive" : "routine", requiresModel: !["capture_input", "navigation_request"].includes(intentType), modelComplexityEstimate: complexity, retrievalMode: effectiveRetrievalMode, explanationType: explanation, confidence, source, sessionId }).returning();
   await db.insert(costRecord).values({ correlationId: created.id, engine: "Intent Engine", provider: "local", tier: "T1", model: "local-rule-classifier", promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: 0, latencyMs: 0, cacheHit: false, metadata: { modelVersion: "intent-rules-v1" } });
   await db.insert(eventLog).values({ eventType: "IntentClassified", aggregateType: "intent", aggregateId: created.id, sourceRef: "intent-engine", occurredAt: new Date(), payload: { intentType, intentSubtype: subtype, confidence, retrievalMode: effectiveRetrievalMode, source, detectedObjectCount: matches.length } });
   return { ...created, ...(emailFilters ? { emailFilters } : {}) };

@@ -28,6 +28,8 @@ function configureUpdates(): void {
   if (!isProduction) { setUpdateState({ status: "unsupported", message: "Updates are available in packaged builds." }); return; }
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.allowDowngrade = false;
   autoUpdater.on("checking-for-update", () => setUpdateState({ status: "checking" }));
   autoUpdater.on("update-available", (info) => setUpdateState({ status: "available", version: info.version }));
   autoUpdater.on("update-not-available", () => setUpdateState({ status: "not-available" }));

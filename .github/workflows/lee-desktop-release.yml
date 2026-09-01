@@ -44,21 +44,52 @@ jobs:
           Expand-Archive $archive -DestinationPath "$env:RUNNER_TEMP\postgresql"
           New-Item -ItemType Directory -Force artifacts/lee-desktop/resources/postgres | Out-Null
           Copy-Item "$env:RUNNER_TEMP\postgresql\pgsql\*" artifacts/lee-desktop/resources/postgres -Recurse -Force
+      - name: Require Windows signing configuration
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) { throw "LEE_WINDOWS_CERTIFICATE is required for a trusted release." }
+          if ([string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) { throw "LEE_WINDOWS_CERTIFICATE_PASSWORD is required for a trusted release." }
       - run: pnpm --filter @workspace/lee-desktop run package
         env:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
-      - name: Add checksums
+      - name: Verify Authenticode signatures
         shell: pwsh
         run: |
-          Get-ChildItem artifacts/lee-desktop/release/* | ForEach-Object {
-            (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name | Out-File ($_.FullName + ".sha256") -Encoding ascii
+          $installers = Get-ChildItem artifacts/lee-desktop/release/*.exe -File
+          if ($installers.Count -eq 0) { throw "No Windows installer was produced." }
+          $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
+          if (-not $signtool) {
+            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
           }
+          if (-not $signtool) { throw "Windows SDK signtool.exe is unavailable on the runner." }
+          $signtoolPath = if ($signtool.PSObject.Properties.Name -contains "Source") { $signtool.Source } else { $signtool.FullName }
+          foreach ($installer in $installers) {
+            $signature = Get-AuthenticodeSignature $installer.FullName
+            if ($signature.Status -ne "Valid") { throw "$($installer.Name) has an invalid Authenticode signature: $($signature.Status)." }
+            & $signtoolPath verify /pa /all $installer.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool verification failed for $($installer.Name)." }
+          }
+      - name: Write Windows release metadata
+        run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform windows
+      - name: Confirm checksums
+        shell: pwsh
+        run: |
+          if (-not (Test-Path artifacts/lee-desktop/release/SHA256SUMS-windows.txt)) { throw "Windows checksum manifest is missing." }
       - name: Upload installer for validation
         uses: actions/upload-artifact@v4
         with:
           name: lee-windows-installer
-          path: artifacts/lee-desktop/release/*.exe
+          path: |
+            artifacts/lee-desktop/release/*.exe
+            artifacts/lee-desktop/release/*.yml
+            artifacts/lee-desktop/release/*.blockmap
+            artifacts/lee-desktop/release/*.sha256
+            artifacts/lee-desktop/release/SHA256SUMS-windows.txt
+            artifacts/lee-desktop/release/release-manifest-windows.json
           if-no-files-found: error
 
   macos-package:
@@ -86,6 +117,21 @@ jobs:
         env:
           PORT: 4173
           BASE_PATH: /
+      - name: Require Apple signing and notarization configuration
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.LEE_MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.LEE_MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
+        run: |
+          for variable in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!variable}" ]]; then
+              echo "$variable is required for a signed and notarized macOS release." >&2
+              exit 1
+            fi
+          done
       - name: Build macOS packages
         run: pnpm --filter @workspace/lee-desktop run package
         env:
@@ -94,12 +140,47 @@ jobs:
           APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
+      - name: Verify macOS signatures and notarization
+        shell: bash
+        run: |
+          shopt -s nullglob
+          dmgs=(artifacts/lee-desktop/release/*.dmg)
+          zips=(artifacts/lee-desktop/release/*.zip)
+          (( ${#dmgs[@]} > 0 )) || { echo "No macOS disk image was produced." >&2; exit 1; }
+          (( ${#zips[@]} > 0 )) || { echo "No macOS zip was produced." >&2; exit 1; }
+          for dmg in "${dmgs[@]}"; do
+            xcrun stapler validate "$dmg"
+            mountpoint="$(mktemp -d)"
+            device="$(hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mountpoint" | awk 'END {print $1}')"
+            app_path="$(find "$mountpoint" -maxdepth 1 -name '*.app' -print -quit)"
+            [[ -n "$app_path" ]] || { hdiutil detach "$mountpoint" -quiet || true; echo "No app found in $dmg." >&2; exit 1; }
+            codesign --verify --deep --strict --verbose=2 "$app_path"
+            spctl --assess --type execute --verbose=4 "$app_path"
+            hdiutil detach "$mountpoint" -quiet
+            rmdir "$mountpoint"
+          done
+          for zip in "${zips[@]}"; do
+            unpacked="$(mktemp -d)"
+            ditto -x -k "$zip" "$unpacked"
+            app_path="$(find "$unpacked" -name '*.app' -print -quit)"
+            [[ -n "$app_path" ]] || { echo "No app found in $zip." >&2; exit 1; }
+            codesign --verify --deep --strict --verbose=2 "$app_path"
+            spctl --assess --type execute --verbose=4 "$app_path"
+            rm -rf "$unpacked"
+          done
+      - name: Write macOS release metadata
+        run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform macos
       - uses: actions/upload-artifact@v4
         with:
           name: lee-macos-installers
           path: |
             artifacts/lee-desktop/release/*.dmg
             artifacts/lee-desktop/release/*.zip
+            artifacts/lee-desktop/release/*.yml
+            artifacts/lee-desktop/release/*.blockmap
+            artifacts/lee-desktop/release/*.sha256
+            artifacts/lee-desktop/release/SHA256SUMS-macos.txt
+            artifacts/lee-desktop/release/release-manifest-macos.json
           if-no-files-found: error
 
   linux-package:
@@ -129,12 +210,23 @@ jobs:
           BASE_PATH: /
       - name: Build Linux packages
         run: pnpm --filter @workspace/lee-desktop run package
+      - name: Write Linux release metadata
+        run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform linux
+      - name: Verify Linux release metadata
+        run: node artifacts/lee-desktop/scripts/verify-release-manifests.mjs artifacts/lee-desktop/release
       - uses: actions/upload-artifact@v4
         with:
           name: lee-linux-installers
           path: |
             artifacts/lee-desktop/release/*.AppImage
             artifacts/lee-desktop/release/*.deb
+            artifacts/lee-desktop/release/*.rpm
+            artifacts/lee-desktop/release/*.tar.gz
+            artifacts/lee-desktop/release/*.yml
+            artifacts/lee-desktop/release/*.blockmap
+            artifacts/lee-desktop/release/*.sha256
+            artifacts/lee-desktop/release/SHA256SUMS-linux.txt
+            artifacts/lee-desktop/release/release-manifest-linux.json
           if-no-files-found: error
 
   windows-installer-validation:
@@ -162,6 +254,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: lee-windows-installer
@@ -174,15 +267,16 @@ jobs:
         with:
           name: lee-linux-installers
           path: artifacts/lee-desktop/release
-      - name: Add checksums
+      - name: Verify all release manifests and checksums
+        shell: bash
+        run: node artifacts/lee-desktop/scripts/verify-release-manifests.mjs artifacts/lee-desktop/release
+      - name: Confirm updater metadata is complete
         shell: pwsh
         run: |
-          Get-ChildItem artifacts/lee-desktop/release/* -File | Where-Object { $_.Extension -notlike ".sha256" } | ForEach-Object {
-            (Get-FileHash $_.FullName -Algorithm SHA256).Hash + "  " + $_.Name | Out-File ($_.FullName + ".sha256") -Encoding ascii
+          foreach ($metadata in @("latest.yml", "latest-mac.yml", "latest-linux.yml")) {
+            if (-not (Test-Path "artifacts/lee-desktop/release/$metadata")) { throw "Missing electron-updater metadata: $metadata" }
           }
       - uses: softprops/action-gh-release@v2
         with:
-          files: |
-            artifacts/lee-desktop/release/*
-            artifacts/lee-desktop/release/*.sha256
+          files: artifacts/lee-desktop/release/*
           generate_release_notes: true

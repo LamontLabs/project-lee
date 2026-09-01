@@ -30,8 +30,12 @@ mac:
   category: public.app-category.productivity
   hardenedRuntime: true
   gatekeeperAssess: false
+  forceCodeSigning: true
+  notarize: true
 win:
   icon: resources/lee.png
+  forceCodeSigning: true
+  signAndEditExecutable: true
   extraResources:
     - from: resources/postgres
       to: postgres
@@ -49,4 +53,6 @@ nsis:
   differentialPackage: true
 publish:
   provider: github
+  owner: lamontlabs
+  repo: project-lee
   releaseType: release

@@ -37,6 +37,7 @@
     "test:operational-intelligence-evidence": "node scripts/operational-intelligence.evidence.test.mjs",
     "test:executive-loop-proof": "node scripts/executive-loop-proof.test.mjs",
     "test:system-economics-contract": "node scripts/system-economics-contract.test.mjs",
+    "test:system-economics-boundary": "pnpm run build && node --test scripts/system-economics-boundary.test.mjs",
     "test:self-test-diagnostics": "node --test scripts/self-test-diagnostics.test.mjs",
     "test:query-architecture": "node --test scripts/query-engine-architecture.test.mjs",
     "test:ledger-boundary": "node --test scripts/ledger-boundary-hostile.test.mjs",

@@ -5,6 +5,7 @@ import { runCILCostBenchmark } from "../lib/cil-cost-benchmark";
 import { z } from "zod";
 
 const router: IRouter = Router();
+const economicTimestamp = z.union([z.string().min(1), z.number().finite()]).pipe(z.coerce.date());
 const economicUsageRequestSchema = z.object({
   operation: z.string().min(1).max(64),
   category: z.enum(["storage", "backup", "embedding", "network"]),
@@ -13,7 +14,7 @@ const economicUsageRequestSchema = z.object({
   provider: z.string().min(1).max(96),
   sourceRef: z.string().min(1),
   metadata: z.record(z.string(), z.unknown()).default({}),
-  recordedAt: z.coerce.date().default(() => new Date()),
+  recordedAt: economicTimestamp.default(() => new Date().toISOString()),
 });
 const economicPriceRequestSchema = z.object({
   operation: z.string().min(1).max(64),
@@ -23,8 +24,8 @@ const economicPriceRequestSchema = z.object({
   provider: z.string().min(1).max(96),
   sourceRef: z.string().min(1),
   metadata: z.record(z.string(), z.unknown()).default({}),
-  effectiveAt: z.coerce.date(),
-  recordedAt: z.coerce.date().default(() => new Date()),
+  effectiveAt: economicTimestamp,
+  recordedAt: economicTimestamp.default(() => new Date().toISOString()),
 });
 
 router.get("/economics/summary", async (_req, res): Promise<void> => {

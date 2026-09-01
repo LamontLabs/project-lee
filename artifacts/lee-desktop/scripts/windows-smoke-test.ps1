@@ -55,7 +55,7 @@ function Wait-ForFile([string] $path, [int] $timeoutSeconds, [string] $label) {
   Assert-True (Test-Path $path) "$label did not produce $path"
 }
 
-function Start-K6Mock([ValidateSet("contract", "timeout")] [string] $mode) {
+function Start-K6Mock([ValidateSet("contract", "timeout", "malformed", "oversized", "sensitive")] [string] $mode) {
   Remove-Item $mockLog -Force -ErrorAction SilentlyContinue
   $process = Start-Process -FilePath "powershell.exe" -ArgumentList @(
     "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
@@ -160,7 +160,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string] $LogPath,
   [Parameter(Mandatory = $true)]
-  [ValidateSet("contract", "timeout")]
+  [ValidateSet("contract", "timeout", "malformed", "oversized", "sensitive")]
   [string] $Mode
 )
 
@@ -175,8 +175,17 @@ try {
     if ($Mode -eq "timeout") {
       Start-Sleep -Seconds 3
     }
-    if ($Mode -eq "contract" -and $context.Request.Url.AbsolutePath -eq "/k6/contract") {
-      $payload = '{"contractVersion":"v1","identity":{"displayName":"Smoke K6 Contract"},"capabilities":[{"id":"k6.smoke","name":"Smoke contract"}],"dependencies":[]}'
+    if ($context.Request.Url.AbsolutePath -eq "/k6/contract" -and $Mode -in @("contract", "malformed", "oversized", "sensitive")) {
+      if ($Mode -eq "malformed") {
+        $payload = '{"contractVersion":"v1","identity":{"displayName":"Malformed contract"'
+      } elseif ($Mode -eq "oversized") {
+        $items = (1..20000 | ForEach-Object { '{"id":"k6.smoke","name":"oversized metadata"}' }) -join ","
+        $payload = '{"contractVersion":"v1","identity":{"displayName":"Oversized contract"},"capabilities":[' + $items + '],"dependencies":[]}'
+      } elseif ($Mode -eq "sensitive") {
+        $payload = '{"contractVersion":"v1","identity":{"displayName":"token=do-not-forward"},"capabilities":[{"id":"k6.smoke","name":"Safe capability","token":"do-not-forward","api_key":"do-not-forward"}],"dependencies":[{"id":"k6.dep","required":true,"secret":"do-not-forward"}]}'
+      } else {
+        $payload = '{"contractVersion":"v1","identity":{"displayName":"Smoke K6 Contract"},"capabilities":[{"id":"k6.smoke","name":"Smoke contract"}],"dependencies":[]}'
+      }
       $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
       $context.Response.StatusCode = 200
       $context.Response.ContentType = "application/json"
@@ -310,6 +319,36 @@ try {
     Assert-True ($requests.Count -eq 1 -and $requests[0] -eq "GET /k6/contract") "discovery probed an unexpected K6 host, port, or path"
 
     Stop-Mock $mock
+    $mock = Start-K6Mock "malformed"
+    $malformedRun = Invoke-Discovery $commonEnvironment "malformed local discovery"
+    $malformedDiscovery = $malformedRun.Discovery
+    $malformedFailure = @($malformedDiscovery.failures | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $malformedFailure -and $malformedFailure.reason -eq "Malformed response") "malformed K6 contract did not produce the safe malformed-response summary"
+    Assert-True (@($malformedDiscovery.candidates | Where-Object { $_.contractId -eq "k6" }).Count -eq 0) "malformed K6 contract produced a discovery candidate"
+    $malformedJson = $malformedDiscovery | ConvertTo-Json -Depth 20
+    Assert-True ($malformedJson -notmatch "Malformed contract|do-not-forward|api[_-]?key|secret|password|token") "malformed discovery exposed response content"
+
+    Stop-Mock $mock
+    $mock = Start-K6Mock "oversized"
+    $oversizedRun = Invoke-Discovery $commonEnvironment "oversized local discovery"
+    $oversizedDiscovery = $oversizedRun.Discovery
+    $oversizedFailure = @($oversizedDiscovery.failures | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $oversizedFailure -and $oversizedFailure.reason -eq "Oversized response") "oversized K6 contract did not produce the safe oversized-response summary"
+    Assert-True (@($oversizedDiscovery.candidates | Where-Object { $_.contractId -eq "k6" }).Count -eq 0) "oversized K6 contract produced a discovery candidate"
+    $oversizedJson = $oversizedDiscovery | ConvertTo-Json -Depth 20
+    Assert-True ($oversizedJson -notmatch "Oversized contract|oversized metadata|do-not-forward|api[_-]?key|secret|password|token") "oversized discovery exposed response content"
+
+    Stop-Mock $mock
+    $mock = Start-K6Mock "sensitive"
+    $sensitiveRun = Invoke-Discovery $commonEnvironment "sensitive metadata discovery"
+    $sensitiveDiscovery = $sensitiveRun.Discovery
+    $sensitiveCandidate = @($sensitiveDiscovery.candidates | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+    Assert-True ($null -ne $sensitiveCandidate) "safe K6 contract with sensitive metadata was not discovered"
+    Assert-True ($sensitiveCandidate.displayName -eq "K6 Service Contract") "sensitive K6 display name was forwarded"
+    $sensitiveJson = $sensitiveCandidate | ConvertTo-Json -Depth 20
+    Assert-True ($sensitiveJson -notmatch "do-not-forward|api[_-]?key|secret|password|token") "sensitive K6 metadata was forwarded in the discovery candidate"
+
+    Stop-Mock $mock
     $mock = Start-K6Mock "timeout"
     $timeoutRun = Invoke-Discovery $commonEnvironment "timed out local discovery"
     $timeoutFailure = @($timeoutRun.Discovery.failures | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
@@ -319,7 +358,34 @@ try {
     $unreachableRun = Invoke-Discovery $commonEnvironment "unreachable local discovery"
     $unreachableFailure = @($unreachableRun.Discovery.failures | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
     Assert-True ($null -ne $unreachableFailure) "unreachable K6 contract was not reported"
-    Assert-True ($unreachableFailure.reason -in @("Not reachable", "Timed out", "Unsupported response", "Not a compatible service contract") -or $unreachableFailure.reason -match "^Returned HTTP [1-5]\d{2}$") "unreachable K6 failure exposed an unsafe raw error"
+    Assert-True ($unreachableFailure.reason -in @("Not reachable", "Timed out", "Malformed response", "Oversized response", "Unsupported response", "Not a compatible service contract") -or $unreachableFailure.reason -match "^Returned HTTP [1-5]\d{2}$") "unreachable K6 failure exposed an unsafe raw error"
+
+    $mock = Start-K6Mock "malformed"
+    try {
+      Remove-Item $statusFile, $discoveryFile -Force -ErrorAction SilentlyContinue
+      $malformedReviewProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
+        APPDATA = $appData
+        LEE_MIGRATION_COMMAND = "cmd /c exit 0"
+        LEE_SMOKE_STATUS_FILE = $statusFile
+        LEE_SMOKE_DISCOVERY_FILE = $discoveryFile
+      } -PassThru
+      Assert-True ($null -ne $malformedReviewProcess) "malformed discovery review launch did not start"
+      Wait-ForFile $statusFile 120 "malformed discovery review launch"
+      Wait-ForFile $discoveryFile 15 "malformed discovery review launch"
+      $malformedReviewStatus = Get-Content $statusFile -Raw | ConvertFrom-Json
+      $malformedReviewDiscovery = Get-Content $discoveryFile -Raw | ConvertFrom-Json
+      $malformedReviewCandidate = @($malformedReviewDiscovery.candidates | Where-Object { $_.contractId -eq "k6" }) | Select-Object -First 1
+      Assert-True ($null -eq $malformedReviewCandidate) "malformed response reached review as a candidate"
+      $malformedReviewBody = $malformedReviewDiscovery | ConvertTo-Json -Depth 20
+      $malformedReviewed = Invoke-RestMethod -Uri "$($malformedReviewStatus.apiUrl)/api/desktop-setup/run" -Method Post -ContentType "application/json" -Body $malformedReviewBody
+      $malformedConnections = @(Invoke-RestMethod -Uri "$($malformedReviewStatus.apiUrl)/api/connections" -Method Get)
+      Assert-True (-not @($malformedConnections | Where-Object { $_.method -eq "local" -and $_.baseUrl -eq "http://127.0.0.1:6420" })) "malformed response created or reused a local connection"
+      Assert-True (($malformedReviewed.summary.discovery.failures | Where-Object { $_.contractId -eq "k6" -and $_.reason -eq "Malformed response" }).Count -eq 1) "malformed response was not retained as a safe reviewable failure"
+      Stop-ProcessTree $malformedReviewProcess.Id
+      $malformedReviewProcess.WaitForExit(10000)
+    } finally {
+      Stop-Mock $mock
+    }
 
     $mock = Start-K6Mock "contract"
     Remove-Item $statusFile, $discoveryFile -Force -ErrorAction SilentlyContinue
@@ -353,7 +419,7 @@ try {
     Stop-Mock $mock
   }
 
-  Write-Host "LEE Windows installer smoke test passed: clean launch, bounded Electron local discovery, safe timeout/unreachable summaries, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
+  Write-Host "LEE Windows installer smoke test passed: clean launch, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }

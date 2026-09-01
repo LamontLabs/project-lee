@@ -34,7 +34,7 @@ export type LocalServiceProbeFailure = {
   contractId: string;
   displayName: string;
   endpoint: string;
-  reason: "Not reachable" | "Timed out" | "Unsupported response" | "Not a compatible service contract" | `Returned HTTP ${number}`;
+  reason: "Not reachable" | "Timed out" | "Malformed response" | "Oversized response" | "Unsupported response" | "Not a compatible service contract" | `Returned HTTP ${number}`;
 };
 
 export type LocalServiceDiscovery = {
@@ -86,6 +86,7 @@ const appData = process.env.APPDATA
 export const dataDir = join(appData, "Project LEE");
 const configPath = join(dataDir, "config.json");
 const databaseDir = join(dataDir, "database");
+export const MAX_DISCOVERY_RESPONSE_BYTES = 256 * 1024;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -143,6 +144,75 @@ function probeFailure(error: unknown): LocalServiceProbeFailure["reason"] {
   return "Not reachable";
 }
 
+function failurePriority(reason: LocalServiceProbeFailure["reason"]): number {
+  if (reason === "Malformed response" || reason === "Oversized response") return 5;
+  if (reason === "Not a compatible service contract" || reason === "Unsupported response") return 4;
+  if (reason === "Timed out") return 3;
+  if (reason.startsWith("Returned HTTP")) return 2;
+  return 1;
+}
+
+function retainMostSpecificFailure(
+  current: LocalServiceProbeFailure["reason"],
+  next: LocalServiceProbeFailure["reason"],
+): LocalServiceProbeFailure["reason"] {
+  return failurePriority(next) >= failurePriority(current) ? next : current;
+}
+
+type BoundedJsonResult =
+  | { kind: "payload"; payload: unknown }
+  | { kind: "malformed" }
+  | { kind: "oversized" }
+  | { kind: "unsupported" };
+
+async function readBoundedJson(response: Response): Promise<BoundedJsonResult> {
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_DISCOVERY_RESPONSE_BYTES) return { kind: "oversized" };
+
+  if (!response.body) {
+    try {
+      const text = await response.text();
+      if (new TextEncoder().encode(text).byteLength > MAX_DISCOVERY_RESPONSE_BYTES) return { kind: "oversized" };
+      return { kind: "payload", payload: JSON.parse(text) };
+    } catch (error) {
+      return error instanceof SyntaxError ? { kind: "malformed" } : { kind: "unsupported" };
+    }
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      total += chunk.byteLength;
+      if (total > MAX_DISCOVERY_RESPONSE_BYTES) {
+        await reader.cancel();
+        return { kind: "oversized" };
+      }
+      chunks.push(chunk);
+    }
+  } catch {
+    return { kind: "unsupported" };
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return { kind: "payload", payload: JSON.parse(new TextDecoder().decode(bytes)) };
+  } catch {
+    return { kind: "malformed" };
+  }
+}
+
 function normalizeRemoteAllowlist(value: unknown): LocalServiceAllowlistEntry[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 100).flatMap((item) => {
@@ -167,7 +237,7 @@ function normalizeRemoteAllowlist(value: unknown): LocalServiceAllowlistEntry[] 
     return [{
       contractId: candidate.contractId,
       provider: candidate.provider,
-      displayName: candidate.displayName,
+      displayName: stringValue(candidate.displayName, "Approved local service"),
       targetType: candidate.targetType,
       defaultPort: Number(candidate.port),
       paths,
@@ -199,16 +269,23 @@ export async function discoverLocalServices(
           signal: controller.signal,
         });
         if (!response.ok) {
-          lastFailure = `Returned HTTP ${response.status}`;
+          lastFailure = retainMostSpecificFailure(lastFailure, `Returned HTTP ${response.status}`);
           continue;
         }
-        const contentLength = Number(response.headers.get("content-length") ?? 0);
-        if (contentLength > 256 * 1024) {
+        const parsed = await readBoundedJson(response);
+        if (parsed.kind === "oversized") {
+          lastFailure = "Oversized response";
+          continue;
+        }
+        if (parsed.kind === "malformed") {
+          lastFailure = "Malformed response";
+          continue;
+        }
+        if (parsed.kind === "unsupported") {
           lastFailure = "Unsupported response";
           continue;
         }
-        let payload: unknown;
-        try { payload = await response.json(); } catch { lastFailure = "Unsupported response"; continue; }
+        const payload = parsed.payload;
         if (!compatibleContract(payload)) {
           lastFailure = "Not a compatible service contract";
           continue;
@@ -231,7 +308,7 @@ export async function discoverLocalServices(
         };
         break;
       } catch (error) {
-        lastFailure = probeFailure(error);
+        lastFailure = retainMostSpecificFailure(lastFailure, probeFailure(error));
       } finally {
         clearTimeout(timer);
       }

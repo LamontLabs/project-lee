@@ -54,8 +54,18 @@ function safeDiscoveryText(value: unknown, fallback: string, max = 160): string 
   return typeof value === "string" && value.length > 0 && value.length <= max && !/(api[_-]?key|secret|password|token|private[_-]?key|credential)/i.test(value) ? value : fallback;
 }
 
+function safeContractDisplayName(contract: LocalServiceContractEntry): string {
+  return safeDiscoveryText(contract.displayName, "Approved local service");
+}
+
+function safeObservedAt(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > 64) return undefined;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
+}
+
 function safeProbeReason(value: unknown): string {
-  if (value === "Not reachable" || value === "Timed out" || value === "Unsupported response" || value === "Not a compatible service contract") return value;
+  if (value === "Not reachable" || value === "Timed out" || value === "Malformed response" || value === "Oversized response" || value === "Unsupported response" || value === "Not a compatible service contract") return value;
   if (typeof value === "string" && /^Returned HTTP [1-5][0-9]{2}$/.test(value)) return value;
   return "The allowlisted contract was not available.";
 }
@@ -67,7 +77,8 @@ function safeDiscoveryRecords(value: unknown): Array<Record<string, unknown>> {
     const result: Record<string, unknown> = {};
     for (const key of ["id", "name", "engineId", "engine", "state", "required"]) {
       const current = (item as Record<string, unknown>)[key];
-      if ((typeof current === "string" && current.length <= 160) || typeof current === "boolean") result[key] = current;
+      if (typeof current === "string" && current.length <= 160 && !/(api[_-]?key|secret|password|token|private[_-]?key|credential)/i.test(current)) result[key] = current;
+      if (typeof current === "boolean") result[key] = current;
     }
     return Object.keys(result).length ? [result] : [];
   });
@@ -89,7 +100,7 @@ function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalSe
     discoveryKey: `${contractId}|${baseUrl}|${healthEndpoint}`,
     contractId,
     provider: contract.provider,
-    displayName: safeDiscoveryText(input.displayName, contract.displayName),
+    displayName: safeDiscoveryText(input.displayName, safeContractDisplayName(contract)),
     targetType: contract.targetType,
     method: "local",
     baseUrl,
@@ -97,7 +108,7 @@ function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalSe
     contractVersion: safeDiscoveryText(input.contractVersion, "v1", 32),
     capabilities: safeDiscoveryRecords(input.capabilities),
     dependencies: safeDiscoveryRecords(input.dependencies),
-    observedAt: typeof input.observedAt === "string" ? input.observedAt : undefined,
+    observedAt: safeObservedAt(input.observedAt),
   };
 }
 
@@ -117,7 +128,7 @@ function normalizeDiscoveryReport(value: unknown, contracts: readonly LocalServi
     const endpoint = typeof row.endpoint === "string" && isLoopbackUrl(row.endpoint) ? new URL(row.endpoint).origin : "Loopback service";
     return [{
       contractId,
-      displayName: contract.displayName,
+      displayName: safeContractDisplayName(contract),
       endpoint,
       reason: safeProbeReason(row.reason),
     }];

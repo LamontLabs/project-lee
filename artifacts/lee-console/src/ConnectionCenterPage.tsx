@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, CircleAlert, FileUp, FolderOpen, Link2, Loader2, Plus, RefreshCw, ShieldCheck, Unplug, X } from "lucide-react";
+import { Check, CircleAlert, FileUp, FolderOpen, Link2, Loader2, Plus, RefreshCw, RotateCcw, ShieldCheck, Trash2, Unplug, X } from "lucide-react";
 import type { LocalServiceDiscoveryPayload } from "./DesktopSetupPanel";
 
 type Connection = {
@@ -12,6 +12,7 @@ type SetupStep = { key: string; label: string; status: string; detail?: string; 
 type DiscoveryCandidate = LocalServiceDiscoveryPayload["candidates"][number] & { status: "new" | "existing"; connectionId?: string };
 type DiscoveryReport = { candidates: DiscoveryCandidate[]; failures: LocalServiceDiscoveryPayload["failures"]; attempted?: number; completedAt?: string };
 type SetupRun = { status: string; steps: SetupStep[]; summary?: { providers?: number; connections?: number; authorized?: number; needsOwner?: number; healthy?: number; failed?: number; discovery?: DiscoveryReport }; lastError?: string | null };
+type LocalContract = { id: string; contractId: string; provider: string; displayName: string; description: string; targetType: string; port: number; paths: string[]; enabled: boolean; createdAt: string; updatedAt: string };
 
 const methods = [
   ["oauth", "Sign in / OAuth"], ["api", "API or service"], ["system_contract", "LEE System Contract"],
@@ -33,6 +34,9 @@ export default function ConnectionCenterPage() {
   const [importing, setImporting] = useState(false);
   const [setup, setSetup] = useState<SetupRun | null>(null);
   const [setupRunning, setSetupRunning] = useState(false);
+  const [localContracts, setLocalContracts] = useState<LocalContract[]>([]);
+  const [contractForm, setContractForm] = useState({ contractId: "", provider: "", displayName: "", description: "", port: "8080", paths: "/api/contract" });
+  const [contractSaving, setContractSaving] = useState(false);
   const selected = connections.find((item) => item.id === selectedId) ?? connections[0] ?? null;
   const load = async () => {
     setLoading(true);
@@ -43,7 +47,10 @@ export default function ConnectionCenterPage() {
   const loadSetup = async () => {
     try { const response = await fetch("/api/desktop-setup", { cache: "no-store" }); if (response.ok) setSetup(await response.json()); } catch { /* the connection inventory remains usable if setup status is unavailable */ }
   };
-  useEffect(() => { void load(); }, []);
+  const loadLocalContracts = async () => {
+    try { const response = await fetch("/api/desktop-setup/local-contracts", { cache: "no-store" }); if (!response.ok) throw new Error("Approved local contracts unavailable."); setLocalContracts(await response.json()); } catch (error) { setNotice(error instanceof Error ? error.message : "Approved local contracts unavailable."); }
+  };
+  useEffect(() => { void load(); void loadLocalContracts(); }, []);
   useEffect(() => { void loadSetup(); }, []);
   const runSetup = async () => {
     setSetupRunning(true); setNotice("LEE is checking providers, existing connections, and safe defaults…");
@@ -63,6 +70,30 @@ export default function ConnectionCenterPage() {
     setSetup((current) => current ? { ...current, summary: { ...current.summary, discovery: current.summary?.discovery ? { ...current.summary.discovery, candidates: current.summary.discovery.candidates.map((item) => item.discoveryKey === candidate.discoveryKey ? { ...item, status: "existing", connectionId: data.connection?.id } : item) } : current.summary?.discovery } } : current);
     setNotice(data.reused ? `${candidate.displayName} is already connected; LEE reused it.` : `${candidate.displayName} was added as an OBSERVE-only connection.`);
     await load();
+  };
+  const saveLocalContract = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setContractSaving(true);
+    try {
+      const response = await fetch("/api/desktop-setup/local-contracts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...contractForm, port: Number(contractForm.port), paths: contractForm.paths.split(/\r?\n/).map((path) => path.trim()).filter(Boolean) }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { setNotice(data.error ?? "Local contract could not be approved."); return; }
+      setLocalContracts((current) => [...current, data].sort((left, right) => left.displayName.localeCompare(right.displayName)));
+      setContractForm({ contractId: "", provider: "", displayName: "", description: "", port: "8080", paths: "/api/contract" });
+      setNotice(`${data.displayName} is now approved for loopback discovery.`);
+    } catch { setNotice("Local contract approval could not reach the API."); }
+    finally { setContractSaving(false); }
+  };
+  const toggleLocalContract = async (contract: LocalContract) => {
+    const enabled = !contract.enabled;
+    const response = await fetch(`/api/desktop-setup/local-contracts/${contract.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { setNotice(data.error ?? "Local contract could not be updated."); return; }
+    setLocalContracts((current) => current.map((item) => item.id === contract.id ? data : item));
+    setNotice(enabled ? `${contract.displayName} is approved again.` : `${contract.displayName} was removed from discovery.`);
   };
   const mutate = async (url: string, init?: RequestInit, success?: string) => {
     const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -117,6 +148,33 @@ export default function ConnectionCenterPage() {
        </div>
        {setup && <div className="mt-4"><div className="flex flex-wrap gap-2 text-[11px]"><span className={`rounded-full border px-2.5 py-1 font-semibold ${setup.status === "complete" ? "border-primary/25 bg-primary/10 text-primary" : "border-accent/35 bg-accent/10 text-accent-foreground"}`}>{setup.status === "complete" ? "Ready" : setup.status.replaceAll("_", " ")}</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.providers ?? 0} providers</span><span className="rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground">{setup.summary?.healthy ?? 0} health checks passed</span>{Boolean(setup.summary?.needsOwner) && <span className="rounded-full border border-accent/35 bg-accent/10 px-2.5 py-1 text-accent-foreground">{setup.summary?.needsOwner} owner action{setup.summary?.needsOwner === 1 ? "" : "s"}</span>}</div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{setup.steps.map((item) => <div key={item.key} className="rounded-xl border border-border bg-card/70 p-3"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${item.status === "complete" ? "bg-primary" : item.status === "needs_owner" ? "bg-accent" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground"}`} /><p className="text-xs font-semibold">{item.label}</p></div><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{item.detail}</p></div>)}</div>{setup.summary?.discovery && <DiscoveryReview report={setup.summary.discovery} onAccept={(candidate) => void acceptDiscovery(candidate)} />}{setup.lastError && <p className="mt-3 text-xs text-destructive">{setup.lastError}</p>}</div>}
      </section>
+      <section className="mb-5 rounded-2xl border border-card-border bg-card/80 p-5 shadow-[0_14px_40px_hsl(205_30%_20%/0.04)]" data-testid="local-contract-allowlist">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div><p className="lee-label text-primary">Discovery boundary</p><h3 className="mt-2 text-lg font-semibold">Approved local contracts</h3><p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">LEE only checks the named ports and fixed paths below on this computer’s loopback address. Adding a contract never grants credentials or write access; every change is recorded for review.</p></div>
+          <ShieldCheck className="mt-1 text-primary" size={20} />
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {localContracts.map((contract) => <div key={contract.id} className={`rounded-xl border p-3 ${contract.enabled ? "border-primary/20 bg-primary/5" : "border-border bg-muted/40 opacity-75"}`}>
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{contract.displayName}</p><p className="mt-1 text-[11px] text-muted-foreground">{contract.provider} · 127.0.0.1:{contract.port} · {contract.paths.length} fixed path{contract.paths.length === 1 ? "" : "s"}</p></div><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${contract.enabled ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"}`}>{contract.enabled ? "Approved" : "Removed"}</span></div>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{contract.description}</p>
+            <p className="mt-2 truncate font-mono text-[10px] text-muted-foreground">{contract.paths.join(" · ")}</p>
+            <button onClick={() => void toggleLocalContract(contract)} className={`mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold ${contract.enabled ? "border-destructive/25 text-destructive hover:bg-destructive/5" : "border-primary/25 text-primary hover:bg-primary/5"}`} data-testid={`button-toggle-local-contract-${contract.contractId}`}>{contract.enabled ? <Trash2 size={13} /> : <RotateCcw size={13} />}{contract.enabled ? "Remove from discovery" : "Approve again"}</button>
+          </div>)}
+        </div>
+        <form onSubmit={(event) => void saveLocalContract(event)} className="mt-4 rounded-xl border border-dashed border-border p-4" data-testid="form-add-local-contract">
+          <div className="flex items-center gap-2"><Plus size={15} className="text-primary" /><p className="text-sm font-semibold">Approve another local specialist</p></div>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Use a stable name and fixed loopback contract. Do not enter a URL, hostname, credential, or secret—LEE supplies 127.0.0.1 and keeps authority separate.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <input required pattern="[a-z0-9][a-z0-9._-]{1,63}" placeholder="contract-id" value={contractForm.contractId} onChange={(event) => setContractForm({ ...contractForm, contractId: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-xs" data-testid="input-local-contract-id" />
+            <input required pattern="[a-z0-9][a-z0-9._-]{1,63}" placeholder="provider-id" value={contractForm.provider} onChange={(event) => setContractForm({ ...contractForm, provider: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-xs" data-testid="input-local-contract-provider" />
+            <input required placeholder="Display name" value={contractForm.displayName} onChange={(event) => setContractForm({ ...contractForm, displayName: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-xs" data-testid="input-local-contract-name" />
+            <input required type="number" min="1" max="65535" placeholder="Port" value={contractForm.port} onChange={(event) => setContractForm({ ...contractForm, port: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-xs" data-testid="input-local-contract-port" />
+            <input required placeholder="Why is this approved?" value={contractForm.description} onChange={(event) => setContractForm({ ...contractForm, description: event.target.value })} className="h-10 rounded-xl border border-input bg-background px-3 text-xs sm:col-span-2" data-testid="input-local-contract-description" />
+            <textarea required rows={2} placeholder={"/api/contract\n/api/status"} value={contractForm.paths} onChange={(event) => setContractForm({ ...contractForm, paths: event.target.value })} className="rounded-xl border border-input bg-background px-3 py-2 text-xs lg:col-span-2" data-testid="input-local-contract-paths" />
+          </div>
+          <button disabled={contractSaving} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-save-local-contract">{contractSaving && <Loader2 className="animate-spin" size={14} />} Approve contract</button>
+        </form>
+      </section>
      {loading ? <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> Loading connection inventory…</div> : <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
       <section className="rounded-2xl border border-card-border bg-card/80 p-3 shadow-[0_14px_40px_hsl(205_30%_20%/0.04)]">
         <div className="flex items-center justify-between px-3 pb-3 pt-2"><p className="lee-label text-muted-foreground">{connections.length} connection{connections.length === 1 ? "" : "s"}</p><ShieldCheck size={16} className="text-primary" /></div>
@@ -134,7 +192,7 @@ function DiscoveryReview({ report, onAccept }: { report: DiscoveryReport; onAcce
   if (!report.candidates.length && !report.failures.length) return null;
   return <div className="mt-4 rounded-xl border border-primary/20 bg-background/50 p-4" data-testid="local-service-discovery">
     <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 shrink-0 text-primary" size={16} /><div><p className="text-sm font-semibold">Local services found</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">These approved loopback contracts were checked on this computer. Review a candidate before LEE creates a connection.</p></div></div>
-    {report.candidates.length > 0 && <div className="mt-3 space-y-2">{report.candidates.map((candidate) => <div key={candidate.discoveryKey} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5"><div className="min-w-0"><p className="truncate text-xs font-semibold">{candidate.displayName}</p><p className="mt-1 text-[11px] text-muted-foreground">{candidate.contractId === "k6" ? "K6 provider-neutral contract" : "LEE provider-neutral contract"} · {candidate.baseUrl}{candidate.healthEndpoint}</p></div>{candidate.status === "existing" ? <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">Already connected</span> : <button onClick={() => onAccept(candidate)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground" data-testid={`button-review-local-service-${candidate.contractId}`}><Check size={13} /> Review and connect</button>}</div>)}</div>}
+     {report.candidates.length > 0 && <div className="mt-3 space-y-2">{report.candidates.map((candidate) => <div key={candidate.discoveryKey} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5"><div className="min-w-0"><p className="truncate text-xs font-semibold">{candidate.displayName}</p><p className="mt-1 text-[11px] text-muted-foreground">{candidate.provider} provider-neutral contract · {candidate.baseUrl}{candidate.healthEndpoint}</p></div>{candidate.status === "existing" ? <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">Already connected</span> : <button onClick={() => onAccept(candidate)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground" data-testid={`button-review-local-service-${candidate.contractId}`}><Check size={13} /> Review and connect</button>}</div>)}</div>}
     {report.failures.length > 0 && <div className="mt-3 rounded-lg border border-accent/25 bg-accent/5 p-3"><p className="text-xs font-semibold text-accent-foreground">Allowlisted checks needing attention</p><ul className="mt-1.5 space-y-1">{report.failures.map((failure) => <li key={`${failure.contractId}-${failure.endpoint}`} className="text-[11px] leading-relaxed text-muted-foreground">{failure.displayName}: {failure.reason}.</li>)}</ul></div>}
   </div>;
 }

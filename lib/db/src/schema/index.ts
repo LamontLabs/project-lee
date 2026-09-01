@@ -47,4 +47,5 @@ export * from "./resource-allocation";
 export * from "./execution-readiness";
 export * from "./android-pairing";
 export * from "./desktop-setup";
+export * from "./local-service-contracts";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

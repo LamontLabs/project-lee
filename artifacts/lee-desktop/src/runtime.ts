@@ -17,10 +17,10 @@ export type RuntimeSnapshot = {
 
 export type LocalServiceDiscoveryCandidate = {
   discoveryKey: string;
-  contractId: "lee-system" | "k6";
-  provider: "lee" | "k6";
+  contractId: string;
+  provider: string;
   displayName: string;
-  targetType: "local_system" | "service";
+  targetType: string;
   method: "local";
   baseUrl: string;
   healthEndpoint: string;
@@ -31,7 +31,7 @@ export type LocalServiceDiscoveryCandidate = {
 };
 
 export type LocalServiceProbeFailure = {
-  contractId: "lee-system" | "k6";
+  contractId: string;
   displayName: string;
   endpoint: string;
   reason: "Not reachable" | "Timed out" | "Unsupported response" | "Not a compatible service contract" | `Returned HTTP ${number}`;
@@ -45,10 +45,10 @@ export type LocalServiceDiscovery = {
 };
 
 type LocalServiceAllowlistEntry = {
-  contractId: "lee-system" | "k6";
-  provider: "lee" | "k6";
+  contractId: string;
+  provider: string;
   displayName: string;
-  targetType: "local_system" | "service";
+  targetType: string;
   defaultPort: number;
   paths: readonly string[];
 };
@@ -61,6 +61,15 @@ export const LOCAL_SERVICE_ALLOWLIST: readonly LocalServiceAllowlistEntry[] = [
   { contractId: "lee-system", provider: "lee", displayName: "LEE System Contract", targetType: "local_system", defaultPort: 4317, paths: ["/api/contract", "/api/system-contract"] },
   { contractId: "k6", provider: "k6", displayName: "K6 Service Contract", targetType: "service", defaultPort: 6420, paths: ["/k6/contract", "/api/contract"] },
 ];
+
+type RemoteLocalServiceContract = {
+  contractId: unknown;
+  provider: unknown;
+  displayName: unknown;
+  targetType: unknown;
+  port: unknown;
+  paths: unknown;
+};
 
 type RuntimeConfig = {
   databaseUrl?: string;
@@ -122,6 +131,38 @@ function compatibleContract(value: unknown): value is Record<string, unknown> {
 function probeFailure(error: unknown): LocalServiceProbeFailure["reason"] {
   if (error instanceof Error && error.name === "AbortError") return "Timed out";
   return "Not reachable";
+}
+
+function normalizeRemoteAllowlist(value: unknown): LocalServiceAllowlistEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const candidate = item as RemoteLocalServiceContract;
+    if (
+      typeof candidate.contractId !== "string"
+      || !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(candidate.contractId)
+      || typeof candidate.provider !== "string"
+      || !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(candidate.provider)
+      || typeof candidate.displayName !== "string"
+      || candidate.displayName.length < 1
+      || candidate.displayName.length > 160
+      || (candidate.targetType !== "local_system" && candidate.targetType !== "service")
+      || !Number.isInteger(candidate.port)
+      || Number(candidate.port) < 1
+      || Number(candidate.port) > 65535
+      || !Array.isArray(candidate.paths)
+    ) return [];
+    const paths = [...new Set(candidate.paths.filter((path): path is string => typeof path === "string" && /^\/[a-zA-Z0-9._/:-]*$/.test(path) && path.length <= 240))];
+    if (!paths.length || paths.length > 8) return [];
+    return [{
+      contractId: candidate.contractId,
+      provider: candidate.provider,
+      displayName: candidate.displayName,
+      targetType: candidate.targetType,
+      defaultPort: Number(candidate.port),
+      paths,
+    }];
+  });
 }
 
 export async function discoverLocalServices(
@@ -228,8 +269,15 @@ export class RuntimeSupervisor {
 
   get status(): RuntimeSnapshot { return this.snapshot; }
 
-  discoverLocalServices(): Promise<LocalServiceDiscovery> {
-    return discoverLocalServices(LOCAL_SERVICE_ALLOWLIST, fetch, this.port);
+  async discoverLocalServices(): Promise<LocalServiceDiscovery> {
+    let allowlist: readonly LocalServiceAllowlistEntry[] = [];
+    try {
+      const response = await fetch(`${this.apiUrl}/api/desktop-setup/local-contracts`, { headers: { accept: "application/json", "X-LEE-Identity": "lee" } });
+      if (response.ok) allowlist = normalizeRemoteAllowlist(await response.json());
+    } catch {
+      // Fail closed if the owner-controlled registry cannot be read.
+    }
+    return discoverLocalServices(allowlist, fetch, this.port);
   }
 
   async start(): Promise<RuntimeSnapshot> {

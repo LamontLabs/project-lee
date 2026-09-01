@@ -16,8 +16,8 @@ type RuntimeSnapshot = {
 export type LocalServiceDiscoveryPayload = {
   candidates: Array<{
     discoveryKey: string;
-    contractId: "lee-system" | "k6";
-    provider: "lee" | "k6";
+    contractId: string;
+    provider: string;
     displayName: string;
     targetType: "local_system" | "service";
     method: "local";
@@ -28,7 +28,7 @@ export type LocalServiceDiscoveryPayload = {
     dependencies: Array<Record<string, string | boolean>>;
     observedAt: string;
   }>;
-  failures: Array<{ contractId: "lee-system" | "k6"; displayName: string; endpoint: string; reason: string }>;
+  failures: Array<{ contractId: string; displayName: string; endpoint: string; reason: string }>;
   attempted: number;
   completedAt: string;
 };

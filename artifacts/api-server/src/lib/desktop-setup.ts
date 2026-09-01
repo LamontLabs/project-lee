@@ -2,13 +2,14 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { connection, connector, db, desktopSetupRun, eventLog, type DesktopSetupStep } from "@workspace/db";
 import { listProviders, registerProviders } from "./provider-abstraction";
 import { createConnection, testConnection } from "./connection-center";
+import { listEnabledLocalServiceContractEntries, type LocalServiceContractEntry } from "./local-service-contracts";
 
 export type LocalServiceDiscoveryCandidate = {
-  discoveryKey?: string;
-  contractId: "lee-system" | "k6";
-  provider: "lee" | "k6";
+  discoveryKey: string;
+  contractId: string;
+  provider: string;
   displayName: string;
-  targetType: "local_system" | "service";
+  targetType: string;
   method: "local";
   baseUrl: string;
   healthEndpoint: string;
@@ -19,7 +20,7 @@ export type LocalServiceDiscoveryCandidate = {
 };
 
 export type LocalServiceProbeFailure = {
-  contractId: "lee-system" | "k6";
+  contractId: string;
   displayName: string;
   endpoint: string;
   reason: string;
@@ -38,16 +39,11 @@ type ReviewedDiscoveryCandidate = LocalServiceDiscoveryCandidate & {
   connectionId?: string;
 };
 
-const DISCOVERY_CONTRACTS = {
-  "lee-system": { provider: "lee", targetType: "local_system", displayName: "LEE System Contract" },
-  k6: { provider: "k6", targetType: "service", displayName: "K6 Service Contract" },
-} as const;
-
 function isLoopbackUrl(value: string): boolean {
   try {
     const parsed = new URL(value);
     return (parsed.protocol === "http:" || parsed.protocol === "https:")
-      && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "[::1]")
+      && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "::1")
       && !parsed.username && !parsed.password;
   } catch {
     return false;
@@ -77,14 +73,18 @@ function safeDiscoveryRecords(value: unknown): Array<Record<string, unknown>> {
   });
 }
 
-function normalizeDiscoveryCandidate(value: unknown): LocalServiceDiscoveryCandidate | null {
+function normalizeDiscoveryCandidate(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscoveryCandidate | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
-  const contractId = input.contractId === "lee-system" || input.contractId === "k6" ? input.contractId : null;
-  const contract = contractId ? DISCOVERY_CONTRACTS[contractId] : null;
+  const contractId = typeof input.contractId === "string" ? input.contractId : null;
+  if (!contractId) return null;
+  const contract = contractId ? contracts.find((item) => item.contractId === contractId) : null;
   const baseUrl = typeof input.baseUrl === "string" ? input.baseUrl.replace(/\/$/, "") : "";
   const healthEndpoint = typeof input.healthEndpoint === "string" ? input.healthEndpoint : "";
-  if (!contract || !isLoopbackUrl(baseUrl) || !/^\/[a-zA-Z0-9._/:-]*$/.test(healthEndpoint)) return null;
+  if (!contract || !isLoopbackUrl(baseUrl) || !/^\/[a-zA-Z0-9._/:-]*$/.test(healthEndpoint) || !contract.paths.includes(healthEndpoint)) return null;
+  const parsedUrl = new URL(baseUrl);
+  const port = Number(parsedUrl.port || (parsedUrl.protocol === "https:" ? 443 : 80));
+  if (port !== contract.port || parsedUrl.pathname !== "/") return null;
   return {
     discoveryKey: `${contractId}|${baseUrl}|${healthEndpoint}`,
     contractId,
@@ -101,21 +101,23 @@ function normalizeDiscoveryCandidate(value: unknown): LocalServiceDiscoveryCandi
   };
 }
 
-function normalizeDiscoveryReport(value: unknown): LocalServiceDiscovery {
+function normalizeDiscoveryReport(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscovery {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { candidates: [], failures: [] };
   const input = value as Record<string, unknown>;
   const candidates = (Array.isArray(input.candidates) ? input.candidates : [])
-    .map(normalizeDiscoveryCandidate)
+    .map((item) => normalizeDiscoveryCandidate(item, contracts))
     .filter((candidate): candidate is LocalServiceDiscoveryCandidate => Boolean(candidate));
   const deduped = [...new Map(candidates.map((candidate) => [candidate.discoveryKey, candidate])).values()];
   const failures = (Array.isArray(input.failures) ? input.failures : []).slice(0, 20).flatMap((item) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];
     const row = item as Record<string, unknown>;
-    if (row.contractId !== "lee-system" && row.contractId !== "k6") return [];
+    const contractId = typeof row.contractId === "string" ? row.contractId : undefined;
+    const contract = contractId ? contracts.find((item) => item.contractId === contractId) : undefined;
+    if (!contractId || !contract) return [];
     const endpoint = typeof row.endpoint === "string" && isLoopbackUrl(row.endpoint) ? new URL(row.endpoint).origin : "Loopback service";
     return [{
-      contractId: row.contractId,
-      displayName: DISCOVERY_CONTRACTS[row.contractId].displayName,
+      contractId,
+      displayName: contract.displayName,
       endpoint,
       reason: safeProbeReason(row.reason),
     }];
@@ -144,7 +146,7 @@ async function reviewDiscovery(discovery: LocalServiceDiscovery) {
 }
 
 export async function acceptDiscoveredService(value: unknown) {
-  const candidate = normalizeDiscoveryCandidate(value);
+  const candidate = normalizeDiscoveryCandidate(value, await listEnabledLocalServiceContractEntries());
   if (!candidate) throw new Error("This local service is not an approved discovery candidate.");
   const rows = await db.select().from(connection);
   const existing = rows.find((row) => sameConnection(row, candidate));
@@ -204,7 +206,7 @@ export async function runDesktopSetup(input: { discovery?: unknown } = {}) {
     const rows = await db.select().from(connection);
     await update(step("connections", "Existing connections", "complete", `${rows.length} existing connection${rows.length === 1 ? "" : "s"} reused; no duplicates created.`));
 
-    const discovery = await reviewDiscovery(normalizeDiscoveryReport(input.discovery));
+    const discovery = await reviewDiscovery(normalizeDiscoveryReport(input.discovery, await listEnabledLocalServiceContractEntries()));
     const discoveredCount = discovery.candidates.length;
     const newCount = discovery.candidates.filter((candidate) => candidate.status === "new").length;
     const existingCount = discoveredCount - newCount;

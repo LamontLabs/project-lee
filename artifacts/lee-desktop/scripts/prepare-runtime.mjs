@@ -11,12 +11,22 @@ const apiDist = resolve(root, "artifacts/api-server/dist");
 const dbMigrations = resolve(root, "lib/db/drizzle");
 const migrationEntry = resolve(root, "lib/db/src/desktop-migrate.ts");
 const resources = resolve(desktop, "resources");
+const postgresRuntime = resolve(resources, "postgres");
 const require = createRequire(import.meta.url);
 const { build } = require(resolve(root, "artifacts/api-server/node_modules/esbuild"));
 
 if (!existsSync(consoleDist)) throw new Error("Console build is missing. Run @workspace/lee-console build first.");
 if (!existsSync(apiDist)) throw new Error("API build is missing. Run @workspace/api-server build first.");
 if (!existsSync(dbMigrations)) throw new Error("Database migrations are missing. Run @workspace/db generate first.");
+for (const executable of ["initdb", "pg_ctl", "pg_isready", "createdb", "postgres"]) {
+  const suffix = process.platform === "win32" ? ".exe" : "";
+  if (!existsSync(resolve(postgresRuntime, "bin", `${executable}${suffix}`))) {
+    throw new Error(`Bundled PostgreSQL runtime is missing ${executable}. Stage it with scripts/stage-postgres-runtime.mjs before packaging.`);
+  }
+}
+if (!existsSync(resolve(postgresRuntime, "share", "postgresql", "postgresql.conf.sample"))) {
+  throw new Error("Bundled PostgreSQL runtime is missing share/postgresql/postgresql.conf.sample.");
+}
 await rm(resolve(resources, "console"), { recursive: true, force: true });
 await rm(resolve(resources, "api-server"), { recursive: true, force: true });
 await rm(resolve(resources, "migrations"), { recursive: true, force: true });

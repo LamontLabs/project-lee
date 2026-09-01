@@ -42,8 +42,7 @@ jobs:
           $archive = "$env:RUNNER_TEMP\postgresql-$version-windows-x64-binaries.zip"
           Invoke-WebRequest "https://get.enterprisedb.com/postgresql/postgresql-$version-windows-x64-binaries.zip" -OutFile $archive
           Expand-Archive $archive -DestinationPath "$env:RUNNER_TEMP\postgresql"
-          New-Item -ItemType Directory -Force artifacts/lee-desktop/resources/postgres | Out-Null
-          Copy-Item "$env:RUNNER_TEMP\postgresql\pgsql\*" artifacts/lee-desktop/resources/postgres -Recurse -Force
+          node artifacts/lee-desktop/scripts/stage-postgres-runtime.mjs --platform windows --source "$env:RUNNER_TEMP\postgresql\pgsql"
       - name: Require Windows signing configuration
         shell: pwsh
         env:
@@ -117,6 +116,12 @@ jobs:
         env:
           PORT: 4173
           BASE_PATH: /
+      - name: Stage private PostgreSQL runtime
+        shell: bash
+        run: |
+          brew install postgresql@17
+          prefix="$(brew --prefix postgresql@17)"
+          node artifacts/lee-desktop/scripts/stage-postgres-runtime.mjs --platform macos --source "$prefix"
       - name: Require Apple signing and notarization configuration
         shell: bash
         env:
@@ -140,6 +145,20 @@ jobs:
           APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
+      - name: Build unpacked macOS app for runtime smoke test
+        run: pnpm --filter @workspace/lee-desktop exec electron-builder --config electron-builder.yml --dir --publish never
+        env:
+          CSC_LINK: ${{ secrets.LEE_MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.LEE_MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
+      - name: Smoke test bundled macOS runtime
+        shell: bash
+        run: |
+          app_path="$(find artifacts/lee-desktop/release -path '*/Project LEE.app/Contents/MacOS/Project LEE' -print -quit)"
+          [[ -n "$app_path" ]] || { echo "Unpacked macOS app executable is missing." >&2; exit 1; }
+          pnpm --filter @workspace/lee-desktop run smoke:unix -- "$GITHUB_WORKSPACE/$app_path"
       - name: Verify macOS signatures and notarization
         shell: bash
         run: |
@@ -208,8 +227,28 @@ jobs:
         env:
           PORT: 4173
           BASE_PATH: /
+      - name: Stage private PostgreSQL runtime
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql
+          initdb_path="$(find /usr/lib/postgresql -path '*/bin/initdb' -type f -print | sort -V | tail -n 1)"
+          test -n "$initdb_path"
+          postgres_root="$(dirname "$(dirname "$initdb_path")")"
+          postgres_major="$(basename "$postgres_root")"
+          node artifacts/lee-desktop/scripts/stage-postgres-runtime.mjs \
+            --platform linux \
+            --source "$postgres_root" \
+            --share-source "/usr/share/postgresql/$postgres_major"
       - name: Build Linux packages
         run: pnpm --filter @workspace/lee-desktop run package
+      - name: Build unpacked Linux app for runtime smoke test
+        run: pnpm --filter @workspace/lee-desktop exec electron-builder --config electron-builder.yml --dir --publish never
+      - name: Smoke test bundled Linux runtime
+        shell: bash
+        run: |
+          command -v xvfb-run >/dev/null || { echo "xvfb-run is required for the Linux desktop smoke test." >&2; exit 1; }
+          xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE
       - name: Write Linux release metadata
         run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform linux
       - name: Verify Linux release metadata

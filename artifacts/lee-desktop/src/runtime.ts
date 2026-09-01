@@ -436,22 +436,25 @@ export class RuntimeSupervisor {
     const initdb = executable("initdb");
     const pgCtl = executable("pg_ctl");
     if (!existsSync(initdb) || !existsSync(pgCtl)) return null;
+    const postgresEnvironment = this.postgresEnvironment(bin);
     const port = this.port + 1;
+    const socketDir = join(dataDir, "postgres-socket");
+    mkdirSync(socketDir, { recursive: true, mode: 0o700 });
     if (!existsSync(join(databaseDir, "PG_VERSION"))) {
-      const initialized = spawnSync(initdb, ["-D", databaseDir, "--auth=trust", "--username=lee"], { encoding: "utf8", windowsHide: true });
+      const initialized = spawnSync(initdb, ["-D", databaseDir, "--auth=trust", "--username=lee"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment });
       if (initialized.status !== 0) {
         writeFileSync(join(dataDir, "logs", "postgres-init.log"), `${initialized.stdout ?? ""}\n${initialized.stderr ?? ""}`, { mode: 0o600 });
         return null;
       }
     }
-    const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port}`, "-w", "start"], { windowsHide: true, stdio: "ignore" });
+    const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment });
     this.postgres = started;
     this.postgresCtl = pgCtl;
     const url = `postgresql://lee@127.0.0.1:${port}/lee`;
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true });
+      const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true, env: postgresEnvironment });
       if (probe.status === 0) {
-        const created = spawnSync(executable("createdb"), ["-h", "127.0.0.1", "-p", String(port), "-U", "lee", "lee"], { windowsHide: true });
+        const created = spawnSync(executable("createdb"), ["-h", "127.0.0.1", "-p", String(port), "-U", "lee", "lee"], { windowsHide: true, env: postgresEnvironment });
         if (created.status === 0 || created.stderr?.toString().includes("already exists")) return url;
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
@@ -459,6 +462,22 @@ export class RuntimeSupervisor {
     spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore" });
     this.postgres = null;
     return null;
+  }
+
+  private postgresEnvironment(bin: string): NodeJS.ProcessEnv {
+    const root = dirname(bin);
+    const pathSeparator = process.platform === "win32" ? ";" : ":";
+    const prepend = (value: string, existing: string | undefined) => [value, existing].filter(Boolean).join(pathSeparator);
+    return {
+      ...process.env,
+      PATH: prepend(bin, process.env.PATH),
+      ...(process.platform === "win32" ? {} : {
+        LD_LIBRARY_PATH: prepend(join(root, "lib"), process.env.LD_LIBRARY_PATH),
+        DYLD_LIBRARY_PATH: prepend(join(root, "lib"), process.env.DYLD_LIBRARY_PATH),
+      }),
+      PGSHAREDIR: join(root, "share", "postgresql"),
+      PGLIBDIR: join(root, "lib"),
+    };
   }
 
   private runMigrations(config: RuntimeConfig, databaseUrl: string): boolean {

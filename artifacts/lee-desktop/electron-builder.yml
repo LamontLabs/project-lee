@@ -15,6 +15,8 @@ extraResources:
     to: api-server
   - from: resources/console
     to: console
+  - from: resources/postgres
+    to: postgres
   - from: resources/migrate-runtime.mjs
     to: migrate-runtime.mjs
   - from: resources/migrations
@@ -42,9 +44,6 @@ win:
   icon: resources/lee.png
   forceCodeSigning: true
   signAndEditExecutable: true
-  extraResources:
-    - from: resources/postgres
-      to: postgres
   target:
     - target: nsis
       arch:

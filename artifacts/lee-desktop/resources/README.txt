@@ -10,6 +10,7 @@ desktop updater consumes latest.yml, latest-mac.yml, or latest-linux.yml from
 the stable release channel. Windows updater downloads are signature-verified by
 electron-updater before installation.
 
-The private PostgreSQL runtime is bundled by the Windows release job. macOS and
-Linux packages use the same runtime supervisor and require a configured PostgreSQL
-binary until platform-specific database archives are added to their release jobs.
+Every production package contains a private PostgreSQL runtime under
+resources/postgres with bin, lib, and share/postgresql directories. The macOS
+and Linux release jobs stage their platform-compatible runtimes before packaging;
+installed users do not need to configure PostgreSQL separately.

@@ -46,7 +46,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <div className="lee-metal w-8 h-8 rounded border border-primary/60 flex items-center justify-center text-white">
               <span className="font-mono text-xs font-bold text-primary">L</span>
             </div>
             <span className="font-semibold text-foreground tracking-tight">Project LEE</span>

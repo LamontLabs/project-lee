@@ -18,7 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="lee-noise lee-shell-grid flex min-h-screen bg-background">
       <Sidebar
         onSearch={() => setSearchOpen(true)}
         mobileOpen={mobileOpen}
@@ -36,7 +36,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <div className="lee-metal w-5 h-5 rounded border border-primary/60 flex items-center justify-center text-white">
               <span className="font-mono text-xs font-bold text-primary">L</span>
             </div>
             <span className="text-sm font-semibold text-foreground">Project LEE</span>

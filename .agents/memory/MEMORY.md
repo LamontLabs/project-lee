@@ -55,3 +55,4 @@
 - [Development fixture cleanup](development-fixture-cleanup.md) — removing seeded canonical records also requires clearing derived projections and query caches or stale activity resurfaces.
 - [Local discovery boundary](local-discovery-boundary.md) — desktop discovery is finite loopback probing; the server normalizes provider-neutral candidates before owner-reviewed connection creation.
 - [Runtime and control planes](runtime-control-plane.md) — service consumption and scoped project management are separate boundaries with independent readiness layers.
+- [Cross-artifact visual language](cross-artifact-visual-language.md) — LEE UI uses black lacquer surfaces, crimson accents, red grid lines, grain, and restrained metallic sheen.

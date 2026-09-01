@@ -78,7 +78,7 @@ export function Sidebar({ onSearch, mobileOpen, onMobileClose }: SidebarProps) {
     <div className="flex flex-col h-full">
       <div className="px-4 py-4 border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2.5 mb-4" onClick={onMobileClose}>
-          <div className="w-7 h-7 rounded bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+          <div className="lee-metal w-7 h-7 rounded border border-primary/60 flex items-center justify-center shrink-0 text-white">
             <span className="font-mono text-xs font-bold text-primary">L</span>
           </div>
           <div>

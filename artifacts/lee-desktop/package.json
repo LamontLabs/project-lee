@@ -27,6 +27,7 @@
     "test:migration-assets": "node --test scripts/migration-assets-contract.test.mjs",
     "test:migration-upgrade": "node --test scripts/migration-upgrade-contract.test.mjs",
     "test:release-metadata": "node --test scripts/release-metadata-contract.test.mjs",
+    "test:app-icon": "node --test scripts/app-icon-contract.test.mjs",
     "test:postgres-runtime": "node --test scripts/postgres-runtime-contract.test.mjs",
     "verify:update-feed": "node scripts/verify-updater-feed.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

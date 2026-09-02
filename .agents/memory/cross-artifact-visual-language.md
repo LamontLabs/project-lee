@@ -3,7 +3,7 @@ name: Cross-artifact visual language
 description: The durable visual direction for LEE web, desktop, manual, and mobile surfaces.
 ---
 
-LEE's shared visual language is black-first with layered reds: near-black foundations, low-saturation wine surfaces, high-saturation crimson actions, rose highlights, thin red grid lines, subtle grain, and restrained metallic sheen. The canonical app icon is the glowing crimson rounded square with a white LEE circuit/brain mark, used for web, desktop, and mobile identity.
+LEE's shared visual language is black-first with layered reds: near-black foundations, low-saturation wine surfaces, high-saturation crimson actions, rose highlights, thin red grid lines, subtle grain, and restrained metallic sheen. The canonical app icon is the user-provided black square with a glowing crimson rounded frame, rose, and cursive L mark, used for web, desktop, and mobile identity.
 
 **Why:** LEE spans web, desktop, documentation, and mobile; a shared material and semantic palette makes those surfaces feel like one private operating system while preserving each platform's interaction conventions.
 

@@ -36,7 +36,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="" className="lee-metal w-5 h-5 rounded border border-primary/60 shadow-[0_0_14px_hsl(var(--brand-red)/.2)]" />
+            <img src="/favicon.png?icon=lee" alt="" className="lee-metal w-5 h-5 rounded border border-primary/60 shadow-[0_0_14px_hsl(var(--brand-red)/.2)]" />
             <span className="text-sm font-semibold text-foreground">Project LEE</span>
           </div>
           <button

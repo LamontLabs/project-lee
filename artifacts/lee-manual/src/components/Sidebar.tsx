@@ -78,7 +78,7 @@ export function Sidebar({ onSearch, mobileOpen, onMobileClose }: SidebarProps) {
     <div className="flex flex-col h-full">
       <div className="px-4 py-4 border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2.5 mb-4" onClick={onMobileClose}>
-          <img src="/favicon.svg" alt="" className="w-7 h-7 rounded border border-primary/60 shrink-0 shadow-[0_0_18px_hsl(var(--brand-red)/.2)]" />
+          <img src="/favicon.png?icon=lee" alt="" className="w-7 h-7 rounded border border-primary/60 shrink-0 shadow-[0_0_18px_hsl(var(--brand-red)/.2)]" />
           <div>
             <p className="text-sm font-semibold text-foreground leading-none">Project LEE</p>
             <p className="text-xs text-muted-foreground mt-0.5">v{META.version} Manual</p>

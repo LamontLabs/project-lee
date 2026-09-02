@@ -1,5 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -13,6 +14,10 @@ export type RuntimeSnapshot = {
   checks: Record<string, "live" | "degraded" | "unavailable">;
   reason: string | null;
   migrationLogPath: string;
+  apiLogPath: string;
+  postgresLogPath: string;
+  apiProcessId: number | null;
+  postgresProcessId: number | null;
 };
 
 export type LocalServiceDiscoveryCandidate = {
@@ -344,9 +349,16 @@ export class RuntimeSupervisor {
     state: "stopped", apiUrl: "", database: "unavailable", migration: "pending",
     contract: "unavailable", checks: this.emptyChecks(), reason: null,
     migrationLogPath: join(dataDir, "logs", "migration.log"),
+    apiLogPath: join(dataDir, "logs", "api.log"),
+    postgresLogPath: join(dataDir, "logs", "postgres.log"),
+    apiProcessId: null,
+    postgresProcessId: null,
   };
-  private readonly port: number;
-  private readonly apiUrl: string;
+  private port: number;
+  private apiUrl: string;
+  private restartAttempts = 0;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private stopping = false;
 
   constructor(private readonly root: string, private readonly production: boolean) {
     const config = loadConfig();
@@ -369,8 +381,12 @@ export class RuntimeSupervisor {
 
   async start(): Promise<RuntimeSnapshot> {
     ensureRuntimeDirectories();
+    this.stopping = false;
+    this.restartAttempts = 0;
+    this.port = await this.availablePort(this.port);
+    this.apiUrl = `http://127.0.0.1:${this.port}`;
     const config = loadConfig();
-    this.snapshot = { ...this.snapshot, state: "starting", apiUrl: this.apiUrl, database: "starting", migration: "pending", reason: null };
+    this.snapshot = { ...this.snapshot, state: "starting", apiUrl: this.apiUrl, database: "starting", migration: "pending", reason: null, apiProcessId: null, postgresProcessId: null };
     const configuredDatabaseUrl = config.databaseUrl ?? process.env.DATABASE_URL;
     const hasPrivatePostgres = this.production || Boolean(config.postgresBin ?? process.env.LEE_POSTGRES_BIN);
     const databaseUrl = configuredDatabaseUrl && (!this.isLocalDatabaseUrl(configuredDatabaseUrl) || !hasPrivatePostgres)
@@ -398,20 +414,78 @@ export class RuntimeSupervisor {
       LEE_DATA_DIR: dataDir,
       ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
+    const apiLog = this.openLog(this.snapshot.apiLogPath);
     this.child = spawn(command, args, {
       cwd: this.production ? process.resourcesPath : this.root,
       env: childEnv,
-      stdio: "ignore",
+      stdio: ["ignore", apiLog, apiLog],
       windowsHide: true,
+      detached: process.platform !== "win32",
     });
+    this.snapshot = { ...this.snapshot, apiProcessId: this.child.pid ?? null };
     this.child.once("exit", (code) => {
-      if (this.snapshot.state !== "stopped") this.snapshot = { ...this.snapshot, state: "unavailable", reason: `LEE Core stopped unexpectedly${code == null ? "" : ` (exit ${code})`}.` };
+      if (!this.stopping && this.snapshot.state !== "stopped") void this.recoverApi(code);
     });
     const healthy = await this.waitForContract();
     this.snapshot = healthy
       ? { ...this.snapshot, state: "live", contract: "live", checks: { ...this.snapshot.checks, "System Contract": "live", Brain: "live", "Event Log": "live" }, reason: null }
       : { ...this.snapshot, state: "degraded", contract: "unavailable", reason: "LEE Core started, but the System Contract did not become reachable." };
     return this.snapshot;
+  }
+
+  private openLog(path: string): ReturnType<typeof createWriteStream> {
+    const stream = createWriteStream(path, { flags: "a", mode: 0o600 });
+    try { chmodSync(path, 0o600); } catch { /* Best effort on Windows. */ }
+    return stream;
+  }
+
+  private async availablePort(preferred: number): Promise<number> {
+    const canListen = (port: number) => new Promise<boolean>((resolve) => {
+      const server = createServer();
+      server.once("error", () => {
+        try { server.close(() => resolve(false)); } catch { resolve(false); }
+      });
+      server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
+    });
+    if (Number.isInteger(preferred) && preferred > 0 && preferred <= 65535 && await canListen(preferred)) return preferred;
+    return new Promise<number>((resolve, reject) => {
+      const server = createServer();
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address();
+        const port = typeof address === "object" && address ? address.port : 0;
+        server.close((error) => error ? reject(error) : resolve(port));
+      });
+    });
+  }
+
+  private async recoverApi(code: number | null): Promise<void> {
+    if (this.restartAttempts >= 3 || this.stopping) {
+      this.snapshot = { ...this.snapshot, state: "unavailable", apiProcessId: null, reason: `LEE Core stopped unexpectedly${code == null ? "" : ` (exit ${code})`}; automatic recovery is exhausted. Restart LEE to retry.` };
+      return;
+    }
+    this.restartAttempts += 1;
+    const delay = 250 * 2 ** (this.restartAttempts - 1);
+    this.snapshot = { ...this.snapshot, state: "degraded", contract: "unavailable", apiProcessId: null, reason: `LEE Core stopped unexpectedly; retrying in ${delay}ms (attempt ${this.restartAttempts}/3).` };
+    await new Promise<void>((resolve) => { this.restartTimer = setTimeout(resolve, delay); });
+    this.restartTimer = null;
+    if (this.stopping) return;
+    const config = loadConfig();
+    const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
+    const child = spawn(config.apiCommand ?? process.execPath, config.apiArgs ?? [apiPath], {
+      cwd: this.production ? process.resourcesPath : this.root,
+      env: { ...process.env, DATABASE_URL: config.databaseUrl, PORT: String(this.port), NODE_ENV: this.production ? "production" : "development", LEE_DATA_DIR: dataDir, ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}) },
+      stdio: ["ignore", this.openLog(this.snapshot.apiLogPath), this.openLog(this.snapshot.apiLogPath)],
+      windowsHide: true,
+      detached: process.platform !== "win32",
+    });
+    this.child = child;
+    this.snapshot = { ...this.snapshot, apiProcessId: child.pid ?? null };
+    child.once("exit", (exitCode) => { if (!this.stopping) void this.recoverApi(exitCode); });
+    if (await this.waitForContract()) {
+      this.restartAttempts = 0;
+      this.snapshot = { ...this.snapshot, state: "live", contract: "live", reason: null };
+    }
   }
 
   private emptyChecks(): Record<string, "live" | "degraded" | "unavailable"> {
@@ -437,7 +511,7 @@ export class RuntimeSupervisor {
     const pgCtl = executable("pg_ctl");
     if (!existsSync(initdb) || !existsSync(pgCtl)) return null;
     const postgresEnvironment = this.postgresEnvironment(bin);
-    const port = this.port + 1;
+    const port = await this.availablePort(this.port + 1);
     const socketDir = join(dataDir, "postgres-socket");
     mkdirSync(socketDir, { recursive: true, mode: 0o700 });
     if (!existsSync(join(databaseDir, "PG_VERSION"))) {
@@ -447,9 +521,11 @@ export class RuntimeSupervisor {
         return null;
       }
     }
-    const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment });
+    const postgresLog = this.openLog(this.snapshot.postgresLogPath);
+    const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: ["ignore", postgresLog, postgresLog], env: postgresEnvironment, detached: process.platform !== "win32" });
     this.postgres = started;
     this.postgresCtl = pgCtl;
+    this.snapshot = { ...this.snapshot, postgresProcessId: started.pid ?? null };
     const url = `postgresql://lee@127.0.0.1:${port}/lee`;
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true, env: postgresEnvironment });
@@ -527,22 +603,35 @@ export class RuntimeSupervisor {
     return false;
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
+    this.stopping = true;
+    if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
     this.snapshot = { ...this.snapshot, state: "stopped", reason: null };
-    this.terminate(this.child);
+    await this.terminate(this.child);
     if (this.postgresCtl) spawnSync(this.postgresCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore" });
-    this.terminate(this.postgres);
+    await this.terminate(this.postgres);
     this.child = null;
     this.postgres = null;
     this.postgresCtl = null;
+    this.snapshot = { ...this.snapshot, apiProcessId: null, postgresProcessId: null };
   }
 
-  private terminate(child: ChildProcess | null): void {
+  private async terminate(child: ChildProcess | null): Promise<void> {
     if (!child || child.killed || child.pid == null) return;
+    const exited = new Promise<void>((resolve) => {
+      if (child.exitCode !== null) { resolve(); return; }
+      child.once("exit", () => resolve());
+      setTimeout(resolve, 1500);
+    });
     if (process.platform === "win32") {
       spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" });
     } else {
-      child.kill();
+      try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+      await exited;
+      if (child.exitCode === null && child.signalCode === null) {
+        try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
+        await new Promise<void>((resolve) => setTimeout(resolve, 250));
+      }
     }
   }
 }

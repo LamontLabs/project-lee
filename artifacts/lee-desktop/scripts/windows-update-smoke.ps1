@@ -25,12 +25,33 @@ function Assert-True([bool] $condition, [string] $message) {
   if (-not $condition) { throw "LEE Windows updater smoke failed: $message" }
 }
 
+function Wait-Json([string] $Path, [int] $TimeoutSeconds = 180) {
+  $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+  while (-not (Test-Path $Path) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 250 }
+  Assert-True (Test-Path $Path) "timed out waiting for $Path"
+  return Get-Content $Path -Raw | ConvertFrom-Json
+}
+
+function Run-PreviousRuntime([string] $AppPath, [string] $Label, [string] $ExpectedVersion) {
+  $statusPath = Join-Path $testRoot "$Label-runtime-status.json"
+  Remove-Item $statusPath -Force -ErrorAction SilentlyContinue
+  $runtime = Start-Process -FilePath $AppPath -ArgumentList "--lee-smoke-exit" -Environment @{
+    APPDATA = $appData
+    LEE_SMOKE_STATUS_FILE = $statusPath
+  } -Wait -PassThru
+  $status = Wait-Json $statusPath 30
+  Assert-True ($runtime.ExitCode -eq 0 -and $status.state -eq "live" -and $status.database -eq "configured" -and $status.migration -eq "complete" -and $status.contract -eq "live" -and $status.version -eq $ExpectedVersion) "previous LEE runtime was not usable after $Label"
+  return $status
+}
+
 try {
   $selectionRecord = Get-Content $Selection -Raw | ConvertFrom-Json
   if ($selectionRecord.status -eq "skipped") {
     Copy-Item $Selection $Output -Force
     exit 0
   }
+  $previousVersion = ([regex]::Match((Get-Content (Join-Path $PreviousDir "latest.yml") -Raw), "(?m)^version:\s*['""]?([^'""\r\n]+)['""]?\s*$")).Groups[1].Value
+  Assert-True (-not [string]::IsNullOrWhiteSpace($previousVersion)) "previous updater metadata has no version"
 
   node (Join-Path $PSScriptRoot "verify-updater-feed.mjs") --release-dir $CurrentDir --platform windows --expected-version $ExpectedVersion
   node (Join-Path $PSScriptRoot "verify-updater-feed.mjs") --release-dir $PreviousDir --platform windows
@@ -62,6 +83,7 @@ try {
   Assert-True ($installerProcess.ExitCode -eq 0) "previous installer exited with $($installerProcess.ExitCode)"
   $appExe = Get-ChildItem $installDir -Filter "Project-LEE.exe" -Recurse | Select-Object -First 1
   Assert-True ($null -ne $appExe) "previous installed application is missing"
+  Run-PreviousRuntime $appExe.FullName "before-interruption" $previousVersion | Out-Null
 
   $server = Start-Process node -ArgumentList @(
     (Join-Path $PSScriptRoot "update-feed-server.mjs"), "--root", $tamperedDir, "--port", "0", "--ready-file", $readyFile
@@ -78,6 +100,48 @@ try {
   $tamperedResult = Get-Content $resultFile -Raw | ConvertFrom-Json
   Assert-True ($tamperedResult.status -eq "error") "tampered updater was not rejected by the packaged app"
   Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+
+  Remove-Item $readyFile, $resultFile -Force -ErrorAction SilentlyContinue
+  $server = Start-Process node -ArgumentList @(
+    (Join-Path $PSScriptRoot "update-feed-server.mjs"), "--root", $CurrentDir, "--port", "0", "--ready-file", $readyFile
+  ) -PassThru -WindowStyle Hidden
+  for ($attempt = 0; $attempt -lt 50 -and -not (Test-Path $readyFile); $attempt++) { Start-Sleep -Milliseconds 100 }
+  Assert-True (Test-Path $readyFile) "download interruption feed server did not start"
+  $downloadFeed = (Get-Content $readyFile -Raw | ConvertFrom-Json).url
+  $downloadRun = Start-Process -FilePath $appExe.FullName -ArgumentList "--lee-smoke-exit" -Environment @{
+    APPDATA = $appData
+    LEE_SMOKE_UPDATE_FEED_URL = $downloadFeed
+    LEE_SMOKE_UPDATE_EXPECTED_VERSION = $ExpectedVersion
+    LEE_SMOKE_UPDATE_RESULT_FILE = $resultFile
+    LEE_SMOKE_UPDATE_INTERRUPT = "download"
+    LEE_SMOKE_UPDATE_INTERRUPT_FILE = $resultFile
+  } -Wait -PassThru
+  $downloadResult = Wait-Json $resultFile
+  Assert-True ($downloadResult.status -eq "interrupted" -and $downloadResult.phase -eq "download") "download interruption did not reach the expected phase"
+  Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+  Run-PreviousRuntime $appExe.FullName "after-download-interruption" $previousVersion | Out-Null
+
+  Remove-Item $readyFile, $resultFile -Force -ErrorAction SilentlyContinue
+  $server = Start-Process node -ArgumentList @(
+    (Join-Path $PSScriptRoot "update-feed-server.mjs"), "--root", $CurrentDir, "--port", "0", "--ready-file", $readyFile
+  ) -PassThru -WindowStyle Hidden
+  for ($attempt = 0; $attempt -lt 50 -and -not (Test-Path $readyFile); $attempt++) { Start-Sleep -Milliseconds 100 }
+  Assert-True (Test-Path $readyFile) "install interruption feed server did not start"
+  $installFeed = (Get-Content $readyFile -Raw | ConvertFrom-Json).url
+  $installRun = Start-Process -FilePath $appExe.FullName -ArgumentList "--lee-smoke-exit" -Environment @{
+    APPDATA = $appData
+    LEE_SMOKE_UPDATE_FEED_URL = $installFeed
+    LEE_SMOKE_UPDATE_EXPECTED_VERSION = $ExpectedVersion
+    LEE_SMOKE_UPDATE_RESULT_FILE = $resultFile
+    LEE_SMOKE_UPDATE_INTERRUPT = "install"
+    LEE_SMOKE_UPDATE_INTERRUPT_FILE = $resultFile
+    LEE_SMOKE_UPDATE_INTERRUPT_DELAY_MS = "30000"
+  } -PassThru
+  $installResult = Wait-Json $resultFile
+  Assert-True ($installResult.status -eq "interrupted" -and $installResult.phase -eq "install") "install interruption did not reach the expected phase"
+  Stop-Process -Id $installRun.Id -Force -ErrorAction SilentlyContinue
+  Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+  Run-PreviousRuntime $appExe.FullName "after-install-interruption" $previousVersion | Out-Null
 
   Remove-Item $readyFile, $resultFile -Force -ErrorAction SilentlyContinue
   $server = Start-Process node -ArgumentList @(
@@ -101,6 +165,9 @@ try {
   $record = $selectionRecord | Add-Member -NotePropertyName verification -NotePropertyValue "passed" -PassThru
   $record | Add-Member -NotePropertyName update -NotePropertyValue @{
     tamperedRejected = $true
+    downloadInterrupted = $true
+    installInterrupted = $true
+    previousLaunchesAfterInterruption = 2
     validInstalled = $true
     currentInstaller = $currentInstaller.Name
     previousInstaller = $previousInstaller.Name

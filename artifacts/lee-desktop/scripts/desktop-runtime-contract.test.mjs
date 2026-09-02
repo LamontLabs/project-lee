@@ -10,6 +10,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
   const migrationCheck = await read("scripts/verify-packaged-migrations.mjs");
+  const windowsUpdate = await read("scripts/windows-update-smoke.ps1");
+  const unixUpdate = await read("scripts/unix-update-smoke.mjs");
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
   assert.doesNotMatch(builder, /win:[\s\S]*extraResources:/);
@@ -24,6 +26,16 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(prepare, /verifyPackagedMigrations/);
   assert.match(migrationCheck, /_journal\.json/);
   assert.match(migrationCheck, /workspace fallback disabled/);
+  assert.match(main, /LEE_SMOKE_UPDATE_INTERRUPT/);
+  assert.match(main, /phase === "download"[\s\S]*app\.quit\(\)/);
+  assert.match(main, /quitAndInstall/);
+  assert.match(windowsUpdate, /LEE_SMOKE_UPDATE_INTERRUPT = "download"/);
+  assert.match(windowsUpdate, /LEE_SMOKE_UPDATE_INTERRUPT = "install"/);
+  assert.match(windowsUpdate, /after-download-interruption/);
+  assert.match(windowsUpdate, /after-install-interruption/);
+  assert.match(unixUpdate, /LEE_SMOKE_UPDATE_INTERRUPT: interrupt/);
+  assert.match(unixUpdate, /after-download-interruption/);
+  assert.match(unixUpdate, /after-install-interruption/);
 });
 
 test("release jobs stage and smoke-test PostgreSQL on every supported desktop platform", async () => {

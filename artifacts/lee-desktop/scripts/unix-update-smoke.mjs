@@ -63,8 +63,23 @@ async function startFeed(rootDir) {
   throw new Error("Update feed server did not become ready.");
 }
 
-async function runApp(feedUrl, install) {
-  const resultFile = join(root, install ? "valid-result.json" : "tampered-result.json");
+async function waitForJson(path, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try { return JSON.parse(await readFile(path, "utf8")); } catch { await new Promise((resolveWait) => setTimeout(resolveWait, 100)); }
+  }
+  throw new Error(`Timed out waiting for ${path}.`);
+}
+
+async function waitForChild(child) {
+  return new Promise((resolveExit, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => resolveExit(code ?? (signal ? 1 : 0)));
+  });
+}
+
+async function runApp(feedUrl, { install = false, interrupt = null } = {}) {
+  const resultFile = join(root, `${interrupt ?? (install ? "valid" : "tampered")}-result.json`);
   await rm(resultFile, { force: true });
   const environment = {
     ...process.env,
@@ -74,9 +89,23 @@ async function runApp(feedUrl, install) {
     LEE_SMOKE_UPDATE_EXPECTED_VERSION: expectedVersion,
     LEE_SMOKE_UPDATE_RESULT_FILE: resultFile,
     LEE_SMOKE_UPDATE_INSTALL: install ? "1" : "0",
+    ...(interrupt ? {
+      LEE_SMOKE_UPDATE_INTERRUPT: interrupt,
+      LEE_SMOKE_UPDATE_INTERRUPT_FILE: resultFile,
+      ...(interrupt === "install" ? { LEE_SMOKE_UPDATE_INTERRUPT_DELAY_MS: "30000" } : {}),
+    } : {}),
     ...(platform === "linux" ? { APPIMAGE: appPath } : {}),
   };
   const child = spawn(appPath, ["--lee-smoke-exit"], { cwd: dirname(appPath), env: environment, stdio: "inherit" });
+  if (interrupt === "install") {
+    const result = await waitForJson(resultFile, 180_000);
+    if (result.status !== "interrupted" || result.phase !== "install") {
+      throw new Error(`Install interruption did not reach the expected phase: ${JSON.stringify(result)}`);
+    }
+    child.kill("SIGKILL");
+    await waitForChild(child).catch(() => 1);
+    return { exitCode: 1, result };
+  }
   const exitCode = await new Promise((resolveExit, reject) => {
     const timeout = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("Packaged updater smoke process timed out.")); }, 180_000);
     child.once("error", reject);
@@ -86,13 +115,46 @@ async function runApp(feedUrl, install) {
   return { exitCode, result };
 }
 
+async function runPreviousRuntime(label) {
+  const statusFile = join(root, `${label}-runtime-status.json`);
+  await rm(statusFile, { force: true });
+  const environment = {
+    ...process.env,
+    HOME: join(root, "home"),
+    XDG_CONFIG_HOME: join(root, "appdata"),
+    LEE_SMOKE_STATUS_FILE: statusFile,
+    ...(platform === "linux" ? { APPIMAGE: appPath } : {}),
+  };
+  const child = spawn(appPath, ["--lee-smoke-exit"], { cwd: dirname(appPath), env: environment, stdio: "inherit" });
+  const exitCode = await waitForChild(child);
+  const status = await waitForJson(statusFile, 30_000);
+  if (exitCode !== 0 || status.state !== "live" || status.database !== "configured" || status.migration !== "complete" || status.contract !== "live" || status.version !== previousFeed.version) {
+    throw new Error(`Previous LEE runtime was not usable after ${label}: ${JSON.stringify({ exitCode, status })}`);
+  }
+  return status;
+}
+
+await runPreviousRuntime("before-interruption");
 const tamperedFeed = await startFeed(tamperedRoot);
-const tampered = await runApp(tamperedFeed.url, false);
+const tampered = await runApp(tamperedFeed.url);
 tamperedFeed.server.kill("SIGTERM");
 if (tampered.result.status !== "error") throw new Error(`Tampered ${platform} update was not rejected: ${JSON.stringify(tampered.result)}`);
 
+const interruptedDownloadFeed = await startFeed(feedRoot);
+const interruptedDownload = await runApp(interruptedDownloadFeed.url, { interrupt: "download" });
+interruptedDownloadFeed.server.kill("SIGTERM");
+if (interruptedDownload.result.status !== "interrupted" || interruptedDownload.result.phase !== "download") {
+  throw new Error(`Download interruption did not produce an interruption record: ${JSON.stringify(interruptedDownload.result)}`);
+}
+await runPreviousRuntime("after-download-interruption");
+
+const interruptedInstallFeed = await startFeed(feedRoot);
+const interruptedInstall = await runApp(interruptedInstallFeed.url, { interrupt: "install" });
+interruptedInstallFeed.server.kill("SIGTERM");
+await runPreviousRuntime("after-install-interruption");
+
 const validFeed = await startFeed(feedRoot);
-const valid = await runApp(validFeed.url, true);
+const valid = await runApp(validFeed.url, { install: true });
 validFeed.server.kill("SIGTERM");
 if (valid.result.status !== "installed" || valid.result.version !== expectedVersion) {
   throw new Error(`Valid ${platform} update did not install cleanly: ${JSON.stringify(valid.result)}`);
@@ -110,6 +172,9 @@ await writeFile(output, `${JSON.stringify({
     currentVersion: currentFeed.version,
     metadataFile,
     tamperedRejected: true,
+    downloadInterrupted: interruptedDownload.result.status === "interrupted",
+    installInterrupted: interruptedInstall.result.status === "interrupted",
+    previousLaunchesAfterInterruption: 2,
     validInstalled: true,
     artifactSha512: createHash("sha512").update(await readFile(join(currentDir, artifact.file))).digest("base64"),
   },

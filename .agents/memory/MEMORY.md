@@ -59,3 +59,4 @@
 - [Packaged desktop migration boundary](desktop-migration-boundary.md) — installed desktop startup migrates from bundled SQL and a runner, never the development workspace.
 - [Signed update validation](signed-update-validation.md) — published desktop feeds need tamper rejection, valid install, and retained evidence on each platform.
 - [macOS PostgreSQL runtime closure](macos-postgres-closure.md) — bundled native libraries must be architecture-matched, loader-relative, and independent of Homebrew paths.
+- [Desktop update interruption](desktop-update-interruption.md) — interrupted download/install phases must preserve a live previous version before retry.

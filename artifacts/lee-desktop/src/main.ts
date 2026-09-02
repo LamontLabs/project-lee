@@ -10,7 +10,7 @@ let tray: Tray | null = null;
 let supervisor: RuntimeSupervisor;
 let consoleServer: Awaited<ReturnType<typeof startConsoleServer>> | null = null;
 let isQuitting = false;
-type UpdateState = { status: "unsupported" | "idle" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "error"; version?: string; message?: string };
+type UpdateState = { status: "unsupported" | "idle" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "interrupted" | "error"; version?: string; message?: string; phase?: "download" | "install" };
 let updateState: UpdateState = { status: "idle" };
 
 const isProduction = app.isPackaged;
@@ -18,6 +18,10 @@ const smokeUpdateFeedUrl = process.env.LEE_SMOKE_UPDATE_FEED_URL;
 const smokeUpdateExpectedVersion = process.env.LEE_SMOKE_UPDATE_EXPECTED_VERSION;
 const smokeUpdateResultFile = process.env.LEE_SMOKE_UPDATE_RESULT_FILE;
 const smokeUpdateInstall = process.env.LEE_SMOKE_UPDATE_INSTALL === "1";
+const smokeUpdateInterrupt = process.env.LEE_SMOKE_UPDATE_INTERRUPT;
+const smokeUpdateInterruptFile = process.env.LEE_SMOKE_UPDATE_INTERRUPT_FILE;
+const smokeUpdateInterruptDelayMs = Number(process.env.LEE_SMOKE_UPDATE_INTERRUPT_DELAY_MS ?? 250);
+let smokeInterruptionTriggered = false;
 const hasSingleInstance = app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
 else app.on("second-instance", () => { window?.show(); window?.focus(); });
@@ -34,6 +38,18 @@ function finishSmokeUpdate(status: "not-available" | "error", message?: string):
   setTimeout(() => app.quit(), 100);
 }
 
+function interruptSmokeUpdate(phase: "download" | "install", version?: string): void {
+  if (smokeInterruptionTriggered) return;
+  smokeInterruptionTriggered = true;
+  setUpdateState({ status: "interrupted", version, phase, message: `${phase}-interrupted` });
+  if (smokeUpdateInterruptFile) writeFileSync(smokeUpdateInterruptFile, JSON.stringify({ status: "interrupted", phase, version }, null, 2), "utf8");
+  if (phase === "download") {
+    setTimeout(() => app.quit(), 100);
+  } else {
+    setTimeout(() => autoUpdater.quitAndInstall(), Math.max(0, smokeUpdateInterruptDelayMs));
+  }
+}
+
 function configureUpdates(): void {
   if (!isProduction) { setUpdateState({ status: "unsupported", message: "Updates are available in packaged builds." }); return; }
   if (smokeUpdateFeedUrl) autoUpdater.setFeedURL({ provider: "generic", url: smokeUpdateFeedUrl });
@@ -47,12 +63,26 @@ function configureUpdates(): void {
     if (smokeUpdateFeedUrl) void autoUpdater.downloadUpdate();
   });
   autoUpdater.on("update-not-available", () => smokeUpdateFeedUrl ? finishSmokeUpdate("not-available") : setUpdateState({ status: "not-available" }));
-  autoUpdater.on("download-progress", (progress) => setUpdateState({ status: "downloading", message: `${Math.round(progress.percent)}% downloaded` }));
+  autoUpdater.on("download-progress", (progress) => {
+    if (smokeUpdateInterrupt === "download" && progress.percent > 0) {
+      interruptSmokeUpdate("download", smokeUpdateExpectedVersion);
+      return;
+    }
+    setUpdateState({ status: "downloading", message: `${Math.round(progress.percent)}% downloaded` });
+  });
   autoUpdater.on("update-downloaded", (info) => {
+    if (smokeUpdateInterrupt === "install") {
+      interruptSmokeUpdate("install", info.version);
+      return;
+    }
     setUpdateState({ status: "downloaded", version: info.version });
     if (smokeUpdateInstall) setTimeout(() => autoUpdater.quitAndInstall(), 100);
   });
-  autoUpdater.on("error", (error) => smokeUpdateFeedUrl ? finishSmokeUpdate("error", error.message) : setUpdateState({ status: "error", message: error.message }));
+  autoUpdater.on("error", (error) => {
+    if (smokeInterruptionTriggered) return;
+    if (smokeUpdateFeedUrl) finishSmokeUpdate("error", error.message);
+    else setUpdateState({ status: "error", message: error.message });
+  });
   if (!(smokeUpdateFeedUrl && smokeUpdateExpectedVersion === app.getVersion())) {
     setTimeout(() => { void checkForUpdates(); }, smokeUpdateFeedUrl ? 1_000 : 10_000);
   }
@@ -119,7 +149,7 @@ async function boot(): Promise<void> {
   supervisor = new RuntimeSupervisor(app.getAppPath(), isProduction);
   const runtime = await supervisor.start();
   if (process.env.LEE_SMOKE_STATUS_FILE) {
-    writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify(runtime, null, 2), "utf8");
+    writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify({ version: app.getVersion(), ...runtime }, null, 2), "utf8");
   }
   if (isProduction) {
     consoleServer = await startConsoleServer(join(process.resourcesPath, "console"), runtime.apiUrl);

@@ -20,6 +20,9 @@ if (selection.status === "skipped") {
   process.exit(0);
 }
 if (!["macos", "linux"].includes(platform)) throw new Error(`Unsupported Unix platform: ${platform}`);
+if (platform === "macos" && !["x64", "arm64"].includes(architecture)) {
+  throw new Error(`Unsupported macOS updater architecture: ${architecture || "(missing)"}`);
+}
 
 const currentFeed = verifyUpdaterFeed({ releaseDir: currentDir, platform, expectedVersion });
 const previousFeed = verifyUpdaterFeed({ releaseDir: previousDir, platform });

@@ -218,8 +218,6 @@ jobs:
             artifacts/lee-desktop/release/latest-mac-${{ matrix.arch }}.yml
             artifacts/lee-desktop/release/*.blockmap
             artifacts/lee-desktop/release/*.sha256
-            artifacts/lee-desktop/release/SHA256SUMS-macos.txt
-            artifacts/lee-desktop/release/release-manifest-macos.json
           if-no-files-found: error
 
   linux-package:
@@ -403,6 +401,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/lee-update/current" "$RUNNER_TEMP/lee-update/previous"
           node artifacts/lee-desktop/scripts/download-release-assets.mjs \
             --platform "${{ matrix.platform }}" \
+            ${{ matrix.platform == 'macos' && format('--architecture {0}', matrix.architecture) || '' }} \
             --current-dir "$RUNNER_TEMP/lee-update/current" \
             --previous-dir "$RUNNER_TEMP/lee-update/previous" \
             --record "$RUNNER_TEMP/lee-update/selection.json"
@@ -430,6 +429,7 @@ jobs:
             xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
               node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
               --platform "${{ matrix.platform }}" \
+              --architecture "${{ matrix.architecture }}" \
               --current-dir "$RUNNER_TEMP/lee-update/current" \
               --previous-dir "$RUNNER_TEMP/lee-update/previous" \
               --expected-version "$LEE_UPDATE_VERSION" \
@@ -438,6 +438,7 @@ jobs:
           else
             node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
               --platform "${{ matrix.platform }}" \
+              --architecture "${{ matrix.architecture }}" \
               --current-dir "$RUNNER_TEMP/lee-update/current" \
               --previous-dir "$RUNNER_TEMP/lee-update/previous" \
               --expected-version "$LEE_UPDATE_VERSION" \

@@ -50,6 +50,10 @@ test("publish workflow keeps macOS metadata separate until it is merged", async 
   assert.match(workflow, /merge-mac-updater-metadata\.mjs/);
   assert.match(workflow, /--x64/);
   assert.match(workflow, /--arm64/);
+  assert.match(workflow, /runner: macos-13[\s\S]*architecture: x64/);
+  assert.match(workflow, /runner: macos-14[\s\S]*architecture: arm64/);
+  assert.match(workflow, /download-release-assets\.mjs[\s\S]*--architecture/);
+  assert.match(workflow, /unix-update-smoke\.mjs[\s\S]*--architecture/);
   assert.match(workflow, /write-release-manifest\.mjs --platform macos --version/);
   assert.match(manifest, /versionArgument/);
 });

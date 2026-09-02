@@ -8,15 +8,18 @@ const currentDir = resolve(process.argv[process.argv.indexOf("--current-dir") + 
 const previousDir = resolve(process.argv[process.argv.indexOf("--previous-dir") + 1]);
 const recordPath = resolve(process.argv[process.argv.indexOf("--record") + 1]);
 const token = process.env.GH_TOKEN;
+const architecture = process.argv.includes("--architecture")
+  ? process.argv[process.argv.indexOf("--architecture") + 1]
+  : undefined;
 
 const metadataByPlatform = { windows: "latest.yml", macos: "latest-mac.yml", linux: "latest-linux.yml" };
 const artifactPatternByPlatform = {
   windows: (name) => name.endsWith(".exe"),
-  macos: (name) => name.endsWith(".zip"),
+  macos: (name) => name.endsWith(".zip") && (!architecture || name.endsWith(`-${architecture}.zip`)),
   linux: (name) => name.endsWith(".AppImage"),
 };
 
-if (!currentTag || !token || !metadataByPlatform[platform] || !artifactPatternByPlatform[platform]) {
+if (!currentTag || !token || !metadataByPlatform[platform] || !artifactPatternByPlatform[platform] || (platform === "macos" && !["x64", "arm64"].includes(architecture))) {
   throw new Error("A release tag, GH_TOKEN, and supported platform are required.");
 }
 
@@ -35,7 +38,7 @@ const previous = releases
   .filter((release) => !release.draft && !release.prerelease && release.tag_name !== currentTag)
   .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())[0];
 
-const record = { platform, currentTag, currentVersion: current.tag_name.replace(/^lee-v/, ""), previousTag: previous?.tag_name ?? null, status: previous ? "ready" : "skipped", reason: previous ? undefined : "No previous stable release exists yet." };
+const record = { platform, architecture, currentTag, currentVersion: current.tag_name.replace(/^lee-v/, ""), previousTag: previous?.tag_name ?? null, status: previous ? "ready" : "skipped", reason: previous ? undefined : "No previous stable release exists yet." };
 if (!previous) {
   await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, "utf8");
   console.log(`Skipping ${platform} updater install smoke: no previous stable release exists.`);

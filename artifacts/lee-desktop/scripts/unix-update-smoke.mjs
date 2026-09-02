@@ -6,6 +6,9 @@ import { tmpdir } from "node:os";
 import { verifyUpdaterFeed } from "./verify-updater-feed.mjs";
 
 const platform = process.argv[process.argv.indexOf("--platform") + 1];
+const architecture = process.argv.includes("--architecture")
+  ? process.argv[process.argv.indexOf("--architecture") + 1]
+  : process.arch === "arm64" ? "arm64" : "x64";
 const currentDir = resolve(process.argv[process.argv.indexOf("--current-dir") + 1]);
 const previousDir = resolve(process.argv[process.argv.indexOf("--previous-dir") + 1]);
 const expectedVersion = process.argv[process.argv.indexOf("--expected-version") + 1];
@@ -21,7 +24,9 @@ if (!["macos", "linux"].includes(platform)) throw new Error(`Unsupported Unix pl
 const currentFeed = verifyUpdaterFeed({ releaseDir: currentDir, platform, expectedVersion });
 const previousFeed = verifyUpdaterFeed({ releaseDir: previousDir, platform });
 const metadataFile = { macos: "latest-mac.yml", linux: "latest-linux.yml" }[platform];
-const artifact = currentFeed.files.find((file) => platform === "linux" ? file.file.endsWith(".AppImage") : file.file.endsWith(".zip"));
+const artifact = currentFeed.files.find((file) => platform === "linux"
+  ? file.file.endsWith(".AppImage")
+  : file.file.endsWith(`-${architecture}.zip`));
 if (!artifact) throw new Error(`No runnable ${platform} updater artifact was found.`);
 
 const root = await mkdir(join(tmpdir(), `lee-update-smoke-${platform}-`), { recursive: true });
@@ -41,7 +46,9 @@ function run(command, args) {
   if (result.status !== 0) throw new Error(`${command} failed while preparing the ${platform} update smoke test.`);
 }
 
-const previousArtifact = previousFeed.files.find((file) => platform === "linux" ? file.file.endsWith(".AppImage") : file.file.endsWith(".zip"));
+const previousArtifact = previousFeed.files.find((file) => platform === "linux"
+  ? file.file.endsWith(".AppImage")
+  : file.file.endsWith(`-${architecture}.zip`));
 if (!previousArtifact) throw new Error(`No runnable previous ${platform} artifact was found.`);
 let appPath;
 if (platform === "linux") {

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const releaseDir = join(desktopRoot, "release");
 const platform = process.argv[process.argv.indexOf("--platform") + 1];
+const versionArgument = process.argv[process.argv.indexOf("--version") + 1];
 
 const artifactExtensions = {
   windows: [".exe"],
@@ -27,6 +28,7 @@ if (!artifactExtensions[platform] || !metadataByPlatform[platform]) {
 const packageJson = JSON.parse(
   readFileSync(join(desktopRoot, "package.json"), "utf8"),
 );
+const version = versionArgument ?? packageJson.version;
 const entries = readdirSync(releaseDir, { withFileTypes: true });
 const artifacts = entries
   .filter(
@@ -84,7 +86,7 @@ writeFileSync(
 
 const manifest = {
   schemaVersion: 1,
-  version: packageJson.version,
+  version,
   platform,
   artifacts,
   updaterMetadata,

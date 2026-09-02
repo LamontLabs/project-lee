@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { buildContextPacket, type ConversationMode } from "./context-engine";
+import { buildContextPacket, type ContextBuildOptions, type ConversationMode } from "./context-engine";
 import { checkConstitution } from "./constitution";
 import { consultIdentity } from "./identity";
 import { classifyIntent } from "./intent";
 import { emitEvent } from "./foundation-events";
+import type { ConnectedEmailProvider } from "./email-provider";
 
 export const REQUEST_PIPELINE_STAGES = ["identity", "constitution", "intent", "context"] as const;
 export type RequestPipelineStage = typeof REQUEST_PIPELINE_STAGES[number];
@@ -18,6 +19,9 @@ export type RequestPipelineInput = {
   budgetTokens?: number;
   sessionId?: string;
   correlationId?: string;
+};
+export type RequestPipelineDependencies = {
+  context?: ContextBuildOptions;
 };
 export type RequestPipelineSuccess = {
   ok: true;
@@ -60,7 +64,7 @@ async function pipelineEvent(eventType: "RequestPipelineStageStarted" | "Request
   }
 }
 
-export async function runRequestPipeline(input: RequestPipelineInput): Promise<RequestPipelineResult> {
+export async function runRequestPipeline(input: RequestPipelineInput, dependencies: RequestPipelineDependencies = {}): Promise<RequestPipelineResult> {
   const text = input.text.trim();
   const correlationId = input.correlationId ?? randomUUID();
   const stages: RequestPipelineStage[] = [];
@@ -86,7 +90,7 @@ export async function runRequestPipeline(input: RequestPipelineInput): Promise<R
       return result;
     });
     const intent = await runStage("intent", () => classifyIntent(text, { origin: input.origin }, input.origin, input.sessionId));
-    const context = await runStage("context", () => buildContextPacket(text, input.mode ?? "normal", input.budgetTokens ?? 3000, intent));
+    const context = await runStage("context", () => buildContextPacket(text, input.mode ?? "normal", input.budgetTokens ?? 3000, intent, dependencies.context));
     return { ok: true, correlationId, identity, constitution, intent, context, stages };
   } catch (error) {
     const failedStage = error instanceof PipelineStageFailure ? error.stage : stages.length < REQUEST_PIPELINE_STAGES.length ? REQUEST_PIPELINE_STAGES[stages.length] : "identity";

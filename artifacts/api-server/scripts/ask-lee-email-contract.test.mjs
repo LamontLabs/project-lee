@@ -45,3 +45,12 @@ test("email intent history persists only the normalized provider-neutral criteri
   assert.match(intent, /filters\.(text|sender|subject|after|before)/);
   assert.doesNotMatch(intent, /persistEmailSearchFilters[\s\S]{0,1200}(bodyText|snippet|access_token|refresh_token)/);
 });
+
+test("AI handoff uses selected context only and keeps route audit metadata content-free", async () => {
+  const ai = await source("routes/ai.ts");
+  assert.match(ai, /contextItems: route\.packet\.items/);
+  assert.match(ai, /packet: \{ items: route\.packet\.items, excluded: route\.packet\.excluded \}/);
+  const routeAudit = ai.match(/eventType: "ModelRouteSelected"[\s\S]*?payload: \{[^}]*\}/)?.[0] ?? "";
+  assert.match(routeAudit, /payload: \{ correlationId, route: route\.route/);
+  assert.doesNotMatch(routeAudit, /bodyText|snippet|access_token|refresh_token|packet|contextItems/);
+});

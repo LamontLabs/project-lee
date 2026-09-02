@@ -4,7 +4,7 @@ import { contextPacket, db, eventLog } from "@workspace/db";
 import { constructContextPacket, DEFAULT_WEIGHTS, type ContextInput, type SelectedContext } from "./context-economy";
 import { founderContext } from "./founder-identity";
 import { applyLearning } from "./learning";
-import { queryEngine } from "./query-engine";
+import { queryEngine, type QueryEngine } from "./query-engine";
 import { checkPolicy } from "./policy";
 import { connectedEmailProvider, type ConnectedEmailProvider, type EmailProvider, type EmailSearchFilters, type EmailThread } from "./email-provider";
 import { parseEmailSearchFilters } from "./intent";
@@ -15,6 +15,12 @@ export type EmailCandidate = {
   item: ContextInput;
   provider: EmailProvider;
   threadId: string;
+};
+
+export type ContextBuildOptions = {
+  resolveEmailProvider?: () => Promise<ConnectedEmailProvider | null>;
+  queryEngine?: Pick<QueryEngine, "query">;
+  founderContext?: () => Promise<Record<string, unknown>>;
 };
 
 function emailCandidateText(message: Awaited<ReturnType<EmailProvider["search"]>>["messages"][number]) {
@@ -78,22 +84,23 @@ export async function hydrateSelectedEmailContext(items: SelectedContext[], cand
   }));
 }
 
-export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string; emailFilters?: EmailSearchFilters | null }) {
+export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string; emailFilters?: EmailSearchFilters | null }, options: ContextBuildOptions = {}) {
   const retrievalFilters = intent?.retrievalMode === "semantic" ? { text: query } : {};
   const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
+  const querySource = options.queryEngine ?? queryEngine;
   const [objectResults, factResults, interpretationResults, waiting, eventResults, founder, trust, objectives, learningRules, constitution, assumptions, emailResult] = await Promise.all([
-    queryEngine.query({ sources: ["universal_objects"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: retrievalPurpose }),
-    queryEngine.query({ sources: ["facts"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: retrievalPurpose }),
-    queryEngine.query({ sources: ["interpretations"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
-    queryEngine.query({ sources: ["waiting_loops"], filters: { status: "open" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
-    queryEngine.query({ sources: ["events"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
-    founderContext(),
-    queryEngine.query({ sources: ["trust_scores"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 200, requester: "Context Engine", purpose: retrievalPurpose }),
-    queryEngine.query({ sources: ["strategic_objectives"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 12, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["universal_objects"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["facts"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["interpretations"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["waiting_loops"], filters: { status: "open" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["events"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    options.founderContext ? options.founderContext() : founderContext(),
+    querySource.query({ sources: ["trust_scores"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 200, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["strategic_objectives"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 12, requester: "Context Engine", purpose: retrievalPurpose }),
     applyLearning(query),
-    queryEngine.query({ sources: ["constitution"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
-    queryEngine.query({ sources: ["assumptions"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
-    retrieveEmailCandidates(query, intent),
+    querySource.query({ sources: ["constitution"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    querySource.query({ sources: ["assumptions"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    retrieveEmailCandidates(query, intent, options.resolveEmailProvider),
   ]);
   const objects = objectResults.map((item) => item.object as any);
   const facts = factResults.map((item) => item.object as any);

@@ -519,9 +519,12 @@ export const CreateGraphEdgeBody = zod.object({
   "sourceId": zod.string().uuid(),
   "targetType": zod.string(),
   "targetId": zod.string().uuid(),
-  "edgeType": zod.enum(['SUPPORTS', 'CONTRADICTS', 'DERIVED_FROM', 'RELATES_TO', 'OWNED_BY', 'PART_OF', 'DEPENDS_ON_PORTFOLIO']),
+  "edgeType": zod.enum(['SUPPORTS', 'CONTRADICTS', 'DERIVED_FROM', 'RELATES_TO', 'OWNED_BY', 'PART_OF', 'DEPENDS_ON_PORTFOLIO', 'INVOLVES', 'PRODUCED', 'REFERENCES', 'DEPENDS_ON', 'TRACKS', 'SPAWNED_FROM', 'INFORMS', 'SUPERSEDES', 'PARTICIPATES_IN', 'SENT', 'ATTENDED', 'AUTHORED', 'STORED_IN', 'IMPLEMENTS', 'DECIDED_BY', 'EVIDENCE_FOR', 'FULFILLS', 'BLOCKED_BY', 'DEPLOYED_TO', 'MENTIONS', 'INCLUDES', 'OCCURRED_IN', 'ASSIGNED_TO', 'SAME_AS']),
   "confidence": zod.number().min(createGraphEdgeBodyConfidenceMin).max(createGraphEdgeBodyConfidenceMax).optional(),
   "sourceRef": zod.string(),
+  "evidenceRefs": zod.array(zod.string()).optional(),
+  "relationshipState": zod.enum(['CONFIRMED', 'OWNER_DECLARED', 'STRONGLY_INFERRED', 'WEAK_CANDIDATE', 'CONTRADICTED', 'REJECTED']).optional(),
+  "ownerConfirmation": zod.boolean().optional(),
   "metadata": zod.record(zod.string(), zod.unknown()).optional()
 })
 
@@ -535,9 +538,13 @@ export const CreateGraphEdgeResponse = zod.object({
   "sourceId": zod.string().uuid(),
   "targetType": zod.string(),
   "targetId": zod.string().uuid(),
-  "edgeType": zod.enum(['SUPPORTS', 'CONTRADICTS', 'DERIVED_FROM', 'RELATES_TO', 'OWNED_BY', 'PART_OF', 'DEPENDS_ON_PORTFOLIO']),
+  "edgeType": zod.enum(['SUPPORTS', 'CONTRADICTS', 'DERIVED_FROM', 'RELATES_TO', 'OWNED_BY', 'PART_OF', 'DEPENDS_ON_PORTFOLIO', 'INVOLVES', 'PRODUCED', 'REFERENCES', 'DEPENDS_ON', 'TRACKS', 'SPAWNED_FROM', 'INFORMS', 'SUPERSEDES', 'PARTICIPATES_IN', 'SENT', 'ATTENDED', 'AUTHORED', 'STORED_IN', 'IMPLEMENTS', 'DECIDED_BY', 'EVIDENCE_FOR', 'FULFILLS', 'BLOCKED_BY', 'DEPLOYED_TO', 'MENTIONS', 'INCLUDES', 'OCCURRED_IN', 'ASSIGNED_TO', 'SAME_AS']),
   "confidence": zod.number().min(createGraphEdgeResponseOneConfidenceMin).max(createGraphEdgeResponseOneConfidenceMax).optional(),
   "sourceRef": zod.string(),
+  "evidenceRefs": zod.array(zod.string()).optional(),
+  "relationshipState": zod.enum(['CONFIRMED', 'OWNER_DECLARED', 'STRONGLY_INFERRED', 'WEAK_CANDIDATE', 'CONTRADICTED', 'REJECTED']).optional(),
+  "provenance": zod.record(zod.string(), zod.unknown()).optional(),
+  "dedupeKey": zod.string().nullable().optional(),
   "metadata": zod.record(zod.string(), zod.unknown()).optional()
 }).and(zod.object({
   "id": zod.string().uuid(),

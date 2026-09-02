@@ -18,6 +18,8 @@
     "test:backup-restore": "node --test scripts/backup-restore.test.mjs",
     "test:backup-restore-legacy": "node scripts/backup-restore-legacy.test.mjs",
     "test:backup-restore-failure-injection": "node scripts/backup-restore-failure-injection.test.mjs",
+    "test:reality-graph-contract": "../lee-desktop/node_modules/.bin/tsx --test scripts/reality-graph-contract.test.ts",
+    "test:reality-graph-integration": "node --test scripts/reality-graph-contract.test.mjs",
     "test:time-machine-hostile": "node --test scripts/time-machine-hostile.test.mjs",
     "test:event-delivery": "node scripts/event-delivery.test.mjs",
     "test:consequential-execution": "node scripts/consequential-execution.test.mjs",

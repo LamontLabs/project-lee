@@ -69,3 +69,13 @@ test("published update evidence is unique for every validation matrix entry", as
   assert.match(workflow, /UPDATE-VERIFICATION-\$\{\{ matrix\.evidence_suffix \}\}\.md/);
   assert.doesNotMatch(workflow, /gh release upload[\s\S]*update-verification-\$\{\{ matrix\.platform \}\}\.json/);
 });
+
+test("release workflow rejects branch and malformed manual dispatches", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/lee-desktop-release.yml", import.meta.url), "utf8");
+  assert.match(workflow, /validate-release-ref:/);
+  assert.match(workflow, /GITHUB_REF_TYPE.*tag/);
+  assert.match(workflow, /GITHUB_REF_NAME.*\^lee-v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
+  assert.match(workflow, /windows-installer:\s*\n\s+needs: validate-release-ref/);
+  assert.match(workflow, /macos-package:\s*\n\s+needs: validate-release-ref/);
+  assert.match(workflow, /linux-package:\s*\n\s+needs: validate-release-ref/);
+});

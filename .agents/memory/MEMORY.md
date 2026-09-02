@@ -1,0 +1,64 @@
+- [Foundation event immutability](foundation-event-immutability.md) — event history is protected by a PostgreSQL trigger, not only application conventions.
+- [Understanding output contract](understanding-output-contract.md) — extraction always returns source-backed facts, interpretations, provenance, and a completion event.
+- [Model routing boundary](model-routing-boundary.md) — context is budgeted before mandatory CIL routing; LEE executes CIL decisions and never locally selects a model.
+- [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.
+- [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.
+- [Cost ledger boundary](cost-ledger-boundary.md) — every reasoning resolution records tier, model, token counts, provider, and estimated cost in an additive ledger.
+- [Resource pricing boundary](resource-pricing-boundary.md) — measured resource usage reconciles to spend only through dated provider price evidence; missing prices stay unavailable.
+- [Brain snapshot integrity](brain-snapshot-integrity.md) — snapshots use canonical sorted-key JSON with Date normalization before SHA-256 verification.
+- [Backup legacy integrity repair](backup-legacy-integrity-repair.md) — portable backups must include provenance targets and append auditable lineage for pre-event canonical objects.
+- [Persisted scheduler boundary](persisted-scheduler-boundary.md) — scheduled jobs, dependencies, attempts, and lifecycle events survive restarts; unknown handlers fail visibly.
+- [Governance fail-closed boundary](governance-fail-closed-boundary.md) — only CerbaSeal ALLOW can release action; unavailable, HOLD, REJECT, and replayed requests never execute.
+- [Consequential execution boundary](consequential-execution-boundary.md) — provider mutations require owner confirmation and a unique, unexpired CerbaSeal ALLOW immediately before the writer.
+- [Epistemic memory separation](epistemic-memory-separation.md) — retrieval metadata and conflict records extend, but never collapse, separate fact and interpretation ledgers.
+- [Institutional knowledge promotion](institutional-knowledge-promotion.md) — durable knowledge requires three independent supporting outcomes and no unresolved contradiction.
+- [Self-improvement boundary](self-improvement-boundary.md) — only evidence-backed output parameters may adapt; authority, truth, ownership, and safety boundaries are rejected.
+- [Polymorphic graph boundary](polymorphic-graph-boundary.md) — graph nodes reference typed knowledge objects by type and UUID, allowing future ledgers to connect without foreign-key coupling.
+- [Relationship provider boundary](relationship-provider-boundary.md) — person health and cadence use normalized interactions, not provider-specific payloads.
+- [Event sequence migration](event-sequence-migration.md) — legacy events may share default sequence values, so sequence uniqueness requires backfill before a database constraint.
+- [Understanding pipeline schema](understanding-pipeline-schema.md) — raw sources, chunks, runs, and uncertain extractions remain separately auditable.
+- [Managed provider URL roots](managed-provider-url-roots.md) — managed AI base URLs already include the provider root; don't append public API version prefixes blindly.
+- [Fact and interpretation separation](fact-interpretation-separation.md) — source-backed facts and Lee-generated reasoning require distinct ledgers, validation, labels, and promotion rules.
+- [Assumption ledger](assumption-ledger.md) — named premises are reused while active and lifecycle changes must surface affected conclusions.
+- [Decision impact graph](decision-impact-graph.md) — causal consequences stay separate from object relationships; only approved directional edges affect impact scores.
+- [Digital Twin timeline](digital-twin-timeline.md) — chronological history is a significance-filtered projection of the immutable Event Log, with milestones stored separately.
+- [Query Engine boundary](query-engine-boundary.md) — shared retrieval centralizes Constitution checks, ranking, cache policy, confidence, and telemetry.
+- [Explanation Engine boundary](explanation-engine-boundary.md) — audience-calibrated explanations remain interpretations with source IDs, Why Chain, provenance, and feedback.
+- [Semantic Index boundary](semantic-index-boundary.md) — local eventual-consistency embeddings improve discovery without replacing canonical ledgers or structured confidence.
+- [Policy Engine boundary](policy-engine-boundary.md) — mutable, versioned operational rules sit between Constitution and case-by-case Governance.
+- [Resource Engine boundary](resource-engine-boundary.md) — live capacity state gates orchestration dispatch across compute, budgets, quotas, network, disk, and battery.
+- [Intent Engine boundary](intent-engine-boundary.md) — every Lee request gets one persisted, confidence-scored intent that downstream retrieval and routing can reuse.
+- [State Engine boundary](state-engine-boundary.md) — Lee has one validated primary operational state with auditable transitions and durations.
+- [Capability Registry boundary](capability-registry-boundary.md) — engine discovery uses persisted registrations and typed internal contracts instead of implicit cross-engine assumptions.
+- [Context Economy boundary](context-economy-boundary.md) — context packets rank candidates continuously across relevance factors and audit both winners and exclusions.
+- [Domain Events boundary](domain-events-boundary.md) — typed, versioned EventBus records causal state changes on the immutable Event Log.
+- [Engine Lifecycle boundary](engine-lifecycle-boundary.md) — Capability Registry owns engine lifecycle state, dependency declarations, degraded capabilities, and recovery policy.
+- [Self-Test boundary](self-test-boundary.md) — Self-Test produces persisted evidence reports across core Lee subsystems and emits a completion event.
+- [Recovery Modes boundary](recovery-modes-boundary.md) — Boot mode selection persists clean shutdowns, recovery agendas, boot history, and write restrictions.
+- [Data Ownership boundary](data-ownership-boundary.md) — Knowledge records carry creator, modifier, verifier, import, generation, and current-owner provenance.
+- [Knowledge Aging boundary](knowledge-aging-boundary.md) — Freshness is an independent, configurable temporal dimension that gates retrieval without deleting knowledge.
+- [System Manifest boundary](system-manifest-boundary.md) — The manifest is a live, read-only description of Lee’s software, brain, policy, capability, connector, storage, and health state.
+- [World State boundary](world-state-boundary.md) — Lee maintains a curated external-context ledger with universal time signals and explicitly configured monitoring topics.
+- [Operational Memory boundary](operational-memory-boundary.md) — Lee derives durable procedural patterns from existing event timestamps and owner actions, separate from declarative knowledge.
+- [Initiative boundary](initiative-boundary.md) — Initiative turns existing Lee evidence into optional, deduplicated operational observations rather than alarms or automatic actions.
+- [Operational Intelligence boundary](operational-intelligence-boundary.md) — Operational Intelligence continuously ranks what deserves attention from current initiatives, memory, world state, and canonical records.
+- [Provider Abstraction boundary](provider-abstraction-boundary.md) — External adapters translate service-specific data into typed provider-neutral records and domain events before internal engines consume it.
+- [Project Bootstrap boundary](project-bootstrap-boundary.md) — Repository bootstrap converts observable static structure into auditable first-draft project knowledge and owner questions.
+- [Internal Capability Services boundary](internal-capability-services-boundary.md) — LEE calls CIL and CerbaSeal through authenticated versioned service contracts without sharing their databases or runtimes.
+- [CerbaSeal contract drift](cerbaseal-contract-drift.md) — the public CerbaSeal frontend is not the enforcement-gate API; health requires a reachable JSON gate deployment.
+- [CIL contract drift](cil-contract-drift.md) — the configured CIL host is currently a frontend, not the enriched JSON reasoning API.
+- [CIL cost benchmark](cil-cost-benchmark.md) — savings use a fixed hashed corpus and no-reuse frontier baseline while preserving freshness/correctness overrides.
+- [Internal route boundary](internal-route-boundary.md) — internal capability aliases are mounted outside the public router and require registered service identity.
+- [Executive Loop boundary](executive-loop-boundary.md) — The Executive Loop is a persisted phase heartbeat wrapped around Operational Intelligence, not a replacement scheduler.
+- [Universal transport boundary](universal-transport-boundary.md) — external capability requests share registered-system transport metadata and audit behavior.
+- [OAuth credential boundary](oauth-credential-boundary.md) — signed callback state and encrypted provider credentials stay server-side; projections expose status only.
+- [Development fixture cleanup](development-fixture-cleanup.md) — removing seeded canonical records also requires clearing derived projections and query caches or stale activity resurfaces.
+- [Local discovery boundary](local-discovery-boundary.md) — desktop discovery is finite loopback probing; the server normalizes provider-neutral candidates before owner-reviewed connection creation.
+- [Runtime and control planes](runtime-control-plane.md) — service consumption and scoped project management are separate boundaries with independent readiness layers.
+- [Cross-artifact visual language](cross-artifact-visual-language.md) — LEE UI uses black lacquer surfaces, crimson accents, red grid lines, grain, and restrained metallic sheen.
+- [Packaged desktop migration boundary](desktop-migration-boundary.md) — installed desktop startup migrates from bundled SQL and a runner, never the development workspace.
+- [Signed update validation](signed-update-validation.md) — published desktop feeds need tamper rejection, valid install, and retained evidence on each platform.
+- [macOS PostgreSQL runtime closure](macos-postgres-closure.md) — bundled native libraries must be architecture-matched, loader-relative, and independent of Homebrew paths.
+- [Desktop update interruption](desktop-update-interruption.md) — interrupted download/install phases must preserve a live previous version before retry.
+ - [Hosted release prerequisites](hosted-release-prerequisites.md) — local checks cannot replace a published tagged run from a GitHub connection with target-repository and signing-secret access.
+- [Owner authentication boundary](owner-auth-boundary.md) — packaged installs use local salted credentials and per-install signed sessions with revocation.

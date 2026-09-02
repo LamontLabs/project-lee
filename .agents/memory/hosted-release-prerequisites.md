@@ -26,3 +26,9 @@ The Replit GitHub OAuth connector's `repo` scope can create a private repository
 **Why:** Repository write access and workflow-file write access are distinct GitHub permissions; retrying or reconnecting with the same offered scope set cannot add a missing scope.
 
 **How to apply:** Use an owner-provided fine-grained token stored through Replit Secrets with repository Contents, Actions, and Secrets write permissions, or have the owner add the workflow in GitHub. Never treat `repo` scope alone as proof that workflows can be published.
+
+Publishing selected files through an API-created commit does not synchronize a local checkout: the hosted branch can retain older versions of related files while the new commit looks current.
+
+**Why:** API-created commits may have a different ancestry from the workspace's local history, so local typechecks can pass against newer companion files while hosted CI checks an older tree.
+
+**How to apply:** After any API publication, verify the hosted tree for every source file used by the check, and prefer a deliberately scoped source sync over assuming commit recency means the branches are equivalent.

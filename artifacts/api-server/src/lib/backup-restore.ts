@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { chmod, mkdir, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { eq, inArray } from "drizzle-orm";
 import {
   assumptionLedger,
@@ -35,6 +37,7 @@ import { emitEvent } from "./foundation-events";
 
 export const BACKUP_FORMAT_VERSION = "2";
 export const DB_SCHEMA_VERSION = "1";
+export const LOCAL_BACKUP_RETENTION = 12;
 
 const tableSources = {
   eventLog,
@@ -119,6 +122,62 @@ export async function collectPortableBackup() {
   };
   const sizeBytes = Buffer.byteLength(canonicalJson({ manifest, payload }));
   return { backupId, manifest, payload, sizeBytes };
+}
+
+/**
+ * Desktop runtimes keep a private on-disk copy in addition to the database
+ * row. The archive deliberately uses the same portable format so it can be
+ * moved between installations; only its location is desktop-specific.
+ */
+export async function writeLocalBackupArchive(result: Awaited<ReturnType<typeof collectPortableBackup>>) {
+  const dataDir = process.env.LEE_DATA_DIR;
+  if (!dataDir) return null;
+  const directory = join(dataDir, "backups");
+  const fileName = `${result.backupId}.json`;
+  const filePath = join(directory, fileName);
+  const archive = {
+    manifest: result.manifest,
+    payload: result.payload,
+    integrity: { payloadChecksum: digest(result.payload), canonicalization: "sorted-keys-date-iso" },
+  };
+  try {
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await chmod(directory, 0o700);
+    const temporaryPath = join(directory, `.${fileName}.${process.pid}.tmp`);
+    await writeFile(temporaryPath, canonicalJson(archive), { encoding: "utf8", mode: 0o600 });
+    await chmod(temporaryPath, 0o600);
+    await rename(temporaryPath, filePath);
+    await chmod(filePath, 0o600);
+
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && /^backup-.*\.json$/.test(entry.name))
+      .map((entry) => entry.name);
+    const dated = await Promise.all(entries.map(async (name) => ({
+      name,
+      modified: (await stat(join(directory, name))).mtimeMs,
+    })));
+    dated.sort((a, b) => b.modified - a.modified);
+    await Promise.all(dated.slice(LOCAL_BACKUP_RETENTION).map(({ name }) => unlink(join(directory, name))));
+    return { localFileCopy: true, localFileName: fileName };
+  } catch (error) {
+    // Do not silently claim desktop durability when the local export failed.
+    throw new Error(`Local desktop backup export unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+export async function getLocalBackupStatus(backupId: string) {
+  const dataDir = process.env.LEE_DATA_DIR;
+  if (!dataDir) return { localFileCopy: false, localFileName: null };
+  const localFileName = `${backupId}.json`;
+  // Database values are not allowed to turn this status probe into a path
+  // traversal, and callers only ever receive a basename.
+  if (!/^[A-Za-z0-9._-]+\.json$/.test(localFileName)) return { localFileCopy: false, localFileName: null };
+  try {
+    await stat(join(dataDir, "backups", localFileName));
+    return { localFileCopy: true, localFileName };
+  } catch {
+    return { localFileCopy: false, localFileName: null };
+  }
 }
 
 type ReconciliationResult = { migrations: string[]; repairedObjects: string[]; migratedProvenance: string[] };

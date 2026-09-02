@@ -9,7 +9,7 @@ type Connection = {
   credentialConfigured: boolean; grantedScopes?: string[]; lastHealthCheck?: string | null; lastError?: string | null;
 };
 type SetupStep = { key: string; label: string; status: string; detail?: string; updatedAt: string };
-type DiscoveryCandidate = LocalServiceDiscoveryPayload["candidates"][number] & { status: "new" | "existing"; connectionId?: string };
+type DiscoveryCandidate = LocalServiceDiscoveryPayload["candidates"][number] & { status: "new" | "existing"; connectionId?: string; scanNonce?: string };
 type DiscoveryReport = { candidates: DiscoveryCandidate[]; failures: LocalServiceDiscoveryPayload["failures"]; attempted?: number; completedAt?: string };
 type SetupRun = { status: string; steps: SetupStep[]; summary?: { providers?: number; connections?: number; authorized?: number; needsOwner?: number; healthy?: number; failed?: number; discovery?: DiscoveryReport }; lastError?: string | null };
 type LocalContract = { id: string; contractId: string; provider: string; displayName: string; description: string; targetType: string; port: number; paths: string[]; enabled: boolean; createdAt: string; updatedAt: string };

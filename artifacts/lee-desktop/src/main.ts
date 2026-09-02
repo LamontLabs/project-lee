@@ -172,7 +172,13 @@ async function boot(): Promise<void> {
   if (app.commandLine.hasSwitch("lee-smoke-exit") && !awaitingSmokeUpdate) app.quit();
 }
 
-app.on("before-quit", () => { isQuitting = true; supervisor?.stop(); consoleServer?.server.close(); });
+app.on("before-quit", (event) => {
+  if (!isQuitting) {
+    event.preventDefault();
+    isQuitting = true;
+    void supervisor?.stop().finally(() => { consoleServer?.server.close(); app.quit(); });
+  }
+});
 app.whenReady().then(async () => {
   if (!hasSingleInstance) return;
   const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));

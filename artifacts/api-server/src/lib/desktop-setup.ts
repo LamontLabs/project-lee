@@ -1,4 +1,5 @@
 import { desc, eq, inArray } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { connection, connector, db, desktopSetupRun, eventLog, type DesktopSetupStep } from "@workspace/db";
 import { listProviders, registerProviders } from "./provider-abstraction";
 import { createConnection, testConnection } from "./connection-center";
@@ -17,6 +18,7 @@ export type LocalServiceDiscoveryCandidate = {
   capabilities: Array<Record<string, unknown>>;
   dependencies: Array<Record<string, unknown>>;
   observedAt?: string;
+  scanNonce?: string;
 };
 
 export type LocalServiceProbeFailure = {
@@ -31,6 +33,7 @@ export type LocalServiceDiscovery = {
   failures: LocalServiceProbeFailure[];
   attempted?: number;
   completedAt?: string;
+  scanNonce?: string;
 };
 
 type ReviewedDiscoveryCandidate = LocalServiceDiscoveryCandidate & {
@@ -62,6 +65,10 @@ function safeObservedAt(value: unknown): string | undefined {
   if (typeof value !== "string" || value.length > 64) return undefined;
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
+}
+
+function safeScanNonce(value: unknown): string | undefined {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{16,128}$/.test(value) ? value : undefined;
 }
 
 function safeProbeReason(value: unknown): string {
@@ -96,7 +103,9 @@ export function normalizeDiscoveryCandidate(value: unknown, contracts: readonly 
   const parsedUrl = new URL(baseUrl);
   const port = Number(parsedUrl.port || (parsedUrl.protocol === "https:" ? 443 : 80));
   if (port !== contract.port || parsedUrl.pathname !== "/" || parsedUrl.search || parsedUrl.hash) return null;
-  return {
+  const observedAt = safeObservedAt(input.observedAt);
+  const scanNonce = safeScanNonce(input.scanNonce);
+  const normalized: LocalServiceDiscoveryCandidate = {
     discoveryKey: `${contractId}|${parsedUrl.origin}|${healthEndpoint}`,
     contractId,
     provider: contract.provider,
@@ -108,8 +117,9 @@ export function normalizeDiscoveryCandidate(value: unknown, contracts: readonly 
     contractVersion: safeDiscoveryText(input.contractVersion, "v1", 32),
     capabilities: safeDiscoveryRecords(input.capabilities),
     dependencies: safeDiscoveryRecords(input.dependencies),
-    observedAt: safeObservedAt(input.observedAt),
+    observedAt,
   };
+  return scanNonce ? { ...normalized, scanNonce } : normalized;
 }
 
 export function normalizeDiscoveryReport(value: unknown, contracts: readonly LocalServiceContractEntry[]): LocalServiceDiscovery {
@@ -133,7 +143,7 @@ export function normalizeDiscoveryReport(value: unknown, contracts: readonly Loc
       reason: safeProbeReason(row.reason),
     }];
   });
-  return { candidates: deduped, failures, attempted: typeof input.attempted === "number" ? Math.max(0, Math.min(100, input.attempted)) : undefined, completedAt: safeObservedAt(input.completedAt) };
+  return { candidates: deduped, failures, attempted: typeof input.attempted === "number" ? Math.max(0, Math.min(100, input.attempted)) : undefined, completedAt: safeObservedAt(input.completedAt), scanNonce: safeScanNonce(input.scanNonce) };
 }
 
 function sameConnection(row: typeof connection.$inferSelect, candidate: LocalServiceDiscoveryCandidate): boolean {
@@ -145,7 +155,7 @@ function publicConnection(row: typeof connection.$inferSelect) {
   return { ...safe, credentialConfigured: Boolean(row.credentialRef) };
 }
 
-async function reviewDiscovery(discovery: LocalServiceDiscovery) {
+async function reviewDiscovery(discovery: LocalServiceDiscovery): Promise<Omit<LocalServiceDiscovery, "candidates"> & { candidates: ReviewedDiscoveryCandidate[] }> {
   const rows = await db.select().from(connection);
   const candidates: ReviewedDiscoveryCandidate[] = discovery.candidates.map((candidate) => {
     const existing = rows.find((row) => sameConnection(row, candidate));
@@ -153,12 +163,33 @@ async function reviewDiscovery(discovery: LocalServiceDiscovery) {
       ? { ...candidate, status: "existing" as const, connectionId: existing.id }
       : { ...candidate, status: "new" as const };
   });
-  return { candidates, failures: discovery.failures, attempted: discovery.attempted, completedAt: discovery.completedAt };
+  return { candidates, failures: discovery.failures, attempted: discovery.attempted, completedAt: discovery.completedAt, scanNonce: discovery.scanNonce };
+}
+
+export class DiscoveryApprovalError extends Error {
+  readonly statusCode = 409;
+}
+
+function sameReviewedCandidate(left: ReviewedDiscoveryCandidate, right: LocalServiceDiscoveryCandidate): boolean {
+  const { status: _status, connectionId: _connectionId, ...reviewedCandidate } = left;
+  return JSON.stringify(reviewedCandidate) === JSON.stringify(right);
 }
 
 export async function acceptDiscoveredService(value: unknown) {
   const candidate = normalizeDiscoveryCandidate(value, await listEnabledLocalServiceContractEntries());
   if (!candidate) throw new Error("This local service is not an approved discovery candidate.");
+  if (!candidate.scanNonce && !candidate.observedAt) {
+    throw new DiscoveryApprovalError("This discovery candidate has no observation proof. Run local discovery again before accepting it.");
+  }
+  const [latestRun] = await db.select().from(desktopSetupRun)
+    .where(inArray(desktopSetupRun.status, ["complete", "degraded", "needs_owner"]))
+    .orderBy(desc(desktopSetupRun.updatedAt))
+    .limit(1);
+  const reviewed = ((latestRun?.summary as { discovery?: LocalServiceDiscovery } | null)?.discovery?.candidates as ReviewedDiscoveryCandidate[] | undefined)
+    ?.find((item) => item.discoveryKey === candidate.discoveryKey);
+  if (!reviewed || !sameReviewedCandidate(reviewed, candidate)) {
+    throw new DiscoveryApprovalError("This discovery report is stale or was not produced by the latest owner-reviewed setup run. Run discovery again before accepting it.");
+  }
   const rows = await db.select().from(connection);
   const existing = rows.find((row) => sameConnection(row, candidate));
   if (existing) return { connection: publicConnection(existing), reused: true };
@@ -217,7 +248,14 @@ export async function runDesktopSetup(input: { discovery?: unknown } = {}) {
     const rows = await db.select().from(connection);
     await update(step("connections", "Existing connections", "complete", `${rows.length} existing connection${rows.length === 1 ? "" : "s"} reused; no duplicates created.`));
 
-    const discovery = await reviewDiscovery(normalizeDiscoveryReport(input.discovery, await listEnabledLocalServiceContractEntries()));
+    const reviewedDiscovery = await reviewDiscovery(normalizeDiscoveryReport(input.discovery, await listEnabledLocalServiceContractEntries()));
+    // The API, not the desktop payload, binds this report to one owner-reviewed run.
+    const scanNonce = randomUUID().replace(/-/g, "");
+    const discovery = {
+      ...reviewedDiscovery,
+      scanNonce,
+      candidates: reviewedDiscovery.candidates.map((candidate): ReviewedDiscoveryCandidate => ({ ...candidate, scanNonce })),
+    };
     const discoveredCount = discovery.candidates.length;
     const newCount = discovery.candidates.filter((candidate) => candidate.status === "new").length;
     const existingCount = discoveredCount - newCount;

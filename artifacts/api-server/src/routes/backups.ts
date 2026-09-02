@@ -1,52 +1,58 @@
 import { desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { backupArchive, db, economicUsageRecord, eventLog } from "@workspace/db";
-import { collectPortableBackup, digest, verifyPortableBackup } from "../lib/backup-restore";
+import { collectPortableBackup, digest, getLocalBackupStatus, verifyPortableBackup, writeLocalBackupArchive } from "../lib/backup-restore";
 
 const router: IRouter = Router();
 
 router.get("/backups/status", async (_req, res) => {
   const rows = await db.select().from(backupArchive).orderBy(desc(backupArchive.createdAt)).limit(12);
-  const latest = rows[0];
+  const backups = await Promise.all(rows.map(async (backup) => ({ ...backup, ...await getLocalBackupStatus(backup.backupId) })));
+  const latest = backups[0];
   const ageHours = latest ? (Date.now() - latest.createdAt.getTime()) / 3600000 : null;
   res.json({
     latest,
-    backups: rows,
+    backups,
     readinessScore: latest ? Math.max(0, Math.min(100, Math.round(100 - (ageHours ?? 100) * 2))) : 0,
-    portability: { rawSources: true, providerTokensExcluded: true, checksums: Boolean(latest?.manifest), restoreMode: "isolated-clean-database-verifier" },
+    portability: { rawSources: true, providerTokensExcluded: true, checksums: Boolean(latest?.manifest), restoreMode: "isolated-clean-database-verifier", localArchive: Boolean(latest?.localFileCopy) },
   });
 });
 
 router.post("/backups/create", async (_req, res) => {
-  const result = await collectPortableBackup();
-  const [saved] = await db.insert(backupArchive).values({
-    backupId: result.backupId,
-    formatVersion: result.manifest.backup_format_version,
-    brainVersion: String(result.manifest.brain_version),
-    manifest: result.manifest,
-    payload: result.payload,
-    sizeBytes: result.sizeBytes,
-  }).returning();
-  await db.insert(eventLog).values({
-    eventType: "BackupCreated",
-    aggregateType: "backup_archive",
-    aggregateId: saved.id,
-    sourceRef: "backup-engine",
-    occurredAt: new Date(),
-    payload: { backupId: saved.backupId, manifest: result.manifest },
-  });
-  await db.insert(economicUsageRecord).values({
-    operation: "backup",
-    category: "backup",
-    quantity: result.sizeBytes,
-    unit: "bytes",
-    provider: "backup-engine",
-    sourceRef: saved.id,
-    evidenceRef: `backup_archive:${saved.id}`,
-    metadata: { backupId: saved.backupId },
-    recordedAt: saved.createdAt,
-  });
-  res.status(201).json(saved);
+  try {
+    const result = await collectPortableBackup();
+    const localArchive = await writeLocalBackupArchive(result);
+    const [saved] = await db.insert(backupArchive).values({
+      backupId: result.backupId,
+      formatVersion: result.manifest.backup_format_version,
+      brainVersion: String(result.manifest.brain_version),
+      manifest: result.manifest,
+      payload: result.payload,
+      sizeBytes: result.sizeBytes,
+    }).returning();
+    await db.insert(eventLog).values({
+      eventType: "BackupCreated",
+      aggregateType: "backup_archive",
+      aggregateId: saved.id,
+      sourceRef: "backup-engine",
+      occurredAt: new Date(),
+      payload: { backupId: saved.backupId, manifest: result.manifest },
+    });
+    await db.insert(economicUsageRecord).values({
+      operation: "backup",
+      category: "backup",
+      quantity: result.sizeBytes,
+      unit: "bytes",
+      provider: "backup-engine",
+      sourceRef: saved.id,
+      evidenceRef: `backup_archive:${saved.id}`,
+      metadata: { backupId: saved.backupId },
+      recordedAt: saved.createdAt,
+    });
+    res.status(201).json({ ...saved, ...(localArchive ?? { localFileCopy: false, localFileName: null }) });
+  } catch (error) {
+    res.status(503).json({ error: error instanceof Error ? error.message : "Backup creation failed." });
+  }
 });
 
 router.post("/backups/:id/verify", async (req, res) => {

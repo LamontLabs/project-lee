@@ -13,6 +13,7 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /Import-PfxCertificate/);
   assert.match(workflow, /Cert:\\CurrentUser\\Root/);
   assert.match(workflow, /Cert:\\CurrentUser\\TrustedPublisher/);
+  assert.match(workflow, /resources\\lee-signing\.cer/);
   assert.doesNotMatch(workflow, /macos|macOS|latest-mac|LEE_APPLE|LEE_MACOS|merge-mac/i);
 });
 

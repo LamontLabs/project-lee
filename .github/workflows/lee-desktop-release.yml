@@ -80,6 +80,7 @@ jobs:
           Export-Certificate -Cert $certificate -FilePath $certificatePath | Out-Null
           Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
           Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\TrustedPublisher | Out-Null
+          Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force
       - run: pnpm --filter @workspace/lee-desktop run package
         env:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}

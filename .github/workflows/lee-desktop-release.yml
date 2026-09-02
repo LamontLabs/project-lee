@@ -10,7 +10,19 @@ permissions:
   contents: write
 
 jobs:
+  validate-release-ref:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a valid release tag
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_TYPE" == "tag" ]] || { echo "Desktop releases must run from a lee-v* tag, not $GITHUB_REF_NAME." >&2; exit 1; }
+          [[ "$GITHUB_REF_NAME" =~ ^lee-v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || {
+            echo "Invalid release tag: $GITHUB_REF_NAME. Expected lee-vMAJOR.MINOR.PATCH." >&2
+            exit 1
+          }
   windows-installer:
+    needs: validate-release-ref
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,136 +103,8 @@ jobs:
             artifacts/lee-desktop/release/release-manifest-windows.json
           if-no-files-found: error
 
-  macos-package:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-13
-            arch: x64
-          - runner: macos-14
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Set release version from tag
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF_NAME" == lee-v* ]]; then
-            VERSION="${GITHUB_REF_NAME#lee-v}"
-            node -e "const fs=require('fs'); const p='artifacts/lee-desktop/package.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); data.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(data,null,2)+'\n')" "$VERSION"
-          fi
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @workspace/api-zod exec tsc -p tsconfig.json
-      - run: pnpm --filter @workspace/api-server run build
-      - run: pnpm --filter @workspace/lee-console run build
-        env:
-          PORT: 4173
-          BASE_PATH: /
-      - name: Stage private PostgreSQL runtime
-        shell: bash
-        run: |
-          actual_arch="$(uname -m)"
-          expected_arch="${{ matrix.arch == 'x64' && 'x86_64' || 'arm64' }}"
-          [[ "$actual_arch" == "$expected_arch" ]] || { echo "Runner architecture $actual_arch does not match requested $expected_arch." >&2; exit 1; }
-          brew install postgresql@17
-          prefix="$(brew --prefix postgresql@17)"
-          node artifacts/lee-desktop/scripts/stage-postgres-runtime.mjs --platform macos --arch "${{ matrix.arch }}" --source "$prefix"
-      - name: Require Apple signing and notarization configuration
-        shell: bash
-        env:
-          CSC_LINK: ${{ secrets.LEE_MACOS_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.LEE_MACOS_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
-        run: |
-          for variable in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
-            if [[ -z "${!variable}" ]]; then
-              echo "$variable is required for a signed and notarized macOS release." >&2
-              exit 1
-            fi
-          done
-      - name: Build macOS packages
-        run: pnpm --filter @workspace/lee-desktop run package
-        env:
-          CSC_LINK: ${{ secrets.LEE_MACOS_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.LEE_MACOS_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
-      - name: Build unpacked macOS app for runtime smoke test
-        run: pnpm --filter @workspace/lee-desktop exec electron-builder --config electron-builder.yml --dir --publish never
-        env:
-          CSC_LINK: ${{ secrets.LEE_MACOS_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.LEE_MACOS_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.LEE_APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.LEE_APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.LEE_APPLE_TEAM_ID }}
-      - name: Smoke test bundled macOS runtime
-        shell: bash
-        run: |
-          app_path="$(find artifacts/lee-desktop/release -path '*/Project LEE.app/Contents/MacOS/Project LEE' -print -quit)"
-          [[ -n "$app_path" ]] || { echo "Unpacked macOS app executable is missing." >&2; exit 1; }
-          node artifacts/lee-desktop/scripts/verify-packaged-migrations.mjs \
-            --resources-root "$GITHUB_WORKSPACE/$(dirname "$app_path")/../Resources" \
-            --source-file artifacts/lee-desktop/src/runtime.ts \
-            --platform macos
-          pnpm --filter @workspace/lee-desktop run smoke:unix -- "$GITHUB_WORKSPACE/$app_path" --architecture "${{ matrix.arch }}"
-      - name: Verify macOS signatures and notarization
-        shell: bash
-        run: |
-          shopt -s nullglob
-          dmgs=(artifacts/lee-desktop/release/*.dmg)
-          zips=(artifacts/lee-desktop/release/*.zip)
-          (( ${#dmgs[@]} > 0 )) || { echo "No macOS disk image was produced." >&2; exit 1; }
-          (( ${#zips[@]} > 0 )) || { echo "No macOS zip was produced." >&2; exit 1; }
-          for dmg in "${dmgs[@]}"; do
-            xcrun stapler validate "$dmg"
-            mountpoint="$(mktemp -d)"
-            device="$(hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mountpoint" | awk 'END {print $1}')"
-            app_path="$(find "$mountpoint" -maxdepth 1 -name '*.app' -print -quit)"
-            [[ -n "$app_path" ]] || { hdiutil detach "$mountpoint" -quiet || true; echo "No app found in $dmg." >&2; exit 1; }
-            codesign --verify --deep --strict --verbose=2 "$app_path"
-            spctl --assess --type execute --verbose=4 "$app_path"
-            hdiutil detach "$mountpoint" -quiet
-            rmdir "$mountpoint"
-          done
-          for zip in "${zips[@]}"; do
-            unpacked="$(mktemp -d)"
-            ditto -x -k "$zip" "$unpacked"
-            app_path="$(find "$unpacked" -name '*.app' -print -quit)"
-            [[ -n "$app_path" ]] || { echo "No app found in $zip." >&2; exit 1; }
-            codesign --verify --deep --strict --verbose=2 "$app_path"
-            spctl --assess --type execute --verbose=4 "$app_path"
-            rm -rf "$unpacked"
-          done
-      - name: Write macOS release metadata
-        run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform macos
-      - name: Preserve architecture-specific macOS updater metadata
-        shell: bash
-        run: |
-          mv "artifacts/lee-desktop/release/latest-mac.yml" "artifacts/lee-desktop/release/latest-mac-${{ matrix.arch }}.yml"
-          rm -f artifacts/lee-desktop/release/SHA256SUMS-macos.txt artifacts/lee-desktop/release/release-manifest-macos.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lee-macos-installers-${{ matrix.arch }}
-          path: |
-            artifacts/lee-desktop/release/*.dmg
-            artifacts/lee-desktop/release/*.zip
-            artifacts/lee-desktop/release/latest-mac-${{ matrix.arch }}.yml
-            artifacts/lee-desktop/release/*.blockmap
-            artifacts/lee-desktop/release/*.sha256
-          if-no-files-found: error
-
   linux-package:
+    needs: validate-release-ref
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -315,7 +199,6 @@ jobs:
   publish-release:
     needs:
       - windows-installer-validation
-      - macos-package
       - linux-package
     runs-on: windows-latest
     permissions:
@@ -328,39 +211,15 @@ jobs:
           path: artifacts/lee-desktop/release
       - uses: actions/download-artifact@v4
         with:
-          name: lee-macos-installers-x64
-          path: ${{ runner.temp }}/lee-release/mac-x64
-      - uses: actions/download-artifact@v4
-        with:
-          name: lee-macos-installers-arm64
-          path: ${{ runner.temp }}/lee-release/mac-arm64
-      - uses: actions/download-artifact@v4
-        with:
           name: lee-linux-installers
           path: artifacts/lee-desktop/release
-      - name: Assemble universal macOS updater feed and manifest
-        shell: pwsh
-        run: |
-          $release = "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\release"
-          New-Item -ItemType Directory -Force $release | Out-Null
-          foreach ($directory in @("$env:RUNNER_TEMP\lee-release\mac-x64", "$env:RUNNER_TEMP\lee-release\mac-arm64")) {
-            Get-ChildItem $directory -File | Where-Object {
-              $_.Name -like "*.dmg" -or $_.Name -like "*.zip" -or $_.Name -like "*.blockmap" -or $_.Name -like "*.sha256"
-            } | Copy-Item -Destination $release -Force
-          }
-          node artifacts/lee-desktop/scripts/merge-mac-updater-metadata.mjs `
-            --x64 "$env:RUNNER_TEMP\lee-release\mac-x64\latest-mac-x64.yml" `
-            --arm64 "$env:RUNNER_TEMP\lee-release\mac-arm64\latest-mac-arm64.yml" `
-            --output "$release\latest-mac.yml"
-          $version = if ($env:GITHUB_REF_NAME -like "lee-v*") { $env:GITHUB_REF_NAME.Substring(6) } else { node -p "require('./artifacts/lee-desktop/package.json').version" }
-          node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform macos --version $version
       - name: Verify all release manifests and checksums
         shell: bash
         run: node artifacts/lee-desktop/scripts/verify-release-manifests.mjs artifacts/lee-desktop/release
       - name: Confirm updater metadata is complete
         shell: pwsh
         run: |
-          foreach ($metadata in @("latest.yml", "latest-mac.yml", "latest-linux.yml")) {
+          foreach ($metadata in @("latest.yml", "latest-linux.yml")) {
             if (-not (Test-Path "artifacts/lee-desktop/release/$metadata")) { throw "Missing electron-updater metadata: $metadata" }
           }
       - uses: softprops/action-gh-release@v2
@@ -378,14 +237,6 @@ jobs:
           - platform: windows
             runner: windows-latest
             evidence_suffix: windows
-          - platform: macos
-            runner: macos-13
-            architecture: x64
-            evidence_suffix: macos-x64
-          - platform: macos
-            runner: macos-14
-            architecture: arm64
-            evidence_suffix: macos-arm64
           - platform: linux
             runner: ubuntu-latest
             evidence_suffix: linux
@@ -405,7 +256,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/lee-update/current" "$RUNNER_TEMP/lee-update/previous"
           node artifacts/lee-desktop/scripts/download-release-assets.mjs \
             --platform "${{ matrix.platform }}" \
-            ${{ matrix.platform == 'macos' && format('--architecture {0}', matrix.architecture) || '' }} \
             --current-dir "$RUNNER_TEMP/lee-update/current" \
             --previous-dir "$RUNNER_TEMP/lee-update/previous" \
             --record "$RUNNER_TEMP/lee-update/selection.json"
@@ -420,35 +270,21 @@ jobs:
             -ExpectedVersion "$env:LEE_UPDATE_VERSION" `
             -Output "$env:GITHUB_WORKSPACE\update-verification-${{ matrix.evidence_suffix }}.json" `
             -Selection "$env:RUNNER_TEMP\lee-update\selection.json"
-      - name: Verify macOS or Linux signed update installation
-        if: matrix.platform != 'windows'
+      - name: Verify Linux signed update installation
+        if: matrix.platform == 'linux'
         shell: bash
         run: |
-          if [[ "${{ matrix.platform }}" == "linux" ]]; then
-            sudo apt-get update
-            sudo apt-get install --no-install-recommends -y xvfb
-          fi
-          command -v xvfb-run >/dev/null 2>&1 || [[ "${{ matrix.platform }}" == "macos" ]] || { echo "xvfb-run is required for Linux updater validation." >&2; exit 1; }
-          if [[ "${{ matrix.platform }}" == "linux" ]]; then
-            xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
-              node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
-              --platform "${{ matrix.platform }}" \
-              --architecture "${{ matrix.architecture }}" \
-              --current-dir "$RUNNER_TEMP/lee-update/current" \
-              --previous-dir "$RUNNER_TEMP/lee-update/previous" \
-              --expected-version "$LEE_UPDATE_VERSION" \
-              --record "$RUNNER_TEMP/lee-update/selection.json" \
-              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json"
-          else
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb
+          command -v xvfb-run >/dev/null 2>&1 || { echo "xvfb-run is required for Linux updater validation." >&2; exit 1; }
+          xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
             node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
-              --platform "${{ matrix.platform }}" \
-              --architecture "${{ matrix.architecture }}" \
-              --current-dir "$RUNNER_TEMP/lee-update/current" \
-              --previous-dir "$RUNNER_TEMP/lee-update/previous" \
-              --expected-version "$LEE_UPDATE_VERSION" \
-              --record "$RUNNER_TEMP/lee-update/selection.json" \
-              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json"
-          fi
+            --platform linux \
+            --current-dir "$RUNNER_TEMP/lee-update/current" \
+            --previous-dir "$RUNNER_TEMP/lee-update/previous" \
+            --expected-version "$LEE_UPDATE_VERSION" \
+            --record "$RUNNER_TEMP/lee-update/selection.json" \
+            --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json"
       - name: Write signed update verification checklist
         shell: bash
         run: |

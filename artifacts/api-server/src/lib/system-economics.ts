@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
-import { backupArchive, connectorSync, costRecord, db, economicPriceEvidence, economicUsageRecord, eventLog, normalizedConnectorEvent, semanticIndex, sourceVault, systemEconomicsCycle } from "@workspace/db";
+import { backupArchive, connectorSync, costRecord, db, economicPriceEvidence, economicUsageRecord, eventLog, factLedger, interpretationLedger, normalizedConnectorEvent, providerRegistration, semanticIndex, sourceChunk, sourceVault, systemEconomicsCycle } from "@workspace/db";
 import { runCILCostBenchmark } from "./cil-cost-benchmark";
+import { registerProviders } from "./provider-abstraction";
 
 const MONTHLY_COST_CEILING_USD = 100;
 export type MetricStatus = "MEASURED" | "ESTIMATED" | "UNAVAILABLE";
@@ -20,6 +21,7 @@ export type EconomicUsagePricingRecord = {
   quantity: number;
   unit: string;
   provider: string;
+  evidenceRef: string;
   recordedAt: Date;
 };
 
@@ -30,8 +32,67 @@ export type EconomicPricePricingRecord = {
   unit: string;
   priceUsd: number;
   provider: string;
+  evidenceRef: string;
   effectiveAt: Date;
 };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PROVIDER_EVIDENCE_REF = /^(provider|connector):([a-z0-9][a-z0-9._-]{0,95})(?::.+)?$/i;
+const INTERNAL_EVIDENCE_TABLES = [
+  { prefix: "source_vault", table: sourceVault },
+  { prefix: "source_chunk", table: sourceChunk },
+  { prefix: "event_log", table: eventLog },
+  { prefix: "fact_ledger", table: factLedger },
+  { prefix: "interpretation_ledger", table: interpretationLedger },
+  { prefix: "backup_archive", table: backupArchive },
+  { prefix: "semantic_index", table: semanticIndex },
+] as const;
+
+export type EconomicEvidenceResolution = {
+  evidenceRef: string;
+  kind: "provider_contract" | "internal_record";
+};
+
+/**
+ * Resolve the submitted source reference before an economics row is written.
+ * Provider references are deliberately explicit; arbitrary strings must not
+ * become financial provenance merely because they are present in a payload.
+ */
+export async function resolveEconomicEvidence(sourceRef: string, provider: string): Promise<EconomicEvidenceResolution> {
+  const ref = sourceRef.trim();
+  const providerMatch = PROVIDER_EVIDENCE_REF.exec(ref);
+  if (providerMatch) {
+    const [, , providerId] = providerMatch;
+    if (providerId !== provider) throw new Error(`Economic provenance provider "${providerId}" does not match "${provider}".`);
+    let [registration] = await db.select({ id: providerRegistration.id, currentStatus: providerRegistration.currentStatus })
+      .from(providerRegistration)
+      .where(eq(providerRegistration.providerId, providerId))
+      .limit(1);
+    if (!registration) {
+      await registerProviders();
+      [registration] = await db.select({ id: providerRegistration.id, currentStatus: providerRegistration.currentStatus })
+        .from(providerRegistration)
+        .where(eq(providerRegistration.providerId, providerId))
+        .limit(1);
+    }
+    if (!registration || registration.currentStatus === "UNAVAILABLE") {
+      throw new Error(`Economic provenance provider "${providerId}" is not an approved available provider.`);
+    }
+    return { evidenceRef: `provider_registration:${registration.id}`, kind: "provider_contract" };
+  }
+
+  const prefixed = /^([a-z_]+):([0-9a-f-]+)$/i.exec(ref);
+  const internalId = prefixed ? prefixed[2] : ref;
+  if (!UUID.test(internalId)) throw new Error(`Economic provenance reference does not resolve to approved evidence: ${sourceRef}`);
+  const candidates = prefixed
+    ? INTERNAL_EVIDENCE_TABLES.filter(({ prefix }) => prefix === prefixed[1].toLowerCase())
+    : INTERNAL_EVIDENCE_TABLES;
+  for (const { prefix, table } of candidates) {
+    const [record] = await db.select({ id: table.id }).from(table).where(eq(table.id, internalId)).limit(1);
+    if (record) return { evidenceRef: `${prefix}:${record.id}`, kind: "internal_record" };
+  }
+  throw new Error(`Economic provenance reference does not resolve to approved evidence: ${sourceRef}`);
+}
 
 export type PricedEconomicUsage = {
   usage: EconomicUsagePricingRecord;
@@ -89,8 +150,8 @@ export function reconcileEconomicCategorySpend(
   const pricedUsage = matchEconomicUsageToPrices(usageRecords, priceRecords);
   const rows = pricedUsage.filter(({ usage }) => categories.includes(usage.category));
   const missing = rows.filter(({ price }) => !price);
-  const usageProvenance = usageRecords.map((usage) => usage.id);
-  const pricingProvenance = priceRecords.map((price) => price.id);
+  const usageProvenance = usageRecords.flatMap((usage) => [usage.id, usage.evidenceRef]);
+  const pricingProvenance = priceRecords.flatMap((price) => [price.id, price.evidenceRef]);
   if (!rows.length || missing.length) {
     return metric(null, "UNAVAILABLE", "USD", "economic_usage_record × economic_price_evidence", observedAt,
       [...(usageProvenance.length ? usageProvenance : ["economic_usage_record:period"]),
@@ -99,7 +160,7 @@ export function reconcileEconomicCategorySpend(
   }
   return metric(sum(rows.map(({ usage, price }) => usage.quantity * (price?.priceUsd ?? 0))), "MEASURED", "USD",
     "economic_usage_record × economic_price_evidence", observedAt,
-    [...rows.map(({ usage }) => usage.id), ...rows.map(({ price }) => price?.id ?? "")].filter(Boolean));
+    [...rows.flatMap(({ usage }) => [usage.id, usage.evidenceRef]), ...rows.flatMap(({ price }) => price ? [price.id, price.evidenceRef] : [])].filter(Boolean));
 }
 
 function sum(values: number[]) { return values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0); }
@@ -192,8 +253,8 @@ export async function runSystemEconomicsCycle(now = new Date()) {
     semantic: provenance(semanticRows.map((row) => row.id), "semantic_index:current"),
     sources: provenance(sourceRows.map((row) => row.id), "source_vault:current"),
     connector: provenance([...connectorSyncs.map((row) => row.id), ...connectorEvents.map((row) => row.id)], "connector_sync:period"),
-    usage: provenance(usageRecords.map((row) => row.id), "economic_usage_record:period"),
-    pricing: provenance(priceRecords.map((row) => row.id), "economic_price_evidence:effective"),
+     usage: provenance(usageRecords.flatMap((row) => [row.id, row.evidenceRef]), "economic_usage_record:period"),
+     pricing: provenance(priceRecords.flatMap((row) => [row.id, row.evidenceRef]), "economic_price_evidence:effective"),
   };
   const storageSpend = reconcileEconomicCategorySpend(usageRecords, priceRecords, ["storage", "backup", "embedding"], observedAt);
   const networkSpend = reconcileEconomicCategorySpend(usageRecords, priceRecords, ["network"], observedAt);

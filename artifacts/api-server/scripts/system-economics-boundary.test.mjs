@@ -57,8 +57,8 @@ function usage(overrides = {}) {
     category: "storage",
     quantity: 12,
     unit: "bytes",
-    provider: "boundary-test-provider",
-    sourceRef: sourceRef("usage"),
+    provider: "github",
+    sourceRef: `provider:github:${sourceRef("usage")}`,
     metadata: { testRun: prefix, provenance: "usage-fixture" },
     recordedAt: "2026-08-01T12:00:00.000Z",
     ...overrides,
@@ -71,8 +71,8 @@ function price(overrides = {}) {
     category: "storage",
     unit: "bytes",
     priceUsd: 0.0001,
-    provider: "boundary-test-provider",
-    sourceRef: sourceRef("price"),
+    provider: "github",
+    sourceRef: `provider:github:${sourceRef("price")}`,
     metadata: { testRun: prefix, provenance: "price-fixture" },
     effectiveAt: "2026-07-01T12:00:00.000Z",
     recordedAt: "2026-08-01T12:00:00.000Z",
@@ -162,15 +162,17 @@ test("economics write routes reject invalid records without creating ledger rows
 });
 
 test("economics write routes preserve accepted provenance fields", async () => {
-  const usagePayload = usage({ sourceRef: sourceRef("accepted-usage"), metadata: { testRun: prefix, owner: "founder", evidence: "measured" } });
-  const pricePayload = price({ sourceRef: sourceRef("accepted-price"), metadata: { testRun: prefix, owner: "founder", evidence: "provider-price" } });
+  const usagePayload = usage({ sourceRef: `provider:github:${sourceRef("accepted-usage")}`, recordedAt: new Date().toISOString(), metadata: { testRun: prefix, owner: "founder", evidence: "measured" } });
+  const pricePayload = price({ sourceRef: `provider:github:${sourceRef("accepted-price")}`, effectiveAt: new Date(Date.now() - 1000).toISOString(), recordedAt: new Date().toISOString(), metadata: { testRun: prefix, owner: "founder", evidence: "provider-price" } });
   const usageResult = await post("/api/economics/usage", usagePayload);
   const priceResult = await post("/api/economics/prices", pricePayload);
   assert.equal(usageResult.response.status, 201);
   assert.equal(priceResult.response.status, 201);
   assert.equal(usageResult.body.sourceRef, usagePayload.sourceRef);
+  assert.match(usageResult.body.evidenceRef, /^provider_registration:[0-9a-f-]{36}$/);
   assert.deepEqual(usageResult.body.metadata, usagePayload.metadata);
   assert.equal(priceResult.body.sourceRef, pricePayload.sourceRef);
+  assert.match(priceResult.body.evidenceRef, /^provider_registration:[0-9a-f-]{36}$/);
   assert.deepEqual(priceResult.body.metadata, pricePayload.metadata);
   assert.equal(priceResult.body.provider, pricePayload.provider);
   assert.equal(new Date(usageResult.body.recordedAt).toISOString(), usagePayload.recordedAt);
@@ -179,4 +181,24 @@ test("economics write routes preserve accepted provenance fields", async () => {
   const result = await ledger();
   assert.equal(result.usage.filter((row) => row.sourceRef === usagePayload.sourceRef).length, 1);
   assert.equal(result.prices.filter((row) => row.sourceRef === pricePayload.sourceRef).length, 1);
+  assert.equal(result.usage.find((row) => row.sourceRef === usagePayload.sourceRef).evidenceRef, usageResult.body.evidenceRef);
+  assert.equal(result.prices.find((row) => row.sourceRef === pricePayload.sourceRef).evidenceRef, priceResult.body.evidenceRef);
+
+  const cycleResult = await post("/api/economics/cycle", {});
+  assert.equal(cycleResult.response.status, 201);
+  const storageProvenance = cycleResult.body.summary.metrics["storage.cost_usd"].provenance;
+  assert.ok(storageProvenance.includes(usageResult.body.evidenceRef));
+  assert.ok(storageProvenance.includes(priceResult.body.evidenceRef));
+});
+
+test("economics write routes reject unknown provenance before insertion", async () => {
+  const unknownUsage = usage({ sourceRef: sourceRef("unknown-usage") });
+  const unknownPrice = price({ sourceRef: sourceRef("unknown-price") });
+  const usageResult = await post("/api/economics/usage", unknownUsage);
+  const priceResult = await post("/api/economics/prices", unknownPrice);
+  assert.equal(usageResult.response.status, 400);
+  assert.equal(priceResult.response.status, 400);
+  const result = await ledger();
+  assert.equal(result.usage.some((row) => row.sourceRef === unknownUsage.sourceRef), false);
+  assert.equal(result.prices.some((row) => row.sourceRef === unknownPrice.sourceRef), false);
 });

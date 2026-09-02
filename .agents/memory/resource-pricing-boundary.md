@@ -14,3 +14,9 @@ Pricing reconciliation should have deterministic tests over isolated usage and p
 **Why:** The live usage ledger can contain unrelated provider records that legitimately make a category unavailable, which is useful for integration coverage but unreliable for proving one matching-price rule.
 
 **How to apply:** Test missing evidence, effective-at-or-before matching, and out-of-order price records through the shared reconciler; reserve database-backed cycle tests for status-contract and reconciliation assertions.
+
+Economics writes must resolve their submitted source reference to either an available registered provider contract or an existing internal evidence record before insertion. Keep the submitted reference and the canonical resolved evidence identity separately so reconciliation can show both.
+
+**Why:** A well-formed source string is not evidence by itself; unresolved provenance can make unsupported provider claims look like measured spend.
+
+**How to apply:** Enforce resolution at every HTTP usage and price write, store the canonical identity on the ledger row, and include that identity in measured and unavailable reconciliation provenance.

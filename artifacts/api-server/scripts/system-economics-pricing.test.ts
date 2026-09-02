@@ -12,6 +12,7 @@ function usage(id: string, recordedAt = observedAt): EconomicUsagePricingRecord 
     quantity: 10,
     unit: "bytes",
     provider: "smoke-provider",
+    evidenceRef: `source_vault:${id}`,
     recordedAt,
   };
 }
@@ -24,6 +25,7 @@ function price(id: string, effectiveAt: string, priceUsd: number): EconomicPrice
     unit: "bytes",
     priceUsd,
     provider: "smoke-provider",
+    evidenceRef: `source_vault:${id}`,
     effectiveAt: new Date(effectiveAt),
   };
 }

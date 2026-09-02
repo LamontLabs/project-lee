@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, economicPriceEvidence, economicUsageRecord } from "@workspace/db";
-import { getSystemEconomicsSummary, runSystemEconomicsCycle, systemEconomicsContract } from "../lib/system-economics";
+import { getSystemEconomicsSummary, resolveEconomicEvidence, runSystemEconomicsCycle, systemEconomicsContract } from "../lib/system-economics";
 import { runCILCostBenchmark } from "../lib/cil-cost-benchmark";
 import { z } from "zod";
 
@@ -46,15 +46,25 @@ router.get("/economics/contract", (_req, res): void => {
 router.post("/economics/usage", async (req, res): Promise<void> => {
   const parsed = economicUsageRequestSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid measured usage record.", details: parsed.error.flatten() }); return; }
-  const [record] = await db.insert(economicUsageRecord).values(parsed.data).returning();
-  res.status(201).json(record);
+  try {
+    const evidence = await resolveEconomicEvidence(parsed.data.sourceRef, parsed.data.provider);
+    const [record] = await db.insert(economicUsageRecord).values({ ...parsed.data, evidenceRef: evidence.evidenceRef }).returning();
+    res.status(201).json(record);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Economic usage provenance is invalid." });
+  }
 });
 
 router.post("/economics/prices", async (req, res): Promise<void> => {
   const parsed = economicPriceRequestSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid price evidence.", details: parsed.error.flatten() }); return; }
-  const [record] = await db.insert(economicPriceEvidence).values(parsed.data).returning();
-  res.status(201).json(record);
+  try {
+    const evidence = await resolveEconomicEvidence(parsed.data.sourceRef, parsed.data.provider);
+    const [record] = await db.insert(economicPriceEvidence).values({ ...parsed.data, evidenceRef: evidence.evidenceRef }).returning();
+    res.status(201).json(record);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Price provenance is invalid." });
+  }
 });
 
 router.get("/economics/ledger", async (_req, res): Promise<void> => {

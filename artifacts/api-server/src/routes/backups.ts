@@ -42,6 +42,7 @@ router.post("/backups/create", async (_req, res) => {
     unit: "bytes",
     provider: "backup-engine",
     sourceRef: saved.id,
+    evidenceRef: `backup_archive:${saved.id}`,
     metadata: { backupId: saved.backupId },
     recordedAt: saved.createdAt,
   });

@@ -14,6 +14,7 @@ $mockLog = Join-Path $testRoot "mock-k6-requests.log"
 $configFile = Join-Path $appData "Project LEE\config.json"
 $migrationLog = Join-Path $appData "Project LEE\logs\migration.log"
 $databaseDir = Join-Path $appData "Project LEE\database"
+$migrationUpgradeFile = Join-Path $testRoot "migration-upgrade.json"
 $appExe = $null
 
 New-Item -ItemType Directory -Force $testRoot | Out-Null
@@ -209,6 +210,14 @@ try {
     --resources-root (Join-Path (Split-Path $appExe) "resources") `
     --source-file (Join-Path $PSScriptRoot "..\src\runtime.ts") `
     --platform windows
+  node (Join-Path $PSScriptRoot "migration-upgrade-smoke.mjs") `
+    --resources-root (Join-Path (Split-Path $appExe) "resources") `
+    --postgres-root (Join-Path (Split-Path $appExe) "resources\postgres") `
+    --platform windows `
+    --output $migrationUpgradeFile
+  $migrationUpgrade = Get-Content $migrationUpgradeFile -Raw | ConvertFrom-Json
+  Assert-True ($migrationUpgrade.status -eq "passed" -and $migrationUpgrade.migration.previousJournalEntries -eq 1 -and $migrationUpgrade.migration.upgradedJournalEntries -eq 2) "existing-database migration upgrade did not complete"
+  Write-Host ("Migration upgrade evidence: " + ($migrationUpgrade.migration | ConvertTo-Json -Compress))
 
   $commonEnvironment = @{
     APPDATA = $appData
@@ -423,7 +432,7 @@ try {
     Stop-Mock $mock
   }
 
-  Write-Host "LEE Windows installer smoke test passed: clean launch, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
+  Write-Host "LEE Windows installer smoke test passed: clean launch, existing-database migration upgrade, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }

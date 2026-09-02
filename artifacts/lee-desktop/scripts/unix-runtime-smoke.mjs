@@ -19,11 +19,24 @@ verifyPostgresRuntime(join(resourcesRoot, "postgres"), { platform, architecture 
 const testRoot = await mkdtemp(join(tmpdir(), "lee-desktop-runtime-smoke-"));
 const configRoot = join(testRoot, "config");
 const statusFile = join(testRoot, "runtime-status.json");
+const migrationUpgradeFile = join(testRoot, "migration-upgrade.json");
 const env = { ...process.env, XDG_CONFIG_HOME: configRoot, LEE_SMOKE_STATUS_FILE: statusFile, LEE_DESKTOP_API_PORT: "43917" };
 delete env.APPDATA;
 delete env.DATABASE_URL;
 
 try {
+  execFileSync(process.execPath, [
+    join(dirname(new URL(import.meta.url).pathname), "migration-upgrade-smoke.mjs"),
+    "--resources-root", resourcesRoot,
+    "--postgres-root", join(resourcesRoot, "postgres"),
+    "--platform", platform,
+    "--output", migrationUpgradeFile,
+  ], { cwd: dirname(new URL(import.meta.url).pathname), env, stdio: "inherit" });
+  const migrationUpgrade = JSON.parse(await readFile(migrationUpgradeFile, "utf8"));
+  if (migrationUpgrade.status !== "passed" || migrationUpgrade.migration?.previousJournalEntries !== 1 || migrationUpgrade.migration?.upgradedJournalEntries !== 2) {
+    throw new Error(`Existing-database migration upgrade did not complete: ${JSON.stringify(migrationUpgrade)}`);
+  }
+
   const child = spawn(appPath, ["--lee-smoke-exit"], { cwd: dirname(appPath), env, stdio: "inherit" });
   const exitCode = await new Promise((resolveExit, reject) => {
     child.once("error", reject);
@@ -47,7 +60,7 @@ try {
     throw new Error("PostgreSQL survived the packaged LEE shutdown.");
   }
 
-  console.log("LEE Unix desktop runtime smoke passed: bundled PostgreSQL initialization, startup, migration, contract health, and shutdown.");
+  console.log(`LEE Unix desktop runtime smoke passed: bundled PostgreSQL initialization, existing-database migration upgrade ${JSON.stringify(migrationUpgrade.migration)}, startup, migration, contract health, and shutdown.`);
 } finally {
   await rm(testRoot, { recursive: true, force: true });
 }

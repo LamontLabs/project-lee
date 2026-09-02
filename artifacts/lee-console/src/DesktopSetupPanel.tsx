@@ -12,6 +12,10 @@ type RuntimeSnapshot = {
   checks: Record<string, CheckState>;
   reason: string | null;
   migrationLogPath: string;
+  apiLogPath?: string;
+  postgresLogPath?: string;
+  apiProcessId?: number | null;
+  postgresProcessId?: number | null;
 };
 type UpdateState = { status: "unsupported" | "idle" | "checking" | "available" | "not-available" | "downloading" | "downloaded" | "error"; version?: string; message?: string };
 type ExternalService = { serviceId?: string; currentHealth?: ExternalHealth; displayName?: string; failurePolicy?: string };
@@ -40,6 +44,7 @@ declare global {
   interface Window {
     leeRuntime?: {
       status: () => Promise<RuntimeSnapshot>;
+      restartRuntime: () => Promise<RuntimeSnapshot>;
       discoverLocalServices: () => Promise<LocalServiceDiscoveryPayload>;
       updateStatus: () => Promise<UpdateState>;
       checkForUpdates: () => Promise<UpdateState>;
@@ -61,6 +66,7 @@ export function DesktopSetupPanel() {
   const [services, setServices] = useState<ExternalService[]>([]);
   const [connections, setConnections] = useState<Array<Record<string, unknown>>>([]);
   const [update, setUpdate] = useState<UpdateState | null>(null);
+  const [restarting, setRestarting] = useState(false);
   useEffect(() => {
     if (!window.leeRuntime) return;
     let active = true;
@@ -115,7 +121,18 @@ export function DesktopSetupPanel() {
               LEE keeps its database and operating records on this computer. Core, AI, governance, and project operations report independently.
             </p>
           </div>
-          {runtime.reason && <p className="max-w-md text-right text-xs text-amber-200">{runtime.reason}</p>}
+           <div className="max-w-md text-right text-xs text-amber-200">
+             {runtime.reason && <p>{runtime.reason}</p>}
+             {runtime.state !== "live" && <button
+               type="button"
+               disabled={restarting}
+               onClick={() => {
+                 setRestarting(true);
+                 void window.leeRuntime?.restartRuntime().then(setRuntime).finally(() => setRestarting(false));
+               }}
+               className="mt-2 rounded-lg border border-sidebar-primary/40 px-3 py-1.5 font-semibold text-sidebar-primary disabled:opacity-50"
+             >{restarting ? "Restarting runtime…" : "Restart local runtime"}</button>}
+           </div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {readiness.map((item) => <ReadinessCard key={item.label} {...item} />)}
@@ -126,7 +143,11 @@ export function DesktopSetupPanel() {
           <Status label="CIL authority" state={cilHealth === "healthy" ? "live" : cilHealth} />
           <Status label="CerbaSeal authority" state={governanceHealth === "healthy" ? "live" : governanceHealth} />
         </div>
-        {runtime.migration === "failed" && <p className="mt-3 text-xs text-amber-200">Migration log: {runtime.migrationLogPath}</p>}
+         {(runtime.migration === "failed" || runtime.state !== "live") && <div className="mt-3 space-y-1 text-xs text-sidebar-foreground/60">
+           {runtime.migration === "failed" && <p>Migration log: {runtime.migrationLogPath}</p>}
+           {runtime.apiLogPath && <p>API log: {runtime.apiLogPath}{runtime.apiProcessId ? ` · process ${runtime.apiProcessId}` : ""}</p>}
+           {runtime.postgresLogPath && <p>PostgreSQL log: {runtime.postgresLogPath}{runtime.postgresProcessId ? ` · process ${runtime.postgresProcessId}` : ""}</p>}
+         </div>}
         {update && update.status !== "unsupported" && update.status !== "idle" && update.status !== "not-available" && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sidebar-primary/30 bg-sidebar-accent/40 px-3 py-2.5 text-xs">
           <span>{update.status === "available" ? `A new LEE version is ready${update.version ? ` · ${update.version}` : ""}.` : update.status === "downloaded" ? `LEE ${update.version ?? "update"} is ready to install.` : update.status === "downloading" ? `Downloading LEE update${update.message ? ` · ${update.message}` : ""}` : update.status === "checking" ? "Checking for LEE updates…" : update.message ?? "LEE update check failed."}</span>
           {update.status === "available" && <button onClick={() => void window.leeRuntime?.downloadUpdate()} className="rounded-lg bg-sidebar-primary px-3 py-1.5 font-semibold text-sidebar-primary-foreground">Download update</button>}

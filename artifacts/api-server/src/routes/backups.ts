@@ -1,7 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { backupArchive, db, economicUsageRecord, eventLog } from "@workspace/db";
-import { collectPortableBackup, digest, getLocalBackupStatus, verifyPortableBackup, writeLocalBackupArchive } from "../lib/backup-restore";
+import { buildRestorePreflight, collectPortableBackup, digest, getLocalBackupStatus, verifyPortableBackup, writeLocalBackupArchive } from "../lib/backup-restore";
 
 const router: IRouter = Router();
 
@@ -14,13 +14,16 @@ router.get("/backups/status", async (_req, res) => {
     latest,
     backups,
     readinessScore: latest ? Math.max(0, Math.min(100, Math.round(100 - (ageHours ?? 100) * 2))) : 0,
-    portability: { rawSources: true, providerTokensExcluded: true, checksums: Boolean(latest?.manifest), restoreMode: "isolated-clean-database-verifier", localArchive: Boolean(latest?.localFileCopy) },
+    portability: { rawSources: true, providerTokensExcluded: true, checksums: Boolean(latest?.manifest), restoreMode: "isolated-postgresql-schema-verifier", localArchive: Boolean(latest?.localFileCopy) },
   });
 });
 
-router.post("/backups/create", async (_req, res) => {
+router.post("/backups/create", async (req, res) => {
   try {
-    const result = await collectPortableBackup();
+    const result = await collectPortableBackup({
+      backupClass: req.body?.backupClass,
+      reason: req.body?.reason,
+    });
     const localArchive = await writeLocalBackupArchive(result);
     const [saved] = await db.insert(backupArchive).values({
       backupId: result.backupId,
@@ -70,9 +73,9 @@ router.post("/backups/:id/verify", async (req, res) => {
 router.post("/backups/:id/test-restore", async (req, res) => {
   const [backup] = await db.select().from(backupArchive).where(eq(backupArchive.id, req.params.id)).limit(1);
   if (!backup) { res.status(404).json({ error: "Backup not found." }); return; }
-  const [beforeEventCount] = await db.select({ count: eventLog.id }).from(eventLog);
+  const [beforeEventCount] = await db.select({ count: count() }).from(eventLog);
   const evidence = await verifyPortableBackup(backup.manifest, backup.payload);
-  const [afterEventCount] = await db.select({ count: eventLog.id }).from(eventLog);
+  const [afterEventCount] = await db.select({ count: count() }).from(eventLog);
   const productionUntouched = beforeEventCount?.count === afterEventCount?.count;
   const checks = [...evidence.checks, {
     name: "production-canonical-state-untouched",
@@ -80,13 +83,24 @@ router.post("/backups/:id/test-restore", async (req, res) => {
     evidence: { beforeEventCount: beforeEventCount?.count ?? 0, afterEventCount: afterEventCount?.count ?? 0 },
   }];
   const overall = checks.some((check) => check.result === "FAIL") ? "FAIL" : checks.some((check) => check.result === "WARN") ? "WARN" : "PASS";
-  const finalEvidence = { ...evidence, overall, checks, isolatedDatabase: { mode: "clean-in-memory-restore-sandbox", productionConnectionUsedForRestore: false } };
+  const finalEvidence = { ...evidence, overall, checks };
   await db.update(backupArchive).set({
     restoreTestedAt: new Date(),
     restoreTestStatus: overall === "PASS" ? "passed" : overall === "WARN" ? "warning" : "failed",
     restoreEvidence: finalEvidence,
   }).where(eq(backupArchive.id, backup.id));
   res.json({ passed: overall !== "FAIL", isolated: true, evidence: finalEvidence });
+});
+
+router.get("/backups/:id/restore-preflight", async (req, res) => {
+  const [backup] = await db.select().from(backupArchive).where(eq(backupArchive.id, req.params.id)).limit(1);
+  if (!backup) { res.status(404).json({ error: "Backup not found." }); return; }
+  try {
+    const evidence = await verifyPortableBackup(backup.manifest, backup.payload);
+    res.json(buildRestorePreflight(backup.manifest, backup.payload, evidence));
+  } catch (error) {
+    res.status(422).json({ error: error instanceof Error ? error.message : "Restore preflight failed." });
+  }
 });
 
 router.get("/backups/:id/download", async (req, res) => {

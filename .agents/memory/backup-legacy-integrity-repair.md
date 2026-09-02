@@ -14,3 +14,9 @@ Append-only repair events can be appended after a legacy update even though they
 **Why:** Repair cannot rewrite the original event sequence, so a literal chronological replay would otherwise report a false missing-object conflict and leave the checkpoint/result cursors inconsistent.
 
 **How to apply:** Keep the exception scoped to marked repair creates; ordinary update-only histories remain conflicts. Scope projection cursors and returned last-event IDs to events handled by that projection.
+
+Portable restore verification must hydrate the snapshot into real PostgreSQL tables cloned from the migrated schema, then exercise the Event Log append-only trigger in that isolated scope; JSON row staging alone is not a restore test.
+
+**Why:** Checksums and replay assertions can pass while a fresh installation still fails on column types, constraints, or trigger protection.
+
+**How to apply:** Keep the isolated schema transactional and disposable, report per-table counts and original SQL errors, and permit replacement import only when every canonical table in the target installation is empty.

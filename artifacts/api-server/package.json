@@ -17,6 +17,7 @@
     "test:event-replay": "node --test scripts/event-replay.test.mjs",
     "test:backup-restore": "node --test scripts/backup-restore.test.mjs",
     "test:backup-restore-legacy": "node scripts/backup-restore-legacy.test.mjs",
+    "test:backup-restore-failure-injection": "node scripts/backup-restore-failure-injection.test.mjs",
     "test:time-machine-hostile": "node --test scripts/time-machine-hostile.test.mjs",
     "test:event-delivery": "node scripts/event-delivery.test.mjs",
     "test:consequential-execution": "node scripts/consequential-execution.test.mjs",

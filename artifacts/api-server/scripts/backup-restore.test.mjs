@@ -11,7 +11,7 @@ async function request(path, options = {}) {
 }
 
 test("portable backup restores in an isolated sandbox without overwriting production", async () => {
-  const created = await request("/backups/create", { method: "POST" });
+  const created = await request("/backups/create", { method: "POST", body: JSON.stringify({ backupClass: "owner_snapshot", reason: "integration recovery point" }) });
   assert.equal(created.response.status, 201);
   assert.equal(created.body.formatVersion, "2");
   const requiredTables = [
@@ -22,6 +22,8 @@ test("portable backup restores in an isolated sandbox without overwriting produc
   for (const table of requiredTables) assert.ok(created.body.manifest.tables.includes(table), `missing ${table}`);
   assert.equal(created.body.manifest.integrity.algorithm, "sha256");
   assert.equal(created.body.manifest.production_restore_allowed, false);
+  assert.equal(created.body.manifest.backup_class, "owner_snapshot");
+  assert.equal(created.body.manifest.restore_compatibility.provider_credentials_included, false);
 
   const before = await request("/events?limit=500");
   const verified = await request(`/backups/${created.body.id}/verify`, { method: "POST" });
@@ -38,6 +40,14 @@ test("portable backup restores in an isolated sandbox without overwriting produc
   assert.ok(restored.body.evidence.checks.some((check) => check.name === "canonical-state-equality" && check.result === "PASS"));
   assert.ok(restored.body.evidence.checks.some((check) => check.name === "isolated-clean-database-restore" && check.result === "PASS"));
   assert.ok(restored.body.evidence.checks.some((check) => check.name === "production-canonical-state-untouched" && check.result === "PASS"));
+
+  const preflight = await request(`/backups/${created.body.id}/restore-preflight`);
+  assert.equal(preflight.response.status, 200);
+  assert.equal(preflight.body.eligible, true);
+  assert.equal(preflight.body.requiresOwnerConfirmation, true);
+  assert.equal(preflight.body.target, "replacement-installation");
+  assert.equal(preflight.body.overwritePolicy, "never-overwrite-existing-installation");
+  assert.equal(preflight.body.impact.providerCredentialsIncluded, false);
 
   const after = await request("/events?limit=500");
   assert.deepEqual(after.body.map((event) => event.id), before.body.map((event) => event.id));

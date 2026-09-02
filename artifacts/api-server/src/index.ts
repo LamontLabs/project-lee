@@ -18,6 +18,7 @@ import { computeProjectMomentum } from "./lib/project-momentum";
 import { detectOpportunities } from "./lib/opportunity";
 import { deliverDurableEvents } from "./lib/event-delivery";
 import { registerOperationalIntelligenceRefresh } from "./lib/operational-intelligence";
+import { restorePortableBackupIntoEmptyDatabase } from "./lib/backup-restore";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -39,7 +40,12 @@ if (process.env.LEE_DATA_DIR) {
   for (const name of ["backups", "logs", "brain", "event-log"]) mkdirSync(join(process.env.LEE_DATA_DIR, name), { recursive: true });
 }
 
-startBoot().catch((err) => logger.error({ err }, "Boot mode selection failed"));
+const replacementRestore = process.env.LEE_RESTORE_BACKUP_PATH
+  ? restorePortableBackupIntoEmptyDatabase(process.env.LEE_RESTORE_BACKUP_PATH)
+    .then((result) => logger.info({ backupId: result.backupId, brainVersion: result.brainVersion }, "Replacement Brain restore completed"))
+    .catch((err) => logger.error({ err }, "Replacement Brain restore blocked; continuing in protected recovery mode"))
+  : Promise.resolve();
+replacementRestore.then(() => startBoot()).catch((err) => logger.error({ err }, "Boot mode selection failed"));
 ensureKnowledgeAgingJob().catch((err) => logger.error({ err }, "Knowledge aging job registration failed"));
 ensureWorldStateJob().catch((err) => logger.error({ err }, "World state job registration failed"));
 ensureOperationalMemoryJob().catch((err) => logger.error({ err }, "Operational memory job registration failed"));

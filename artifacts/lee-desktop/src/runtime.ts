@@ -427,6 +427,7 @@ export class RuntimeSupervisor {
       PORT: String(this.port),
       NODE_ENV: this.production ? "production" : "development",
       LEE_DATA_DIR: dataDir,
+      ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
       ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     const apiLog = this.openLog(this.snapshot.apiLogPath);
@@ -499,6 +500,7 @@ export class RuntimeSupervisor {
         PORT: String(this.port),
         NODE_ENV: this.production ? "production" : "development",
         LEE_DATA_DIR: dataDir,
+        ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
         ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
       },
       stdio: ["ignore", this.openLog(this.snapshot.apiLogPath), this.openLog(this.snapshot.apiLogPath)],

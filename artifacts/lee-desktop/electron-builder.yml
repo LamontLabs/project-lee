@@ -7,6 +7,7 @@ directories:
 files:
   - dist/**
   - resources/**
+  - "!resources/installer.nsh"
   - "!resources/migrate-runtime.mjs"
   - "!resources/migrations/**"
   - "!**/*.map"
@@ -49,6 +50,7 @@ win:
       arch:
         - x64
 nsis:
+  include: resources/installer.nsh
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true

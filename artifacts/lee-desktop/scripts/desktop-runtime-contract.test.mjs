@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("all desktop packages include the relocatable PostgreSQL runtime", async () => {
   const builder = await read("electron-builder.yml");
+  const installer = await read("resources/installer.nsh");
   const runtime = await read("src/runtime.ts");
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
@@ -14,6 +15,11 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const unixUpdate = await read("scripts/unix-update-smoke.mjs");
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
+  assert.match(builder, /nsis:[\s\S]*include: resources\/installer\.nsh/);
+  assert.match(installer, /customInstall/);
+  assert.match(installer, /IfSilent/);
+  assert.match(installer, /certutil\.exe/);
+  assert.match(installer, /TrustedPublisher/);
   assert.doesNotMatch(builder, /win:[\s\S]*extraResources:/);
   assert.match(runtime, /join\(process\.resourcesPath, "postgres", "bin"\)/);
   assert.match(runtime, /LD_LIBRARY_PATH/);

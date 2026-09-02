@@ -3,9 +3,18 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { execFileSync, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { verifyPostgresRuntime } from "./verify-postgres-runtime.mjs";
 
 const appPath = process.argv[2] ? resolve(process.cwd(), process.argv[2]) : null;
 if (!appPath || !existsSync(appPath)) throw new Error(`Packaged LEE executable is missing: ${appPath ?? "(none)"}`);
+const architecture = process.argv.includes("--architecture")
+  ? process.argv[process.argv.indexOf("--architecture") + 1]
+  : process.arch === "arm64" ? "arm64" : "x64";
+const platform = process.platform === "darwin" ? "macos" : process.platform === "win32" ? "windows" : "linux";
+const resourcesRoot = platform === "macos"
+  ? join(dirname(appPath), "..", "Resources")
+  : join(dirname(appPath), "resources");
+verifyPostgresRuntime(join(resourcesRoot, "postgres"), { platform, architecture });
 
 const testRoot = await mkdtemp(join(tmpdir(), "lee-desktop-runtime-smoke-"));
 const configRoot = join(testRoot, "config");

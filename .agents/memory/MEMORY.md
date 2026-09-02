@@ -58,3 +58,4 @@
 - [Cross-artifact visual language](cross-artifact-visual-language.md) — LEE UI uses black lacquer surfaces, crimson accents, red grid lines, grain, and restrained metallic sheen.
 - [Packaged desktop migration boundary](desktop-migration-boundary.md) — installed desktop startup migrates from bundled SQL and a runner, never the development workspace.
 - [Signed update validation](signed-update-validation.md) — published desktop feeds need tamper rejection, valid install, and retained evidence on each platform.
+- [macOS PostgreSQL runtime closure](macos-postgres-closure.md) — bundled native libraries must be architecture-matched, loader-relative, and independent of Homebrew paths.

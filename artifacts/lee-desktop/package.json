@@ -25,6 +25,7 @@
     "smoke:unix": "node scripts/unix-runtime-smoke.mjs",
     "test:runtime-contract": "node --test scripts/desktop-runtime-contract.test.mjs",
     "test:migration-assets": "node --test scripts/migration-assets-contract.test.mjs",
+    "test:postgres-runtime": "node --test scripts/postgres-runtime-contract.test.mjs",
     "verify:update-feed": "node scripts/verify-updater-feed.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

@@ -60,3 +60,4 @@
 - [Signed update validation](signed-update-validation.md) — published desktop feeds need tamper rejection, valid install, and retained evidence on each platform.
 - [macOS PostgreSQL runtime closure](macos-postgres-closure.md) — bundled native libraries must be architecture-matched, loader-relative, and independent of Homebrew paths.
 - [Desktop update interruption](desktop-update-interruption.md) — interrupted download/install phases must preserve a live previous version before retry.
+ - [Hosted release prerequisites](hosted-release-prerequisites.md) — local checks cannot replace a published tagged run from a GitHub connection with target-repository and signing-secret access.

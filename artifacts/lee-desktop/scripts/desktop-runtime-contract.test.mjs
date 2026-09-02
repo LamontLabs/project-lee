@@ -52,7 +52,7 @@ test("release jobs stage and smoke-test PostgreSQL on every supported desktop pl
   assert.match(workflow, /xvfb-run --auto-servernum/);
   assert.match(workflow, /windows-update-smoke\.ps1/);
   assert.match(workflow, /download-release-assets\.mjs/);
-  assert.match(workflow, /update-verification-\$\{\{ matrix\.platform \}\}\.json/);
+  assert.match(workflow, /update-verification-\$\{\{ matrix\.evidence_suffix \}\}\.json/);
   assert.match(workflow, /Verify packaged Linux migration assets/);
   assert.match(workflow, /verify-packaged-migrations\.mjs/);
   assert.match(workflow, /--platform windows/);

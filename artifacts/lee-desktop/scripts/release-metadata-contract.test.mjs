@@ -57,3 +57,15 @@ test("publish workflow keeps macOS metadata separate until it is merged", async 
   assert.match(workflow, /write-release-manifest\.mjs --platform macos --version/);
   assert.match(manifest, /versionArgument/);
 });
+
+test("published update evidence is unique for every validation matrix entry", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/lee-desktop-release.yml", import.meta.url), "utf8");
+  assert.match(workflow, /evidence_suffix: windows/);
+  assert.match(workflow, /evidence_suffix: macos-x64/);
+  assert.match(workflow, /evidence_suffix: macos-arm64/);
+  assert.match(workflow, /evidence_suffix: linux/);
+  assert.match(workflow, /name: lee-update-verification-\$\{\{ matrix\.evidence_suffix \}\}/);
+  assert.match(workflow, /update-verification-\$\{\{ matrix\.evidence_suffix \}\}\.json/);
+  assert.match(workflow, /UPDATE-VERIFICATION-\$\{\{ matrix\.evidence_suffix \}\}\.md/);
+  assert.doesNotMatch(workflow, /gh release upload[\s\S]*update-verification-\$\{\{ matrix\.platform \}\}\.json/);
+});

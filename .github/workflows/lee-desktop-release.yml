@@ -377,14 +377,18 @@ jobs:
         include:
           - platform: windows
             runner: windows-latest
+            evidence_suffix: windows
           - platform: macos
             runner: macos-13
             architecture: x64
+            evidence_suffix: macos-x64
           - platform: macos
             runner: macos-14
             architecture: arm64
+            evidence_suffix: macos-arm64
           - platform: linux
             runner: ubuntu-latest
+            evidence_suffix: linux
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
@@ -414,7 +418,7 @@ jobs:
             -CurrentDir "$env:RUNNER_TEMP\lee-update\current" `
             -PreviousDir "$env:RUNNER_TEMP\lee-update\previous" `
             -ExpectedVersion "$env:LEE_UPDATE_VERSION" `
-            -Output "$env:GITHUB_WORKSPACE\update-verification-windows.json" `
+            -Output "$env:GITHUB_WORKSPACE\update-verification-${{ matrix.evidence_suffix }}.json" `
             -Selection "$env:RUNNER_TEMP\lee-update\selection.json"
       - name: Verify macOS or Linux signed update installation
         if: matrix.platform != 'windows'
@@ -434,7 +438,7 @@ jobs:
               --previous-dir "$RUNNER_TEMP/lee-update/previous" \
               --expected-version "$LEE_UPDATE_VERSION" \
               --record "$RUNNER_TEMP/lee-update/selection.json" \
-              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.platform }}.json"
+              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json"
           else
             node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
               --platform "${{ matrix.platform }}" \
@@ -443,23 +447,23 @@ jobs:
               --previous-dir "$RUNNER_TEMP/lee-update/previous" \
               --expected-version "$LEE_UPDATE_VERSION" \
               --record "$RUNNER_TEMP/lee-update/selection.json" \
-              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.platform }}.json"
+              --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json"
           fi
       - name: Write signed update verification checklist
         shell: bash
         run: |
           node artifacts/lee-desktop/scripts/write-update-verification-checklist.mjs \
-            --input "$GITHUB_WORKSPACE/update-verification-${{ matrix.platform }}.json" \
-            --output "$GITHUB_WORKSPACE/UPDATE-VERIFICATION-${{ matrix.platform }}.md"
+            --input "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json" \
+            --output "$GITHUB_WORKSPACE/UPDATE-VERIFICATION-${{ matrix.evidence_suffix }}.md"
       - uses: actions/upload-artifact@v4
         with:
-          name: lee-update-verification-${{ matrix.platform }}
+          name: lee-update-verification-${{ matrix.evidence_suffix }}
           path: |
-            update-verification-${{ matrix.platform }}.json
-            UPDATE-VERIFICATION-${{ matrix.platform }}.md
+            update-verification-${{ matrix.evidence_suffix }}.json
+            UPDATE-VERIFICATION-${{ matrix.evidence_suffix }}.md
           if-no-files-found: error
       - name: Retain verification evidence with the published release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" "update-verification-${{ matrix.platform }}.json" "UPDATE-VERIFICATION-${{ matrix.platform }}.md" --clobber
+        run: gh release upload "$GITHUB_REF_NAME" "update-verification-${{ matrix.evidence_suffix }}.json" "UPDATE-VERIFICATION-${{ matrix.evidence_suffix }}.md" --clobber

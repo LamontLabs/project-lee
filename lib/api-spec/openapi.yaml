@@ -1,0 +1,1427 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: systems
+    description: Read-only connected-system capability inventory
+  - name: understanding
+    description: Source ingestion and knowledge extraction
+  - name: reasoning
+    description: Context budgeting and model routing
+  - name: connectors
+    description: Read-only provider synchronization and normalization
+  - name: costs
+    description: Reasoning usage and cost accounting
+  - name: brain-versions
+    description: Checksummed brain snapshots and restore verification
+  - name: scheduler
+    description: Persisted orchestration jobs and scheduler calendar
+  - name: governance
+    description: Fail-closed CerbaSeal authorization boundary
+  - name: memory
+    description: Epistemic memory retrieval and consolidation
+  - name: graph
+    description: Typed knowledge graph nodes, edges, and traversal
+  - name: relationships
+    description: People, interactions, relationship health, and cadence
+  - name: reviews
+    description: Permanent operational review narratives
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /systems/cil/model-inventory:
+    get:
+      operationId: getCilModelInventory
+      tags: [systems]
+      summary: Read the CIL model inventory
+      description: Returns configured, enabled, available, and unavailable CIL models. This endpoint is observational and cannot select or mutate a route.
+      responses:
+        "200":
+          description: Current CIL model inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CilModelInventoryResponse"
+        "502":
+          description: CIL inventory unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /understanding/runs:
+    post:
+      operationId: createUnderstandingRun
+      tags: [understanding]
+      summary: Process a source through the understanding pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnderstandingRunInput"
+      responses:
+        "201":
+          description: Completed understanding run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnderstandingRunResult"
+        "400":
+          description: Invalid source input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listUnderstandingRuns
+      tags: [understanding]
+      summary: List recent understanding runs
+      responses:
+        "200":
+          description: Recent runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UnderstandingRunSummary"
+  /reasoning/route:
+    post:
+      operationId: routeReasoningRequest
+      tags: [reasoning]
+      summary: Route a reasoning request through the context economy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasoningRequestInput"
+      responses:
+        "200":
+          description: Routed reasoning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReasoningRouteResult"
+        "400":
+          description: Invalid reasoning request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /connectors/sync:
+    post:
+      operationId: syncConnector
+      tags: [connectors]
+      summary: Normalize a read-only provider sync batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorSyncInput"
+      responses:
+        "201":
+          description: Connector sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorSyncResult"
+        "400":
+          description: Invalid connector payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Write operation requires CerbaSeal authorization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /connectors/health:
+    get:
+      operationId: listConnectorHealth
+      tags: [connectors]
+      summary: List connector health
+      responses:
+        "200":
+          description: Connector health signals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConnectorHealth"
+  /costs/summary:
+    get:
+      operationId: getCostSummary
+      tags: [costs]
+      summary: Summarize recorded reasoning costs
+      responses:
+        "200":
+          description: Cost summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostSummary"
+  /brain-versions:
+    post:
+      operationId: createBrainVersion
+      tags: [brain-versions]
+      summary: Create and verify a checksummed brain snapshot
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrainVersionInput"
+      responses:
+        "201":
+          description: Brain snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrainVersion"
+    get:
+      operationId: listBrainVersions
+      tags: [brain-versions]
+      summary: List brain snapshots
+      responses:
+        "200":
+          description: Brain snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrainVersionSummary"
+  /brain-versions/{id}/restore:
+    post:
+      operationId: restoreBrainVersion
+      tags: [brain-versions]
+      summary: Verify a snapshot and initiate a restore preflight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreBrainVersionInput"
+      responses:
+        "200":
+          description: Restore verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreBrainVersionResult"
+        "404":
+          description: Snapshot not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /scheduler/jobs:
+    post:
+      operationId: scheduleJob
+      tags: [scheduler]
+      summary: Schedule a persisted orchestration job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleJobInput"
+      responses:
+        "201":
+          description: Job scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledJob"
+    get:
+      operationId: listScheduledJobs
+      tags: [scheduler]
+      summary: Query the scheduler calendar
+      responses:
+        "200":
+          description: Scheduled jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduledJob"
+  /scheduler/jobs/{id}/run:
+    post:
+      operationId: runScheduledJob
+      tags: [scheduler]
+      summary: Run a scheduled job and record its lifecycle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Job completed or failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledJobRunResult"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /governance/evaluate:
+    post:
+      operationId: evaluateGovernedRequest
+      tags: [governance]
+      summary: Submit a consequential action to CerbaSeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GovernedRequest"
+      responses:
+        "200":
+          description: Governance decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GovernedResponse"
+        "400":
+          description: Invalid governed request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /memory/index:
+    post:
+      operationId: indexMemoryObject
+      tags: [memory]
+      summary: Add retrieval metadata for a knowledge object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryIndexInput"
+      responses:
+        "201":
+          description: Indexed memory object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryIndex"
+  /memory/search:
+    get:
+      operationId: searchMemory
+      tags: [memory]
+      summary: Search indexed memory by tag, project, entity, and time
+      parameters:
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Matching memory index entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemoryIndex"
+  /memory/consolidate:
+    post:
+      operationId: consolidateMemory
+      tags: [memory]
+      summary: Detect contradictions across fact records
+      responses:
+        "200":
+          description: Consolidation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryConsolidationResult"
+  /graph/edges:
+    post:
+      operationId: createGraphEdge
+      tags: [graph]
+      summary: Create a validated typed graph edge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraphEdgeInput"
+      responses:
+        "201":
+          description: Graph edge created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphEdge"
+        "400":
+          description: Invalid edge type or request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /graph/traverse/{objectType}/{objectId}:
+    get:
+      operationId: traverseGraph
+      tags: [graph]
+      summary: Traverse outgoing graph edges
+      parameters:
+        - name: objectType
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: objectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Traversal result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphTraversalResult"
+  /relationships/people:
+    post:
+      operationId: createPerson
+      tags: [relationships]
+      summary: Create or update a person identity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonInput"
+      responses:
+        "201":
+          description: Person created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+    get:
+      operationId: listPeople
+      tags: [relationships]
+      summary: List relationship records
+      responses:
+        "200":
+          description: People
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Person"
+  /relationships/people/{id}/interactions:
+    post:
+      operationId: recordRelationshipInteraction
+      tags: [relationships]
+      summary: Record a person interaction and refresh relationship health
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipInteractionInput"
+      responses:
+        "201":
+          description: Interaction recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InteractionResult"
+  /reviews/generate:
+    post:
+      operationId: generateOperationalReview
+      tags: [reviews]
+      summary: Generate a permanent operational review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateReviewInput"
+      responses:
+        "201":
+          description: Generated operational review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalReview"
+  /reviews:
+    get:
+      operationId: listOperationalReviews
+      tags: [reviews]
+      summary: Browse operational reviews
+      parameters:
+        - name: cadence
+          in: query
+          schema:
+            type: string
+            enum: [weekly, monthly, quarterly, annual]
+      responses:
+        "200":
+          description: Operational reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OperationalReviewSummary"
+  /reviews/{id}:
+    get:
+      operationId: getOperationalReview
+      tags: [reviews]
+      summary: Retrieve an operational review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Operational review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationalReview"
+components:
+  schemas:
+    CilModelInventoryResponse:
+      type: object
+      properties:
+        readOnly:
+          type: boolean
+          const: true
+        inventory:
+          type: object
+          properties:
+            correlation_id:
+              type: string
+            total_configured:
+              type: integer
+            total_enabled:
+              type: integer
+            total_available:
+              type: integer
+            total_unavailable:
+              type: integer
+            models:
+              type: array
+              items:
+                type: object
+                properties:
+                  model_id:
+                    type: string
+                  provider:
+                    type: string
+                  status:
+                    type: string
+                  enabled:
+                    type: boolean
+                  route_ids:
+                    type: array
+                    items:
+                      type: string
+                required: [model_id, provider, status, enabled, route_ids]
+          required: [correlation_id, total_configured, total_enabled, total_available, total_unavailable, models]
+      required: [readOnly, inventory]
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    UnderstandingRunInput:
+      type: object
+      properties:
+        sourceType:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Type of source being ingested, such as note, email, document, or message.
+        sourceRef:
+          type: string
+          minLength: 1
+          description: Stable reference to the source. Required for every emitted record.
+        sourceReliability:
+          type: string
+          enum: [high, medium, low]
+          default: medium
+        content:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [sourceType, sourceRef, content]
+    ExtractedFact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        subject:
+          type: string
+        predicate:
+          type: string
+        object:
+          type: string
+        sourceRef:
+          type: string
+        confidence:
+          type: number
+        provenanceId:
+          type: string
+          format: uuid
+      required: [id, subject, predicate, object, sourceRef, confidence, provenanceId]
+    ExtractedInterpretation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        statement:
+          type: string
+        basis:
+          type: string
+        sourceRef:
+          type: string
+        confidence:
+          type: number
+        provenanceId:
+          type: string
+          format: uuid
+      required: [id, statement, basis, sourceRef, confidence, provenanceId]
+    UnderstandingRunSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceType:
+          type: string
+        sourceRef:
+          type: string
+        status:
+          type: string
+        factCount:
+          type: integer
+        interpretationCount:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required: [id, sourceType, sourceRef, status, factCount, interpretationCount, startedAt]
+    UnderstandingRunResult:
+      allOf:
+        - $ref: "#/components/schemas/UnderstandingRunSummary"
+        - type: object
+          properties:
+            facts:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExtractedFact"
+            interpretations:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExtractedInterpretation"
+            eventId:
+              type: string
+              format: uuid
+          required: [facts, interpretations, eventId]
+    ReasoningContextItem:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+        text:
+          type: string
+          minLength: 1
+        kind:
+          type: string
+          minLength: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        recencyDays:
+          type: number
+          minimum: 0
+        strategicAnchor:
+          type: boolean
+      required: [id, text, kind, confidence, recencyDays, strategicAnchor]
+    ReasoningRequestInput:
+      type: object
+      properties:
+        queryText:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        semanticDomain:
+          type: string
+          minLength: 1
+        intentType:
+          type: string
+          minLength: 1
+        riskClassification:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        contextItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReasoningContextItem"
+        contextBudgetTokens:
+          type: integer
+          minimum: 128
+          maximum: 32000
+          default: 2000
+        costCeilingUsd:
+          type: number
+          minimum: 0
+        preferredTier:
+          type: string
+          enum: [auto, T1, T2, T3]
+          default: auto
+      required: [queryText, semanticDomain, intentType, riskClassification, contextItems]
+    SelectedContextItem:
+      allOf:
+        - $ref: "#/components/schemas/ReasoningContextItem"
+        - type: object
+          properties:
+            score:
+              type: number
+            estimatedTokens:
+              type: integer
+          required: [score, estimatedTokens]
+    ReasoningRouteResult:
+      type: object
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+        resolutionTier:
+          type: string
+          enum: [T1, T2, T3]
+        model:
+          type: string
+        answer:
+          type: string
+        contextPacket:
+          type: array
+          items:
+            $ref: "#/components/schemas/SelectedContextItem"
+        contextTokens:
+          type: integer
+        contextBudgetTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+        eventId:
+          type: string
+          format: uuid
+      required: [correlationId, resolutionTier, model, answer, contextPacket, contextTokens, contextBudgetTokens, estimatedCostUsd, eventId]
+    ConnectorProvider:
+      type: string
+      enum: [gmail, proton, github, google_drive, google_calendar, replit]
+    ConnectorEventInput:
+      type: object
+      properties:
+        externalId:
+          type: string
+          minLength: 1
+        eventType:
+          type: string
+          minLength: 1
+        sourceRef:
+          type: string
+          minLength: 1
+        occurredAt:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+      required: [externalId, eventType, sourceRef, occurredAt, payload]
+    ConnectorSyncInput:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/ConnectorProvider"
+        mode:
+          type: string
+          enum: [read, write]
+          default: read
+        events:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/ConnectorEventInput"
+      required: [provider, events]
+    ConnectorSyncResult:
+      type: object
+      properties:
+        syncId:
+          type: string
+          format: uuid
+        provider:
+          $ref: "#/components/schemas/ConnectorProvider"
+        status:
+          type: string
+        receivedCount:
+          type: integer
+        normalizedCount:
+          type: integer
+        eventIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        domainEventId:
+          type: string
+          format: uuid
+      required: [syncId, provider, status, receivedCount, normalizedCount, eventIds, domainEventId]
+    ConnectorHealth:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/ConnectorProvider"
+        accessMode:
+          type: string
+        status:
+          type: string
+        lastSyncAt:
+          type: string
+          format: date-time
+        lastError:
+          type: string
+        authStatus:
+          type: string
+        consecutiveFailureCount:
+          type: integer
+        eventCount:
+          type: integer
+      required: [provider, accessMode, status]
+    CostTierSummary:
+      type: object
+      properties:
+        tier:
+          type: string
+        requestCount:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+      required: [tier, requestCount, totalTokens, estimatedCostUsd]
+    CostSummary:
+      type: object
+      properties:
+        requestCount:
+          type: integer
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        totalTokens:
+          type: integer
+        estimatedCostUsd:
+          type: number
+        byTier:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostTierSummary"
+      required: [requestCount, promptTokens, completionTokens, totalTokens, estimatedCostUsd, byTier]
+    CreateBrainVersionInput:
+      type: object
+      properties:
+        versionName:
+          type: string
+          minLength: 1
+          maxLength: 160
+    BrainVersionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionName:
+          type: string
+        schemaVersion:
+          type: string
+        status:
+          type: string
+        checksum:
+          type: string
+        totalRecords:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        verifiedAt:
+          type: string
+          format: date-time
+      required: [id, versionName, schemaVersion, status, checksum, totalRecords, createdAt]
+    BrainVersion:
+      allOf:
+        - $ref: "#/components/schemas/BrainVersionSummary"
+        - type: object
+          properties:
+            recordCounts:
+              type: object
+              additionalProperties:
+                type: integer
+            payload:
+              type: object
+              additionalProperties: true
+          required: [recordCounts, payload]
+    RestoreBrainVersionInput:
+      type: object
+      properties:
+        confirm:
+          type: boolean
+          default: false
+    RestoreBrainVersionResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        checksumValid:
+          type: boolean
+        status:
+          type: string
+        dryRun:
+          type: boolean
+        message:
+          type: string
+        eventId:
+          type: string
+          format: uuid
+      required: [id, checksumValid, status, dryRun, message, eventId]
+    ScheduleJobInput:
+      type: object
+      properties:
+        jobType:
+          type: string
+          minLength: 1
+          maxLength: 96
+        runAt:
+          type: string
+          format: date-time
+        recurrence:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+            format: uuid
+        payload:
+          type: object
+          additionalProperties: true
+      required: [jobType, runAt]
+    ScheduledJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        jobType:
+          type: string
+        status:
+          type: string
+        runAt:
+          type: string
+          format: date-time
+        recurrence:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+            format: uuid
+        attempts:
+          type: integer
+        lastError:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required: [id, jobType, status, runAt, dependencies, attempts, createdAt, updatedAt]
+    ScheduledJobRunResult:
+      type: object
+      properties:
+        job:
+          $ref: "#/components/schemas/ScheduledJob"
+        eventId:
+          type: string
+          format: uuid
+        message:
+          type: string
+      required: [job, eventId, message]
+    ApprovalSpec:
+      type: object
+      properties:
+        approver_role:
+          type: string
+        required:
+          type: boolean
+        reason:
+          type: string
+      required: [approver_role, required, reason]
+    Approval:
+      type: object
+      properties:
+        approver_role:
+          type: string
+        approver_identity:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        approval_method:
+          type: string
+          enum: [explicit, implicit, delegated]
+      required: [approver_role, approver_identity, approved_at, approval_method]
+    GovernedRequest:
+      type: object
+      properties:
+        lee_request_id:
+          type: string
+          format: uuid
+        policy_pack_version:
+          type: string
+        proposed_action:
+          type: string
+        action_class:
+          type: string
+        workflow_class:
+          type: string
+        actor_identity:
+          type: string
+        target_system:
+          type: string
+        affected_project_id:
+          type: string
+        authority_class:
+          type: string
+        required_approvals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApprovalSpec"
+        approvals_present:
+          type: array
+          items:
+            $ref: "#/components/schemas/Approval"
+        reversibility:
+          type: string
+          enum: [reversible, partially_reversible, irreversible]
+        data_sensitivity:
+          type: string
+          enum: [public, internal, confidential, restricted]
+        expected_downstream_effect:
+          type: string
+        communication_recipient:
+          type: string
+        intent_record_id:
+          type: string
+        source_provenance:
+          type: string
+        context_checksum:
+          type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        trust_state:
+          type: string
+          enum: [verified, nominal, degraded]
+        requested_execution_window:
+          type: object
+          properties:
+            not_before:
+              type: string
+              format: date-time
+            not_after:
+              type: string
+              format: date-time
+          required: [not_before, not_after]
+      required: [lee_request_id, policy_pack_version, proposed_action, action_class, workflow_class, actor_identity, target_system, authority_class, required_approvals, approvals_present, reversibility, data_sensitivity, expected_downstream_effect, intent_record_id, source_provenance, context_checksum, evidence_refs, trust_state]
+    GovernedResponse:
+      type: object
+      properties:
+        lee_request_id:
+          type: string
+          format: uuid
+        decision_id:
+          type: string
+        verdict:
+          type: string
+          enum: [ALLOW, HOLD, REJECT]
+        reason_codes:
+          type: array
+          items:
+            type: string
+        checked_invariants:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        decision_envelope:
+          type: string
+        evidence_bundle_ref:
+          type: string
+        audit_entry_ref:
+          type: string
+        replay_checksum:
+          type: string
+        policy_version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        authorization_expiry:
+          type: string
+          format: date-time
+        human_confirmation_required:
+          type: boolean
+        governance_event_id:
+          type: string
+          format: uuid
+      required: [lee_request_id, decision_id, verdict, reason_codes, checked_invariants, decision_envelope, evidence_bundle_ref, audit_entry_ref, replay_checksum, policy_version, timestamp, human_confirmation_required, governance_event_id]
+    MemoryIndexInput:
+      type: object
+      properties:
+        objectType:
+          type: string
+        objectId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        projectId:
+          type: string
+        entityId:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [objectType, objectId, tags]
+    MemoryIndex:
+      allOf:
+        - $ref: "#/components/schemas/MemoryIndexInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+          required: [id]
+    MemoryConsolidationResult:
+      type: object
+      properties:
+        factCount:
+          type: integer
+        conflictCount:
+          type: integer
+        conflicts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        eventId:
+          type: string
+          format: uuid
+      required: [factCount, conflictCount, conflicts, eventId]
+    GraphEdgeInput:
+      type: object
+      properties:
+        sourceType:
+          type: string
+        sourceId:
+          type: string
+          format: uuid
+        targetType:
+          type: string
+        targetId:
+          type: string
+          format: uuid
+        edgeType:
+          type: string
+          enum: [SUPPORTS, CONTRADICTS, DERIVED_FROM, RELATES_TO, OWNED_BY, PART_OF, DEPENDS_ON_PORTFOLIO]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        sourceRef:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [sourceType, sourceId, targetType, targetId, edgeType, sourceRef]
+    GraphEdge:
+      allOf:
+        - $ref: "#/components/schemas/GraphEdgeInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+          required: [id, createdAt]
+    GraphTraversalResult:
+      type: object
+      properties:
+        root:
+          type: object
+          additionalProperties: true
+        nodes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        edges:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required: [root, nodes, edges]
+    PersonInput:
+      type: object
+      properties:
+        identityKey:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        expertise:
+          type: array
+          items:
+            type: string
+        projects:
+          type: array
+          items:
+            type: string
+        communicationRhythm:
+          type: string
+        trustScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        currentState:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [identityKey, displayName]
+    Person:
+      allOf:
+        - $ref: "#/components/schemas/PersonInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            relationshipHealth:
+              type: string
+            recommendedCadenceDays:
+              type: integer
+            lastInteractionAt:
+              type: string
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required: [id, relationshipHealth, recommendedCadenceDays, createdAt, updatedAt]
+    RelationshipInteractionInput:
+      type: object
+      properties:
+        normalizedEventId:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound, bidirectional, unknown]
+        summary:
+          type: string
+        sourceRef:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [summary, sourceRef, occurredAt]
+    InteractionResult:
+      type: object
+      properties:
+        person:
+          $ref: "#/components/schemas/Person"
+        interaction:
+          type: object
+          additionalProperties: true
+        eventId:
+          type: string
+          format: uuid
+      required: [person, interaction, eventId]
+    GenerateReviewInput:
+      type: object
+      properties:
+        cadence:
+          type: string
+          enum: [weekly, monthly, quarterly, annual]
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+      required: [cadence, periodStart, periodEnd]
+    OperationalReviewSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        cadence:
+          type: string
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        title:
+          type: string
+        keyThemes:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required: [id, cadence, periodStart, periodEnd, title, keyThemes, generatedAt]
+    OperationalReview:
+      allOf:
+        - $ref: "#/components/schemas/OperationalReviewSummary"
+        - type: object
+          properties:
+            summaryNarrative:
+              type: string
+            sections:
+              type: object
+              additionalProperties: true
+            sourceRefs:
+              type: array
+              items:
+                type: string
+            reasoningCorrelationId:
+              type: string
+            reasoningCostUsd:
+              type: number
+          required: [summaryNarrative, sections, sourceRefs]
+

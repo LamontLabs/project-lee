@@ -1,0 +1,11 @@
+import { Router, type IRouter } from "express";
+import { desc, eq } from "drizzle-orm";
+import { db, initiativeItem } from "@workspace/db";
+import { acknowledgeInitiative, activeInitiatives, dismissInitiative, generateInitiatives } from "../lib/initiative";
+const router: IRouter = Router();
+router.get("/initiative", async (_req, res) => res.json(await activeInitiatives()));
+router.get("/initiative/history", async (_req, res) => res.json(await db.select().from(initiativeItem).orderBy(desc(initiativeItem.generatedAt)).limit(100)));
+router.post("/initiative/generate", async (_req, res) => res.json(await generateInitiatives()));
+router.post("/initiative/:id/acknowledge", async (req, res) => res.json((await acknowledgeInitiative(req.params.id))[0] ?? null));
+router.post("/initiative/:id/dismiss", async (req, res) => res.json((await dismissInitiative(req.params.id))[0] ?? null));
+export default router;

@@ -1,0 +1,57 @@
+import { boolean, index, integer, jsonb, pgTable, real, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+
+export const engineRegistry = pgTable("engine_registry", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  engineId: varchar("engine_id", { length: 120 }).notNull().default(""),
+  name: varchar("name", { length: 120 }).notNull().unique(),
+  version: varchar("version", { length: 32 }).notNull().default("1.0.0"),
+  status: varchar("status", { length: 24 }).notNull().default("HEALTHY"),
+  lifecycleState: varchar("lifecycle_state", { length: 24 }).notNull().default("INITIALIZING"),
+  owner: varchar("owner", { length: 80 }).notNull().default("Foundations"),
+  lastHeartbeat: timestamp("last_heartbeat", { withTimezone: true }).defaultNow().notNull(),
+  healthEndpoint: varchar("health_endpoint", { length: 240 }),
+  capabilities: jsonb("capabilities").$type<string[]>().notNull().default([]),
+  inputs: jsonb("inputs").$type<Record<string, string[]>>().notNull().default({}),
+  outputs: jsonb("outputs").$type<Record<string, string[]>>().notNull().default({}),
+  priorityClass: varchar("priority_class", { length: 16 }).notNull().default("NORMAL"),
+  frequency: varchar("frequency", { length: 80 }),
+  resourceProfile: jsonb("resource_profile").$type<Record<string, unknown>>().notNull().default({}),
+  dependencies: jsonb("dependencies").$type<string[]>().notNull().default([]),
+  requiredDependencies: jsonb("required_dependencies").$type<string[]>().notNull().default([]),
+  optionalDependencies: jsonb("optional_dependencies").$type<string[]>().notNull().default([]),
+  degradedCapabilities: jsonb("degraded_capabilities").$type<string[]>().notNull().default([]),
+  recoveryPolicy: varchar("recovery_policy", { length: 32 }).notNull().default("GRACEFUL_DISABLE"),
+  recoveryConfig: jsonb("recovery_config").$type<Record<string, unknown>>().notNull().default({}),
+  lastActivityAt: timestamp("last_activity_at"),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("engine_registry_engine_id_idx").on(table.engineId), index("engine_registry_status_idx").on(table.status), index("engine_registry_heartbeat_idx").on(table.lastHeartbeat)]);
+
+export const orchestrationWorkItem = pgTable("orchestration_work_item", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  engineName: varchar("engine_name", { length: 120 }).notNull(),
+  action: varchar("action", { length: 160 }).notNull(),
+  priority: varchar("priority", { length: 16 }).notNull().default("NORMAL"),
+  urgencyScore: real("urgency_score").notNull().default(0),
+  estimatedCostUsd: real("estimated_cost_usd").notNull().default(0),
+  dependencies: jsonb("dependencies").$type<string[]>().notNull().default([]),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  status: varchar("status", { length: 24 }).notNull().default("queued"),
+  delayReason: text("delay_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [index("orchestration_queue_idx").on(table.status, table.priority, table.createdAt)]);
+
+export const engineHealth = pgTable("engine_health", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  engineName: varchar("engine_name", { length: 120 }).notNull().unique(),
+  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+  lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
+  errorCount: integer("error_count").notNull().default(0),
+  runCount: integer("run_count").notNull().default(0),
+  averageDurationMs: integer("average_duration_ms").notNull().default(0),
+  backoffUntil: timestamp("backoff_until", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

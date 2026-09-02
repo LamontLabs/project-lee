@@ -1,0 +1,1 @@
+ALTER TABLE "intent_record" ADD COLUMN "email_filters" jsonb;

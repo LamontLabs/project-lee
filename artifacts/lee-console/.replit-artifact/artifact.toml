@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/console/"
+title = "Lee Console"
+description = "A private owner-facing operating console for Lee. It gives the founder a calm command surface for objectives, knowledge, system events, and service health."
+version = "1.0.0"
+id = "artifacts/lee-console"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/console/" ]
+localPort = 23723
+
+[services.development]
+run = "pnpm --filter @workspace/lee-console run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lee-console", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lee-console/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23723"
+BASE_PATH = "/console/"

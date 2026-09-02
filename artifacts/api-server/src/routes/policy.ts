@@ -1,0 +1,11 @@
+import { Router, type IRouter } from "express";
+import { and, desc, eq } from "drizzle-orm";
+import { db, policyConsultation, policyRecord } from "@workspace/db";
+import { checkPolicy, createPolicyVersion, ensurePolicies, POLICY_DEFAULTS } from "../lib/policy";
+const router: IRouter = Router();
+router.get("/policies", async (_req, res) => { await ensurePolicies(); res.json(await db.select().from(policyRecord).orderBy(policyRecord.policyType, desc(policyRecord.version))); });
+router.get("/policies/defaults", (_req, res) => res.json(POLICY_DEFAULTS));
+router.get("/policies/:type/consultations", async (req, res) => res.json(await db.select().from(policyConsultation).where(eq(policyConsultation.policyType, req.params.type)).orderBy(desc(policyConsultation.createdAt)).limit(200)));
+router.post("/policies/check", async (req, res): Promise<void> => { try { res.json(await checkPolicy(String(req.body?.policyType), String(req.body?.action), req.body?.context ?? {}, String(req.body?.requester ?? "console"))); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Policy check failed." }); } });
+router.post("/policies/:type/versions", async (req, res): Promise<void> => { try { res.status(201).json(await createPolicyVersion(req.params.type, req.body?.values ?? {}, String(req.body?.changeReason ?? "Owner update"), String(req.body?.createdBy ?? "founder"))); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Policy version failed." }); } });
+export default router;

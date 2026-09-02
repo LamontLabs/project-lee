@@ -1,0 +1,11 @@
+import { Router, type IRouter } from "express";
+import { db, founderProfileHistory } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { founderContext, getFounderProfile, scanFounderPatterns, updateFounderDimension, FOUNDER_DIMENSIONS } from "../lib/founder-identity";
+const router: IRouter = Router();
+router.get("/founder-profile", async (_req, res) => res.json({ ...(await getFounderProfile()), dimensionKeys: FOUNDER_DIMENSIONS }));
+router.get("/founder-profile/context", async (_req, res) => res.json(await founderContext()));
+router.get("/founder-profile/history", async (_req, res) => { const profile = await getFounderProfile(); res.json(await db.select().from(founderProfileHistory).where(eq(founderProfileHistory.profileId, profile.id)).orderBy(desc(founderProfileHistory.version))); });
+router.post("/founder-profile/update", async (req, res) => { const { dimension, value, source, confidence } = req.body ?? {}; if (!dimension || value === undefined || !source) { res.status(400).json({ error: "dimension, value, and source are required." }); return; } try { res.status(201).json(await updateFounderDimension(String(dimension), value, String(source), confidence ?? "confirmed")); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Founder Profile update failed." }); } });
+router.post("/founder-profile/scan", async (_req, res) => res.status(202).json(await scanFounderPatterns()));
+export default router;

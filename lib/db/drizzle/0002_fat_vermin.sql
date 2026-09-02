@@ -1,0 +1,2 @@
+ALTER TABLE "economic_price_evidence" ADD COLUMN "evidence_ref" text DEFAULT 'legacy:unverified' NOT NULL;--> statement-breakpoint
+ALTER TABLE "economic_usage_record" ADD COLUMN "evidence_ref" text DEFAULT 'legacy:unverified' NOT NULL;

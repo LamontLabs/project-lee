@@ -1,0 +1,63 @@
+appId: com.lamontlabs.projectlee
+productName: Project LEE
+artifactName: Project-LEE-Setup-${version}-${arch}.${ext}
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**
+  - resources/**
+  - "!resources/migrate-runtime.mjs"
+  - "!resources/migrations/**"
+  - "!**/*.map"
+extraResources:
+  - from: resources/api-server
+    to: api-server
+  - from: resources/console
+    to: console
+  - from: resources/postgres
+    to: postgres
+  - from: resources/migrate-runtime.mjs
+    to: migrate-runtime.mjs
+  - from: resources/migrations
+    to: migrations
+linux:
+  icon: resources/lee.png
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  executableName: Project-LEE
+  syncDesktopName: true
+  synopsis: Private founder operating system
+mac:
+  icon: resources/lee.png
+  target:
+    - dmg
+    - zip
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  forceCodeSigning: true
+  notarize: true
+win:
+  icon: resources/lee.png
+  forceCodeSigning: true
+  signAndEditExecutable: true
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Project LEE
+  runAfterFinish: true
+  differentialPackage: true
+publish:
+  provider: github
+  owner: lamontlabs
+  repo: project-lee
+  releaseType: release

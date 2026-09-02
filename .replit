@@ -1,0 +1,34 @@
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
+
+[userenv]
+
+[userenv.shared]
+CIL_LEE_ENDPOINT = "https://cognitive-infrastructure-layer.replit.app/api/query/lee"
+CERBASEAL_BASE_URL = "https://cerbaseal.replit.app"
+CERBASEAL_POLICY_PACK_VERSION = "2026.7.1"
+CERBASEAL_EVALUATE_ENDPOINT = "https://cerbaseal.replit.app/evaluate"
+CERBASEAL_POLICY_VERSION_ENDPOINT = "https://cerbaseal.replit.app/policy/current-version"
+CERBASEAL_HEALTH_ENDPOINT = "https://cerbaseal.replit.app/health"
+
+[nix]
+channel = "stable-25_05"
+packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf", "openjpeg", "swig", "xcbuild"]

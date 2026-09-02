@@ -1,0 +1,17 @@
+import { Router, type IRouter } from "express";
+import { desc } from "drizzle-orm";
+import { db, reflectionReport, reflectionMetric, simulation, strategyReview } from "@workspace/db";
+import { compareSimulations, createStrategy, generateReflection, listStrategy, matchSimulations, queueStrategyWork, reviewStrategy, runSimulation } from "../lib/strategy";
+const router: IRouter = Router();
+router.get("/strategy", async (_req, res) => res.json({ objectives: await listStrategy(), reviews: await db.select().from(strategyReview).orderBy(desc(strategyReview.reviewedAt)).limit(20) }));
+router.post("/strategy/objectives", async (req, res) => res.status(201).json(await createStrategy(req.body ?? {})));
+router.post("/strategy/review", async (_req, res) => res.status(201).json(await reviewStrategy()));
+router.post("/strategy/queue", async (_req, res) => res.status(202).json(await queueStrategyWork()));
+router.post("/simulations", async (req, res) => res.status(201).json(await runSimulation(String(req.body?.question ?? ""), String(req.body?.simulationType ?? "general"))));
+router.get("/simulations", async (_req, res) => res.json(await db.select().from(simulation).orderBy(desc(simulation.createdAt)).limit(50)));
+router.post("/simulations/compare", async (req, res) => res.json(await compareSimulations(Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [])));
+router.post("/simulations/match", async (req, res) => res.json(await matchSimulations(String(req.body?.eventType ?? "event"), req.body?.payload ?? {})));
+router.get("/reflections", async (_req, res) => res.json(await db.select().from(reflectionReport).orderBy(desc(reflectionReport.generatedAt)).limit(50)));
+router.get("/reflections/metrics", async (_req, res) => res.json(await db.select().from(reflectionMetric).orderBy(desc(reflectionMetric.observedAt)).limit(200)));
+router.post("/reflections/generate", async (req, res) => res.status(201).json(await generateReflection(String(req.body?.period ?? "current"), String(req.body?.reportType ?? "weekly"))));
+export default router;

@@ -172,7 +172,13 @@ async function boot(): Promise<void> {
   if (app.commandLine.hasSwitch("lee-smoke-exit") && !awaitingSmokeUpdate) app.quit();
 }
 
-app.on("before-quit", () => { isQuitting = true; supervisor?.stop(); consoleServer?.server.close(); });
+app.on("before-quit", (event) => {
+  if (!isQuitting) {
+    event.preventDefault();
+    isQuitting = true;
+    void supervisor?.stop().finally(() => { consoleServer?.server.close(); app.quit(); });
+  }
+});
 app.whenReady().then(async () => {
   if (!hasSingleInstance) return;
   const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));
@@ -186,6 +192,10 @@ app.whenReady().then(async () => {
   ]));
   tray.on("double-click", () => window?.show());
   ipcMain.handle("lee:runtime-status", () => supervisor.status);
+  ipcMain.handle("lee:runtime-restart", async () => {
+    await supervisor.stop();
+    return supervisor.start();
+  });
   ipcMain.handle("lee:discover-local-services", () => supervisor.discoverLocalServices());
   ipcMain.handle("lee:update-status", () => updateState);
   ipcMain.handle("lee:update-check", () => checkForUpdates());

@@ -10,7 +10,19 @@ permissions:
   contents: write
 
 jobs:
+  validate-release-ref:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a valid release tag
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_TYPE" == "tag" ]] || { echo "Desktop releases must run from a lee-v* tag, not $GITHUB_REF_NAME." >&2; exit 1; }
+          [[ "$GITHUB_REF_NAME" =~ ^lee-v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || {
+            echo "Invalid release tag: $GITHUB_REF_NAME. Expected lee-vMAJOR.MINOR.PATCH." >&2
+            exit 1
+          }
   windows-installer:
+    needs: validate-release-ref
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,6 +104,7 @@ jobs:
           if-no-files-found: error
 
   macos-package:
+    needs: validate-release-ref
     strategy:
       fail-fast: false
       matrix:
@@ -221,6 +234,7 @@ jobs:
           if-no-files-found: error
 
   linux-package:
+    needs: validate-release-ref
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

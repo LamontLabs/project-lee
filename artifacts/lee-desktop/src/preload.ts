@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("leeRuntime", {
   status: () => ipcRenderer.invoke("lee:runtime-status"),
+  restartRuntime: () => ipcRenderer.invoke("lee:runtime-restart"),
   discoverLocalServices: () => ipcRenderer.invoke("lee:discover-local-services"),
   updateStatus: () => ipcRenderer.invoke("lee:update-status"),
   checkForUpdates: () => ipcRenderer.invoke("lee:update-check"),

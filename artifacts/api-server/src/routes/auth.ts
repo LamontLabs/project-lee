@@ -17,7 +17,7 @@ router.post("/auth/login", async (req, res) => {
 });
 router.get("/auth/session", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  if (!ownerExists()) { res.status(428).json({ authenticated: false, enrollmentRequired: true, error: "Owner enrollment is required before sign-in." }); return; }
+  if (!ownerExists()) { res.json({ authenticated: false, enrollmentRequired: true }); return; }
   const raw = req.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
   if (!raw) { res.json({ authenticated: false }); return; }
   res.json({ authenticated: isValidSession(raw) });

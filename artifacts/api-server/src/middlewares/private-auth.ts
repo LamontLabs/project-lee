@@ -1,12 +1,13 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { RequestHandler } from "express";
 import { getEngine } from "../lib/capability-registry";
-import { ownerExists } from "../lib/owner-auth";
+import { ownerExists, sessionSecret } from "../lib/owner-auth";
 
 const cookieName = "lee_session";
+const sessions = new Map<string, number>();
 
 function signature(value: string) {
-  return createHmac("sha256", process.env.SESSION_SECRET ?? "development-session-secret").update(value).digest("hex");
+  return createHmac("sha256", sessionSecret()).update(value).digest("hex");
 }
 
 export function isValidSession(raw: string | undefined) {
@@ -14,7 +15,12 @@ export function isValidSession(raw: string | undefined) {
   const [token, expiry, provided] = raw.split(".");
   if (!token || !expiry || !provided || !/^\d+$/.test(expiry)) return false;
   const expected = signature(`${token}.${expiry}`);
-  return provided.length === expected.length && timingSafeEqual(Buffer.from(provided), Buffer.from(expected)) && Number(expiry) >= Date.now();
+  const valid = provided.length === expected.length
+    && timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+    && Number(expiry) >= Date.now()
+    && sessions.get(token) === Number(expiry);
+  if (!valid) sessions.delete(token);
+  return valid;
 }
 
 export function privateAuth(enabled = Boolean(process.env.LEE_OWNER_USERNAME && process.env.LEE_OWNER_PASSWORD)) {
@@ -52,11 +58,12 @@ export function internalServiceAuth(): RequestHandler {
 export function createSession() {
   const token = randomBytes(32).toString("hex");
   const expiry = Date.now() + Number(process.env.LEE_SESSION_TTL_MS ?? 8 * 60 * 60 * 1000);
+  sessions.set(token, expiry);
   return `${token}.${expiry}.${signature(`${token}.${expiry}`)}`;
 }
 
 export function clearSession(cookie: string | undefined) {
-  // Sessions are signed and stateless; clearing is performed by cookie expiry.
+  if (cookie) sessions.delete(cookie.split(".")[0]);
 }
 
 export { cookieName };

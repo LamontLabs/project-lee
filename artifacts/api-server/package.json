@@ -29,6 +29,7 @@
     "test:ask-lee-email-filters": "node scripts/ask-lee-email-filters.test.mjs",
     "test:ask-lee-email-privacy": "node scripts/ask-lee-email-privacy.test.mjs",
     "test:desktop-discovery": "../lee-desktop/node_modules/.bin/tsx scripts/desktop-discovery-sanitization.test.ts",
+    "test:owner-auth": "../lee-desktop/node_modules/.bin/tsx scripts/owner-auth-contract.test.ts",
     "test:cil-cost-benchmark": "node scripts/cil-cost-benchmark.test.mjs",
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",

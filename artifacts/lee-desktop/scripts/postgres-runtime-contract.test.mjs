@@ -24,7 +24,7 @@ test("macOS PostgreSQL staging relocates and verifies native dependencies", asyn
 test("macOS release matrix covers Intel and Apple Silicon with architecture-aware smoke", async () => {
   const workflow = await read("../../.github/workflows/lee-desktop-release.yml");
 
-  assert.match(workflow, /macos-package:\s+strategy:/);
+  assert.match(workflow, /macos-package:[\s\S]*?strategy:/);
   assert.match(workflow, /runner: macos-13[\s\S]*arch: x64/);
   assert.match(workflow, /runner: macos-14[\s\S]*arch: arm64/);
   assert.match(workflow, /actual_arch="\$\(uname -m\)"/);

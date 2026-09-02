@@ -192,6 +192,10 @@ app.whenReady().then(async () => {
   ]));
   tray.on("double-click", () => window?.show());
   ipcMain.handle("lee:runtime-status", () => supervisor.status);
+  ipcMain.handle("lee:runtime-restart", async () => {
+    await supervisor.stop();
+    return supervisor.start();
+  });
   ipcMain.handle("lee:discover-local-services", () => supervisor.discoverLocalServices());
   ipcMain.handle("lee:update-status", () => updateState);
   ipcMain.handle("lee:update-check", () => checkForUpdates());

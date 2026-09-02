@@ -63,6 +63,23 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) { throw "LEE_WINDOWS_CERTIFICATE is required for a trusted release." }
           if ([string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) { throw "LEE_WINDOWS_CERTIFICATE_PASSWORD is required for a trusted release." }
+      - name: Trust private Windows signing certificate for CI verification
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.pfx"
+          $certificatePath = Join-Path $env:RUNNER_TEMP "project-lee-signing.cer"
+          $bytes = [Convert]::FromBase64String(($env:CSC_LINK -replace '\s', ''))
+          [IO.File]::WriteAllBytes($pfxPath, $bytes)
+          $password = ConvertTo-SecureString $env:CSC_KEY_PASSWORD -AsPlainText -Force
+          $certificates = @(Import-PfxCertificate -FilePath $pfxPath -Password $password -CertStoreLocation Cert:\CurrentUser\My)
+          $certificate = $certificates | Where-Object { $_.HasPrivateKey } | Select-Object -First 1
+          if (-not $certificate) { throw "The Windows signing PFX did not contain an importable certificate with a private key." }
+          Export-Certificate -Cert $certificate -FilePath $certificatePath | Out-Null
+          Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
+          Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\TrustedPublisher | Out-Null
       - run: pnpm --filter @workspace/lee-desktop run package
         env:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}

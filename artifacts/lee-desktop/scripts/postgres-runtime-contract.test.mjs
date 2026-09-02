@@ -21,16 +21,12 @@ test("macOS PostgreSQL staging relocates and verifies native dependencies", asyn
   assert.match(smoke, /--architecture/);
 });
 
-test("macOS release matrix covers Intel and Apple Silicon with architecture-aware smoke", async () => {
+test("release workflow stages PostgreSQL for Windows and Linux", async () => {
   const workflow = await read("../../.github/workflows/lee-desktop-release.yml");
 
-  assert.match(workflow, /macos-package:[\s\S]*?strategy:/);
-  assert.match(workflow, /runner: macos-13[\s\S]*arch: x64/);
-  assert.match(workflow, /runner: macos-14[\s\S]*arch: arm64/);
-  assert.match(workflow, /actual_arch="\$\(uname -m\)"/);
-  assert.match(workflow, /expected_arch="\$\{\{ matrix\.arch == 'x64' && 'x86_64' \|\| 'arm64' \}\}"/);
-  assert.match(workflow, /--arch "\$\{\{ matrix\.arch \}\}"/);
-  assert.match(workflow, /smoke:unix -- "\$GITHUB_WORKSPACE\/\$app_path" --architecture "\$\{\{ matrix\.arch \}\}"/);
-  assert.match(workflow, /lee-macos-installers-x64/);
-  assert.match(workflow, /lee-macos-installers-arm64/);
+  assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
+  assert.match(workflow, /runner: windows-latest/);
+  assert.match(workflow, /runner: ubuntu-latest/);
+  assert.match(workflow, /postgresql-\$version-windows-x64-binaries\.zip/);
+  assert.match(workflow, /apt-get install --no-install-recommends -y postgresql/);
 });

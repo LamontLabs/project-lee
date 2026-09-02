@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { inspectProject, configuredProjects, persistedProjectsJson, registeredProjects, registerProject, type ProjectConfig } from "../lib/mcp-project-bridge";
+import { inspectProject, configuredProjects, persistedProjectsJson, previewProjectChanges, readProjectFile, registeredProjects, registerProject, runProjectCheck, type ProjectConfig } from "../lib/mcp-project-bridge";
 
 const router = Router();
 function allProjects() {
@@ -88,6 +88,44 @@ router.post("/:id/test", async (req, res) => {
       requiredSetup: "Run the project-agent routes in this project and set PROJECT_BRIDGE_API_KEY, MCP_PROJECT_NAME, and optionally MCP_PROJECT_ROOT. The bridge credential must be configured as the named server-side secret.",
     });
   }
+});
+
+router.post("/:id/validate", async (req, res) => {
+  const id = String(req.params.id);
+  const project = allProjects().find((item) => item.id === id);
+  if (!project) { res.status(404).json({ projectId: id, status: "not_configured", error: "This project is not registered." }); return; }
+
+  const checks: Array<{ operation: string; status: "passed" | "failed"; detail?: unknown; error?: string }> = [];
+  const capture = async (operation: string, action: () => Promise<unknown>) => {
+    try {
+      checks.push({ operation, status: "passed", detail: await action() });
+    } catch (error) {
+      checks.push({ operation, status: "failed", error: error instanceof Error ? error.message : `${operation} failed.` });
+    }
+  };
+
+  await capture("inspect", () => inspectProject(id));
+  await capture("read", () => readProjectFile(id, String(req.body?.readPath ?? "package.json")));
+  await capture("preview", () => previewProjectChanges(id, [{
+    path: ".lee/setup-validation.txt",
+    content: "LEE setup validation preview. This file must not be applied automatically.\n",
+  }]));
+  await capture("check", () => runProjectCheck(id, String(req.body?.command ?? "pnpm run typecheck")));
+
+  const passed = checks.filter((check) => check.status === "passed").length;
+  const status = passed === checks.length ? "validated" : passed > 0 ? "partial" : "failed";
+  res.status(status === "validated" ? 200 : 207).json({
+    projectId: id,
+    status,
+    project: publicProject(project),
+    checks: checks.map(({ operation, status: checkStatus, detail, error }) => ({
+      operation,
+      status: checkStatus,
+      ...(detail === undefined ? {} : { detail }),
+      ...(error ? { error } : {}),
+    })),
+    note: "Validation performs no apply operation. The preview token is intentionally not usable as approval for a change.",
+  });
 });
 
 export default router;

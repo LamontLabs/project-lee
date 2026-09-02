@@ -22,6 +22,7 @@
 - [Assumption ledger](assumption-ledger.md) — named premises are reused while active and lifecycle changes must surface affected conclusions.
 - [Decision impact graph](decision-impact-graph.md) — causal consequences stay separate from object relationships; only approved directional edges affect impact scores.
 - [Digital Twin timeline](digital-twin-timeline.md) — chronological history is a significance-filtered projection of the immutable Event Log, with milestones stored separately.
+- [Meaningful change projection](meaningful-change-projection.md) — owner history is a replay-safe projection with evidence and separate projector/read cursors; raw connector transport stays out of view.
 - [Query Engine boundary](query-engine-boundary.md) — shared retrieval centralizes Constitution checks, ranking, cache policy, confidence, and telemetry.
 - [Explanation Engine boundary](explanation-engine-boundary.md) — audience-calibrated explanations remain interpretations with source IDs, Why Chain, provenance, and feedback.
 - [Semantic Index boundary](semantic-index-boundary.md) — local eventual-consistency embeddings improve discovery without replacing canonical ledgers or structured confidence.

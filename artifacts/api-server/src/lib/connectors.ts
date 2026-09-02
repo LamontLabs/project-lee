@@ -49,6 +49,7 @@ function createAdapter(provider: ConnectorProvider, category: ProviderAdapter["c
       return {
         ...event,
         eventType: eventTypeMap[event.eventType.toLowerCase()] ?? "record.observed",
+        payload: { ...event.payload, normalizedFrom: event.eventType },
       };
     },
   };

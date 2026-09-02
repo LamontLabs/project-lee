@@ -18,13 +18,13 @@ test("existing-database migration smoke preserves history and records the upgrad
   assert.match(script, /upgradedJournalEntries: after\.rows\.length/);
 });
 
-test("Windows and Unix packaged smoke tests execute and validate migration-upgrade evidence", () => {
+test("Windows and Linux packaged smoke tests execute and validate migration-upgrade evidence", () => {
   assert.match(unixSmoke, /migration-upgrade-smoke\.mjs/);
   assert.match(unixSmoke, /migrationUpgrade\.status !== "passed"/);
   assert.match(windowsSmoke, /migration-upgrade-smoke\.mjs/);
   assert.match(windowsSmoke, /\$migrationUpgrade\.migration\.upgradedJournalEntries -eq 2/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
-  assert.match(workflow, /Smoke test bundled macOS runtime/);
   assert.match(workflow, /Smoke test bundled Linux runtime/);
   assert.match(workflow, /windows-smoke-test\.ps1/);
+  assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
 });

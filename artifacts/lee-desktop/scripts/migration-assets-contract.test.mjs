@@ -7,7 +7,7 @@ import { assertProductionMigrationSource, verifyPackagedMigrations } from "./ver
 
 const desktopRoot = new URL("..", import.meta.url);
 
-test("packaged migration assets are complete in Windows, macOS, and Linux resource layouts", async () => {
+test("packaged migration assets are complete in the supported resource layouts", async () => {
   const root = await mkdtemp(join(tmpdir(), "lee-migration-assets-"));
   try {
     const source = new URL("../resources/", import.meta.url);

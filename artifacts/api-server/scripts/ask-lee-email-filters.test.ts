@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { eq } from "drizzle-orm";
 import { db, intentRecord } from "@workspace/db";
-import { parseEmailSearchFilters } from "../src/lib/intent";
-import { classifyIntent, intentHistory } from "../src/lib/intent";
+import { classifyIntent, intentHistory, parseEmailSearchFilters } from "../src/lib/intent";
 
 test("Ask Lee extracts provider-neutral sender, subject, date range, and unread filters", () => {
   const filters = parseEmailSearchFilters(

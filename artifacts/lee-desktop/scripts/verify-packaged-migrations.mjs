@@ -31,14 +31,17 @@ function listSqlFiles(directory) {
 }
 
 export function assertProductionMigrationSource(source) {
-  if (!/const bundledMigration = this\.production && !configuredCommand/.test(source)) {
-    throw new Error("Production migration contract is missing: production must select bundled migrations when no override is configured.");
+  if (!/const bundledMigration = this\.production;/.test(source)) {
+    throw new Error("Production migration contract is missing: packaged startup must always select bundled migrations.");
   }
   if (!/const args = bundledMigration\s+\? \[join\(process\.resourcesPath, "migrate-runtime\.mjs"\)\]/.test(source)) {
     throw new Error("Production migration contract is missing the packaged migration runner path.");
   }
   if (!/LEE_MIGRATIONS_DIR: join\(process\.resourcesPath, "migrations"\)/.test(source)) {
     throw new Error("Production migration contract is missing the packaged migration directory.");
+  }
+  if (!/spawnSync\(process\.execPath, args/.test(source)) {
+    throw new Error("Production migration contract is missing the Electron Node migration invocation.");
   }
 }
 

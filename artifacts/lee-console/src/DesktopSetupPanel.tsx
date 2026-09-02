@@ -36,6 +36,7 @@ type RuntimeSnapshot = {
   postgresLogPath?: string;
   apiProcessId?: number | null;
   postgresProcessId?: number | null;
+  recoveryMode?: "COLD_BOOT" | "WARM_RESTART" | "SAFE_MODE" | "RECOVERY_MODE" | "MIGRATION_MODE" | "READ_ONLY" | null;
 };
 type UpdateState = {
   status:
@@ -637,9 +638,13 @@ export function DesktopSetupPanel() {
           {runtime && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <Status label="Private database" state={runtime.database === "configured" ? "live" : runtime.database === "starting" ? "pending" : "unavailable"} />
             <Status label="Migrations" state={runtime.migration === "complete" ? "live" : runtime.migration === "pending" ? "pending" : "unavailable"} />
-            <Status label="CIL authority" state={cilHealth === "healthy" ? "live" : cilHealth} />
-            <Status label="CerbaSeal authority" state={governanceHealth === "healthy" ? "live" : governanceHealth} />
+             <Status label="Canonical Brain" state={runtime.state === "live" ? "live" : runtime.recoveryMode === "RECOVERY_MODE" ? "degraded" : "unavailable"} />
+             <Status label="Recovery mode" state={runtime.recoveryMode === "RECOVERY_MODE" || runtime.recoveryMode === "READ_ONLY" ? "degraded" : runtime.recoveryMode ? "live" : "pending"} />
           </div>}
+           {runtime && <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+             <Status label="CIL authority" state={cilHealth === "healthy" ? "live" : cilHealth} />
+             <Status label="CerbaSeal authority" state={governanceHealth === "healthy" ? "live" : governanceHealth} />
+           </div>}
           {runtime && (runtime.migration === "failed" || runtime.state !== "live") && <div className="mt-3 space-y-1 text-xs text-sidebar-foreground/60">
             {runtime.migration === "failed" && <p>Migration log: {runtime.migrationLogPath}</p>}
             {runtime.apiLogPath && <p>API log: {runtime.apiLogPath}{runtime.apiProcessId ? ` · process ${runtime.apiProcessId}` : ""}</p>}
@@ -850,9 +855,10 @@ function RuntimeStep({ runtime, ready, running, onStart, onRestart }: { runtime:
       <WizardMetric label="Private database" value={runtime?.database === "configured" ? "Configured" : runtime?.database ?? "Checking"} state={runtime?.database === "configured" ? "good" : "wait"} />
       <WizardMetric label="Migrations" value={runtime?.migration === "complete" ? "Complete" : runtime?.migration ?? "Checking"} state={runtime?.migration === "complete" ? "good" : "wait"} />
     </div>
-    <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/25 p-4">
+       <div className={`rounded-xl border p-4 ${runtime?.recoveryMode === "RECOVERY_MODE" ? "border-amber-300/40 bg-amber-300/10" : "border-sidebar-border bg-sidebar-accent/25"}`}>
       <div className="flex items-start gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sidebar-primary/15 text-sidebar-primary"><Compass size={16} /></span><div><p className="text-sm font-semibold">{ready ? "The local foundation is ready." : "LEE can still operate while this settles."}</p><p className="mt-1 text-xs leading-relaxed text-sidebar-foreground/60">{ready ? "Database, migrations, and the runtime contract are answering. The next step is about owner decisions, not hidden setup." : "The check is intentionally visible. You can retry the runtime without losing your place, and unavailable optional services will remain clearly marked."}</p></div></div>
-      {runtime?.reason && <p className="mt-4 border-l-2 border-amber-300/50 pl-3 text-xs text-amber-100">{runtime.reason}</p>}
+       {runtime?.reason && <p className="mt-4 border-l-2 border-amber-300/50 pl-3 text-xs text-amber-100">{runtime.reason}</p>}
+       {runtime?.recoveryMode === "RECOVERY_MODE" && <p className="mt-3 text-xs leading-relaxed text-amber-100/80">Recovery mode is safe by default: reading and backup evidence remain available, but other writes and external actions stay blocked until the owner resolves the repair agenda and restarts LEE.</p>}
     </div>
     <div className="flex flex-wrap gap-2">
       <button type="button" onClick={onStart} disabled={running} className="inline-flex items-center gap-2 rounded-lg bg-sidebar-primary px-3.5 py-2.5 text-xs font-semibold text-sidebar-primary-foreground disabled:opacity-50" data-testid="button-start-setup-run">{running && <LoaderCircle className="animate-spin" size={14} />}{running ? "Checking local foundation" : "Run local checks"}</button>

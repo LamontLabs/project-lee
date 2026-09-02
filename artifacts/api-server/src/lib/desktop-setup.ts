@@ -4,6 +4,7 @@ import { connection, connector, db, desktopSetupRun, eventLog, type DesktopSetup
 import { listProviders, registerProviders } from "./provider-abstraction";
 import { createConnection, testConnection } from "./connection-center";
 import { listEnabledLocalServiceContractEntries, type LocalServiceContractEntry } from "./local-service-contracts";
+import { getStartupProof, verifyCanonicalBrainStartup } from "./startup-integrity";
 
 export type LocalServiceDiscoveryCandidate = {
   discoveryKey: string;
@@ -229,7 +230,10 @@ export async function runDesktopSetup(input: { discovery?: unknown } = {}) {
   const now = new Date();
   const [run] = await db.insert(desktopSetupRun).values({
     status: "running",
-    steps: [step("providers", "Provider inventory", "running", "Registering known provider adapters.")],
+    steps: [
+      step("canonical_brain", "Canonical Brain", "running", "Proving database identity and Event Log continuity."),
+      step("providers", "Provider inventory", "running", "Registering known provider adapters."),
+    ],
     summary: {},
     startedAt: now,
     updatedAt: now,
@@ -241,6 +245,15 @@ export async function runDesktopSetup(input: { discovery?: unknown } = {}) {
     await db.update(desktopSetupRun).set({ steps, updatedAt: new Date() }).where(eq(desktopSetupRun.id, run.id));
   };
   try {
+    const startupProof = getStartupProof() ?? await verifyCanonicalBrainStartup();
+    await update(step(
+      "canonical_brain",
+      "Canonical Brain",
+      startupProof.overall === "PASS" ? "complete" : "failed",
+      startupProof.overall === "PASS"
+        ? "Canonical database identity, Brain state, and Event Log continuity verified."
+        : startupProof.issues.join(" ") || "Canonical Brain startup proof failed.",
+    ));
     await registerProviders();
     const providers = await listProviders();
     await update(step("providers", "Provider inventory", "complete", `${providers.length} provider adapters available.`));
@@ -313,7 +326,7 @@ export async function runDesktopSetup(input: { discovery?: unknown } = {}) {
     const ownerCount = steps.filter((item) => item.status === "needs_owner").length;
     const failureCount = steps.filter((item) => item.status === "failed").length;
     const status = failureCount ? "degraded" : ownerCount ? "needs_owner" : "complete";
-    const summary = { providers: providers.length, connections: rows.length, authorized: connected.length, needsOwner: needsOwner.length, healthy, failed, connectorDefaults: defaults, consequentialActionsReleased: false, discovery };
+    const summary = { providers: providers.length, connections: rows.length, authorized: connected.length, needsOwner: needsOwner.length, healthy, failed, connectorDefaults: defaults, consequentialActionsReleased: false, discovery, startupProof };
     const [completed] = await db.update(desktopSetupRun).set({ status, steps, summary, lastError: failureCount ? "One or more safe health checks need attention." : null, completedAt: new Date(), updatedAt: new Date() }).where(eq(desktopSetupRun.id, run.id)).returning();
     await db.insert(eventLog).values({ eventType: "DesktopSetupCompleted", aggregateType: "desktop_setup_run", aggregateId: run.id, sourceRef: "desktop-setup", occurredAt: new Date(), payload: { status, summary } });
     return publicRun(completed);

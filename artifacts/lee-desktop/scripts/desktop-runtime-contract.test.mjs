@@ -33,6 +33,11 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /DYLD_LIBRARY_PATH/);
   assert.match(runtime, /PGSHAREDIR/);
   assert.match(runtime, /postgres-socket/);
+  assert.match(runtime, /randomUUID\(\)/);
+  assert.match(runtime, /LEE_INSTANCE_ID: instanceId/);
+  assert.match(runtime, /timeout: 60_000/);
+  assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);
+  assert.match(runtime, /\/api\/recovery\/status/);
   assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);
   assert.match(main, /quitAndInstall/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);

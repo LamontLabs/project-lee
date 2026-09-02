@@ -301,7 +301,13 @@ function RecoveryModeBanner() {
   useEffect(() => { void fetch('/api/recovery/status', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then(setStatus); }, []);
   if (!status || status.mode === 'COLD_BOOT' || status.mode === 'WARM_RESTART') return null;
   const label = status.mode.replaceAll('_', ' ');
-  return <div className="border-b border-accent/35 bg-accent/15 px-5 py-3 text-sm text-accent-foreground md:px-9"><div className="mx-auto flex max-w-[1280px] items-center gap-3"><span className="rounded-full border border-accent/40 px-2.5 py-1 text-[10px] font-bold">{label}</span><span>{status.reason}</span>{status.agenda && <span className="ml-auto text-xs">{status.agenda.issues.length} repair items</span>}</div></div>;
+  const proof = status.proof;
+  const checks = [
+    ['Database identity', proof?.databaseIdentity?.result],
+    ['Brain state', proof?.brain?.result],
+    ['Event Log continuity', proof?.eventLog?.result],
+  ].filter(([, result]) => result);
+  return <div className="border-b border-accent/35 bg-accent/15 px-5 py-3 text-sm text-accent-foreground md:px-9"><div className="mx-auto max-w-[1280px]"><div className="flex flex-wrap items-center gap-3"><span className="rounded-full border border-accent/40 px-2.5 py-1 text-[10px] font-bold">{label}</span><span className="min-w-0 flex-1">{status.reason}</span>{status.agenda && <span className="text-xs">{status.agenda.issues.length} repair items</span>}<Link href="/health" className="rounded-lg border border-accent/40 px-2.5 py-1 text-xs font-semibold">Review evidence</Link><Link href="/backups" className="rounded-lg border border-accent/40 px-2.5 py-1 text-xs font-semibold">Preserve backup</Link></div>{status.mode === 'RECOVERY_MODE' && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-accent-foreground/80"><span>Read-only protection is active. External actions and normal writes are blocked.</span>{checks.map(([name, result]) => <span key={name} className="rounded-full border border-accent/30 px-2 py-0.5">{name}: {result}</span>)}</div>}</div></div>;
 }
 
 function SkeletonRows({ count = 3 }: { count?: number }) {
@@ -790,6 +796,20 @@ function BootHistoryPanel() {
   return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex items-center justify-between"><div><p className="lee-label text-primary">Recovery modes</p><h3 className="mt-1 text-lg font-semibold">Boot history</h3></div><span className="lee-label text-muted-foreground">{boots.length} boots</span></div><div className="mt-4 divide-y divide-border">{boots.slice(0, 8).map((boot) => <div key={boot.id} className="flex flex-wrap items-center gap-3 py-3"><span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold">{boot.bootMode}</span><span className="text-xs text-muted-foreground">{boot.reason}</span><span className="ml-auto text-xs text-muted-foreground">{boot.success ? 'complete' : 'in progress'} · {formatDate(boot.startedAt)}</span></div>)}</div></Panel></div>;
 }
 
+function RecoveryAgendaPanel() {
+  const [agendas, setAgendas] = useState<any[]>([]);
+  const [resolving, setResolving] = useState<string | null>(null);
+  const load = () => { void fetch('/api/recovery/agenda', { cache: 'no-store' }).then((response) => response.ok ? response.json() : []).then(setAgendas); };
+  useEffect(() => { load(); }, []);
+  const resolve = async (id: string) => {
+    setResolving(id);
+    await fetch(`/api/recovery/agenda/${id}/resolve`, { method: 'POST' });
+    setResolving(null);
+    load();
+  };
+  return <div className="mx-auto mt-5 max-w-[1280px]"><Panel><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="lee-label text-primary">Owner recovery</p><h3 className="mt-1 text-lg font-semibold">Repair agenda</h3><p className="mt-1 text-sm text-muted-foreground">Review the evidence before marking a repair agenda resolved. Restart LEE afterward so startup proof runs again.</p></div><button onClick={load} className="rounded-xl border border-border px-3 py-2 text-xs font-semibold">Refresh</button></div>{agendas.length ? <div className="mt-4 space-y-3">{agendas.slice(0, 8).map((agenda) => <div key={agenda.id} className="rounded-xl border border-border bg-muted/35 p-3"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold">{agenda.status}</span><span className="text-xs text-muted-foreground">{agenda.source} · {formatDate(agenda.createdAt)}</span>{agenda.status !== 'RESOLVED' && <button onClick={() => void resolve(agenda.id)} disabled={resolving === agenda.id} className="ml-auto rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary">{resolving === agenda.id ? 'Saving…' : 'Mark reviewed'}</button>}</div><div className="mt-3 space-y-1">{(agenda.issues ?? []).map((issue: any, index: number) => <p key={issue.id ?? index} className="text-xs leading-relaxed text-muted-foreground"><span className="mr-2 text-accent">•</span>{issue.description ?? 'Review the recorded recovery evidence.'}</p>)}</div></div>)}</div> : <p className="mt-4 text-sm text-muted-foreground">No recovery agenda is currently recorded.</p>}</Panel></div>;
+}
+
 function AgingHealthPanel() {
   const [summary, setSummary] = useState<any>(null);
   const [scanning, setScanning] = useState(false);
@@ -1019,7 +1039,7 @@ function InternalServicesPage() {
   return <div className="mx-auto max-w-[1050px]"><SectionHeading eyebrow="Connected Lamont Labs systems" title="Connected systems" detail="LEE calls independent specialist systems through authenticated contracts. Credentials are never displayed." action={<button onClick={() => void load()} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted"><RefreshCw size={14} className="mr-2 inline" />Check health</button>} /><div className="grid gap-4 md:grid-cols-2">{items.map((item) => <Panel key={item.serviceId}><div className="flex items-start justify-between"><div><p className="lee-label text-primary">{item.category}</p><h3 className="mt-1 text-lg font-semibold">{item.displayName}</h3></div><StatusPill status={item.currentHealth === 'healthy' ? 'verified' : item.currentHealth === 'degraded' ? 'evolving' : 'offline'} /></div><div className="mt-5 grid grid-cols-2 gap-3 text-xs"><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Health</p><p className="mt-1 font-medium">{item.currentHealth}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Failure policy</p><p className="mt-1 font-medium">{item.failurePolicy}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Credential</p><p className="mt-1 font-medium">{item.credentialEnvKey} · {item.baseUrl ? 'configured' : 'missing'}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Last call</p><p className="mt-1 font-medium">{item.lastCallAt ? formatDate(item.lastCallAt) : 'none'}</p></div></div></Panel>)}</div><Panel className="mt-5"><p className="lee-label text-primary">Safety boundary</p><p className="mt-2 text-sm leading-relaxed text-muted-foreground">CIL unavailability produces an explicit degraded or held reasoning route; it never triggers silent local cognitive logic. CerbaSeal unavailability places consequential actions on HOLD; there is no authorization fallback.</p></Panel></div>;
 }
 
-function HealthPage() { return <><HealthDetailPage /><CILModelInventoryPanel /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><AgingHealthPanel /><BootHistoryPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
+function HealthPage() { return <><HealthDetailPage /><CILModelInventoryPanel /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><RecoveryAgendaPanel /><BootHistoryPanel /><AgingHealthPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

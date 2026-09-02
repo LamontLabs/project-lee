@@ -63,7 +63,6 @@ export default function ConnectionCenterPage() {
     } catch { setNotice("Desktop setup could not reach the API."); }
     finally { setSetupRunning(false); }
   };
-  useEffect(() => { if (desktopLaunch) void runSetup(); }, []);
   const acceptDiscovery = async (candidate: DiscoveryCandidate) => {
     setNotice(`Reviewing ${candidate.displayName}…`);
     const response = await fetch("/api/desktop-setup/discoveries/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(candidate) });

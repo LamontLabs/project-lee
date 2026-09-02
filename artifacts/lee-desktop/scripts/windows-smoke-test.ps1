@@ -23,6 +23,34 @@ function Assert-True([bool] $condition, [string] $message) {
   if (-not $condition) { throw "LEE Windows smoke test failed: $message" }
 }
 
+function Assert-PackagedCertificateTrusted([string] $certificatePath) {
+  Assert-True (Test-Path $certificatePath) "installed package is missing its packaged signing certificate: $certificatePath"
+  $packagedCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
+  $certificateThumbprint = $packagedCertificate.Thumbprint
+  Assert-True (-not [string]::IsNullOrWhiteSpace($certificateThumbprint)) "packaged Project LEE signing certificate has no usable identity"
+
+  foreach ($storeName in @("Root", "TrustedPublisher")) {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+      $storeName,
+      [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+    )
+    try {
+      $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+      $trustedCertificates = $store.Certificates.Find(
+        [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+        $certificateThumbprint,
+        $false
+      )
+      Assert-True (
+        $trustedCertificates.Count -gt 0
+      ) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
+      Write-Host "Verified packaged Project LEE certificate $certificateThumbprint in the current user's $storeName store."
+    } finally {
+      $store.Close()
+    }
+  }
+}
+
 function Stop-ProcessTree([int] $processId) {
   & taskkill.exe /pid $processId /t /f 2>$null | Out-Null
 }
@@ -206,6 +234,7 @@ try {
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"
   $appExe = $appExe.FullName
+  Assert-PackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `
     --resources-root (Join-Path (Split-Path $appExe) "resources") `
     --source-file (Join-Path $PSScriptRoot "..\src\runtime.ts") `

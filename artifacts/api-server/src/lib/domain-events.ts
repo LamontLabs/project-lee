@@ -18,6 +18,7 @@ const EVENT_TYPES = [
     "RequestPipelineStageStarted","RequestPipelineStageCompleted","RequestPipelineFailed","EventDeliveryTested","LegacyProvenanceMigrated","GmailWatchRenewed","GmailWatchRenewalFailed","GmailHistoryGapRecovered","EmailSyncCompleted","EmailSyncFailed",
     "WorkingMemoryUpdated","WorkingMemoryRebuilt","BeliefStateCreated","BeliefStateRevised","BeliefContradicted","PredictionRecorded","PredictionResolved","CausalClaimRecorded","KnowledgeGapRecorded","KnowledgeGapInvestigated",
     "ConsolidationRunStarted","ConsolidationPhaseCompleted","ConsolidationPhaseFailed","ConsolidationDeferred","ConsolidationCompleted","MemoryCooled","SourceArchived","ResourceStateSampled",
+    "ArchiveManifestCreated","ArchiveIntegrityVerified","ArchiveIntegrityFailed","RetentionDecisionRequested","RetentionDecisionApproved","RetentionDecisionRejected","RetentionApplied","StoragePressureAssessed","ArchiveMovedCold",
 ] as const;
 export type DomainEventType = typeof EVENT_TYPES[number];
 export const DOMAIN_EVENT_CATALOG = Object.fromEntries(EVENT_TYPES.map((eventType) => [eventType, {

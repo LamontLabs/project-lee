@@ -50,6 +50,13 @@
       "when": 1788441539835,
       "tag": "0006_eminent_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788442439416,
+      "tag": "0007_bent_betty_ross",
+      "breakpoints": true
     }
   ]
 }

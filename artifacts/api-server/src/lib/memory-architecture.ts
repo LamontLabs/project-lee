@@ -65,7 +65,12 @@ export async function consolidateHistorical() {
 export async function memoryStatus() {
   const objects = await db.select().from(universalObject);
   const distribution = Object.fromEntries(MEMORY_TIERS.map((tier) => [tier, objects.filter((object) => object.memoryTier === tier).length]));
-  return { distribution, total: objects.length, consolidationBacklog: objects.filter((object) => ["historical", "archived"].includes(object.memoryTier) && object.compressionStage < 2).length, dormantCount: distribution.dormant ?? 0, stage2Coverage: objects.length ? objects.filter((object) => object.compressionStage >= 2).length / objects.length : 1, roadmap: [{ stage: 1, name: "Full storage", status: "implemented" }, { stage: 2, name: "Summaries", status: "implemented" }, { stage: 3, name: "Hierarchical summaries", status: "planned" }, { stage: 4, name: "Concept maps", status: "planned" }, { stage: 5, name: "Knowledge graph compression", status: "planned" }, { stage: 6, name: "Long-term semantic memory", status: "planned" }] };
+  const importance = {
+    protected: objects.filter((object) => protectedTiers.has(object.memoryTier) || object.canonLevel === "canonical").length,
+    high: objects.filter((object) => object.importance >= 0.75).length,
+    standard: objects.filter((object) => object.importance < 0.75).length,
+  };
+  return { distribution, total: objects.length, importance, temperature: { recent: distribution.recent ?? 0, working: distribution.working ?? 0, reference: distribution.reference ?? 0, historical: distribution.historical ?? 0, archived: distribution.archived ?? 0, dormant: distribution.dormant ?? 0 }, consolidationBacklog: objects.filter((object) => ["historical", "archived"].includes(object.memoryTier) && object.compressionStage < 2).length, dormantCount: distribution.dormant ?? 0, stage2Coverage: objects.length ? objects.filter((object) => object.compressionStage >= 2).length / objects.length : 1, roadmap: [{ stage: 1, name: "Full storage", status: "implemented" }, { stage: 2, name: "Summaries", status: "implemented" }, { stage: 3, name: "Hierarchical summaries", status: "planned" }, { stage: 4, name: "Concept maps", status: "planned" }, { stage: 5, name: "Knowledge graph compression", status: "planned" }, { stage: 6, name: "Long-term semantic memory", status: "planned" }] };
 }
 
 export async function enqueueMemoryMaintenance() {

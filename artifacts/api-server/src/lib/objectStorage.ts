@@ -52,4 +52,22 @@ export class ObjectStorageService {
     const [metadata] = await file.getMetadata();
     return { buffer, contentType: metadata.contentType ?? "application/octet-stream", size: Number(metadata.size ?? buffer.length) };
   }
+  async write(objectPath: string, buffer: Buffer, contentType = "application/octet-stream") {
+    if (!objectPath.startsWith("/objects/")) throw new Error("Invalid object path.");
+    const { bucket, name } = objectRef(`${this.privateDir()}/${objectPath.slice("/objects/".length)}`);
+    const file = objectStorageClient.bucket(bucket).file(name);
+    await file.save(buffer, { resumable: false, metadata: { contentType } });
+    return objectPath;
+  }
+  async copy(sourcePath: string, targetPath: string) {
+    const source = await this.fileForPath(sourcePath);
+    if (!targetPath.startsWith("/objects/")) throw new Error("Invalid archive object path.");
+    const { bucket, name } = objectRef(`${this.privateDir()}/${targetPath.slice("/objects/".length)}`);
+    await source.copy(objectStorageClient.bucket(bucket).file(name));
+    return targetPath;
+  }
+  async remove(objectPath: string) {
+    const file = await this.fileForPath(objectPath);
+    await file.delete();
+  }
 }

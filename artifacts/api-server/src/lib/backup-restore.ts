@@ -36,6 +36,11 @@ import {
   predictionRecord,
   causalClaim,
   knowledgeGap,
+  retentionPolicy,
+  archiveManifest,
+  archiveRepresentation,
+  retentionDecision,
+  storagePressureSnapshot,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 
@@ -77,6 +82,11 @@ const tableSources = {
   predictionRecord,
   causalClaim,
   knowledgeGap,
+  retentionPolicy,
+  archiveManifest,
+  archiveRepresentation,
+  retentionDecision,
+  storagePressureSnapshot,
 } as const;
 
 type PortablePayload = { [K in keyof typeof tableSources]?: unknown[] };
@@ -183,6 +193,14 @@ export async function collectPortableBackup(options: { backupClass?: unknown; re
       compatible_schema_versions: [DB_SCHEMA_VERSION],
       requires_owner_confirmation: true,
     },
+  };
+  (manifest as any).archive_evidence = {
+    archive_manifest_count: payload.archiveManifest?.length ?? 0,
+    archive_representation_count: payload.archiveRepresentation?.length ?? 0,
+    retention_decision_count: payload.retentionDecision?.length ?? 0,
+    pressure_snapshot_count: payload.storagePressureSnapshot?.length ?? 0,
+    archive_manifest_checksum: digest(payload.archiveManifest ?? []),
+    credentials_included: false,
   };
   const sizeBytes = Buffer.byteLength(canonicalJson({ manifest, payload }));
   return { backupId, manifest, payload, sizeBytes };
@@ -458,6 +476,12 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
   const expectedCounts = manifest?.record_counts ?? {};
   const countMismatches = Object.entries(expectedCounts).filter(([name, count]) => rows(payload, name as keyof PortablePayload).length !== count);
   checks.push({ name: "record-counts", result: countMismatches.length ? "FAIL" : "PASS", evidence: { mismatches: countMismatches } });
+  const archiveRows = rows(payload, "archiveManifest");
+  const archiveEvidence = manifest?.archive_evidence;
+  const archiveEvidenceValid = archiveEvidence && archiveEvidence.credentials_included === false
+    && archiveEvidence.archive_manifest_count === archiveRows.length
+    && archiveEvidence.archive_manifest_checksum === digest(archiveRows);
+  checks.push({ name: "archive-manifest-integrity", result: archiveEvidenceValid ? "PASS" : "WARN", evidence: { archiveManifestCount: archiveRows.length, expectedCount: archiveEvidence?.archive_manifest_count ?? null, checksumValid: archiveEvidence?.archive_manifest_checksum === digest(archiveRows), credentialsIncluded: archiveEvidence?.credentials_included ?? null, archiveTablesPresent: Array.isArray(payload.archiveRepresentation) && Array.isArray(payload.retentionDecision) } });
 
   const eventRows = rows(payload, "eventLog");
   const sourceIds = new Set([

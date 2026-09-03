@@ -80,6 +80,7 @@ import emailRouter from "./email";
 import desktopSetupRouter from "./desktop-setup";
 import workingMemoryRouter from "./working-memory";
 import epistemicHistoryRouter from "./epistemic-history";
+import retentionRouter from "./retention";
 
 const router: IRouter = Router();
 
@@ -159,6 +160,7 @@ router.use(emailRouter);
 router.use(desktopSetupRouter);
 router.use(workingMemoryRouter);
 router.use(epistemicHistoryRouter);
+router.use(retentionRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

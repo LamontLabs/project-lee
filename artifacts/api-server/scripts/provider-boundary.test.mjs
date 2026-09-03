@@ -9,6 +9,8 @@ const adapterFiles = new Set([
   "lib/android-push.ts",
   "lib/connector-engine.ts",
   "lib/connectors.ts",
+  // OAuth provider URLs and credential exchange belong to the connection adapter boundary.
+  "lib/connection-center.ts",
   "lib/provider-abstraction.ts",
   "services/internal-services.ts",
 ]);

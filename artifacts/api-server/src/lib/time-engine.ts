@@ -42,7 +42,23 @@ export async function timeOverview() {
   return {
     now: now.toISOString(),
     objects: objects.map((object) => ({ ...object, temporal: temporalFields({ createdAt: object.createdAt, updatedAt: object.updatedAt, lastConfirmedAt: object.lastConfirmedAt, objectType: object.objectType }) })),
-    waitingLoops: loops.map((loop) => { const daysWaiting = Math.max(0, Math.floor((now.getTime() - loop.waitingSince.getTime()) / DAY)); const expected = loop.nextCheckAt ? now >= loop.nextCheckAt : false; return { ...loop, daysWaiting, risk: daysWaiting > 30 ? "red" : expected ? "amber" : "green", recommendedAction: daysWaiting > 30 ? "Escalate or close" : expected ? "Check in now" : "Monitor" }; }),
+    waitingLoops: loops.map((loop) => {
+      const daysWaiting = Math.max(0, Math.floor((now.getTime() - loop.waitingSince.getTime()) / DAY));
+      const expected = loop.nextCheckAt ? now >= loop.nextCheckAt : false;
+      const score = Number(loop.metadata?.waitingScore ?? 0);
+      const risk = score >= 75 || daysWaiting > 30 ? "red" : score >= 48 || expected ? "amber" : "green";
+      return {
+        ...loop,
+        daysWaiting,
+        waitingScore: score || null,
+        direction: loop.direction,
+        confidence: loop.confidence,
+        evidenceRefs: loop.sourceRefs,
+        risk,
+        recommendedAction: risk === "red" ? "Review importance, evidence, and next human action" : expected ? "Check in now if the evidence still supports it" : "Monitor",
+        noAutomaticFollowUp: true,
+      };
+    }),
     notifications,
     latestBrief: latestBrief[0] ?? null,
   };

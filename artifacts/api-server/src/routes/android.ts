@@ -9,6 +9,7 @@ import { verifyAndroidPairing } from "./android-pairing";
 import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 import { hasReplayedAuthorization, validUnexpiredAllow } from "../lib/consequential-execution";
 import { governanceService } from "../services/internal-services";
+import { extractCommitmentCandidate, recordCommitmentCandidate, reconcileWaitingLoops } from "../lib/commitment-intelligence";
 
 const router: IRouter = Router();
 async function paired(req: any) {
@@ -35,6 +36,20 @@ router.post("/android/capture", async (req, res): Promise<void> => {
   if (!content) { res.status(400).json({ error: "text or transcript is required." }); return; }
   const checksum = createHash("sha256").update(content).digest("hex");
   const [source] = await db.insert(sourceVault).values({ originalFilename: String(req.body?.filename ?? `android-capture-${Date.now()}.txt`), mimeType: String(req.body?.mimeType ?? "text/plain"), byteSize: Buffer.byteLength(content), checksum, storagePath: `android://${randomUUID()}`, rawContent: content, processingStatus: "pending", metadata: { device: "android", tag: req.body?.tag ?? null, capturedAt: new Date().toISOString() } }).onConflictDoNothing({ target: sourceVault.checksum }).returning();
+  if (source) {
+    const candidate = extractCommitmentCandidate({
+      eventType: "AndroidCapture",
+      sourceRef: source.id,
+      payload: { body: content, tag: req.body?.tag ?? null },
+      actor: { type: "owner", label: "Owner" },
+      recipient: { type: "unknown" },
+      evidenceRefs: [source.id],
+    });
+    if (candidate) {
+      await recordCommitmentCandidate(candidate);
+      await reconcileWaitingLoops();
+    }
+  }
   res.status(201).json({ sourceId: source?.id ?? null, duplicate: !source, status: source ? "captured" : "duplicate" });
 });
 router.post("/android/battery", async (req, res): Promise<void> => {

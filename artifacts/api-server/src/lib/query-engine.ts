@@ -5,6 +5,7 @@ import {
   assumptionLedger,
   behavioralSignal,
   bootstrapRun,
+  commitment,
   constitutionProvision,
   db,
   eventLog,
@@ -33,7 +34,7 @@ const sourceNames = [
   "universal_objects", "facts", "interpretations", "assumptions", "events",
   "waiting_loops", "strategic_objectives", "constitution", "trust_scores",
   "operational_patterns", "behavioral_signals", "institutional_knowledge",
-  "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people", "reality_graph",
+  "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people", "commitments", "reality_graph",
 ] as const;
 
 export const querySpecSchema = z.object({
@@ -89,6 +90,7 @@ const sourceTable = {
   opportunities: [opportunity, "opportunity"],
   strategic_anchors: [strategicAnchor, "strategic_anchor"],
   people: [person, "person"],
+  commitments: [commitment, "commitment"],
 } as const;
 
 function cacheKey(spec: QuerySpec) {

@@ -4,7 +4,7 @@ import { db, eventLog } from "@workspace/db";
 
 const EVENT_TYPES = [
   "KnowledgeCreated","KnowledgeUpdated","KnowledgeInvalidated","FactAccepted","FactInvalidated","FactCreated","InterpretationCreated","InterpretationRevised",
-  "PersonCreated","PersonUpdated","InteractionRecorded","FollowUpSet","RelationshipTierChanged",
+  "PersonCreated","PersonUpdated","InteractionRecorded","FollowUpSet","RelationshipTierChanged","CommitmentCreated","CommitmentUpdated","CommitmentCompleted","WaitingLoopCreated",
   "ObjectiveCreated","ObjectiveUpdated","RecommendationGenerated","StrategyInvalidated","PrioritizationUpdated",
   "GovernanceItemCreated","GovernanceItemApproved","GovernanceItemRejected","GovernanceHoldCreated",
   "BriefGenerated","BriefRegenerated","ConnectorSynced","ConnectorFailed","ConnectorResumed",

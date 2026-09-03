@@ -37,6 +37,7 @@
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",
     "test:change-intelligence": "../lee-desktop/node_modules/.bin/tsx --test scripts/change-intelligence-contract.test.ts",
+    "test:commitment-intelligence": "../lee-desktop/node_modules/.bin/tsx --test scripts/commitment-intelligence.test.ts",
     "test:institutional-knowledge": "node scripts/institutional-knowledge.test.mjs",
     "test:self-improvement-boundary": "node scripts/self-improvement-boundary.test.mjs",
     "test:operational-intelligence-evidence": "node scripts/operational-intelligence.evidence.test.mjs",

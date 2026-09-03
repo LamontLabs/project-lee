@@ -166,16 +166,37 @@ export const auditLog = pgTable("audit_log", {
 
 export const waitingLoop = pgTable("waiting_loop", {
   id: uuid("id").defaultRandom().primaryKey(),
+  commitmentId: uuid("commitment_id"),
   subject: text("subject").notNull(),
   owner: text("owner"),
+  direction: varchar("direction", { length: 24 }).notNull().default("uncertain"),
+  actorType: varchar("actor_type", { length: 32 }).notNull().default("unknown"),
+  actorId: uuid("actor_id"),
+  recipientType: varchar("recipient_type", { length: 32 }).notNull().default("unknown"),
+  recipientId: uuid("recipient_id"),
+  personId: uuid("person_id"),
+  organizationId: text("organization_id"),
+  projectId: text("project_id"),
   status: varchar("status", { length: 32 }).notNull().default("open"),
   waitingSince: timestamp("waiting_since", { withTimezone: true }).defaultNow().notNull(),
   nextCheckAt: timestamp("next_check_at", { withTimezone: true }),
+  expectedResponseAt: timestamp("expected_response_at", { withTimezone: true }),
+  lastMeaningfulActivityAt: timestamp("last_meaningful_activity_at", { withTimezone: true }),
+  importanceScore: real("importance_score").notNull().default(0.5),
+  projectImpactScore: real("project_impact_score").notNull().default(0.5),
+  confidence: real("confidence").notNull().default(0.5),
+  cadenceDays: integer("cadence_days"),
   sourceRefs: jsonb("source_refs").$type<string[]>().notNull().default([]),
+  completionEvidenceRefs: jsonb("completion_evidence_refs").$type<string[]>().notNull().default([]),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("waiting_loop_status_check_idx").on(table.status, table.nextCheckAt)]);
+}, (table) => [
+  index("waiting_loop_status_check_idx").on(table.status, table.nextCheckAt),
+  index("waiting_loop_commitment_idx").on(table.commitmentId),
+  index("waiting_loop_person_idx").on(table.personId, table.status),
+  index("waiting_loop_direction_idx").on(table.direction, table.status),
+]);
 
 export const notification = pgTable("notification", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -207,6 +228,6 @@ export const insertSourceVaultSchema = createInsertSchema(sourceVault, { metadat
 export const insertImpactNodeSchema = createInsertSchema(impactNode, { sourceRefs: jsonArray, metadata: jsonRecord });
 export const insertImpactEdgeSchema = createInsertSchema(impactEdge, { evidenceRefs: jsonArray, metadata: jsonRecord });
 export const insertAuditLogSchema = createInsertSchema(auditLog, { metadata: jsonRecord });
-export const insertWaitingLoopSchema = createInsertSchema(waitingLoop, { sourceRefs: jsonArray, metadata: jsonRecord });
+export const insertWaitingLoopSchema = createInsertSchema(waitingLoop, { sourceRefs: jsonArray, completionEvidenceRefs: jsonArray, metadata: jsonRecord });
 export const insertNotificationSchema = createInsertSchema(notification);
 export const insertBriefSchema = createInsertSchema(brief, { content: jsonRecord, sourcesUsed: jsonArray, whyChain: z.array(jsonRecord) });

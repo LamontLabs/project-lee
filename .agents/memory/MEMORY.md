@@ -1,5 +1,6 @@
 - [Foundation event immutability](foundation-event-immutability.md) — event history is protected by a PostgreSQL trigger, not only application conventions.
 - [Event sequence allocation](event-sequence-allocation.md) — per-aggregate sequence numbers require transactional application and database allocation locks.
+- [Historical Event Log recovery](historical-event-recovery.md) — preserve old sequence anomalies and keep recovery fail-closed until explicit reconciliation.
 - [Understanding output contract](understanding-output-contract.md) — extraction always returns source-backed facts, interpretations, provenance, and a completion event.
 - [Model routing boundary](model-routing-boundary.md) — context is budgeted before mandatory CIL routing; LEE executes CIL decisions and never locally selects a model.
 - [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.

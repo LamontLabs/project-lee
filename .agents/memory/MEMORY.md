@@ -73,3 +73,4 @@
 - [Unified approval inbox boundary](approval-inbox-boundary.md) — desktop and Android review one provider-neutral envelope through the same fail-closed CerbaSeal path.
 - [Connection health projection](connection-health-projection.md) — owner-facing connection health separates authority, availability, recovery, and diagnostics across clients.
 - [Retention archive boundary](retention-archive-boundary.md) — source-specific policies, content-addressed media layers, pressure stages, and owner-gated archive changes preserve history.
+- [Cognitive Runtime boundary](cognitive-runtime-boundary.md) — thirteen existing cognitive ledgers coordinate through persisted cycles with isolated refresh failures and unchanged governance authority.

@@ -81,6 +81,7 @@ import desktopSetupRouter from "./desktop-setup";
 import workingMemoryRouter from "./working-memory";
 import epistemicHistoryRouter from "./epistemic-history";
 import retentionRouter from "./retention";
+import cognitiveRuntimeRouter from "./cognitive-runtime";
 
 const router: IRouter = Router();
 
@@ -161,6 +162,7 @@ router.use(desktopSetupRouter);
 router.use(workingMemoryRouter);
 router.use(epistemicHistoryRouter);
 router.use(retentionRouter);
+  router.use(cognitiveRuntimeRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

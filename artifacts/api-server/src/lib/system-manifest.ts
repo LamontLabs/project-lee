@@ -11,6 +11,7 @@ import { getPortfolioDependencyGraph } from "./portfolio-dependency";
 import { getRecoveryMode } from "./recovery-modes";
 import { projectContractSections } from "./system-contract";
 import { getStorageStatus } from "./retention";
+import { currentCognitiveRuntime } from "./cognitive-runtime";
 
 export const MANIFEST_VERSION = "1.0.0";
 const iso = (value: Date | null | undefined) => value?.toISOString() ?? null;
@@ -64,6 +65,7 @@ export async function generateManifest() {
   const recovery = getRecoveryMode();
   const latestSelfTest = tests[0];
   const retentionStorage = await getStorageStatus();
+  const cognitiveRuntime = await currentCognitiveRuntime();
   const failedEngine = engines.some((engine) => ["UNAVAILABLE", "FAILED"].includes(engine.lifecycleState)) || engines.some((engine) => ["UNAVAILABLE", "FAILED"].includes(engine.status));
   const unavailableService = internalServices.some((service) => service.currentHealth === "unavailable");
   const overallHealth = latestSelfTest?.overallResult === "FAIL" || failedEngine ? "critical" : unavailableService || latestSelfTest?.overallResult === "WARN" ? "degraded" : "nominal";
@@ -100,16 +102,16 @@ export async function generateManifest() {
     selfTest: latestSelfTest ? { runId: latestSelfTest.testRunId, result: latestSelfTest.overallResult, startedAt: iso(latestSelfTest.startedAt), completedAt: iso(latestSelfTest.completedAt), passCount: latestSelfTest.passCount, warnCount: latestSelfTest.warnCount, failCount: latestSelfTest.failCount } : unavailable("No Self-Test run has been recorded"),
     recoveryMode: recovery,
     operationalState: states[0] ? { state: states[0].currentState, reason: states[0].reason, enteredAt: iso(states[0].enteredAt), updatedAt: iso(states[0].updatedAt), activeJobsSummary: states[0].activeJobsSummary } : unavailable("No operational state has been recorded"),
-    health: { state: states[0]?.currentState ?? null, stateReason: states[0]?.reason ?? null, overall: overallHealth, capacity: capacities[0] ? { state: capacities[0].state, score: capacities[0].score, inferred: capacities[0].inferred } : unavailable("No operational capacity observation has been recorded"), engines: engines.map((engine) => ({ engineId: engine.engineId, lifecycleState: engine.lifecycleState, status: engine.status, lastHeartbeat: iso(engine.lastHeartbeat), health: engineHealthByName.get(engine.name) ?? null })), cil: serviceHealth.cil ?? unavailable("CIL is not registered in ServiceRegistry"), cerbaseal: serviceHealth.cerbaseal ?? unavailable("CerbaSeal is not registered in ServiceRegistry"), internalServices: activeServices, selfTest: latestSelfTest ? { result: latestSelfTest.overallResult, startedAt: iso(latestSelfTest.startedAt), completedAt: iso(latestSelfTest.completedAt) } : unavailable("No Self-Test run has been recorded"), executiveLoop: loops[0] ? { phase: loops[0].phase, cycleCount: loops[0].cycleCount, averageCycleDurationMs: loops[0].averageCycleDurationMs, interrupted: loops[0].interrupted, updatedAt: iso(loops[0].updatedAt) } : unavailable("Executive Loop has no persisted state") },
+     health: { state: states[0]?.currentState ?? null, stateReason: states[0]?.reason ?? null, overall: overallHealth, capacity: capacities[0] ? { state: capacities[0].state, score: capacities[0].score, inferred: capacities[0].inferred } : unavailable("No operational capacity observation has been recorded"), engines: engines.map((engine) => ({ engineId: engine.engineId, lifecycleState: engine.lifecycleState, status: engine.status, lastHeartbeat: iso(engine.lastHeartbeat), health: engineHealthByName.get(engine.name) ?? null })), cil: serviceHealth.cil ?? unavailable("CIL is not registered in ServiceRegistry"), cerbaseal: serviceHealth.cerbaseal ?? unavailable("CerbaSeal is not registered in ServiceRegistry"), internalServices: activeServices, selfTest: latestSelfTest ? { result: latestSelfTest.overallResult, startedAt: iso(latestSelfTest.startedAt), completedAt: iso(latestSelfTest.completedAt) } : unavailable("No Self-Test run has been recorded"), executiveLoop: loops[0] ? { phase: loops[0].phase, cycleCount: loops[0].cycleCount, averageCycleDurationMs: loops[0].averageCycleDurationMs, interrupted: loops[0].interrupted, updatedAt: iso(loops[0].updatedAt) } : unavailable("Executive Loop has no persisted state"), cognitiveRuntime: { status: cognitiveRuntime.status, lastRefreshAt: cognitiveRuntime.lastRefreshAt, staleModels: cognitiveRuntime.staleModels, degradedModels: cognitiveRuntime.degradedModels, nextRefreshAt: cognitiveRuntime.nextRefreshAt } },
     dependencies: [...engines.map((engine) => ({ engine: engine.engineId, required: engine.requiredDependencies.length ? engine.requiredDependencies : engine.dependencies, satisfied: engine.lifecycleState !== "UNAVAILABLE", state: engine.lifecycleState })), ...internalServices.map((service) => ({ engine: service.serviceId, required: [], satisfied: ["healthy", "degraded"].includes(service.currentHealth), state: service.currentHealth })), { portfolioDependencyGraph: dependencyGraph.summary }],
-     provenance: { identity: "identity_profile + identity_profile_version", brainState: "brain_version", constitution: "constitution_version + constitution_provision", policies: "policy_record", capabilities: "engine_registry", providers: "provider_registration", indexes: "semantic_index", statistics: "cost_record + model_route_decision + canonical ledgers", storage: "backup_archive + archive_manifest + archive_representation + retention_decision + storage_pressure_snapshot", health: "engine_health + internal_capability_service + self_test_run + lee_state + executive_loop", dependencies: "engine_registry + internal_capability_service + graph_edge" },
+      provenance: { identity: "identity_profile + identity_profile_version", brainState: "brain_version", constitution: "constitution_version + constitution_provision", policies: "policy_record", capabilities: "engine_registry", providers: "provider_registration", indexes: "semantic_index", statistics: "cost_record + model_route_decision + canonical ledgers", storage: "backup_archive + archive_manifest + archive_representation + retention_decision + storage_pressure_snapshot", health: "engine_health + internal_capability_service + self_test_run + lee_state + executive_loop + cognitive_runtime_cycle", dependencies: "engine_registry + internal_capability_service + graph_edge" },
     validation: { result: validationChecks.some((check) => check.result === "WARN") ? "WARN" : "PASS", checks: validationChecks },
   } as unknown as ManifestDocument;
   const contract = projectContractSections(baseManifest);
   const manifest: ManifestDocument = {
     ...baseManifest,
     contractVersion: contract.contractVersion,
-    runtime: contract.runtime,
+    runtime: { ...contract.runtime, cognitiveRuntime },
     events: contract.events,
     permissions: contract.permissions,
     risk: contract.risk,

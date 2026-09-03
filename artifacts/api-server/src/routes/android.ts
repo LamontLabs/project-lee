@@ -11,6 +11,7 @@ import { reviewGovernanceRequest } from "../lib/governance-review";
 import { toApprovalEnvelope } from "../lib/approval-envelope";
 import { listConnectionHealth } from "../lib/connection-center";
 import { extractCommitmentCandidate, recordCommitmentCandidate, reconcileWaitingLoops } from "../lib/commitment-intelligence";
+import { currentCognitiveRuntime } from "../lib/cognitive-runtime";
 
 const router: IRouter = Router();
 async function paired(req: any) {
@@ -172,6 +173,11 @@ router.get("/android/approvals", async (req, res): Promise<void> => {
 router.get("/android/connections", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   res.json(await listConnectionHealth());
+});
+
+router.get("/android/runtime", async (req, res): Promise<void> => {
+  if (await rejectPairing(req, res)) return;
+  res.json(await currentCognitiveRuntime());
 });
 
 router.post("/android/approvals/:id/ask-why", async (req, res): Promise<void> => {

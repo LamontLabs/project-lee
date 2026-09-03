@@ -8,6 +8,7 @@ export * from "./governance";
 export * from "./memory";
 export * from "./memory-consolidation";
 export * from "./retention";
+export * from "./cognitive-runtime";
 export * from "./epistemic-history";
 export * from "./graph";
 export * from "./relationships";

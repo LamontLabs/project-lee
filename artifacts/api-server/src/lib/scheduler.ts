@@ -10,6 +10,7 @@ import { detectOperationalPatterns } from "./operational-memory";
 import { generateInitiatives } from "./initiative";
 import { generateOperationalContext } from "./operational-intelligence";
 import { runExecutiveLoopTick } from "./executive-loop";
+import { runCognitiveRuntimeCycle } from "./cognitive-runtime";
 import { runRequestPipeline } from "./request-pipeline";
 import { renewGmailWatches } from "./gmail-sync";
 import { runConsolidation } from "./memory-consolidation";
@@ -124,6 +125,12 @@ export async function executeScheduledJob(id: string) {
   if (job.jobType === "executive_loop_tick") {
     try { await runExecutiveLoopTick(); } catch (error) { handlerError = error instanceof Error ? error.message : "Executive Loop tick failed."; }
   }
+  if (job.jobType === "cognitive_runtime_cycle") {
+    try {
+      const result = await runCognitiveRuntimeCycle("scheduled");
+      if (result.blocked) deferredRunAt = new Date(Date.now() + 15 * 60_000);
+    } catch (error) { handlerError = error instanceof Error ? error.message : "Cognitive Runtime cycle failed."; }
+  }
   if (job.jobType === "morning_brief" || job.jobType === "evening_reflection" || job.jobType === "weekly_review") {
     try {
       const briefType = job.jobType === "morning_brief" ? "today" : job.jobType === "evening_reflection" ? "evening" : "weekly";
@@ -158,6 +165,7 @@ export async function executeScheduledJob(id: string) {
     job.jobType === "operational_intelligence_refresh" ||
     job.jobType === "gmail_watch_renewal" ||
     job.jobType === "executive_loop_tick" ||
+    job.jobType === "cognitive_runtime_cycle" ||
     job.jobType === "morning_brief" ||
     job.jobType === "evening_reflection" ||
     job.jobType === "weekly_review" ||
@@ -186,16 +194,19 @@ export async function executeScheduledJob(id: string) {
 
   const recurringGmailWatch = job.jobType === "gmail_watch_renewal";
   const recurringConsolidation = job.jobType === "memory_consolidation";
+  const recurringCognitiveRuntime = job.jobType === "cognitive_runtime_cycle";
   const [completed] = await db
     .update(scheduledJob)
     .set({
-      status: recurringGmailWatch || recurringConsolidation ? "pending" : "completed",
+       status: recurringGmailWatch || recurringConsolidation || recurringCognitiveRuntime ? "pending" : "completed",
       runAt: recurringGmailWatch
         ? new Date(now.getTime() + 30 * 60_000)
         : recurringConsolidation
           ? deferredRunAt ?? new Date(now.getTime() + 24 * 60 * 60_000)
+           : recurringCognitiveRuntime
+             ? deferredRunAt ?? new Date(now.getTime() + 30 * 60_000)
           : job.runAt,
-      completedAt: recurringGmailWatch || recurringConsolidation ? null : now,
+       completedAt: recurringGmailWatch || recurringConsolidation || recurringCognitiveRuntime ? null : now,
       updatedAt: now,
       lastError: null,
     })

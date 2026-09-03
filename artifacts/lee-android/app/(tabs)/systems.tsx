@@ -5,13 +5,14 @@ import { router } from 'expo-router';
 import { Card, Eyebrow, Screen, SectionLabel, Title } from '@/components/Screen';
 import { useLee } from '@/context/LeeContext';
 import { useColors } from '@/hooks/useColors';
-import type { ConnectionSummary } from '@/lib/api';
+import type { CognitiveRuntimeSnapshot, ConnectionSummary } from '@/lib/api';
 
 export default function SystemsTab() {
   const colors = useColors();
   const { pairing, api, captures, uncertainty, contract, refresh } = useLee();
   const [connections, setConnections] = useState<ConnectionSummary[]>([]);
-  useEffect(() => { if (!api) { setConnections([]); return; } void api.connections().then(setConnections).catch(() => setConnections([])); }, [api]);
+  const [runtime, setRuntime] = useState<CognitiveRuntimeSnapshot | null>(null);
+  useEffect(() => { if (!api) { setConnections([]); setRuntime(null); return; } void Promise.all([api.connections(), api.runtime()]).then(([nextConnections, nextRuntime]) => { setConnections(nextConnections); setRuntime(nextRuntime); }).catch(() => { setConnections([]); setRuntime(null); }); }, [api]);
   const queued = captures.filter((capture) => capture.status !== 'synced').length;
   const contractState = contract?.health?.state ?? 'unavailable';
   const statusColor = pairing && contractState === 'available' ? colors.primary : colors.accent;
@@ -24,6 +25,18 @@ export default function SystemsTab() {
         <View style={[styles.icon, { backgroundColor: statusColor }]}><Feather name={pairing ? 'wifi' : 'wifi-off'} size={18} color={colors.primaryForeground} /></View>
         <View style={styles.copy}><Text style={[styles.title, { color: colors.foreground }]}>{pairing ? 'Paired to Lee' : 'Offline companion'}</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{pairing ? `System contract ${contractState}.` : 'Capture remains local until the companion is paired.'}</Text></View>
       </View>
+    </Card>
+    <SectionLabel>Cognitive runtime</SectionLabel>
+    <Card>
+      <View style={styles.row}>
+        <View style={[styles.icon, { backgroundColor: runtime?.status === 'completed' ? colors.primary : colors.accent }]}><Feather name="cpu" size={18} color={colors.primaryForeground} /></View>
+        <View style={styles.copy}>
+          <Text style={[styles.title, { color: colors.foreground }]}>{runtime ? `${runtime.status} runtime` : 'Runtime unavailable'}</Text>
+          <Text style={[styles.body, { color: colors.mutedForeground }]}>{runtime?.lastRefreshAt ? `Last refresh ${new Date(runtime.lastRefreshAt).toLocaleString()}.` : 'Pair with Lee to read the latest runtime cycle.'}</Text>
+          {runtime?.summary?.mostImportantAction && <Text style={[styles.warning, { color: colors.accentForeground }]}>{runtime.summary.mostImportantAction}</Text>}
+        </View>
+      </View>
+      {runtime && <Text style={[styles.body, { color: colors.mutedForeground }]}>{runtime.staleModels.length} aging/stale model{runtime.staleModels.length === 1 ? '' : 's'} · {runtime.degradedModels.length} degraded/unavailable</Text>}
     </Card>
     <SectionLabel>Connection health</SectionLabel>
     <Card>

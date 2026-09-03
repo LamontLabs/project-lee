@@ -17,6 +17,14 @@ export type ConnectionSummary = {
   health?: { summary: string; whatFailed: string | null; remainsAvailable: string; blocked: string | null; recoveryAutomatic: boolean; ownerActionRequired: boolean; checkedAt: string | null };
   lastSyncAt?: string | null; lastSuccessfulOperation?: { label: string; at: string } | null; lastError?: string | null;
 };
+export type CognitiveRuntimeSnapshot = {
+  status: string;
+  lastRefreshAt: string | null;
+  nextRefreshAt: string | null;
+  staleModels: string[];
+  degradedModels: string[];
+  summary: { headline?: string; mostImportantAction?: string; operationalState?: string; uncertainty?: string };
+};
 
 export function createLeeApi(pairing: Pairing) {
   const base = pairing.apiUrl.replace(/\/$/, '');
@@ -69,5 +77,6 @@ export function createLeeApi(pairing: Pairing) {
     operationalConfidence: () => request<{ score: number; explanation: string; factors: Array<{ label: string; contribution: number; detail: string }> }>('/operational-confidence'),
     contract: () => request<SystemContract>('/contract'),
     connections: () => request<ConnectionSummary[]>('/android/connections'),
+    runtime: () => request<CognitiveRuntimeSnapshot>('/android/runtime'),
   };
 }

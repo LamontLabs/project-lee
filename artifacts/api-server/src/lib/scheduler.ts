@@ -12,6 +12,7 @@ import { generateOperationalContext } from "./operational-intelligence";
 import { runExecutiveLoopTick } from "./executive-loop";
 import { runRequestPipeline } from "./request-pipeline";
 import { renewGmailWatches } from "./gmail-sync";
+import { runConsolidation } from "./memory-consolidation";
 
 export async function executeScheduledJob(id: string) {
   const [job] = await db.select().from(scheduledJob).where(eq(scheduledJob.id, id)).limit(1);
@@ -59,6 +60,7 @@ export async function executeScheduledJob(id: string) {
     return { job: failed, eventId: event.id, message: "Scheduled job stopped by request pipeline." };
   }
   let handlerError: string | null = null;
+  let deferredRunAt: Date | null = null;
   if (job.jobType === "operational_review") {
     try {
       const cadence = job.payload.cadence;
@@ -128,6 +130,20 @@ export async function executeScheduledJob(id: string) {
       await generateBrief(briefType);
     } catch (error) { handlerError = error instanceof Error ? error.message : "Brief generation failed."; }
   }
+  if (job.jobType === "memory_consolidation") {
+    try {
+      const result = await runConsolidation({
+        runId: typeof job.payload.runId === "string" ? job.payload.runId : undefined,
+        runKey: typeof job.payload.runKey === "string" ? job.payload.runKey : undefined,
+      });
+      if (result.run.status === "failed") handlerError = result.run.failureReason ?? "Memory consolidation failed.";
+      if (result.run.status === "paused") deferredRunAt = result.run.nextScheduledAt;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Memory consolidation handler failed.";
+      if (reason.startsWith("CONSOLIDATION_DEFERRED_RECOVERY_MODE:")) deferredRunAt = new Date(Date.now() + 15 * 60_000);
+      else handlerError = reason;
+    }
+  }
   const supported =
     job.jobType === "maintenance" ||
     job.jobType === "health_check" ||
@@ -144,7 +160,8 @@ export async function executeScheduledJob(id: string) {
     job.jobType === "executive_loop_tick" ||
     job.jobType === "morning_brief" ||
     job.jobType === "evening_reflection" ||
-    job.jobType === "weekly_review";
+    job.jobType === "weekly_review" ||
+    job.jobType === "memory_consolidation";
   const now = new Date();
   if (!supported || handlerError) {
     const [failed] = await db
@@ -168,12 +185,17 @@ export async function executeScheduledJob(id: string) {
   }
 
   const recurringGmailWatch = job.jobType === "gmail_watch_renewal";
+  const recurringConsolidation = job.jobType === "memory_consolidation";
   const [completed] = await db
     .update(scheduledJob)
     .set({
-      status: recurringGmailWatch ? "pending" : "completed",
-      runAt: recurringGmailWatch ? new Date(now.getTime() + 30 * 60_000) : job.runAt,
-      completedAt: recurringGmailWatch ? null : now,
+      status: recurringGmailWatch || recurringConsolidation ? "pending" : "completed",
+      runAt: recurringGmailWatch
+        ? new Date(now.getTime() + 30 * 60_000)
+        : recurringConsolidation
+          ? deferredRunAt ?? new Date(now.getTime() + 24 * 60 * 60_000)
+          : job.runAt,
+      completedAt: recurringGmailWatch || recurringConsolidation ? null : now,
       updatedAt: now,
       lastError: null,
     })

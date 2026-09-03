@@ -43,6 +43,13 @@
       "when": 1788440870719,
       "tag": "0005_productive_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788441539835,
+      "tag": "0006_eminent_ted_forrester",
+      "breakpoints": true
     }
   ]
 }

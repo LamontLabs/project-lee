@@ -53,10 +53,10 @@ export async function consolidateHistorical() {
   const candidates = await db.select().from(universalObject).where(and(inArray(universalObject.memoryTier, ["historical", "archived"]), eq(universalObject.compressionStage, 1))).limit(25);
   const results = [];
   for (const object of candidates) {
-    const summary = { entity_list: [object.name, object.objectType], key_decisions: [], key_facts: [object.description ?? object.name], original_object_ids: [object.id], compression_stage: 2, source_confidence: object.propagatedConfidence ?? object.confidence };
+    const summary = { entity_list: [object.name, object.objectType], key_decisions: [], key_facts: [object.description ?? object.name], original_object_ids: [object.id], source_refs: object.sourceRefs, compression_stage: 2, source_confidence: object.propagatedConfidence ?? object.confidence };
     const beforeSize = JSON.stringify(object).length; const afterSize = JSON.stringify(summary).length;
     const [updated] = await db.update(universalObject).set({ memorySummary: summary, keyEntities: [object.name, object.objectType], compressionStage: 2, consolidatedAt: new Date(), updatedAt: new Date() }).where(eq(universalObject.id, object.id)).returning();
-    await db.insert(eventLog).values({ eventType: "MemoryConsolidated", aggregateType: "universal_object", aggregateId: object.id, sourceRef: "memory-compression-stage-2", occurredAt: new Date(), payload: { beforeSize, afterSize, compressionStage: 2, originalObjectIds: [object.id] } });
+    await db.insert(eventLog).values({ eventType: "MemoryConsolidated", aggregateType: "universal_object", aggregateId: object.id, sourceRef: "memory-compression-stage-2", occurredAt: new Date(), payload: { beforeSize, afterSize, compressionStage: 2, originalObjectIds: [object.id], sourceRefs: object.sourceRefs } });
     results.push(updated);
   }
   return results;

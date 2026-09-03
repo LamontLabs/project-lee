@@ -58,6 +58,7 @@ setInterval(() => void deliverCriticalAndroidPushes().catch((err) => logger.erro
 const durableDelivery = setInterval(() => void deliverDurableEvents({ maxEvents: 25 }).catch((err) => logger.error({ err }, "Durable event delivery cycle failed")), 5_000);
 durableDelivery.unref();
 db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "executive_loop_tick")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "executive_loop_tick", runAt: new Date(Date.now() + 5_000), recurrence: "1m", payload: { engine: "Executive Loop" } })).catch((err) => logger.error({ err }, "Executive Loop job registration failed"));
+db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobType, "memory_consolidation")).limit(1).then(([job]) => job ?? db.insert(scheduledJob).values({ jobType: "memory_consolidation", runAt: new Date(Date.now() + 60_000), recurrence: "daily", payload: { engine: "Memory Consolidation Engine", priority: "LOW" } })).catch((err) => logger.error({ err }, "Memory consolidation job registration failed"));
 registerProviders().catch((err) => logger.error({ err }, "Provider registry registration failed"));
 registerInternalServices().catch((err) => logger.error({ err }, "Internal service registry registration failed"));
 registerOperationalIntelligenceRefresh();

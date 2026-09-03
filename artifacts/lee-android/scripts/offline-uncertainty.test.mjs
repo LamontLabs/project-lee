@@ -54,7 +54,7 @@ test("cached uncertainty is rendered on both brief and capture screens", () => {
   assert.match(context, /setUncertainty\(storedUncertainty\)/);
   assert.match(brief, /highestUncertainty\(uncertainty\)/);
   assert.match(capture, /highestUncertainty\(uncertainty\)/);
-  assert.match(capture, /<UncertaintyNotice item=\{item\} offline=\{!pairing\} \/>/);
+  assert.match(capture, /<UncertaintyNotice item=\{uncertaintyItem\} offline=\{!pairing\} \/>/);
   assert.match(notice, /VERY HIGH UNCERTAINTY/);
   assert.match(notice, /offline \? ' · CACHED' : ''/);
 });

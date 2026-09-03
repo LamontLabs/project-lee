@@ -8,6 +8,7 @@
     "build": "node scripts/build.js",
     "test:runtime-wiring": "node --test scripts/runtime-wiring.test.mjs",
     "test:offline-uncertainty": "node --test scripts/offline-uncertainty.test.mjs",
+    "test:device-wiring": "node --test scripts/device-wiring.test.mjs",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

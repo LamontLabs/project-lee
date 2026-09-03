@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { connectorProviders, providerAdapters, type ConnectorProvider } from "../lib/connectors";
 import { connectorHealthScan, syncLiveConnector } from "../lib/connector-engine";
+import { recordNormalizedProviderChange } from "../lib/change-intelligence";
 
 const router: IRouter = Router();
 
@@ -136,12 +137,14 @@ router.post("/connectors/sync", async (req, res): Promise<void> => {
     return {
       syncId: sync.id,
       eventIds: storedEvents.map((event) => event.id),
+      normalizedEvents: storedEvents,
       domainEventId: syncEvent.id,
       healthEventId: healthEvent.id,
       receivedCount: completedSync.receivedCount,
       normalizedCount: completedSync.normalizedCount,
     };
   });
+  for (const event of result.normalizedEvents) await recordNormalizedProviderChange(event);
 
   res.status(201).json(
     SyncConnectorResponse.parse({

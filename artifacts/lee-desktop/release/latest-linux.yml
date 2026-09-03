@@ -1,0 +1,12 @@
+version: 0.1.0
+files:
+  - url: Project-LEE-Setup-0.1.0-x86_64.AppImage
+    sha512: nlZ/L5vr//49yumLMif1tdSwQ5ojZVR0UXwAywNC/wBG9zHdFBdR9GdqoC1GiF+M3CEEnc8LDnXCBKcFiSEixw==
+    size: 121255730
+    blockMapSize: 128838
+  - url: Project-LEE-Setup-0.1.0-amd64.deb
+    sha512: yvkiiHE/g+1FDXgDvRFGneoLKuB0o/ceIYtZWvaUiY1W//yU9u5C5fJkYraT9LVn3Hd9Wmw0uW0wvY5XjkGGOg==
+    size: 94467916
+path: Project-LEE-Setup-0.1.0-x86_64.AppImage
+sha512: nlZ/L5vr//49yumLMif1tdSwQ5ojZVR0UXwAywNC/wBG9zHdFBdR9GdqoC1GiF+M3CEEnc8LDnXCBKcFiSEixw==
+releaseDate: '2026-09-01T15:00:22.336Z'

@@ -1,11 +1,49 @@
 import { createCipheriv, createDecipheriv, createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { connection, db, eventLog, oauthCredential } from "@workspace/db";
+import { connection, connector, db, eventLog, oauthCredential } from "@workspace/db";
 
 export const CONNECTION_STATUSES = ["connected", "pending", "needs_reauthorization", "degraded", "unavailable", "incompatible", "disconnected"] as const;
 export const CONNECTION_METHODS = ["oauth", "api", "system_contract", "local", "file", "webhook", "manual"] as const;
 export const CONNECTION_PERMISSIONS = ["OBSERVE", "USE", "MANAGE", "GOVERNED_MANAGE"] as const;
 export type ConnectionStatus = typeof CONNECTION_STATUSES[number];
+export type ConnectionHealthProjection = {
+  id: string;
+  displayName: string;
+  targetType: string;
+  method: string;
+  status: ConnectionStatus;
+  authStatus: string;
+  statusLabel: string;
+  health: {
+    summary: string;
+    whatFailed: string | null;
+    remainsAvailable: string;
+    blocked: string | null;
+    recoveryAutomatic: boolean;
+    ownerActionRequired: boolean;
+    checkedAt: string | null;
+  };
+  authority: {
+    grants: string[];
+    primary: typeof CONNECTION_PERMISSIONS[number];
+    governsConsequentialActions: boolean;
+    explanation: string;
+  };
+  permissions: string[];
+  capabilities: string[];
+  lastSyncAt: string | null;
+  lastSuccessfulOperation: { label: string; at: string } | null;
+  lastError: string | null;
+  credentialConfigured: boolean;
+  diagnostics?: {
+    baseUrl: string | null;
+    healthEndpoint: string | null;
+    contractVersion: string | null;
+    grantedScopes: string[];
+    dependencies: Record<string, unknown>[];
+    configuration: Record<string, unknown>;
+  };
+};
 
 export const oauthProviders = {
   github: { authorization: "https://github.com/login/oauth/authorize", token: "https://github.com/login/oauth/access_token", scopes: ["read:user", "repo"], supportsRefresh: false },
@@ -121,9 +159,76 @@ function safeConfiguration(value: unknown): Record<string, unknown> {
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) if (!secretKeys.test(key)) result[key] = item;
   return result;
 }
+function safeEndpoint(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return value.split(/[?#]/, 1)[0] || null;
+  }
+}
 function publicConnection(row: typeof connection.$inferSelect) {
   const { credentialRef: _credentialRef, ...safe } = row;
   return { ...safe, credentialConfigured: Boolean(row.credentialRef) };
+}
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+function authorityProjection(permissions: string[]) {
+  const grants = permissions.filter((item): item is typeof CONNECTION_PERMISSIONS[number] => CONNECTION_PERMISSIONS.includes(item as typeof CONNECTION_PERMISSIONS[number]));
+  const primary = (["GOVERNED_MANAGE", "MANAGE", "USE", "OBSERVE"] as const).find((item) => grants.includes(item)) ?? "OBSERVE";
+  return {
+    grants,
+    primary,
+    governsConsequentialActions: grants.includes("GOVERNED_MANAGE"),
+    explanation: grants.includes("GOVERNED_MANAGE")
+      ? "Consequential actions still require a fresh CerbaSeal ALLOW; connectivity never releases them."
+      : `${primary} is the highest granted authority; connectivity does not imply permission to change anything.`,
+  };
+}
+export function projectConnectionHealth(row: typeof connection.$inferSelect, sync: typeof connector.$inferSelect | undefined, grantedScopes: string[], includeDiagnostics: boolean): ConnectionHealthProjection {
+  const status = row.status as ConnectionStatus;
+  const messages: Record<ConnectionStatus, { summary: string; whatFailed: string | null; remainsAvailable: string; blocked: string | null; recoveryAutomatic: boolean; ownerActionRequired: boolean }> = {
+    connected: { summary: "Connected and ready for its granted capabilities.", whatFailed: null, remainsAvailable: "Granted capabilities and read access remain available.", blocked: null, recoveryAutomatic: false, ownerActionRequired: false },
+    pending: { summary: "The connection exists but authorization is not complete.", whatFailed: "Authorization has not been completed.", remainsAvailable: "The connection record and its review history remain available.", blocked: "Provider operations remain blocked until authorization completes.", recoveryAutomatic: false, ownerActionRequired: true },
+    needs_reauthorization: { summary: "The provider authorization needs to be renewed.", whatFailed: row.lastError ?? "The stored authorization is expired or could not be refreshed.", remainsAvailable: "Connection metadata and local records remain available.", blocked: "Provider reads and writes remain blocked until sign-in completes.", recoveryAutomatic: true, ownerActionRequired: true },
+    degraded: { summary: "The connection is responding with reduced reliability.", whatFailed: row.lastError ?? "The last health check reported a degraded connection.", remainsAvailable: "Previously synced and locally stored records remain available.", blocked: "Some live operations may be unavailable until the next successful check.", recoveryAutomatic: true, ownerActionRequired: false },
+    unavailable: { summary: "The connection could not be reached.", whatFailed: row.lastError ?? "The last health check could not reach the endpoint.", remainsAvailable: "Previously synced and local records remain available.", blocked: "Live provider operations are blocked until the connection recovers.", recoveryAutomatic: true, ownerActionRequired: false },
+    incompatible: { summary: "The connection answered, but its contract is not supported.", whatFailed: row.lastError ?? "The reported contract version is incompatible.", remainsAvailable: "Connection metadata and previously synced records remain available.", blocked: "Operations requiring the unsupported contract remain blocked.", recoveryAutomatic: false, ownerActionRequired: true },
+    disconnected: { summary: "The connection has been disconnected.", whatFailed: "The owner disconnected this connection.", remainsAvailable: "Previously imported or synced records remain available.", blocked: "All live provider operations are blocked.", recoveryAutomatic: false, ownerActionRequired: false },
+  };
+  const message = messages[status] ?? messages.unavailable;
+  const syncAt = sync?.lastSyncAt?.toISOString() ?? null;
+  const healthAt = row.lastHealthCheck?.toISOString() ?? null;
+  const successfulAt = status === "connected" ? (syncAt ?? healthAt) : null;
+  const successfulLabel = syncAt ? "Provider sync" : row.method === "file" ? "Source import" : "Connection health check";
+  const result: ConnectionHealthProjection = {
+    id: row.id,
+    displayName: row.displayName,
+    targetType: row.targetType,
+    method: row.method,
+    status,
+    authStatus: row.authStatus,
+    statusLabel: humanize(status),
+    health: { ...message, checkedAt: healthAt },
+    authority: authorityProjection(row.permissions),
+    permissions: row.permissions,
+    capabilities: row.capabilities.map((item) => typeof item === "string" ? item : String(item.name ?? item.id ?? item.capability ?? "Declared capability")),
+    lastSyncAt: syncAt,
+    lastSuccessfulOperation: successfulAt ? { label: successfulLabel, at: successfulAt } : null,
+    lastError: row.lastError ?? sync?.lastError ?? null,
+    credentialConfigured: Boolean(row.credentialRef),
+  };
+  if (includeDiagnostics) result.diagnostics = {
+    baseUrl: safeEndpoint(row.baseUrl),
+    healthEndpoint: row.healthEndpoint?.split(/[?#]/, 1)[0] ?? null,
+    contractVersion: row.contractVersion ?? null,
+    grantedScopes,
+    dependencies: row.dependencies,
+    configuration: safeConfiguration(row.configuration),
+  };
+  return result;
 }
 async function audit(eventType: string, row: typeof connection.$inferSelect, payload: Record<string, unknown>) {
   await db.insert(eventLog).values({ eventType, aggregateType: "connection", aggregateId: row.id, sourceRef: `connection:${row.id}`, occurredAt: new Date(), payload: { connectionId: row.id, method: row.method, targetType: row.targetType, ...payload } });
@@ -131,7 +236,24 @@ async function audit(eventType: string, row: typeof connection.$inferSelect, pay
 
 export async function listConnections() {
   const rows = await db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt);
-  return rows.map(({ connection: row, credential }) => ({ ...publicConnection(row), grantedScopes: credential?.scopes ?? [] }));
+  const connectorRows = await db.select().from(connector);
+  const connectorByProvider = new Map(connectorRows.map((row) => [row.provider, row]));
+  return rows.map(({ connection: row, credential }) => {
+    const provider = row.configuration?.oauthProvider;
+    const sync = typeof provider === "string" ? connectorByProvider.get(provider) : undefined;
+    return projectConnectionHealth(row, sync, credential?.scopes ?? [], true);
+  });
+}
+
+export async function listConnectionHealth() {
+  const rows = await db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt);
+  const connectorRows = await db.select().from(connector);
+  const connectorByProvider = new Map(connectorRows.map((row) => [row.provider, row]));
+  return rows.map(({ connection: row, credential }) => {
+    const provider = row.configuration?.oauthProvider;
+    const sync = typeof provider === "string" ? connectorByProvider.get(provider) : undefined;
+    return projectConnectionHealth(row, sync, credential?.scopes ?? [], false);
+  });
 }
 
 export async function createConnection(input: {

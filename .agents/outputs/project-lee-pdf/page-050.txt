@@ -1,0 +1,44 @@
+→ Intent 
+ 
+→ Query Engine 
+ 
+→ Context Economy 
+ 
+→ CIL API 
+ 
+CIL returns either: 
+ 
+REUSE 
+ 
+No model call. 
+ 
+or: 
+ 
+MODEL ROUTE REQUIRED 
+ 
+CIL selects model/model class. 
+ 
+Then: 
+ 
+→ Model Router 
+ 
+→ Replit AI Bridge or another approved execution route 
+ 
+→ selected model 
+ 
+→ result 
+ 
+→ LEE 
+ 
+If the route fails: 
+ 
+→ return failure to CIL 
+ 
+→ CIL makes the fallback decision 
+ 
+The execution layer never silently changes CIL's decision. 
+ 
+--- 
+ 
+73. Future Governance Flow 
+ 

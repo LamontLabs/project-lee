@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { connection, db, eventLog } from "@workspace/db";
-import { authorizeConnectionCapability, createConnection, listConnections, oauthProviders, setConnectionStatus, signOAuthState, storeOAuthCredential, testConnection, updateConnectionPermissions, verifyOAuthState, verifyWebhookSignature, type OAuthProvider } from "../lib/connection-center";
+import { authorizeConnectionCapability, createConnection, listConnections, listConnectionHealth, oauthProviders, setConnectionStatus, signOAuthState, storeOAuthCredential, testConnection, updateConnectionPermissions, verifyOAuthState, verifyWebhookSignature, type OAuthProvider } from "../lib/connection-center";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { importSource } from "../lib/understanding-pipeline";
@@ -20,6 +20,7 @@ const providerFrom = (row: typeof connection.$inferSelect) => {
   return typeof provider === "string" && provider in oauthProviders ? provider as OAuthProvider : null;
 };
 router.get("/connections", async (_req, res) => res.json(await listConnections()));
+router.get("/connection-health", async (_req, res) => res.json(await listConnectionHealth()));
 router.post("/connections", async (req, res): Promise<void> => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid connection setup.", issues: parsed.error.issues }); return; }

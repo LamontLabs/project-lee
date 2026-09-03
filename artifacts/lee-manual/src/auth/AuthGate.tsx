@@ -46,7 +46,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 mb-6">
-            <img src="/favicon.svg" alt="" className="w-8 h-8 rounded border border-primary/60 shadow-[0_0_18px_hsl(var(--brand-red)/.22)]" />
+            <img src="/favicon.png?icon=lee" alt="" className="w-8 h-8 rounded border border-primary/60 shadow-[0_0_18px_hsl(var(--brand-red)/.22)]" />
             <span className="font-semibold text-foreground tracking-tight">Project LEE</span>
           </div>
           <h1 className="text-xl font-semibold text-foreground mb-1">Private Access</h1>

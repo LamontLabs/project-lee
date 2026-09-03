@@ -1,0 +1,44 @@
+- reliability 
+- task type 
+- previous success 
+- current availability 
+- cost ceiling 
+- governance constraints 
+ 
+The goal is: 
+ 
+«Use the least expensive valid model route capable of reliably completing the task.» 
+ 
+--- 
+ 
+44. Model Router Has a Narrow Role 
+ 
+LEE may retain a Model Router, but it does not own model-selection intelligence. 
+ 
+CIL 
+ 
+Chooses the cognitive route. 
+ 
+Model Router 
+ 
+Executes the route selected by CIL. 
+ 
+The Model Router handles: 
+ 
+- endpoint selection 
+- request formatting 
+- transport 
+- retries where allowed 
+- result normalization 
+- usage capture 
+ 
+It must not silently override CIL's model decision. 
+ 
+--- 
+ 
+45. Correct AI Flow 
+ 
+The long-term path is: 
+ 
+User / Executive Loop / LEE Engine 
+ 

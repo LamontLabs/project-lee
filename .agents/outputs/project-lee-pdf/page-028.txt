@@ -1,0 +1,44 @@
+- performance 
+- runtime problems 
+ 
+LEE may request approved functions such as: 
+ 
+- generate report 
+- run simulation 
+- perform health check 
+- pause approved workflow 
+- restart a safe worker 
+ 
+QuantraCore's own specialist controls remain inside QuantraCore. 
+ 
+--- 
+ 
+40. System-to-LEE Events 
+ 
+Connected systems should report important events. 
+ 
+Examples: 
+ 
+Greyline 
+ 
+- ProductionStarted 
+- ProductionCompleted 
+- PackageReady 
+- ValidationFailed 
+- JobHeld 
+ 
+QuantraCore 
+ 
+- DataFeedDegraded 
+- StrategyPaused 
+- SimulationCompleted 
+- RiskConditionDetected 
+ 
+CIL 
+ 
+- ReuseResolved 
+- ModelSelected 
+- FrontierEscalated 
+- ContradictionDetected 
+- CostAvoided 
+ 

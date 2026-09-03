@@ -33,7 +33,7 @@ export async function explain(input: { objectId: string; explanationType: string
   const [objects, facts, interpretations] = await Promise.all([
     queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "balanced", confidenceThreshold: 0, limit: 200, requester: "Explanation Engine", purpose: "explanation_assembly" }),
     queryEngine.query({ sources: ["facts"], filters: {}, rankingPolicy: "balanced", confidenceThreshold: 0, limit: 50, requester: "Explanation Engine", purpose: "explanation_assembly" }),
-    queryEngine.query({ sources: ["interpretations"], filters: {}, rankingPolicy: "balanced", confidenceThreshold: 0, limit: 50, requester: "Explanation Engine", purpose: "explanation_assembly" }).catch(() => []),
+    queryEngine.query({ sources: ["interpretations"], filters: {}, rankingPolicy: "balanced", confidenceThreshold: 0, limit: 50, requester: "Explanation Engine", purpose: "explanation_assembly" }).catch((): StandardQueryResult[] => []),
   ]);
   const source = objects.find((item) => item.object_id === input.objectId) ?? interpretations.find((item) => item.object_id === input.objectId) ?? facts.find((item) => item.object_id === input.objectId);
   if (!source) throw new Error("Explanation target was not found.");

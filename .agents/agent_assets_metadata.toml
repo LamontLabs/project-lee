@@ -1,0 +1,53 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "5IpGuPlJozleyLZJ1JrYu"
+uri = "file://project-lee-task-plan.md"
+type = "text"
+title = "Project LEE — Task Plan (v10.0 · 55 Tasks)"
+
+[[outputs]]
+id = "bBe6mH0oAzp6Bl5cQzU5l"
+uri = "file://replit-integrations.md"
+type = "text"
+title = "Replit Integrations — Complete List (423 integrations)"
+
+[[outputs]]
+id = "avJ2AgUsSDZ-huE0udH-V"
+uri = "file://lee-cil-integration-spec.md"
+type = "text"
+title = "CIL ↔ Project LEE Integration Specification"
+
+[[outputs]]
+id = "TiVDi77y-0CDdpHBF-ES5"
+uri = "file://lee-cerbaseal-integration-spec.md"
+type = "text"
+title = "CerbaSeal ↔ Project LEE Integration Specification"
+
+[[outputs]]
+id = "3zV9XI1crDGGSDLU61DXl"
+uri = "file://project-lee-master-breakdown.md"
+type = "text"
+title = "Project LEE — Master Breakdown (v10.0 · 55 Tasks)"
+
+[[outputs]]
+id = "OdMRzTKyKWFUQUThhEvCG"
+uri = "file://.agents/outputs/project-lee-v12-audit.pdf"
+type = "pdf"
+title = "Download: Project LEE Version 12.0 Full Audit"
+description = "Complete read-only implementation-verification audit PDF."
+
+[[outputs]]
+id = "hCf8_rttME0DiEaPh_aq-"
+uri = "file://.agents/outputs/project-lee-v12-audit-download.zip"
+type = "unspecified"
+title = "Download Project LEE Audit PDF"
+description = "ZIP download containing the complete Project LEE Version 12.0 audit PDF. Extract the ZIP on your device to open the PDF."
+
+[[outputs]]
+id = "9DyYVp4ZouVslP-0tpopd"
+uri = "file://deliverables/Project-LEE-Complete-Project-Description.pdf"
+type = "pdf"
+title = "Project LEE — Complete Project Description"
+description = "An 8-page source-grounded overview of Project LEE’s architecture, engines, data model, governance, interfaces, Windows desktop deployment, validation evidence, and current limitations."

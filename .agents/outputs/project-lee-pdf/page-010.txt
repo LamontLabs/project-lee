@@ -1,0 +1,44 @@
+ 
+The core LEE request sequence remains: 
+ 
+Identity 
+→ Constitution 
+→ Intent 
+→ Context 
+ 
+After that, LEE may call external systems if necessary. 
+ 
+--- 
+ 
+11. Event-Sourced History 
+ 
+LEE should maintain an append-only canonical history of important events. 
+ 
+Examples: 
+ 
+- project created 
+- source captured 
+- Fact created 
+- Interpretation created 
+- assumption invalidated 
+- objective updated 
+- system connected 
+- capability registered 
+- workflow started 
+- workflow completed 
+- CIL routing decision received 
+- model request executed 
+- CerbaSeal decision received 
+- owner approval received 
+- connected system degraded 
+- backup created 
+- restore verified 
+- review completed 
+- Institutional Knowledge promoted 
+ 
+Current state should increasingly be reconstructable from events. 
+ 
+This supports: 
+ 
+- recovery 
+- historical analysis 

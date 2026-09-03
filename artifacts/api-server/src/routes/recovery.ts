@@ -8,5 +8,12 @@ router.get("/recovery/status", (_req, res) => res.json(getRecoveryMode()));
 router.get("/recovery/boot-history", async (_req, res) => res.json(await db.select().from(bootHistory).orderBy(desc(bootHistory.startedAt)).limit(20)));
 router.get("/recovery/agenda", async (_req, res) => res.json(await db.select().from(recoveryAgenda).orderBy(desc(recoveryAgenda.createdAt)).limit(20)));
 router.post("/recovery/clean-shutdown", async (req, res) => res.status(201).json(await recordCleanShutdown(String(req.body?.sessionId ?? crypto.randomUUID()))));
-router.post("/recovery/agenda/:id/resolve", async (req, res) => res.json(await resolveAgenda(req.params.id)));
+router.post("/recovery/agenda/:id/resolve", async (req, res): Promise<void> => {
+  const resolved = await resolveAgenda(req.params.id);
+  if (!resolved) {
+    res.status(404).json({ error: "Recovery agenda item was not found.", agendaId: req.params.id });
+    return;
+  }
+  res.json(resolved);
+});
 export default router;

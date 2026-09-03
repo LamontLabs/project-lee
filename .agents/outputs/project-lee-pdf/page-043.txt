@@ -1,0 +1,44 @@
+ 
+Metrics should be labeled: 
+ 
+- MEASURED 
+- ESTIMATED 
+- UNAVAILABLE 
+ 
+--- 
+ 
+62. CIL Economics 
+ 
+CIL should report metrics such as: 
+ 
+- T1 resolution % 
+- T2 resolution % 
+- T3 escalation % 
+- Frontier Dependency % 
+- model selection distribution 
+- average request cost 
+- latency by route 
+- estimated avoided model cost 
+- fallback rate 
+- performance by task class 
+ 
+LEE should eventually be able to answer: 
+ 
+«How much has CIL saved?» 
+ 
+and: 
+ 
+«What would AI usage have cost without it?» 
+ 
+--- 
+ 
+63. Replit's Long-Term Role 
+ 
+Replit changes roles over time. 
+ 
+Current 
+ 
+Replit hosts most of LEE. 
+ 
+Hybrid 
+ 

@@ -11,6 +11,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
   const migrationCheck = await read("scripts/verify-packaged-migrations.mjs");
+  const windowsSmoke = await read("scripts/windows-smoke-test.ps1");
   const windowsUpdate = await read("scripts/windows-update-smoke.ps1");
   const unixUpdate = await read("scripts/unix-update-smoke.mjs");
 
@@ -20,12 +21,23 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installer, /IfSilent/);
   assert.match(installer, /certutil\.exe/);
   assert.match(installer, /TrustedPublisher/);
+  assert.match(windowsSmoke, /resources\\lee-signing\.cer/);
+  assert.match(windowsSmoke, /X509Store/);
+  assert.match(windowsSmoke, /StoreLocation\]::CurrentUser/);
+  assert.match(windowsSmoke, /FindByThumbprint/);
+  assert.match(windowsSmoke, /certificateThumbprint = \$packagedCertificate\.Thumbprint/);
+  assert.match(windowsSmoke, /automatic trust bootstrap may have regressed/);
   assert.doesNotMatch(builder, /win:[\s\S]*extraResources:/);
   assert.match(runtime, /join\(process\.resourcesPath, "postgres", "bin"\)/);
   assert.match(runtime, /LD_LIBRARY_PATH/);
   assert.match(runtime, /DYLD_LIBRARY_PATH/);
   assert.match(runtime, /PGSHAREDIR/);
   assert.match(runtime, /postgres-socket/);
+  assert.match(runtime, /randomUUID\(\)/);
+  assert.match(runtime, /LEE_INSTANCE_ID: instanceId/);
+  assert.match(runtime, /timeout: 60_000/);
+  assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);
+  assert.match(runtime, /\/api\/recovery\/status/);
   assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);
   assert.match(main, /quitAndInstall/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);

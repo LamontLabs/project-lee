@@ -1,5 +1,6 @@
 import { createInsertSchema } from "drizzle-zod";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -81,6 +82,50 @@ export const relationshipPromise = pgTable("relationship_promise", {
   sourceRef: text("source_ref").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const commitment = pgTable(
+  "commitment",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    fingerprint: varchar("fingerprint", { length: 240 }).notNull().unique(),
+    actorType: varchar("actor_type", { length: 32 }).notNull().default("unknown"),
+    actorId: uuid("actor_id"),
+    actorLabel: text("actor_label"),
+    recipientType: varchar("recipient_type", { length: 32 }).notNull().default("unknown"),
+    recipientId: uuid("recipient_id"),
+    recipientLabel: text("recipient_label"),
+    direction: varchar("direction", { length: 24 }).notNull().default("uncertain"),
+    commitmentType: varchar("commitment_type", { length: 32 }).notNull().default("promise"),
+    statement: text("statement").notNull(),
+    status: varchar("status", { length: 24 }).notNull().default("open"),
+    confidence: real("confidence").notNull().default(0.5),
+    inferred: boolean("inferred").notNull().default(true),
+    evidenceRefs: jsonb("evidence_refs").$type<string[]>().notNull().default([]),
+    completionEvidenceRefs: jsonb("completion_evidence_refs").$type<string[]>().notNull().default([]),
+    contradictionRefs: jsonb("contradiction_refs").$type<string[]>().notNull().default([]),
+    personIds: jsonb("person_ids").$type<string[]>().notNull().default([]),
+    organizationIds: jsonb("organization_ids").$type<string[]>().notNull().default([]),
+    projectIds: jsonb("project_ids").$type<string[]>().notNull().default([]),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    expectedResponseAt: timestamp("expected_response_at", { withTimezone: true }),
+    lastMeaningfulActivityAt: timestamp("last_meaningful_activity_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    importanceScore: real("importance_score").notNull().default(0.5),
+    projectImpactScore: real("project_impact_score").notNull().default(0.5),
+    cadenceDays: integer("cadence_days"),
+    sourceRef: text("source_ref").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("commitment_status_due_idx").on(table.status, table.dueAt),
+    index("commitment_direction_activity_idx").on(table.direction, table.lastMeaningfulActivityAt),
+    index("commitment_actor_idx").on(table.actorType, table.actorId),
+    index("commitment_recipient_idx").on(table.recipientType, table.recipientId),
+  ],
+);
+
 export const relationshipQuestion = pgTable("relationship_question", {
   id: uuid("id").defaultRandom().primaryKey(),
   personId: uuid("person_id").notNull(),
@@ -106,5 +151,14 @@ export const insertPersonSchema = createInsertSchema(person, {
 });
 
 export const insertRelationshipInteractionSchema = createInsertSchema(relationshipInteraction, {
+  metadata: jsonRecord,
+});
+export const insertCommitmentSchema = createInsertSchema(commitment, {
+  evidenceRefs: z.array(z.string()),
+  completionEvidenceRefs: z.array(z.string()),
+  contradictionRefs: z.array(z.string()),
+  personIds: z.array(z.string()),
+  organizationIds: z.array(z.string()),
+  projectIds: z.array(z.string()),
   metadata: jsonRecord,
 });

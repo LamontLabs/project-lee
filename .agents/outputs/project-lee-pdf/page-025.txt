@@ -1,0 +1,44 @@
+Risk 
+ 
+How consequential each action is. 
+ 
+Governance 
+ 
+Whether CerbaSeal evaluation is required. 
+ 
+Human Confirmation 
+ 
+Whether owner approval is required. 
+ 
+Economics 
+ 
+Relevant cost information. 
+ 
+Dependencies 
+ 
+What the system relies on. 
+ 
+--- 
+ 
+35. Future Projects Become LEE-Compatible 
+ 
+A future project should not require rewriting LEE. 
+ 
+The integration process should become: 
+ 
+1. Build the project. 
+2. Expose authenticated API. 
+3. Implement LEE System Contract. 
+4. Expose health. 
+5. Declare capabilities. 
+6. Declare events. 
+7. Declare permissions. 
+8. Declare governance requirements. 
+9. Connect to LEE. 
+10. LEE validates the contract. 
+11. Owner approves. 
+12. Project becomes available. 
+ 
+--- 
+ 
+36. Connection Modes 

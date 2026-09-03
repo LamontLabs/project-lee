@@ -1,0 +1,44 @@
+LEE continues informational work. 
+ 
+Consequential actions requiring CerbaSeal HOLD. 
+ 
+Greyline unavailable 
+ 
+LEE continues operating. 
+ 
+Greyline workflows become unavailable. 
+ 
+QuantraCore unavailable 
+ 
+LEE continues operating. 
+ 
+Internet unavailable 
+ 
+Local desktop LEE remains usable. 
+ 
+Mobile disconnected 
+ 
+Captures queue locally. 
+ 
+Failure of one system should not collapse the environment. 
+ 
+--- 
+ 
+59. Security 
+ 
+System-to-system APIs should support strong authentication. 
+ 
+Depending on deployment, mechanisms may include: 
+ 
+- TLS 
+- scoped service tokens 
+- HMAC signing 
+- timestamps 
+- nonce/replay protection 
+- short-lived credentials 
+- device identity 
+- network restrictions 
+- capability-scoped permissions 
+ 
+LEE should never gain unrestricted authority simply because a system is connected. 
+ 

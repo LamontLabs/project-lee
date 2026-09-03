@@ -1,14 +1,16 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { androidPairing, auditLog, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
+import { androidPairing, conversation, db, governanceRequest, notification, sourceVault, waitingLoop } from "@workspace/db";
 import { sampleResources } from "../lib/resource";
 import { getState } from "../lib/state";
 import { routeModelRequest } from "../lib/model-router";
 import { verifyAndroidPairing } from "./android-pairing";
 import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
-import { hasReplayedAuthorization, validUnexpiredAllow } from "../lib/consequential-execution";
-import { governanceService } from "../services/internal-services";
+import { reviewGovernanceRequest } from "../lib/governance-review";
+import { toApprovalEnvelope } from "../lib/approval-envelope";
+import { listConnectionHealth } from "../lib/connection-center";
+import { extractCommitmentCandidate, recordCommitmentCandidate, reconcileWaitingLoops } from "../lib/commitment-intelligence";
 
 const router: IRouter = Router();
 async function paired(req: any) {
@@ -35,6 +37,20 @@ router.post("/android/capture", async (req, res): Promise<void> => {
   if (!content) { res.status(400).json({ error: "text or transcript is required." }); return; }
   const checksum = createHash("sha256").update(content).digest("hex");
   const [source] = await db.insert(sourceVault).values({ originalFilename: String(req.body?.filename ?? `android-capture-${Date.now()}.txt`), mimeType: String(req.body?.mimeType ?? "text/plain"), byteSize: Buffer.byteLength(content), checksum, storagePath: `android://${randomUUID()}`, rawContent: content, processingStatus: "pending", metadata: { device: "android", tag: req.body?.tag ?? null, capturedAt: new Date().toISOString() } }).onConflictDoNothing({ target: sourceVault.checksum }).returning();
+  if (source) {
+    const candidate = extractCommitmentCandidate({
+      eventType: "AndroidCapture",
+      sourceRef: source.id,
+      payload: { body: content, tag: req.body?.tag ?? null },
+      actor: { type: "owner", label: "Owner" },
+      recipient: { type: "unknown" },
+      evidenceRefs: [source.id],
+    });
+    if (candidate) {
+      await recordCommitmentCandidate(candidate);
+      await reconcileWaitingLoops();
+    }
+  }
   res.status(201).json({ sourceId: source?.id ?? null, duplicate: !source, status: source ? "captured" : "duplicate" });
 });
 router.post("/android/battery", async (req, res): Promise<void> => {
@@ -140,60 +156,37 @@ router.post("/android/alerts/:id/action", async (req, res): Promise<void> => {
 router.post("/android/approve", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   const id = String(req.body?.governanceRequestId ?? "");
-  const decision = req.body?.decision === "approve" ? "approved" : req.body?.decision === "reject" ? "rejected" : req.body?.decision === "hold" ? "hold" : null;
-  if (!id || !decision) { res.status(400).json({ error: "governanceRequestId and decision are required." }); return; }
-  const [current] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, id)).limit(1);
-  if (!current) { res.status(404).json({ error: "Governance request not found." }); return; }
-  if (current.status !== "HOLD") { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
-  if (current.expiresAt && current.expiresAt <= new Date()) { res.status(409).json({ error: "This governance request has expired." }); return; }
-  if (decision === "approved" && ["HIGH", "CRITICAL"].includes(current.riskLevel) && current.evidenceRefs.length === 0) { res.status(409).json({ error: "Evidence is required before approving this action." }); return; }
-  const cerbaSealResponse = await governanceService.evaluate({
-    lee_request_id: current.leeRequestId,
-    action_class: current.actionClass,
-    target_system: current.targetSystem,
-    actor_identity: "android-founder",
-    owner_confirmation: decision === "approved",
-    human_confirmation: decision === "approved",
-    expected_downstream_effect: current.reason,
-    evidence_refs: current.evidenceRefs,
-    payload: current.requestPayload ?? {},
-    approval_artifact: {
-      source: "android-founder",
-      decision,
-      confirmed_at: new Date().toISOString(),
-      governance_request_id: current.id,
-    },
-  });
-  const authorization = decision === "approved" ? validUnexpiredAllow(cerbaSealResponse) : { ok: true as const, reason: "" };
-  if (decision === "approved" && !authorization.ok) {
-    res.status(409).json({ error: "CerbaSeal did not release this request.", reason: authorization.reason });
-    return;
-  }
-  if (cerbaSealResponse.verdict === "ALLOW" && await hasReplayedAuthorization(cerbaSealResponse.decision_id, current.id)) {
-    res.status(409).json({ error: "This CerbaSeal authorization has already been used.", reason: "REPLAYED_AUTHORIZATION" });
-    return;
-  }
-  // A phone rejection/hold is input to CerbaSeal, never an instruction to
-  // manufacture an ALLOW if a gate implementation responds permissively.
-  const resolvedVerdict = decision === "approved"
-    ? cerbaSealResponse.verdict
-    : cerbaSealResponse.verdict === "REJECT" ? "REJECT" : "HOLD";
-  const [updated] = await db.update(governanceRequest).set({
-    status: resolvedVerdict,
-    verdict: resolvedVerdict,
-    decisionId: cerbaSealResponse.decision_id,
-    reasonCodes: cerbaSealResponse.reason_codes,
-    resolvedAt: resolvedVerdict === "HOLD" ? null : new Date(),
-    responsePayload: { source: "android", decision, cerbaSeal: cerbaSealResponse },
-  }).where(and(eq(governanceRequest.id, id), eq(governanceRequest.status, "HOLD"))).returning();
-  if (!updated) { res.status(404).json({ error: "Governance request not found." }); return; }
-  await db.insert(auditLog).values({ action: `governance_android_confirmation_${decision}`, actor: "android-founder", targetType: "governance_request", targetId: updated.id, outcome: resolvedVerdict, metadata: { actionId: updated.id, evidenceShown: updated.evidenceRefs, cerbaSealDecisionId: cerbaSealResponse.decision_id, wasEdited: false } });
-  res.json({ id: updated.id, status: updated.status });
+  const verdict = req.body?.decision === "approve" || req.body?.decision === "ALLOW" ? "ALLOW" : req.body?.decision === "reject" || req.body?.decision === "REJECT" ? "REJECT" : req.body?.decision === "hold" || req.body?.decision === "HOLD" ? "HOLD" : null;
+  if (!id || !verdict) { res.status(400).json({ error: "governanceRequestId and decision are required." }); return; }
+  const result = await reviewGovernanceRequest({ id, verdict, actor: "android-founder", source: "android" });
+  if (!result.ok) { res.status(result.status).json({ error: result.error, reason: result.reason, approval: result.envelope }); return; }
+  res.json(result.envelope);
 });
 
 router.get("/android/approvals", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
-  res.json(await db.select().from(governanceRequest).where(eq(governanceRequest.status, "HOLD")).orderBy(desc(governanceRequest.createdAt)));
+  const rows = await db.select().from(governanceRequest).where(eq(governanceRequest.status, "HOLD")).orderBy(desc(governanceRequest.createdAt));
+  res.json(rows.map((row) => toApprovalEnvelope(row)));
+});
+
+router.get("/android/connections", async (req, res): Promise<void> => {
+  if (await rejectPairing(req, res)) return;
+  res.json(await listConnectionHealth());
+});
+
+router.post("/android/approvals/:id/ask-why", async (req, res): Promise<void> => {
+  if (await rejectPairing(req, res)) return;
+  const [item] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, req.params.id)).limit(1);
+  if (!item) { res.status(404).json({ error: "Approval item not found." }); return; }
+  const queryText = `Explain this approval without approving it: ${JSON.stringify({ action: item.actionClass, risk: item.riskLevel, reason: item.reason, evidence: item.evidenceRefs, target: item.targetSystem })}`;
+  const pipeline = await runRequestPipeline({ text: queryText, origin: "android", actionType: "android_governance_explanation", engineName: "Android Governance Explanation", mode: "review", budgetTokens: 1200 });
+  if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
+  try {
+    const explanation = await routeModelRequest({ correlationId: pipeline.correlationId, pipeline, queryText, semanticDomain: "governance-explanation", intentType: pipeline.intent.intentType, riskClassification: "LOW", contextItems: pipeline.context.items, preferredTier: "auto" });
+    res.json({ explanation: explanation.answer, approvalId: item.id });
+  } catch (error) {
+    res.status(503).json({ error: error instanceof Error ? error.message : "Lee could not explain this approval." });
+  }
 });
 
 export default router;

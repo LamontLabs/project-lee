@@ -1,0 +1,44 @@
+Backups 
+ 
+Recovery and portability. 
+ 
+Manifest 
+ 
+Live description of the environment. 
+ 
+--- 
+ 
+25. LEE Mobile Companion 
+ 
+The Android companion remains a first-class interface. 
+ 
+It is not intended to duplicate desktop. 
+ 
+Its purpose is portable awareness and control. 
+ 
+Primary features: 
+ 
+- Today 
+- Ask Lee 
+- Capture 
+- Brief 
+- Waiting 
+- Alerts 
+- Approvals 
+- Systems 
+- lightweight controls 
+- offline capture 
+ 
+--- 
+ 
+26. Mobile Today 
+ 
+The mobile Today screen should quickly answer: 
+ 
+- What matters? 
+- What changed? 
+- What am I waiting on? 
+- Is something blocked? 
+- Is something at risk? 
+- Does Lee need a decision? 
+- Is a connected system unhealthy? 

@@ -1,0 +1,44 @@
+This allows CIL to become the shared cognitive-routing and AI-cost-control infrastructure for 
+Lamont Labs. 
+ 
+LEE remains the operating orchestrator. 
+ 
+--- 
+ 
+51. CerbaSeal Is Completely External 
+ 
+CerbaSeal is also a separate API service. 
+ 
+LEE never performs CerbaSeal's actual governance decision logic. 
+ 
+LEE prepares a GovernedRequest. 
+ 
+LEE sends it to CerbaSeal. 
+ 
+CerbaSeal returns: 
+ 
+- ALLOW 
+- HOLD 
+- REJECT 
+ 
+LEE follows that decision. 
+ 
+There is no local duplicate CerbaSeal engine inside LEE. 
+ 
+--- 
+ 
+52. CerbaSeal Remains Constitutionally Special 
+ 
+CerbaSeal may technically connect through the same Universal Systems API Layer as other 
+systems. 
+ 
+Its authority remains special. 
+ 
+Capabilities can declare: 
+ 
+- consequential = true 
+- CerbaSeal required = true 
+- human confirmation = true/false 
+ 
+LEE sees that metadata and knows the required execution path. 
+ 

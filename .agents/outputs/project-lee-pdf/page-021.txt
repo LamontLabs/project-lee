@@ -1,0 +1,44 @@
+ 
+--- 
+ 
+29. Mobile Offline Capture 
+ 
+If LEE Core is unreachable, mobile should store captures in an encrypted local queue. 
+ 
+When connectivity returns: 
+ 
+Mobile queue 
+→ LEE Core 
+→ Understanding Pipeline 
+→ Brain 
+ 
+The phone never becomes another authoritative Brain. 
+ 
+--- 
+ 
+30. Mobile Approvals 
+ 
+Mobile should make approvals extremely easy. 
+ 
+Example: 
+ 
+«Greyline requests external export.» 
+ 
+«CerbaSeal verdict: ALLOW.» 
+ 
+«Human confirmation required.» 
+ 
+The app presents: 
+ 
+- proposed action 
+- target system 
+- reason 
+- evidence 
+- CerbaSeal result 
+- consequences 
+- approve 
+- reject 
+ 
+--- 
+ 
+31. Universal Systems API Layer 

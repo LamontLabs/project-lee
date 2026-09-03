@@ -18,8 +18,11 @@ import { computeProjectMomentum } from "./lib/project-momentum";
 import { detectOpportunities } from "./lib/opportunity";
 import { deliverDurableEvents } from "./lib/event-delivery";
 import { registerOperationalIntelligenceRefresh } from "./lib/operational-intelligence";
+import { registerCommitmentIntelligence } from "./lib/commitment-intelligence";
+import { restorePortableBackupIntoEmptyDatabase } from "./lib/backup-restore";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { resumeRepairRuns } from "./lib/project-repair";
 
 const rawPort = process.env["PORT"];
 
@@ -39,7 +42,12 @@ if (process.env.LEE_DATA_DIR) {
   for (const name of ["backups", "logs", "brain", "event-log"]) mkdirSync(join(process.env.LEE_DATA_DIR, name), { recursive: true });
 }
 
-startBoot().catch((err) => logger.error({ err }, "Boot mode selection failed"));
+const replacementRestore = process.env.LEE_RESTORE_BACKUP_PATH
+  ? restorePortableBackupIntoEmptyDatabase(process.env.LEE_RESTORE_BACKUP_PATH)
+    .then((result) => logger.info({ backupId: result.backupId, brainVersion: result.brainVersion }, "Replacement Brain restore completed"))
+    .catch((err) => logger.error({ err }, "Replacement Brain restore blocked; continuing in protected recovery mode"))
+  : Promise.resolve();
+replacementRestore.then(() => startBoot()).catch((err) => logger.error({ err }, "Boot mode selection failed"));
 ensureKnowledgeAgingJob().catch((err) => logger.error({ err }, "Knowledge aging job registration failed"));
 ensureWorldStateJob().catch((err) => logger.error({ err }, "World state job registration failed"));
 ensureOperationalMemoryJob().catch((err) => logger.error({ err }, "Operational memory job registration failed"));
@@ -53,6 +61,8 @@ db.select({ id: scheduledJob.id }).from(scheduledJob).where(eq(scheduledJob.jobT
 registerProviders().catch((err) => logger.error({ err }, "Provider registry registration failed"));
 registerInternalServices().catch((err) => logger.error({ err }, "Internal service registry registration failed"));
 registerOperationalIntelligenceRefresh();
+registerCommitmentIntelligence();
+resumeRepairRuns().catch((err) => logger.error({ err }, "Project repair recovery failed"));
 for (const eventType of ["GovernedActionHeld", "BuildFailed", "OperationalPatternBroken", "GovernanceServiceUnavailable"] as const) subscribe(eventType, (event) => { void interruptExecutiveLoop(eventType, event.id).catch((err) => logger.error({ err }, "Executive Loop interrupt failed")); });
 for (const eventType of ["ConnectorSynced", "ConnectorFailed", "CILUnavailable", "GovernanceServiceUnavailable", "KnowledgeStale", "KnowledgeAged"] as const) subscribe(eventType, () => { void computeOperationalConfidence().catch((err) => logger.error({ err }, "Operational Confidence recompute failed")); });
 for (const eventType of ["CommitPushed", "PRMerged", "DocumentCreated", "DocumentUpdated", "SourceVaultRecordCreated", "WaitingLoopResolved", "EmailReceived", "ThreadUpdated"] as const) subscribe(eventType, (event) => { void computeProjectMomentum(typeof event.payload.projectId === "string" ? event.payload.projectId : undefined).catch((err) => logger.error({ err }, "Project Momentum recompute failed")); });

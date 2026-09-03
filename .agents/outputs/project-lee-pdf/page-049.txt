@@ -1,0 +1,44 @@
+Mobile continues functioning. 
+ 
+Phase 4 — K6 Primary 
+ 
+The authoritative LEE Brain moves to the K6. 
+ 
+Desktop becomes the main interface. 
+ 
+Android connects remotely. 
+ 
+CIL remains external. 
+ 
+CerbaSeal remains external. 
+ 
+Replit AI Bridge remains connected. 
+ 
+Phase 5 — Mature Distributed Lamont Labs Environment 
+ 
+LEE Core runs locally. 
+ 
+Specialist systems run wherever appropriate. 
+ 
+CIL controls AI routing. 
+ 
+Replit executes selected managed AI calls. 
+ 
+CerbaSeal governs consequential actions. 
+ 
+Mobile provides portable access. 
+ 
+Everything communicates through standardized authenticated APIs. 
+ 
+--- 
+ 
+72. Future AI Flow 
+ 
+The definitive AI path should be: 
+ 
+LEE request 
+ 
+→ Identity 
+ 
+→ Constitution 
+ 

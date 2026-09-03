@@ -1,0 +1,44 @@
+- confidence 
+- uncertainty 
+ 
+Models can change. 
+ 
+Connected systems can change. 
+ 
+The K6 can change. 
+ 
+Replit can change. 
+ 
+The Brain should survive all of them. 
+ 
+--- 
+ 
+7. Portability 
+ 
+LEE must remain portable from the beginning. 
+ 
+The Brain should be: 
+ 
+- exportable 
+- versioned 
+- restorable 
+- migratable 
+- auditable 
+- independently verifiable 
+ 
+The K6 is intended to become LEE's primary local home. 
+ 
+It should not become a permanent architectural dependency. 
+ 
+The principle is: 
+ 
+«Move Lee, not rebuild Lee.» 
+ 
+--- 
+ 
+8. LEE Core 
+ 
+LEE Core contains the internal systems that truly belong to LEE. 
+ 
+Major components include: 
+ 

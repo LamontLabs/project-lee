@@ -1,0 +1,44 @@
+ 
+This is a foundational AI-cost-control rule. 
+ 
+The normal path is: 
+ 
+LEE 
+→ CIL API 
+ 
+CIL attempts: 
+ 
+T1 
+ 
+Governed near-exact reuse. 
+ 
+T2 
+ 
+Governed semantic reuse. 
+ 
+T3 
+ 
+New reasoning/model call required. 
+ 
+Only after T3 does model execution occur. 
+ 
+--- 
+ 
+43. CIL Selects the Model 
+ 
+At T3, CIL does not merely say: 
+ 
+«Use AI.» 
+ 
+CIL determines what model/model class is appropriate. 
+ 
+Factors may include: 
+ 
+- task complexity 
+- reasoning depth 
+- modality 
+- context size 
+- latency 
+- confidence requirement 
+- historical model performance 
+- cost 

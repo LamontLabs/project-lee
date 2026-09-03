@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, eventLog } from "@workspace/db";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import { notifySubscribers, subscribe, unsubscribe, causalChain, validateDomainPayload, type DomainEventInput, type DomainEventType } from "./domain-events";
+import { recordChangeFromEvent } from "./change-intelligence";
 
 type EventWriter = typeof db;
 
@@ -27,6 +28,7 @@ export async function emitEvent(input: DomainEventInput, writer: EventWriter = d
     brainVersion: input.brainVersion,
     occurredAt: new Date(),
   }).returning();
+  if (writer === db) await recordChangeFromEvent(event);
   await notifySubscribers(event);
   return event;
 }

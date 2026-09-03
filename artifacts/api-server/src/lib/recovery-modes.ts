@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { desc, eq, isNull } from "drizzle-orm";
 import { bootHistory, cleanShutdown, db, eventLog, recoveryAgenda } from "@workspace/db";
 import { getEngines, setLifecycleState } from "./capability-registry";
+import { getStartupProof, verifyCanonicalBrainStartup } from "./startup-integrity";
 
 export const RECOVERY_MODES = ["COLD_BOOT", "WARM_RESTART", "SAFE_MODE", "RECOVERY_MODE", "MIGRATION_MODE", "READ_ONLY"] as const;
 export type RecoveryMode = typeof RECOVERY_MODES[number];
@@ -9,7 +10,7 @@ let activeMode: RecoveryMode = "COLD_BOOT";
 let activeReason = "Default full validation boot.";
 let activeAgenda: typeof recoveryAgenda.$inferSelect | null = null;
 
-export function getRecoveryMode() { return { mode: activeMode, reason: activeReason, agenda: activeAgenda }; }
+export function getRecoveryMode() { return { mode: activeMode, reason: activeReason, agenda: activeAgenda, proof: getStartupProof() }; }
 export function criticalStateChecksum() { return createHash("sha256").update("lee-critical-state-v1").digest("hex"); }
 
 export async function selectBootMode(explicit?: string): Promise<{ mode: RecoveryMode; reason: string; agenda: typeof recoveryAgenda.$inferSelect | null }> {
@@ -23,9 +24,22 @@ export async function selectBootMode(explicit?: string): Promise<{ mode: Recover
 export async function startBoot(explicit?: string) {
   const started = new Date();
   const selection = await selectBootMode(explicit ?? process.env.LEE_BOOT_MODE);
+  const proof = await verifyCanonicalBrainStartup();
   activeMode = selection.mode; activeReason = selection.reason; activeAgenda = selection.agenda;
-  const [history] = await db.insert(bootHistory).values({ bootMode: activeMode, reason: activeReason, agendaSummary: selection.agenda ? `${selection.agenda.issues.length} issues` : null, startedAt: started }).returning();
-  await db.insert(eventLog).values({ eventType: "BootStarted", aggregateType: "boot", aggregateId: history.id, sourceRef: "boot-manager", occurredAt: started, payload: { bootMode: activeMode, reason: activeReason, agendaSummary: history.agendaSummary } });
+  if (proof.overall !== "PASS" && activeMode !== "READ_ONLY") {
+    activeMode = "RECOVERY_MODE";
+    activeReason = proof.issues.join(" ") || "Canonical Brain startup proof failed.";
+    if (!activeAgenda) {
+      const [agenda] = await db.insert(recoveryAgenda).values({
+        status: "OPEN",
+        source: "canonical-brain-startup",
+        issues: proof.issues.map((description, index) => ({ id: `startup-${index + 1}`, description, status: "OPEN" })),
+      }).returning();
+      activeAgenda = agenda ?? null;
+    }
+  }
+  const [history] = await db.insert(bootHistory).values({ bootMode: activeMode, reason: activeReason, agendaSummary: activeAgenda ? `${activeAgenda.issues.length} issues` : null, startedAt: started }).returning();
+  await db.insert(eventLog).values({ eventType: "BootStarted", aggregateType: "boot", aggregateId: history.id, sourceRef: "boot-manager", occurredAt: started, payload: { bootMode: activeMode, reason: activeReason, agendaSummary: activeAgenda ? `${activeAgenda.issues.length} issues` : null, startupProof: proof.overall } });
   if (activeMode === "SAFE_MODE") {
     const engines = await getEngines();
     for (const engine of engines.filter((item) => !["Foundations", "Coordination"].includes(item.owner))) await setLifecycleState(engine.engineId, "UNAVAILABLE", ["Safe Mode: intelligence capabilities disabled."]);
@@ -33,7 +47,8 @@ export async function startBoot(explicit?: string) {
   const engines = await getEngines();
   const engineStates = Object.fromEntries(engines.map((engine) => [engine.engineId, activeMode === "SAFE_MODE" && !["Foundations", "Coordination"].includes(engine.owner) ? "UNAVAILABLE" : engine.lifecycleState]));
   const completed = new Date();
-  await db.update(bootHistory).set({ completedAt: completed, engineStates, success: true }).where(isNull(bootHistory.completedAt));
+  const success = proof.overall === "PASS" && activeMode !== "RECOVERY_MODE";
+  await db.update(bootHistory).set({ completedAt: completed, engineStates, success }).where(eq(bootHistory.id, history.id));
   await db.insert(eventLog).values({ eventType: "BootCompleted", aggregateType: "boot", aggregateId: history.id, sourceRef: "boot-manager", occurredAt: completed, payload: { bootMode: activeMode, durationMs: completed.getTime() - started.getTime(), engineStates } });
   return { ...getRecoveryMode(), historyId: history.id };
 }

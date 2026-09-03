@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { LeeProvider } from '@/context/LeeContext';
@@ -28,6 +29,22 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { pairing, api } = useLee();
+
+  function navigateToLink(url: string) {
+    const parsed = Linking.parse(url);
+    const path = (parsed.path ?? '').replace(/^\/+/, '');
+    const [tab, id] = path.split('/');
+    if (tab === 'alerts' || tab === 'approvals') {
+      router.replace(id ? { pathname: `/(tabs)/${tab}`, params: { id } } : `/(tabs)/${tab}`);
+    } else if (tab === 'waiting') {
+      router.replace('/(tabs)/waiting');
+    } else if (tab === 'ask') {
+      const prompt = parsed.queryParams?.prompt;
+      router.replace({ pathname: '/(tabs)/ask', params: prompt ? { prompt: String(prompt) } : undefined });
+    } else if (tab === 'today' || tab === 'index') {
+      router.replace('/(tabs)');
+    }
+  }
 
   useEffect(() => {
     if (Platform.OS === 'web' || !pairing || !api) return;
@@ -48,10 +65,20 @@ function RootLayoutNav() {
 
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const tab = response.notification.request.content.data?.tab;
-      if (tab === 'waiting' || tab === 'alerts' || tab === 'approvals') router.replace(`/(tabs)/${tab}`);
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+      const tab = data?.tab;
+      const id = data?.approvalId ?? data?.alertId ?? data?.id;
+      if (tab === 'waiting' || tab === 'alerts' || tab === 'approvals') {
+        router.replace(id && (tab === 'alerts' || tab === 'approvals') ? { pathname: `/(tabs)/${tab}`, params: { id: String(id) } } : `/(tabs)/${tab}`);
+      }
       else if (tab === 'index') router.replace('/(tabs)');
     });
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    void Linking.getInitialURL().then((url) => { if (url) navigateToLink(url); }).catch(() => undefined);
+    const subscription = Linking.addEventListener('url', ({ url }) => navigateToLink(url));
     return () => subscription.remove();
   }, []);
 

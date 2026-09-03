@@ -1,0 +1,44 @@
+ 
+--- 
+ 
+57. Operational Confidence 
+ 
+Connected-system health should contribute to LEE's Operational Confidence. 
+ 
+For example: 
+ 
+LEE may know: 
+ 
+- Brain current 
+- GitHub current 
+- Greyline healthy 
+- CIL healthy 
+- CerbaSeal unavailable 
+- several important Facts stale 
+ 
+Operational Confidence might therefore fall even if LEE itself is technically running normally. 
+ 
+This gives the user a measure of how trustworthy LEE's current picture is. 
+ 
+--- 
+ 
+58. Failure Isolation 
+ 
+The system should remain useful when individual components fail. 
+ 
+CIL unavailable 
+ 
+LEE can continue deterministic, memory, retrieval, and non-AI work. 
+ 
+AI reasoning enters degraded state according to policy. 
+ 
+Replit AI Bridge unavailable 
+ 
+LEE remains locally operational. 
+ 
+Replit-hosted model calls cannot execute. 
+ 
+CIL may determine whether another approved route exists. 
+ 
+CerbaSeal unavailable 
+ 

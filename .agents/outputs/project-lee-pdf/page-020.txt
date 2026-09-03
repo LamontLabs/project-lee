@@ -1,0 +1,44 @@
+- Is an approval waiting? 
+ 
+--- 
+ 
+27. Mobile Ask Lee 
+ 
+Mobile talks to LEE Core. 
+ 
+It does not independently connect to: 
+ 
+- CIL 
+- CerbaSeal 
+- Greyline 
+- QuantraCore 
+- Replit AI integrations 
+- AI providers 
+ 
+The normal pattern is: 
+ 
+Mobile 
+→ LEE Core 
+→ connected systems as required 
+→ result 
+→ Mobile 
+ 
+This keeps authority centralized. 
+ 
+--- 
+ 
+28. Mobile Capture 
+ 
+Mobile should allow rapid capture of: 
+ 
+- text 
+- screenshots 
+- photos 
+- files 
+- links 
+- voice notes 
+- ideas 
+- observations 
+- project updates 
+ 
+LEE organizes the information afterward. 

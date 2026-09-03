@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Brief, Capture, UncertaintyRecord, WaitingLoop } from './types';
+import type { Approval, Brief, Capture, UncertaintyRecord, WaitingLoop } from './types';
 import type { SystemContract } from '@workspace/api-zod';
 
 const PAIRING_KEY = '@lee/pairing';
@@ -8,6 +8,7 @@ const BRIEF_KEY = '@lee/brief';
 const WAITING_KEY = '@lee/waiting';
 const UNCERTAINTY_KEY = '@lee/uncertainty';
 const CONTRACT_KEY = '@lee/system-contract';
+const APPROVALS_KEY = '@lee/approvals';
 
 export type Pairing = { apiUrl: string; token: string; pairedAt: string };
 
@@ -56,6 +57,15 @@ export async function getContract(): Promise<SystemContract | null> {
 }
 export async function saveContract(contract: SystemContract): Promise<void> {
   await AsyncStorage.setItem(CONTRACT_KEY, JSON.stringify(contract));
+}
+
+export async function getApprovals(): Promise<Approval[]> {
+  const value = await AsyncStorage.getItem(APPROVALS_KEY);
+  return value ? JSON.parse(value) as Approval[] : [];
+}
+
+export async function saveApprovals(approvals: Approval[]): Promise<void> {
+  await AsyncStorage.setItem(APPROVALS_KEY, JSON.stringify(approvals));
 }
 
 export async function pairedHealthCheck(apiUrl: string, token: string): Promise<boolean> {

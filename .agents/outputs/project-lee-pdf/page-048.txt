@@ -1,0 +1,44 @@
+- presentation depth 
+- recommendation timing 
+- uncertainty calibration 
+ 
+LEE must not autonomously modify: 
+ 
+- Identity 
+- Constitution 
+- Facts 
+- Strategic Anchors 
+- CerbaSeal authority 
+- owner permissions 
+ 
+Adaptations must be: 
+ 
+- visible 
+- logged 
+- evidence-backed 
+- reversible 
+ 
+--- 
+ 
+71. Deployment Evolution 
+ 
+Phase 1 — Replit Primary 
+ 
+LEE runs primarily on Replit. 
+ 
+Mobile connects to Replit-hosted LEE. 
+ 
+CIL and CerbaSeal are already separate APIs. 
+ 
+Phase 2 — API Standardization 
+ 
+All specialist systems adopt standardized LEE-compatible API contracts. 
+ 
+Duplicate CIL/CerbaSeal logic is removed from LEE. 
+ 
+Phase 3 — Hybrid K6 
+ 
+Parts of LEE Core move onto the K6. 
+ 
+Replit remains connected. 
+ 

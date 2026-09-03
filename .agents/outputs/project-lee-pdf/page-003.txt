@@ -1,0 +1,44 @@
+- consequential-action governance 
+- policy evaluation 
+- authorization 
+- ALLOW / HOLD / REJECT decisions 
+- approval-chain enforcement 
+- policy-pack interpretation 
+- governance evidence 
+ 
+Replit AI Bridge 
+ 
+Owns: 
+ 
+- access to Replit-managed AI integrations 
+- execution of CIL-selected Replit model requests 
+- returning model results and usage metadata 
+ 
+Connected Lamont Labs Systems 
+ 
+Own their own specialist domains. 
+ 
+Examples may include: 
+ 
+- Greyline 
+- QuantraCore 
+- future Lamont Labs systems 
+ 
+The permanent rule is: 
+ 
+«LEE may contain API clients and system contracts for CIL, CerbaSeal, and other systems, but 
+not duplicate implementations of their specialist logic.» 
+ 
+--- 
+ 
+3. CIL and CerbaSeal Are Not Part of LEE 
+ 
+This is an important architectural correction. 
+ 
+CIL and CerbaSeal should not exist as coded internal versions inside Project LEE. 
+ 
+They are separate Lamont Labs systems. 
+ 
+LEE communicates with them strictly through authenticated APIs. 
+ 
+LEE may contain: 

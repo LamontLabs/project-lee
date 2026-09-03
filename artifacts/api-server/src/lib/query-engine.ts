@@ -1,22 +1,29 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import {
   assumptionLedger,
   behavioralSignal,
   bootstrapRun,
+  commitment,
+  costRecord,
   constitutionProvision,
   db,
   eventLog,
   factLedger,
+  governanceRequest,
   interpretationLedger,
   institutionalKnowledgeLedger,
+  internalCapabilityService,
   initiativeItem,
+  memoryConflict,
   opportunity,
   operationalPattern,
   person,
   queryCache,
   queryLog,
+  graphEdge,
+  graphNode,
   strategicAnchor,
   strategicObjective,
   trustScore,
@@ -25,12 +32,14 @@ import {
 } from "@workspace/db";
 import { checkConstitution } from "./constitution";
 import { searchSemantic } from "./semantic-index";
+import { isReviewableState, relationshipState } from "./reality-graph";
 
 const sourceNames = [
   "universal_objects", "facts", "interpretations", "assumptions", "events",
   "waiting_loops", "strategic_objectives", "constitution", "trust_scores",
   "operational_patterns", "behavioral_signals", "institutional_knowledge",
-    "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people",
+  "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people", "commitments",
+  "cost_records", "governance_requests", "internal_services", "memory_conflicts", "reality_graph",
 ] as const;
 
 export const querySpecSchema = z.object({
@@ -41,6 +50,8 @@ export const querySpecSchema = z.object({
     project: z.string().optional(), person: z.string().optional(),
     memoryTier: z.string().optional(), lifecycle: z.string().optional(),
     active: z.boolean().optional(), text: z.string().optional(),
+    entityType: z.string().optional(), entityId: z.string().uuid().optional(),
+    includeCandidates: z.boolean().optional(),
   }).default({}),
   rankingPolicy: z.enum(["balanced", "brief_generation", "strategy_evaluation", "curiosity_scan", "context_assembly"]).default("balanced"),
   confidenceThreshold: z.number().min(0).max(1).default(0),
@@ -84,6 +95,11 @@ const sourceTable = {
   opportunities: [opportunity, "opportunity"],
   strategic_anchors: [strategicAnchor, "strategic_anchor"],
   people: [person, "person"],
+  commitments: [commitment, "commitment"],
+  cost_records: [costRecord, "cost"],
+  governance_requests: [governanceRequest, "governance"],
+  internal_services: [internalCapabilityService, "system"],
+  memory_conflicts: [memoryConflict, "contradiction"],
 } as const;
 
 function cacheKey(spec: QuerySpec) {
@@ -138,6 +154,33 @@ export class QueryEngine {
       const f = spec.filters;
       const rows: StandardQueryResult[] = [];
       for (const source of spec.sources) {
+        if (source === "reality_graph") {
+          const nodeConditions = [
+            f.entityType ? eq(graphNode.objectType, f.entityType) : undefined,
+            f.entityId ? eq(graphNode.objectId, f.entityId) : undefined,
+          ].filter(Boolean) as any[];
+          const nodes = await db.select().from(graphNode).where(nodeConditions.length ? and(...nodeConditions) : undefined).limit(spec.limit);
+          const nodeIds = nodes.map((node) => node.id);
+          const allEdges = nodeIds.length
+            ? await db.select().from(graphEdge).where(or(inArray(graphEdge.sourceNodeId, nodeIds), inArray(graphEdge.targetNodeId, nodeIds)))
+            : [];
+          const edges = f.includeCandidates ? allEdges : allEdges.filter((edge) => !isReviewableState(relationshipState(edge.metadata)) && relationshipState(edge.metadata) !== "REJECTED");
+          rows.push(...nodes.map((node) => {
+            const relationships = edges.filter((edge) => edge.sourceNodeId === node.id || edge.targetNodeId === node.id);
+            return rank({
+              ...node,
+              sourceRefs: relationships.flatMap((edge) => {
+                const provenance = (edge.metadata as Record<string, any> | null)?.provenance;
+                const evidenceRefs = Array.isArray(provenance?.evidenceRefs) ? provenance.evidenceRefs : [];
+                return [edge.sourceRef, ...evidenceRefs];
+              }),
+              relationshipCount: relationships.length,
+              relatedRelationshipIds: relationships.map((edge) => edge.id),
+              relationships,
+            }, node.objectType, source, spec);
+          }));
+          continue;
+        }
         const [table, type] = sourceTable[source];
         const columns = table as any;
         const dateColumn = columns.updatedAt ?? columns.occurredAt ?? columns.lastUpdated ?? columns.generatedAt ?? columns.computedAt ?? columns.createdAt;

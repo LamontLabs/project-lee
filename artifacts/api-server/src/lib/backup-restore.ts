@@ -1,4 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { chmod, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { eq, inArray } from "drizzle-orm";
 import {
   assumptionLedger,
@@ -35,6 +37,9 @@ import { emitEvent } from "./foundation-events";
 
 export const BACKUP_FORMAT_VERSION = "2";
 export const DB_SCHEMA_VERSION = "1";
+export const LOCAL_BACKUP_RETENTION = 12;
+export const BACKUP_CLASSES = ["routine", "pre_migration", "pre_upgrade", "owner_snapshot", "known_good", "pre_restore"] as const;
+export type BackupClass = typeof BACKUP_CLASSES[number];
 
 const tableSources = {
   eventLog,
@@ -74,6 +79,32 @@ export type RestoreEvidence = {
   checks: RestoreCheck[];
   restoredCounts: Record<string, number>;
   canonicalStateHash: string;
+  isolatedDatabase?: {
+    mode: string;
+    productionConnectionUsedForRestore: boolean;
+    physicalTables: boolean;
+    transactionRolledBack: boolean;
+  };
+};
+export type RestorePreflight = {
+  eligible: boolean;
+  requiresOwnerConfirmation: true;
+  target: "replacement-installation";
+  backupId: string | null;
+  backupClass: string;
+  reason: string;
+  sourceInstallationId: string | null;
+  brainVersion: string;
+  eventLogCheckpoint: Record<string, unknown> | null;
+  impact: {
+    tableCount: number;
+    totalRecords: number;
+    recordsByTable: Record<string, number>;
+    providerCredentialsIncluded: false;
+  };
+  verification: Pick<RestoreEvidence, "overall" | "canonicalStateHash">;
+  overwritePolicy: "never-overwrite-existing-installation";
+  nextStep: string;
 };
 
 function canonicalize(value: unknown): unknown {
@@ -91,7 +122,13 @@ export function digest(value: unknown) {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
-export async function collectPortableBackup() {
+function normalizeBackupClass(value: unknown): BackupClass {
+  return typeof value === "string" && (BACKUP_CLASSES as readonly string[]).includes(value)
+    ? value as BackupClass
+    : "routine";
+}
+
+export async function collectPortableBackup(options: { backupClass?: unknown; reason?: unknown } = {}) {
   const reconciliation = await reconcileLegacyIntegrity();
   const payload: Record<string, unknown[]> = {};
   for (const [name, table] of Object.entries(tableSources)) {
@@ -99,7 +136,15 @@ export async function collectPortableBackup() {
   }
   const recordCounts = Object.fromEntries(Object.entries(payload).map(([name, rows]) => [name, rows?.length ?? 0]));
   const latestBrain = (payload.brainVersion ?? []).slice().sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] as any;
-  const backupId = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
+  const backupId = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
+  const backupClass = normalizeBackupClass(options.backupClass);
+  const reason = typeof options.reason === "string" && options.reason.trim().length <= 240
+    ? options.reason.trim()
+    : backupClass === "routine" ? "Routine Brain protection." : `${backupClass.replaceAll("_", " ")} recovery point.`;
+  const eventCheckpoint = (payload.eventLog ?? []).slice().sort((a: any, b: any) =>
+    Number(b.sequenceNumber ?? 0) - Number(a.sequenceNumber ?? 0)
+    || new Date(b.occurredAt ?? b.createdAt ?? 0).getTime() - new Date(a.occurredAt ?? a.createdAt ?? 0).getTime(),
+  )[0] as any;
   const manifest = {
     backup_id: backupId,
     timestamp: new Date().toISOString(),
@@ -116,9 +161,79 @@ export async function collectPortableBackup() {
     },
     integrity: { algorithm: "sha256", canonicalization: "sorted-keys-date-iso", payload_checksum: digest(payload) },
     production_restore_allowed: false,
+    backup_class: backupClass,
+    reason,
+    source_installation_id: process.env.LEE_INSTANCE_ID ?? null,
+    event_log_checkpoint: eventCheckpoint ? {
+      event_id: eventCheckpoint.id,
+      sequence_number: eventCheckpoint.sequenceNumber ?? null,
+      occurred_at: eventCheckpoint.occurredAt ?? eventCheckpoint.createdAt ?? null,
+    } : null,
+    restore_compatibility: {
+      target: "new-or-isolated-installation",
+      provider_credentials_included: false,
+      compatible_schema_versions: [DB_SCHEMA_VERSION],
+      requires_owner_confirmation: true,
+    },
   };
   const sizeBytes = Buffer.byteLength(canonicalJson({ manifest, payload }));
   return { backupId, manifest, payload, sizeBytes };
+}
+
+/**
+ * Desktop runtimes keep a private on-disk copy in addition to the database
+ * row. The archive deliberately uses the same portable format so it can be
+ * moved between installations; only its location is desktop-specific.
+ */
+export async function writeLocalBackupArchive(result: Awaited<ReturnType<typeof collectPortableBackup>>) {
+  const dataDir = process.env.LEE_DATA_DIR;
+  if (!dataDir) return null;
+  const directory = join(dataDir, "backups");
+  const fileName = `${result.backupId}.json`;
+  const filePath = join(directory, fileName);
+  const archive = {
+    manifest: result.manifest,
+    payload: result.payload,
+    integrity: { payloadChecksum: digest(result.payload), canonicalization: "sorted-keys-date-iso" },
+  };
+  try {
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await chmod(directory, 0o700);
+    const temporaryPath = join(directory, `.${fileName}.${process.pid}.tmp`);
+    await writeFile(temporaryPath, canonicalJson(archive), { encoding: "utf8", mode: 0o600 });
+    await chmod(temporaryPath, 0o600);
+    await rename(temporaryPath, filePath);
+    await chmod(filePath, 0o600);
+
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && /^backup-.*\.json$/.test(entry.name))
+      .map((entry) => entry.name);
+    const dated = await Promise.all(entries.map(async (name) => ({
+      name,
+      modified: (await stat(join(directory, name))).mtimeMs,
+    })));
+    dated.sort((a, b) => b.modified - a.modified);
+    await Promise.all(dated.slice(LOCAL_BACKUP_RETENTION).map(({ name }) => unlink(join(directory, name))));
+    return { localFileCopy: true, localFileName: fileName };
+  } catch (error) {
+    // Do not silently claim desktop durability when the local export failed.
+    throw new Error(`Local desktop backup export unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+export async function getLocalBackupStatus(backupId: string) {
+  const dataDir = process.env.LEE_DATA_DIR;
+  if (!dataDir) return { localFileCopy: false, localFileName: null };
+  const localFileName = `${backupId}.json`;
+  // Database values are not allowed to turn this status probe into a path
+  // traversal, and callers only ever receive a basename.
+  if (!/^[A-Za-z0-9._-]+\.json$/.test(localFileName)) return { localFileCopy: false, localFileName: null };
+  try {
+    await stat(join(dataDir, "backups", localFileName));
+    return { localFileCopy: true, localFileName };
+  } catch {
+    return { localFileCopy: false, localFileName: null };
+  }
 }
 
 type ReconciliationResult = { migrations: string[]; repairedObjects: string[]; migratedProvenance: string[] };
@@ -221,7 +336,108 @@ function rows(payload: PortablePayload, name: keyof PortablePayload) {
 }
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function quoteIdentifier(value: string) {
+  return `"${value.replaceAll(`"`, `""`)}"`;
+}
+
+function tableNameForSource(sourceName: string) {
+  return sourceName.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+function databaseRow(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+    tableNameForSource(key),
+    nested,
+  ]));
+}
+
+async function restoreIntoIsolatedSchema(
+  client: { query: (text: string, values?: unknown[]) => Promise<{ rows: any[]; rowCount?: number | null }> },
+  payload: PortablePayload,
+) {
+  const schemaName = `lee_restore_${randomUUID().replaceAll("-", "")}`;
+  const schema = quoteIdentifier(schemaName);
+  const restoredCounts: Record<string, number> = {};
+  await client.query("SAVEPOINT restore_schema_setup");
+  try {
+    await client.query(`CREATE SCHEMA ${schema}`);
+    for (const [sourceName, tableRows] of Object.entries(payload)) {
+      const tableName = tableNameForSource(sourceName);
+      const quotedTable = quoteIdentifier(tableName);
+      const quotedSource = `${quoteIdentifier("public")}.${quotedTable}`;
+      const target = `${schema}.${quotedTable}`;
+      try {
+        await client.query(`CREATE TABLE ${target} (LIKE ${quotedSource} INCLUDING ALL)`);
+        for (const [rowIndex, row] of (tableRows ?? []).entries()) {
+          try {
+            await client.query(
+              `INSERT INTO ${target} SELECT * FROM jsonb_populate_record(NULL::${quotedSource}, $1::jsonb)`,
+              [JSON.stringify(canonicalize(databaseRow(row)))],
+            );
+          } catch (error) {
+            throw new Error(`row ${rowIndex + 1}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      } catch (error) {
+        throw new Error(`table ${sourceName} (${tableName}) restore failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      const count = await client.query(`SELECT count(*)::int AS count FROM ${target}`);
+      restoredCounts[sourceName] = Number(count.rows[0]?.count ?? 0);
+    }
+
+    const requiredTables = ["event_log", "brain_version", "fact_ledger", "interpretation_ledger", "provenance_record"];
+    const restoredTableNames = new Set(Object.keys(restoredCounts).map(tableNameForSource));
+    const missingTables = requiredTables.filter((tableName) => !restoredTableNames.has(tableName));
+    const canonicalTrigger = await client.query(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgrelid = 'public.event_log'::regclass
+          AND tgname = 'event_log_append_only'
+          AND NOT tgisinternal
+      ) AS present
+    `);
+    const canonicalTriggerPresent = Boolean(canonicalTrigger.rows[0]?.present);
+
+    let isolatedTriggerResult: "PASS" | "WARN" | "FAIL" = "WARN";
+    try {
+      const isolatedEventTable = `${schema}.${quoteIdentifier("event_log")}`;
+      await client.query(`
+        CREATE TRIGGER event_log_restore_append_only
+        BEFORE UPDATE OR DELETE ON ${isolatedEventTable}
+        FOR EACH ROW
+        EXECUTE FUNCTION public.prevent_event_log_mutation()
+      `);
+      const eventRow = await client.query(`SELECT id FROM ${isolatedEventTable} LIMIT 1`);
+      if (eventRow.rows[0]?.id) {
+        await client.query("SAVEPOINT restore_append_only_check");
+        try {
+          await client.query(`UPDATE ${isolatedEventTable} SET payload = payload WHERE id = $1`, [eventRow.rows[0].id]);
+          isolatedTriggerResult = "FAIL";
+        } catch (error) {
+          isolatedTriggerResult = (error as { code?: string }).code === "55006" ? "PASS" : "FAIL";
+        } finally {
+          await client.query("ROLLBACK TO SAVEPOINT restore_append_only_check");
+          await client.query("RELEASE SAVEPOINT restore_append_only_check");
+        }
+      }
+    } catch {
+      isolatedTriggerResult = "FAIL";
+    }
+
+    return { restoredCounts, tableCheck: missingTables.length === 0, missingTables, canonicalTriggerPresent, isolatedTriggerResult };
+  } catch (error) {
+    await client.query("ROLLBACK TO SAVEPOINT restore_schema_setup").catch(() => undefined);
+    throw error;
+  } finally {
+    await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined);
+    await client.query("RELEASE SAVEPOINT restore_schema_setup").catch(() => undefined);
+  }
+}
+
 export async function verifyPortableBackup(manifest: any, payload: PortablePayload): Promise<RestoreEvidence> {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) payload = {};
   const checks: RestoreCheck[] = [];
   const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord"];
   const missing = required.filter((name) => !Array.isArray(payload[name as keyof PortablePayload]));
@@ -283,32 +499,32 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
   checks.push({ name: "production-write-boundary", result: manifest?.production_restore_allowed === false ? "PASS" : "FAIL", evidence: { isolated: true, productionRestoreAllowed: manifest?.production_restore_allowed } });
 
   const client = await pool.connect();
+  let isolatedDatabase: RestoreEvidence["isolatedDatabase"];
   try {
     await client.query("BEGIN");
-    await client.query("CREATE TEMP TABLE restore_records (table_name text NOT NULL, record_id text, record jsonb NOT NULL) ON COMMIT DROP");
-    await client.query("CREATE TEMP TABLE restore_event_log (event_id text PRIMARY KEY, event_type text NOT NULL, aggregate_id text NOT NULL, payload jsonb NOT NULL) ON COMMIT DROP");
-    await client.query("CREATE TEMP TABLE restore_universal_objects (object_id text PRIMARY KEY, object jsonb NOT NULL) ON COMMIT DROP");
-    let restoredRowCount = 0;
-    for (const [tableName, tableRows] of Object.entries(payload)) {
-      for (const row of tableRows ?? []) {
-        await client.query("INSERT INTO restore_records (table_name, record_id, record) VALUES ($1, $2, $3::jsonb)", [tableName, (row as any).id ?? null, JSON.stringify(canonicalize(row))]);
-        restoredRowCount += 1;
-      }
-    }
-    for (const event of events) {
-      await client.query("INSERT INTO restore_event_log (event_id, event_type, aggregate_id, payload) VALUES ($1, $2, $3, $4::jsonb)", [event.id, event.eventType, event.aggregateId, JSON.stringify(canonicalize(event.payload ?? {}))]);
-    }
-    for (const [objectId, object] of replayedObjects) {
-      await client.query("INSERT INTO restore_universal_objects (object_id, object) VALUES ($1, $2::jsonb)", [objectId, JSON.stringify(canonicalize(object))]);
-    }
-    const [{ count: databaseRowCount }] = (await client.query("SELECT count(*)::int AS count FROM restore_records")).rows;
-    const [{ count: databaseProjectionCount }] = (await client.query("SELECT count(*)::int AS count FROM restore_universal_objects")).rows;
-    const isolatedRestorePass = databaseRowCount === restoredRowCount && databaseProjectionCount === replayedObjects.size;
-    checks.push({ name: "isolated-clean-database-restore", result: isolatedRestorePass ? "PASS" : "FAIL", evidence: { database: "postgresql-temporary-transaction", restoredRowCount, databaseRowCount, rebuiltProjectionCount: databaseProjectionCount, transactionRolledBack: true } });
+    const restored = await restoreIntoIsolatedSchema(client, payload);
+    const countMismatch = Object.entries(restored.restoredCounts).filter(([name, count]) => count !== rows(payload, name as keyof PortablePayload).length);
+    const isolatedRestorePass = restored.tableCheck
+      && countMismatch.length === 0
+      && restored.canonicalTriggerPresent
+      && restored.isolatedTriggerResult !== "FAIL";
+    checks.push({ name: "isolated-clean-database-restore", result: isolatedRestorePass ? "PASS" : "FAIL", evidence: {
+      database: "postgresql-isolated-schema",
+      physicalTables: true,
+      restoredCounts: restored.restoredCounts,
+      countMismatch,
+      missingTables: restored.missingTables,
+      canonicalEventLogAppendOnlyTrigger: restored.canonicalTriggerPresent,
+      isolatedEventLogAppendOnlyTrigger: restored.isolatedTriggerResult,
+      transactionRolledBack: true,
+    } });
+    checks.push({ name: "canonical-event-log-append-only", result: restored.canonicalTriggerPresent ? "PASS" : "FAIL", evidence: { trigger: "event_log_append_only", table: "public.event_log" } });
+    isolatedDatabase = { mode: "postgresql-isolated-schema", productionConnectionUsedForRestore: false, physicalTables: true, transactionRolledBack: true };
     await client.query("ROLLBACK");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
-    checks.push({ name: "isolated-clean-database-restore", result: "FAIL", evidence: { database: "postgresql-temporary-transaction", error: error instanceof Error ? error.message : String(error), transactionRolledBack: true } });
+    checks.push({ name: "isolated-clean-database-restore", result: "FAIL", evidence: { database: "postgresql-isolated-schema", error: error instanceof Error ? error.message : String(error), transactionRolledBack: true } });
+    isolatedDatabase = { mode: "postgresql-isolated-schema", productionConnectionUsedForRestore: false, physicalTables: false, transactionRolledBack: true };
   } finally {
     client.release();
   }
@@ -316,5 +532,100 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
   const restoredCounts = Object.fromEntries(Object.entries(payload).map(([name, value]) => [name, value?.length ?? 0]));
   const canonicalStateHash = digest({ facts: rows(payload, "factLedger"), interpretations: rows(payload, "interpretationLedger"), objects: rows(payload, "universalObject"), events });
   const overall = checks.some((check) => check.result === "FAIL") ? "FAIL" : checks.some((check) => check.result === "WARN") ? "WARN" : "PASS";
-  return { overall, isolated: true, checks, restoredCounts, canonicalStateHash };
+  return { overall, isolated: true, checks, restoredCounts, canonicalStateHash, isolatedDatabase };
+}
+
+export function buildRestorePreflight(manifest: any, payload: PortablePayload, evidence: RestoreEvidence): RestorePreflight {
+  const recordsByTable = Object.fromEntries(Object.entries(payload).map(([name, value]) => [name, value?.length ?? 0]));
+  return {
+    eligible: evidence.overall === "PASS",
+    requiresOwnerConfirmation: true,
+    target: "replacement-installation",
+    backupId: typeof manifest?.backup_id === "string" ? manifest.backup_id : null,
+    backupClass: typeof manifest?.backup_class === "string" ? manifest.backup_class : "legacy",
+    reason: typeof manifest?.reason === "string" ? manifest.reason : "Portable Brain recovery point.",
+    sourceInstallationId: typeof manifest?.source_installation_id === "string" ? manifest.source_installation_id : null,
+    brainVersion: typeof manifest?.brain_version === "string" ? manifest.brain_version : "unversioned",
+    eventLogCheckpoint: manifest?.event_log_checkpoint && typeof manifest.event_log_checkpoint === "object" ? manifest.event_log_checkpoint : null,
+    impact: {
+      tableCount: Object.keys(recordsByTable).length,
+      totalRecords: Object.values(recordsByTable).reduce((total, count) => total + count, 0),
+      recordsByTable,
+      providerCredentialsIncluded: false,
+    },
+    verification: { overall: evidence.overall, canonicalStateHash: evidence.canonicalStateHash },
+    overwritePolicy: "never-overwrite-existing-installation",
+    nextStep: evidence.overall === "PASS"
+      ? "Download this verified package and import it during a new, empty installation. Existing installations are never overwritten by this flow."
+      : "Repair or replace this archive before attempting a replacement installation.",
+  };
+}
+
+/**
+ * Replacement-machine restore is intentionally narrower than a general
+ * database replacement: it is allowed only against an empty, migrated
+ * installation. Existing canonical data is never truncated or overwritten.
+ */
+export async function restorePortableBackupIntoEmptyDatabase(archivePath: string) {
+  const archive = JSON.parse(await readFile(archivePath, "utf8")) as { manifest?: any; payload?: PortablePayload };
+  const manifest = archive.manifest;
+  const payload = archive.payload;
+  const evidence = await verifyPortableBackup(manifest, payload as PortablePayload);
+  if (evidence.overall !== "PASS") throw new Error(`Replacement restore blocked: archive verification returned ${evidence.overall}.`);
+
+  const allowedTables = new Set(Object.keys(tableSources));
+  const unknownTables = Object.keys(payload ?? {}).filter((name) => !allowedTables.has(name));
+  if (unknownTables.length) throw new Error(`Replacement restore blocked: archive contains unknown canonical tables (${unknownTables.join(", ")}).`);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const sourceName of allowedTables) {
+      const tableName = tableNameForSource(sourceName);
+      const result = await client.query(`SELECT count(*)::int AS count FROM ${quoteIdentifier("public")}.${quoteIdentifier(tableName)}`);
+      if (Number(result.rows[0]?.count ?? 0) > 0) {
+        throw new Error(`Replacement restore blocked: existing installation is not empty (${sourceName} contains data).`);
+      }
+    }
+
+    const pending = Object.entries(payload ?? {}).map(([sourceName, tableRows]) => ({ sourceName, tableRows: tableRows ?? [], lastError: "" }));
+    const restoredCounts: Record<string, number> = {};
+    while (pending.length) {
+      let progress = false;
+      for (let index = pending.length - 1; index >= 0; index -= 1) {
+        const item = pending[index];
+        const tableName = tableNameForSource(item.sourceName);
+        const target = `${quoteIdentifier("public")}.${quoteIdentifier(tableName)}`;
+        const savepoint = `restore_${index}`;
+        await client.query(`SAVEPOINT ${quoteIdentifier(savepoint)}`);
+        try {
+          for (const row of item.tableRows) {
+            await client.query(
+              `INSERT INTO ${target} SELECT * FROM jsonb_populate_record(NULL::${target}, $1::jsonb)`,
+              [JSON.stringify(canonicalize(databaseRow(row)))],
+            );
+          }
+          await client.query(`RELEASE SAVEPOINT ${quoteIdentifier(savepoint)}`);
+          restoredCounts[item.sourceName] = item.tableRows.length;
+          pending.splice(index, 1);
+          progress = true;
+        } catch (error) {
+          item.lastError = error instanceof Error ? error.message : String(error);
+          await client.query(`ROLLBACK TO SAVEPOINT ${quoteIdentifier(savepoint)}`);
+          await client.query(`RELEASE SAVEPOINT ${quoteIdentifier(savepoint)}`);
+          if ((error as { code?: string }).code !== "23503") throw new Error(`Replacement restore failed for ${item.sourceName}: ${item.lastError}`);
+        }
+      }
+      if (!progress) {
+        throw new Error(`Replacement restore blocked by unresolved table dependencies: ${pending.map((item) => `${item.sourceName}: ${item.lastError}`).join("; ")}`);
+      }
+    }
+    await client.query("COMMIT");
+    return { restored: true, target: "empty-migrated-installation", backupId: manifest.backup_id ?? null, brainVersion: manifest.brain_version ?? "unversioned", restoredCounts, verification: evidence };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }

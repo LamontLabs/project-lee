@@ -1,0 +1,44 @@
+ 
+--- 
+ 
+77. AI PATH 
+ 
+LEE 
+ 
+→ CIL API 
+ 
+CIL determines: 
+ 
+- T1 reuse 
+- T2 reuse 
+- new reasoning required 
+- model/model class 
+- appropriate route 
+ 
+If model required: 
+ 
+→ Model Router 
+ 
+→ Replit AI Bridge or approved execution route 
+ 
+→ selected model 
+ 
+→ result 
+ 
+→ LEE 
+ 
+--- 
+ 
+78. GOVERNANCE PATH 
+ 
+LEE 
+ 
+→ proposed consequential action 
+ 
+→ CerbaSeal API 
+ 
+→ ALLOW / HOLD / REJECT 
+ 
+→ human confirmation if required 
+ 
+→ target system API 

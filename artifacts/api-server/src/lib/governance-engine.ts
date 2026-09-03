@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { db, governanceRequest, governanceRule } from "@workspace/db";
+import { approvalDedupeKey } from "./approval-envelope";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type Verdict = "ALLOW" | "HOLD" | "REJECT";
@@ -20,6 +21,7 @@ const riskTable: Record<string, RiskLevel> = {
   "drive_share": "HIGH",
   "governed_action": "MEDIUM",
   "connector_write": "HIGH",
+  "project_apply": "HIGH",
 };
 
 export function classifyAction(actionType: string, payload: Record<string, unknown> = {}): { riskLevel: RiskLevel; known: boolean } {
@@ -60,11 +62,26 @@ export async function registerAction(input: {
   const evidenceRefs = input.evidenceRefs ?? [];
   const evidenceRequired = requiresEvidence(classification.riskLevel, evidenceRefs);
   const verdict: Verdict = !classification.known || evidenceRequired ? "HOLD" : rule.verdict;
+  const targetSystem = String(input.payload.targetSystem ?? "lee");
+  const dedupeKey = approvalDedupeKey({ actionType: input.actionType, targetSystem, affectedObject: input.affectedObject, payload: input.payload });
+  const pending = await db.select().from(governanceRequest)
+    .where(and(eq(governanceRequest.status, "HOLD"), eq(governanceRequest.actionClass, input.actionType), eq(governanceRequest.targetSystem, targetSystem)))
+    .orderBy(desc(governanceRequest.createdAt))
+    .limit(25);
+  const existing = pending.find((candidate) => approvalDedupeKey({
+    actionType: candidate.actionClass,
+    targetSystem: candidate.targetSystem,
+    affectedObject: candidate.affectedObject ?? undefined,
+    payload: candidate.requestPayload,
+  }) === dedupeKey) ?? null;
+  if (existing) {
+    return { record: existing, verdict: "HOLD" as Verdict, riskLevel: classification.riskLevel, known: classification.known, deduplicated: true };
+  }
   const now = new Date();
   const [record] = await db.insert(governanceRequest).values({
     leeRequestId: randomUUID(),
     actionClass: input.actionType,
-    targetSystem: String(input.payload.targetSystem ?? "lee"),
+    targetSystem,
     status: verdict,
     verdict,
     riskLevel: classification.riskLevel,
@@ -72,7 +89,7 @@ export async function registerAction(input: {
     evidenceRefs,
     affectedObject: input.affectedObject,
     actor: input.actor ?? "lee",
-    requestPayload: input.payload,
+    requestPayload: { ...input.payload, approvalDedupeKey: dedupeKey },
     reasonCodes: [
       ...(!classification.known ? ["UNKNOWN_ACTION_TYPE"] : []),
       ...(evidenceRequired ? ["EVIDENCE_REQUIRED"] : []),
@@ -81,5 +98,5 @@ export async function registerAction(input: {
     expiresAt: verdict === "HOLD" ? expiryFor(classification.riskLevel) : null,
     resolvedAt: verdict === "HOLD" ? null : now,
   }).returning();
-  return { record, verdict, riskLevel: classification.riskLevel, known: classification.known };
+  return { record, verdict, riskLevel: classification.riskLevel, known: classification.known, deduplicated: false };
 }

@@ -1,0 +1,44 @@
+ 
+Owns consequential-action governance. 
+ 
+Greyline 
+ 
+Owns publishing production. 
+ 
+QuantraCore 
+ 
+Owns its specialist quantitative domain. 
+ 
+Future Systems 
+ 
+Own their own specialist domains. 
+ 
+Desktop 
+ 
+Provides full operational control. 
+ 
+Mobile Companion 
+ 
+Provides portable awareness, capture, conversation, alerts, approvals, and lightweight control. 
+ 
+--- 
+ 
+75. Permanent Architectural Invariants 
+ 
+The following rules should be considered foundational: 
+ 
+«CIL and CerbaSeal are independent Lamont Labs systems, not internal LEE engines.» 
+ 
+«LEE communicates with CIL and CerbaSeal only through authenticated APIs.» 
+ 
+«LEE may contain integration clients and contracts but never duplicate their specialist decision 
+logic.» 
+ 
+«CIL is the authoritative cognitive-routing and model-selection system.» 
+ 
+«No normal LEE-originated paid/external model call occurs before CIL evaluates the request.» 
+ 
+«The Model Router executes CIL's decision rather than replacing it.» 
+ 
+«The Replit AI Bridge executes approved model requests but does not independently choose or 
+substitute models.» 

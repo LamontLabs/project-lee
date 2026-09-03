@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { connector, connectorSync, db, eventLog, normalizedConnectorEvent, sourceVault } from "@workspace/db";
 import { connectorProviders, providerAdapters, type ConnectorProvider } from "./connectors";
+import { recordNormalizedProviderChange } from "./change-intelligence";
+import { recordCommitmentsFromNormalizedEvent } from "./commitment-intelligence";
 import { getOAuthAccessToken } from "./connection-center";
 import { emailProviderFor } from "./email-provider";
 
@@ -87,6 +89,10 @@ export async function syncLiveConnector(provider: ConnectorProvider, configurati
     const [updated] = await db.update(connector).set({ status: "healthy", authStatus: "connected", lastSyncAt: new Date(), lastError: null, consecutiveFailureCount: 0, eventCount: row.eventCount + stored.length, updatedAt: new Date() }).where(eq(connector.id, row.id)).returning();
     const [syncEvent] = await db.insert(eventLog).values({ eventType: "ConnectorSyncCompleted", aggregateType: "connector_sync", aggregateId: sync.id, sourceRef: `connector:${provider}`, occurredAt: new Date(), payload: { provider, syncId: sync.id, receivedCount: raw.length, normalizedCount: stored.length } }).returning();
     for (const event of stored) await db.insert(eventLog).values({ eventType: "ConnectorEventProduced", aggregateType: "normalized_connector_event", aggregateId: event.id, sourceRef: event.sourceRef, occurredAt: event.occurredAt, payload: { provider, eventType: event.eventType, externalId: event.externalId } });
+    for (const event of stored) {
+      await recordNormalizedProviderChange(event);
+      await recordCommitmentsFromNormalizedEvent(event);
+    }
     return { provider, status: completed.status, syncId: sync.id, eventIds: stored.map((event) => event.id), eventCount: stored.length, domainEventId: syncEvent.id, connector: updated };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Connector sync failed.";

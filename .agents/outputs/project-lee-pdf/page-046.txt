@@ -1,0 +1,44 @@
+ 
+A K6 failure should not mean losing Lee. 
+ 
+--- 
+ 
+67. Time Machine 
+ 
+LEE should be able to reconstruct historical operational state. 
+ 
+Examples: 
+ 
+«What did we believe about this project three months ago?» 
+ 
+«What assumptions were active when this decision was made?» 
+ 
+«What did the system landscape look like before CIL changed?» 
+ 
+Historical state should remain read-only. 
+ 
+--- 
+ 
+68. Simulation 
+ 
+LEE should support structured what-if reasoning. 
+ 
+Examples: 
+ 
+- What happens if CIL is offline for a week? 
+- What projects are affected if Replit becomes unavailable? 
+- What happens if Greyline becomes the primary revenue focus? 
+- What breaks if a shared dependency changes? 
+ 
+Simulations should identify: 
+ 
+- assumptions 
+- evidence 
+- uncertainty 
+- projected outcomes 
+- affected systems 
+- confidence 
+ 
+--- 
+ 
+69. Operational Reviews 

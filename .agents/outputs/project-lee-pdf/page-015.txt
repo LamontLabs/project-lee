@@ -1,0 +1,44 @@
+- current objective 
+ 
+The goal is: 
+ 
+«Use the smallest context packet capable of producing a reliable result.» 
+ 
+--- 
+ 
+20. Operational Intelligence 
+ 
+Operational Intelligence answers: 
+ 
+«What deserves attention right now?» 
+ 
+LEE should continuously identify: 
+ 
+- Active Priority 
+- What Changed 
+- What Is Drifting 
+- What Is Waiting 
+- What Is Blocked 
+- What Is At Risk 
+- What Can Wait 
+- What Should Be Ignored Today 
+ 
+This should be evidence-driven. 
+ 
+--- 
+ 
+21. Executive Loop 
+ 
+LEE's operational heartbeat remains: 
+ 
+Observe 
+→ Understand 
+→ Prioritize 
+→ Decide 
+→ Prepare 
+→ Wait 
+→ Review 
+→ Repeat 
+ 
+The Executive Loop should: 
+ 

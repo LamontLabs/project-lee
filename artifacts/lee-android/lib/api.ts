@@ -10,7 +10,13 @@ export type AskStreamEvent =
   | { type: 'chunk'; data: { text: string } }
   | { type: 'complete'; data: AskComplete }
   | { type: 'error'; data: { error: string } };
-export type ConnectionSummary = { id: string; displayName: string; targetType: string; method: string; status: string; authStatus: string; credentialConfigured: boolean; lastHealthCheck?: string | null; lastError?: string | null };
+export type ConnectionSummary = {
+  id: string; displayName: string; targetType: string; method: string; status: string; statusLabel?: string;
+  authStatus: string; credentialConfigured: boolean; permissions: string[]; capabilities: string[];
+  authority?: { grants: string[]; primary: string; governsConsequentialActions: boolean; explanation: string };
+  health?: { summary: string; whatFailed: string | null; remainsAvailable: string; blocked: string | null; recoveryAutomatic: boolean; ownerActionRequired: boolean; checkedAt: string | null };
+  lastSyncAt?: string | null; lastSuccessfulOperation?: { label: string; at: string } | null; lastError?: string | null;
+};
 
 export function createLeeApi(pairing: Pairing) {
   const base = pairing.apiUrl.replace(/\/$/, '');
@@ -56,11 +62,12 @@ export function createLeeApi(pairing: Pairing) {
         if (next.done) break;
       }
     },
-    approve: (governanceRequestId: string, decision: 'approve' | 'hold' | 'reject') => request<{ id: string; status: string }>('/android/approve', { method: 'POST', body: JSON.stringify({ governanceRequestId, decision }) }),
+    approve: (governanceRequestId: string, decision: 'approve' | 'hold' | 'reject') => request<Approval>('/android/approve', { method: 'POST', body: JSON.stringify({ governanceRequestId, decision }) }),
+    askWhy: (governanceRequestId: string) => request<{ explanation: string }>('/android/approvals/' + governanceRequestId + '/ask-why', { method: 'POST' }),
     health: () => request<{ connected: boolean; status: string; pairedAt: string; lastVerifiedAt: string }>('/android/connection'),
     registerPushToken: (pushToken: string, platform = 'android') => request<{ registered: boolean }>('/android/push-token', { method: 'POST', body: JSON.stringify({ pushToken, platform }) }),
     operationalConfidence: () => request<{ score: number; explanation: string; factors: Array<{ label: string; contribution: number; detail: string }> }>('/operational-confidence'),
     contract: () => request<SystemContract>('/contract'),
-    connections: () => request<ConnectionSummary[]>('/connections'),
+    connections: () => request<ConnectionSummary[]>('/android/connections'),
   };
 }

@@ -1,0 +1,44 @@
+Duplicating CIL or CerbaSeal logic inside LEE would eventually create competing authorities. 
+ 
+For example: 
+ 
+CIL could evolve its routing policy. 
+ 
+If LEE contains an older copy of CIL logic, the systems could disagree about: 
+ 
+- whether reuse is safe 
+- which model to use 
+- whether escalation is required 
+- what the cheapest valid route is 
+ 
+Likewise, CerbaSeal could update policy while LEE still contains older embedded governance 
+logic. 
+ 
+That could create a much more serious conflict. 
+ 
+Therefore: 
+ 
+«CIL is authoritative for cognitive routing.» 
+ 
+«CerbaSeal is authoritative for consequential-action governance.» 
+ 
+«LEE is authoritative for operational orchestration and accumulated context.» 
+ 
+--- 
+ 
+5. One Lee, One Brain, Multiple Surfaces 
+ 
+LEE should remain one persistent intelligence environment. 
+ 
+The architectural principle is: 
+ 
+«One Lee. One authoritative Brain. Multiple surfaces.» 
+ 
+The major surfaces are: 
+ 
+LEE Desktop 
+ 
+The full operating environment, eventually running on the K6. 
+ 
+LEE Mobile Companion 
+ 

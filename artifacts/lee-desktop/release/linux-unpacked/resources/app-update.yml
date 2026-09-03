@@ -1,0 +1,5 @@
+owner: lamontlabs
+repo: project-lee
+provider: github
+releaseType: release
+updaterCacheDirName: '@workspacelee-desktop-updater'

@@ -1,0 +1,44 @@
+--- 
+ 
+60. Least Authority 
+ 
+Permissions should exist at the capability level. 
+ 
+For example: 
+ 
+Greyline may permit LEE to: 
+ 
+- inspect queue 
+- begin approved production 
+- pause 
+- retry validation 
+ 
+while: 
+ 
+- publish externally 
+ 
+requires CerbaSeal and human confirmation. 
+ 
+The system should automate safely without collapsing all authority into one master credential. 
+ 
+--- 
+ 
+61. System Economics 
+ 
+LEE should track economics across the environment. 
+ 
+Relevant categories include: 
+ 
+- CIL T1/T2/T3 usage 
+- model calls 
+- models selected 
+- Replit AI usage 
+- tokens 
+- AI cost 
+- frontier calls avoided 
+- storage 
+- local compute 
+- cloud workers 
+- connected-system costs 
+- cost by project 
+- cost by workflow 

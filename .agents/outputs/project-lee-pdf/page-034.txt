@@ -1,0 +1,44 @@
+→ reports failure/unavailability 
+→ LEE 
+→ CIL 
+→ CIL selects an alternative 
+ 
+The bridge must not silently substitute a more expensive model. 
+ 
+--- 
+ 
+48. Replit Does Not Own the LEE Brain 
+ 
+The Replit bridge should never own: 
+ 
+- Identity 
+- Constitution 
+- Event Log 
+- Fact Ledger 
+- Interpretation Ledger 
+- Strategic Anchors 
+- Institutional Knowledge 
+- Executive Loop 
+- Portfolio Intelligence 
+- Organizational Memory 
+- authoritative project state 
+ 
+Replit supplies model access and selected cloud capability. 
+ 
+LEE remains locally authoritative. 
+ 
+--- 
+ 
+49. Mobile AI Flow 
+ 
+The Android app needs no model-provider credentials. 
+ 
+Example: 
+ 
+Mobile 
+→ LEE Core on K6 
+→ Identity 
+→ Constitution 
+→ Intent 
+→ Query 
+→ Context 

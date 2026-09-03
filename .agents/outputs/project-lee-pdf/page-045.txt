@@ -1,0 +1,44 @@
+LEE should be able to describe the entire currently connected environment. 
+ 
+The Manifest should include: 
+ 
+- LEE version 
+- Brain Version 
+- Identity version 
+- Constitution 
+- engines 
+- capabilities 
+- connected systems 
+- system versions 
+- health 
+- CIL status 
+- CIL routing statistics 
+- CerbaSeal status 
+- Replit AI Bridge status 
+- available AI routes 
+- Semantic Index 
+- Event Log 
+- knowledge counts 
+- backups 
+- restore verification 
+- mobile connection 
+- economics 
+- Self-Test state 
+ 
+--- 
+ 
+66. Backup and Recovery 
+ 
+LEE should support true recovery. 
+ 
+A real backup should contain the authoritative information required to rebuild the Brain. 
+ 
+Test Restore should: 
+ 
+1. create isolated environment 
+2. restore backup 
+3. verify schema 
+4. rebuild derived state 
+5. verify invariants 
+6. compare restored state 
+7. return PASS/WARN/FAIL 

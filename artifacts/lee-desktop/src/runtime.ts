@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir } from "node:os";
@@ -18,6 +19,7 @@ export type RuntimeSnapshot = {
   postgresLogPath: string;
   apiProcessId: number | null;
   postgresProcessId: number | null;
+  recoveryMode: "COLD_BOOT" | "WARM_RESTART" | "SAFE_MODE" | "RECOVERY_MODE" | "MIGRATION_MODE" | "READ_ONLY" | null;
 };
 
 export type LocalServiceDiscoveryCandidate = {
@@ -78,12 +80,14 @@ type RemoteLocalServiceContract = {
 
 type RuntimeConfig = {
   databaseUrl?: string;
+  instanceId?: string;
   apiPort?: number;
   apiCommand?: string;
   apiArgs?: string[];
   postgresBin?: string;
   migrationCommand?: string;
 };
+type RecoveryMode = RuntimeSnapshot["recoveryMode"];
 
 const appData = process.env.APPDATA
   ?? process.env.XDG_CONFIG_HOME
@@ -137,6 +141,10 @@ function findPostgresBin(): string | null {
   if (result.status !== 0) return null;
   const executable = result.stdout.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
   return executable ? dirname(executable) : null;
+}
+
+function validInstanceId(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function compatibleContract(value: unknown): value is Record<string, unknown> {
@@ -353,6 +361,7 @@ export class RuntimeSupervisor {
     postgresLogPath: join(dataDir, "logs", "postgres.log"),
     apiProcessId: null,
     postgresProcessId: null,
+    recoveryMode: null,
   };
   private port: number;
   private apiUrl: string;
@@ -386,6 +395,7 @@ export class RuntimeSupervisor {
     this.port = await this.availablePort(this.port);
     this.apiUrl = `http://127.0.0.1:${this.port}`;
     const config = loadConfig();
+    const instanceId = validInstanceId(config.instanceId) ? config.instanceId : randomUUID();
     this.snapshot = { ...this.snapshot, state: "starting", apiUrl: this.apiUrl, database: "starting", migration: "pending", reason: null, apiProcessId: null, postgresProcessId: null };
     const configuredDatabaseUrl = config.databaseUrl ?? process.env.DATABASE_URL;
     const hasPrivatePostgres = this.production || Boolean(config.postgresBin ?? process.env.LEE_POSTGRES_BIN);
@@ -396,9 +406,12 @@ export class RuntimeSupervisor {
       this.snapshot = { ...this.snapshot, state: "unavailable", database: "unavailable", reason: "LEE could not find or start its private PostgreSQL service. Set postgresBin in the LEE config or reinstall with the bundled database runtime." };
       return this.snapshot;
     }
-    saveRuntimeConfig({ ...config, databaseUrl });
+    const databaseName = (() => {
+      try { return decodeURIComponent(new URL(databaseUrl).pathname.replace(/^\/+/, "")) || "lee"; } catch { return "lee"; }
+    })();
+    saveRuntimeConfig({ ...config, databaseUrl, instanceId });
     this.snapshot = { ...this.snapshot, database: "configured" };
-    if (!this.runMigrations(config, databaseUrl)) {
+    if (!this.runMigrations(config, databaseUrl, instanceId, databaseName)) {
       this.snapshot = { ...this.snapshot, state: "degraded", migration: "failed", reason: `The local database is available, but migrations failed. Review ${this.snapshot.migrationLogPath} and repair the migration command before continuing.` };
       return this.snapshot;
     }
@@ -409,9 +422,12 @@ export class RuntimeSupervisor {
     const childEnv = {
       ...process.env,
       DATABASE_URL: databaseUrl,
+      LEE_INSTANCE_ID: instanceId,
+      LEE_DATABASE_NAME: databaseName,
       PORT: String(this.port),
       NODE_ENV: this.production ? "production" : "development",
       LEE_DATA_DIR: dataDir,
+      ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
       ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     const apiLog = this.openLog(this.snapshot.apiLogPath);
@@ -426,10 +442,10 @@ export class RuntimeSupervisor {
     this.child.once("exit", (code) => {
       if (!this.stopping && this.snapshot.state !== "stopped") void this.recoverApi(code);
     });
-    const healthy = await this.waitForContract();
-    this.snapshot = healthy
-      ? { ...this.snapshot, state: "live", contract: "live", checks: { ...this.snapshot.checks, "System Contract": "live", Brain: "live", "Event Log": "live" }, reason: null }
-      : { ...this.snapshot, state: "degraded", contract: "unavailable", reason: "LEE Core started, but the System Contract did not become reachable." };
+    const health = await this.waitForContract();
+    this.snapshot = health
+      ? { ...this.snapshot, state: health.proof ? "live" : "degraded", contract: "live", recoveryMode: health.mode, checks: { ...this.snapshot.checks, "System Contract": "live", Brain: health.proof ? "live" : "degraded", "Event Log": health.proof ? "live" : "degraded" }, reason: health.proof ? null : "LEE Core is reachable, but it remains in a protected recovery mode until the owner resolves the repair agenda." }
+      : { ...this.snapshot, state: "degraded", contract: "unavailable", recoveryMode: "RECOVERY_MODE", checks: { ...this.snapshot.checks, "System Contract": "degraded", Brain: "degraded", "Event Log": "degraded" }, reason: "LEE Core started, but startup could not prove the canonical Brain and Event Log. LEE is in recovery mode." };
     return this.snapshot;
   }
 
@@ -461,12 +477,12 @@ export class RuntimeSupervisor {
 
   private async recoverApi(code: number | null): Promise<void> {
     if (this.restartAttempts >= 3 || this.stopping) {
-      this.snapshot = { ...this.snapshot, state: "unavailable", apiProcessId: null, reason: `LEE Core stopped unexpectedly${code == null ? "" : ` (exit ${code})`}; automatic recovery is exhausted. Restart LEE to retry.` };
+       this.snapshot = { ...this.snapshot, state: "unavailable", recoveryMode: "RECOVERY_MODE", apiProcessId: null, reason: `LEE Core stopped unexpectedly${code == null ? "" : ` (exit ${code})`}; automatic recovery is exhausted. Restart LEE to retry.` };
       return;
     }
     this.restartAttempts += 1;
     const delay = 250 * 2 ** (this.restartAttempts - 1);
-    this.snapshot = { ...this.snapshot, state: "degraded", contract: "unavailable", apiProcessId: null, reason: `LEE Core stopped unexpectedly; retrying in ${delay}ms (attempt ${this.restartAttempts}/3).` };
+    this.snapshot = { ...this.snapshot, state: "degraded", recoveryMode: "RECOVERY_MODE", contract: "unavailable", apiProcessId: null, reason: `LEE Core stopped unexpectedly; retrying in ${delay}ms (attempt ${this.restartAttempts}/3).` };
     await new Promise<void>((resolve) => { this.restartTimer = setTimeout(resolve, delay); });
     this.restartTimer = null;
     if (this.stopping) return;
@@ -474,7 +490,19 @@ export class RuntimeSupervisor {
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
     const child = spawn(config.apiCommand ?? process.execPath, config.apiArgs ?? [apiPath], {
       cwd: this.production ? process.resourcesPath : this.root,
-      env: { ...process.env, DATABASE_URL: config.databaseUrl, PORT: String(this.port), NODE_ENV: this.production ? "production" : "development", LEE_DATA_DIR: dataDir, ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}) },
+      env: {
+        ...process.env,
+        DATABASE_URL: config.databaseUrl,
+        LEE_INSTANCE_ID: config.instanceId,
+        LEE_DATABASE_NAME: (() => {
+          try { return decodeURIComponent(new URL(config.databaseUrl ?? "").pathname.replace(/^\/+/, "")) || "lee"; } catch { return "lee"; }
+        })(),
+        PORT: String(this.port),
+        NODE_ENV: this.production ? "production" : "development",
+        LEE_DATA_DIR: dataDir,
+        ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
+        ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+      },
       stdio: ["ignore", this.openLog(this.snapshot.apiLogPath), this.openLog(this.snapshot.apiLogPath)],
       windowsHide: true,
       detached: process.platform !== "win32",
@@ -482,9 +510,16 @@ export class RuntimeSupervisor {
     this.child = child;
     this.snapshot = { ...this.snapshot, apiProcessId: child.pid ?? null };
     child.once("exit", (exitCode) => { if (!this.stopping) void this.recoverApi(exitCode); });
-    if (await this.waitForContract()) {
+    const health = await this.waitForContract();
+    if (health) {
       this.restartAttempts = 0;
-      this.snapshot = { ...this.snapshot, state: "live", contract: "live", reason: null };
+      this.snapshot = {
+        ...this.snapshot,
+        state: health.proof ? "live" : "degraded",
+        contract: "live",
+        recoveryMode: health.mode,
+        reason: health.proof ? null : "LEE Core recovered, but startup proof still requires owner review in protected recovery mode.",
+      };
     }
   }
 
@@ -515,27 +550,38 @@ export class RuntimeSupervisor {
     const socketDir = join(dataDir, "postgres-socket");
     mkdirSync(socketDir, { recursive: true, mode: 0o700 });
     if (!existsSync(join(databaseDir, "PG_VERSION"))) {
-      const initialized = spawnSync(initdb, ["-D", databaseDir, "--auth=trust", "--username=lee"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment });
+      const initialized = spawnSync(initdb, ["-D", databaseDir, "--auth=trust", "--username=lee"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 60_000 });
       if (initialized.status !== 0) {
         writeFileSync(join(dataDir, "logs", "postgres-init.log"), `${initialized.stdout ?? ""}\n${initialized.stderr ?? ""}`, { mode: 0o600 });
         return null;
       }
     }
     const postgresLog = this.openLog(this.snapshot.postgresLogPath);
+    const existingStatus = spawnSync(pgCtl, ["-D", databaseDir, "-w", "status"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
+    if (existingStatus.status === 0) {
+      const stopped = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
+      if (stopped.status !== 0) {
+        const forced = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
+        if (forced.status !== 0) {
+          writeFileSync(join(dataDir, "logs", "postgres-recovery.log"), "PostgreSQL was detected but could not be stopped within the bounded recovery budget; the existing data directory was not replaced.\n", { mode: 0o600 });
+          return null;
+        }
+      }
+    }
     const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: ["ignore", postgresLog, postgresLog], env: postgresEnvironment, detached: process.platform !== "win32" });
     this.postgres = started;
     this.postgresCtl = pgCtl;
     this.snapshot = { ...this.snapshot, postgresProcessId: started.pid ?? null };
     const url = `postgresql://lee@127.0.0.1:${port}/lee`;
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true, env: postgresEnvironment });
+      const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true, env: postgresEnvironment, timeout: 2_000 });
       if (probe.status === 0) {
-        const created = spawnSync(executable("createdb"), ["-h", "127.0.0.1", "-p", String(port), "-U", "lee", "lee"], { windowsHide: true, env: postgresEnvironment });
+        const created = spawnSync(executable("createdb"), ["-h", "127.0.0.1", "-p", String(port), "-U", "lee", "lee"], { windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
         if (created.status === 0 || created.stderr?.toString().includes("already exists")) return url;
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore" });
+    spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
     this.postgres = null;
     return null;
   }
@@ -556,9 +602,9 @@ export class RuntimeSupervisor {
     };
   }
 
-  private runMigrations(config: RuntimeConfig, databaseUrl: string): boolean {
+  private runMigrations(config: RuntimeConfig, databaseUrl: string, instanceId: string, databaseName: string): boolean {
     const configuredCommand = config.migrationCommand ?? process.env.LEE_MIGRATION_COMMAND;
-    const bundledMigration = this.production && !configuredCommand;
+    const bundledMigration = this.production;
     const command = configuredCommand ?? (bundledMigration
       ? process.execPath
       : "pnpm --filter @workspace/db push");
@@ -568,6 +614,8 @@ export class RuntimeSupervisor {
     const migrationEnv = {
       ...process.env,
       DATABASE_URL: databaseUrl,
+      LEE_INSTANCE_ID: instanceId,
+      LEE_DATABASE_NAME: databaseName,
       ...(bundledMigration
         ? {
           ELECTRON_RUN_AS_NODE: "1",
@@ -582,8 +630,8 @@ export class RuntimeSupervisor {
       windowsHide: true,
     } as const;
     const result = bundledMigration
-      ? spawnSync(command, args, migrationOptions)
-      : spawnSync(command, { ...migrationOptions, shell: true });
+      ? spawnSync(process.execPath, args, { ...migrationOptions, timeout: 60_000 })
+      : spawnSync(command, { ...migrationOptions, shell: true, timeout: 60_000 });
     writeFileSync(
       join(dataDir, "logs", "migration.log"),
       `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? `\n${result.error.message}\n` : ""}`,
@@ -592,15 +640,22 @@ export class RuntimeSupervisor {
     return result.status === 0;
   }
 
-  private async waitForContract(): Promise<boolean> {
+  private async waitForContract(): Promise<{ proof: boolean; mode: RecoveryMode } | null> {
     for (let attempt = 0; attempt < 30; attempt += 1) {
       try {
         const response = await fetch(`${this.apiUrl}/api/contract`);
-        if (response.ok) return true;
+        if (response.ok) {
+          const recovery = await fetch(`${this.apiUrl}/api/recovery/status`, { headers: { accept: "application/json" } });
+          if (recovery.ok) {
+            const status = await recovery.json() as { mode?: RecoveryMode; proof?: { overall?: string } };
+            if (status.proof?.overall === "PASS" && status.mode) return { proof: true, mode: status.mode };
+            if (status.mode === "RECOVERY_MODE" || status.mode === "READ_ONLY" || status.mode === "MIGRATION_MODE" || status.mode === "SAFE_MODE") return { proof: false, mode: status.mode };
+          }
+        }
       } catch { /* Startup probe; the final state remains visible to the user. */ }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    return false;
+    return null;
   }
 
   async stop(): Promise<void> {

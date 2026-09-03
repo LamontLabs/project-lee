@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { clearPairing, getCaptures, getPairing, getContract, getUncertainty, saveCaptures, saveContract, savePairing, saveUncertainty, type Pairing } from '@/lib/storage';
 import { createLeeApi } from '@/lib/api';
@@ -14,6 +15,7 @@ type LeeContextValue = {
   unpair: () => void;
   addCapture: (text: string, tag: string) => Promise<void>;
   syncCapture: (capture: Capture) => Promise<void>;
+  retryCapture: (capture: Capture) => Promise<void>;
   api: ReturnType<typeof createLeeApi> | null;
   refresh: () => Promise<void>;
   contract: SystemContract | null;
@@ -47,6 +49,48 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
       return Promise.all([saveUncertainty(items), saveContract(liveContract)]);
     }).catch(() => undefined);
   }, [pairing]);
+
+  useEffect(() => {
+    if (!pairing || isLoading) return;
+    const activePairing = pairing;
+    let active = true;
+    async function retryQueued() {
+      const stored = await getCaptures();
+      const queued = stored.filter((capture) => capture.status !== 'synced');
+      if (!queued.length) return;
+      const syncedIds = new Set<string>();
+      for (const capture of queued) {
+        try {
+          await createLeeApi(activePairing).capture({ text: capture.text, tag: capture.tag });
+          syncedIds.add(capture.id);
+        } catch {
+          break;
+        }
+      }
+      if (!active || !syncedIds.size) return;
+      const next = stored.map((capture) => syncedIds.has(capture.id) ? { ...capture, status: 'synced' as const, lastError: undefined, attempts: (capture.attempts ?? 0) + 1 } : capture);
+      setCaptures(next);
+      await saveCaptures(next);
+    }
+    void retryQueued();
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') void retryQueued(); });
+    return () => { active = false; subscription.remove(); };
+  }, [pairing, isLoading]);
+
+  const syncCapture = async (capture: Capture) => {
+    if (!pairing) return;
+    try {
+      await createLeeApi(pairing).capture({ text: capture.text, tag: capture.tag });
+      const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'synced' as const, lastError: undefined, attempts: (item.attempts ?? 0) + 1 } : item);
+      setCaptures(next);
+      await saveCaptures(next);
+    } catch (error) {
+      const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'failed' as const, lastError: error instanceof Error ? error.message : 'Capture sync failed.', attempts: (item.attempts ?? 0) + 1 } : item);
+      setCaptures(next);
+      await saveCaptures(next);
+      throw error;
+    }
+  };
 
   const value = useMemo<LeeContextValue>(() => ({
     pairing,
@@ -92,20 +136,8 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
       }
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    async syncCapture(capture) {
-      if (!pairing) return;
-      try {
-        await createLeeApi(pairing).capture({ text: capture.text, tag: capture.tag });
-        const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'synced' as const, lastError: undefined, attempts: (item.attempts ?? 0) + 1 } : item);
-        setCaptures(next);
-        await saveCaptures(next);
-      } catch (error) {
-        const next = captures.map((item) => item.id === capture.id ? { ...item, status: 'failed' as const, lastError: error instanceof Error ? error.message : 'Capture sync failed.', attempts: (item.attempts ?? 0) + 1 } : item);
-        setCaptures(next);
-        await saveCaptures(next);
-        throw error;
-      }
-    },
+    syncCapture,
+    retryCapture: syncCapture,
     api: pairing ? createLeeApi(pairing) : null,
     contract,
     async refresh() {
@@ -137,7 +169,7 @@ export function LeeProvider({ children }: { children: React.ReactNode }) {
         await Promise.all([saveUncertainty(items), saveContract(liveContract)]);
       } catch { /* Cached uncertainty remains available offline. */ }
     },
-  }), [pairing, captures, uncertainty, isLoading, contract]);
+  }), [pairing, captures, uncertainty, isLoading, contract, syncCapture]);
 
   return <LeeContext.Provider value={value}>{children}</LeeContext.Provider>;
 }

@@ -1,0 +1,44 @@
+ 
+«CerbaSeal is the authoritative governance system for capabilities designated as 
+consequential.» 
+ 
+«If CerbaSeal is required and unavailable, execution HOLDS.» 
+ 
+«Independent Lamont Labs systems retain independent code, databases, logic, and safety 
+rules.» 
+ 
+«Future systems connect to LEE through standardized APIs rather than being coded directly 
+into LEE Core.» 
+ 
+«Desktop, mobile, and Replit infrastructure access one authoritative LEE Brain rather than 
+becoming separate Lees.» 
+ 
+--- 
+ 
+76. Final Architecture 
+ 
+USER 
+ 
+↕ 
+ 
+LEE DESKTOP — K6 
+ 
+Full operating environment 
+ 
+↕ 
+ 
+LEE MOBILE COMPANION — ANDROID 
+ 
+Today 
+Ask Lee 
+Capture 
+Brief 
+Waiting 
+Alerts 
+Approvals 
+Systems 
+Lightweight controls 
+ 
+↓ 
+ 
+LEE CORE 

@@ -1,0 +1,44 @@
+ 
+LEE should reason about capabilities rather than hardcoded project names. 
+ 
+Examples: 
+ 
+Greyline 
+ 
+- production.status 
+- production.queue 
+- production.start 
+- production.pause 
+- production.resume 
+- package.validate 
+- package.build 
+- package.export 
+- job.retry 
+ 
+QuantraCore 
+ 
+- system.status 
+- data.status 
+- strategy.status 
+- risk.report 
+- performance.report 
+- simulation.run 
+ 
+CIL 
+ 
+- reasoning.resolve 
+- reasoning.route 
+- reuse.lookup 
+- model.select 
+- health.status 
+ 
+CerbaSeal 
+ 
+- governance.evaluate 
+- authorization.verify 
+- policy.version 
+- health.status 
+ 
+Replit AI Bridge 
+ 
+- ai.execute 

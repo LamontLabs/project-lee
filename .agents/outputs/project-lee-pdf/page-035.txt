@@ -1,0 +1,44 @@
+→ CIL API 
+ 
+If CIL resolves: 
+ 
+→ LEE 
+→ Mobile 
+ 
+If a model is necessary: 
+ 
+→ CIL selects model 
+→ Model Router 
+→ Replit AI Bridge 
+→ Replit-managed model 
+→ LEE 
+→ Mobile 
+ 
+The phone does not need: 
+ 
+- OpenAI keys 
+- Anthropic keys 
+- Gemini keys 
+- CIL credentials 
+- CerbaSeal credentials 
+- Greyline credentials 
+- QuantraCore credentials 
+ 
+LEE Core owns those connections. 
+ 
+--- 
+ 
+50. CIL Can Serve Other Lamont Labs Systems Too 
+ 
+CIL should remain independently useful. 
+ 
+Authorized projects may call CIL directly through its API. 
+ 
+For example: 
+ 
+LEE → CIL 
+ 
+Greyline → CIL 
+ 
+Future System → CIL 
+ 

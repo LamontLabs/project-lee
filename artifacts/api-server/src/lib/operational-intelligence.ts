@@ -9,6 +9,7 @@ import { currentOperationalCapacity } from "./operational-capacity";
 import { currentPortfolioState } from "./portfolio-intelligence";
 import { invalidateQueryCache, queryEngine } from "./query-engine";
 import { createIfNew } from "./initiative";
+import { queryMeaningfulChanges } from "./change-intelligence";
 
 const weight: Record<string, number> = { CRITICAL: 100, HIGH: 80, MEDIUM: 50, LOW: 20 };
 export const OPERATIONAL_INTELLIGENCE_REACTIVE_EVENTS: DomainEventType[] = [
@@ -118,20 +119,30 @@ export async function refreshOperationalContextAfterEmailSync(normalizedCount: n
 
 export async function generateOperationalContext() {
   await invalidateQueryCache("operational-intelligence");
-  const [initiativeResults, memory, world, objectResults, momentum, capacity, portfolio] = await Promise.all([
+  const [initiativeResults, memory, world, objectResults, momentum, capacity, portfolio, changesResult] = await Promise.all([
     queryEngine.query({ sources: ["initiatives"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 150, requester: "Operational Intelligence", purpose: "operational_context" }),
     operationalContext(), currentWorldState(),
     queryEngine.query({ sources: ["universal_objects"], filters: {}, rankingPolicy: "strategy_evaluation", confidenceThreshold: 0, limit: 150, requester: "Operational Intelligence", purpose: "operational_context" }),
     currentProjectMomentum(),
     currentOperationalCapacity(),
     currentPortfolioState(),
+    queryMeaningfulChanges({ start: new Date(Date.now() - 7 * 86400000), min: 0.25, limit: 100 }),
   ]);
   const initiatives = initiativeResults.map((item) => item.object as any);
   const objects = objectResults.map((item) => item.object as any);
   const active = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt && (!item.expiresAt || new Date(item.expiresAt) > new Date())).filter((item) => capacity.state !== "LOW" || item.significance === "CRITICAL").filter((item) => capacity.state !== "RECOVERY" || item.significance === "CRITICAL");
   const scored = active.map((item) => ({ ...item, score: (weight[item.significance] ?? 10) + (new Date(item.generatedAt).getTime() > Date.now() - 21600000 ? 15 : 0) })).sort((a, b) => b.score - a.score);
   const limit = capacity.state === "CONSTRAINED" ? 2 : capacity.state === "LOW" || capacity.state === "RECOVERY" ? 1 : 5;
-  const changedItems = scored.slice(0, limit).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, value: item.score, metadata: item.metadata }));
+  const changeSignificance: Record<string, string> = { CRITICAL: "CRITICAL", IMPORTANT: "HIGH", NOTABLE: "MEDIUM", ROUTINE: "LOW" };
+  const changeItems = changesResult.changes.map((change) => evidenceItem({
+    id: change.id,
+    text: change.explanation,
+    evidenceRefs: change.evidenceRefs,
+    significance: changeSignificance[change.classification] ?? "LOW",
+    value: change.significanceScore,
+    metadata: { ...change.metadata, source: change.source, entityType: change.entityType, entityId: change.entityId, changeKind: change.changeKind, confidence: change.confidence, freshness: change.freshness },
+  }));
+  const changedItems = (changeItems.length ? changeItems : scored.map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, value: item.score, metadata: item.metadata }))).slice(0, limit);
   const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, metadata: item.metadata }));
   const driftingItems = objects.filter((item: any) => item.ageState === "STALE" || item.ageState === "OLD").slice(0, 10).map((item: any) => evidenceItem({ id: item.id, text: `${item.title ?? item.name ?? "Knowledge item"} is ${item.ageState.toLowerCase()}.`, evidenceRefs: item.sourceRefs, value: item.ageState }));
   const momentumRisk = momentum.filter((item) => item.classification === "Dormant" || item.classification === "Stalled").map((item) => evidenceItem({ id: item.projectId, text: `Project ${item.projectId} momentum is ${item.classification.toLowerCase()}.`, evidenceRefs: [item.id], value: item.score }));

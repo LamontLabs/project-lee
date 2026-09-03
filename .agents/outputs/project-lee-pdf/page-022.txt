@@ -1,0 +1,44 @@
+ 
+All independent Lamont Labs systems should communicate with LEE through standardized 
+APIs. 
+ 
+This applies to: 
+ 
+- CIL 
+- CerbaSeal 
+- Greyline 
+- QuantraCore 
+- Replit AI Bridge 
+- future systems 
+ 
+LEE should not import their databases or specialist code. 
+ 
+--- 
+ 
+32. System Registry 
+ 
+LEE should maintain a persistent record for each connected system. 
+ 
+A System Registry entry can include: 
+ 
+- system ID 
+- name 
+- version 
+- description 
+- system type 
+- endpoint 
+- runtime location 
+- authentication method 
+- current state 
+- current health 
+- last heartbeat 
+- capabilities 
+- permissions 
+- governance requirements 
+- dependencies 
+- economics 
+- owner approval 
+ 
+--- 
+ 
+33. Capability Registry 

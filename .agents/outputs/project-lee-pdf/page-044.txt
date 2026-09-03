@@ -1,0 +1,44 @@
+LEE begins moving onto the K6. 
+ 
+K6 Primary 
+ 
+The K6 hosts the authoritative Brain. 
+ 
+Replit remains connected for: 
+ 
+- managed AI integrations 
+- cloud model execution 
+- selected cloud workers 
+- webhooks 
+- Replit-native capabilities 
+- remote development capabilities 
+- possible relay services 
+ 
+The permanent reason to retain the Replit connection is especially: 
+ 
+«AI access without manually maintaining separate provider API keys wherever Replit-managed 
+access is available.» 
+ 
+--- 
+ 
+64. Remote Mobile Access 
+ 
+The Android companion must eventually reach LEE while away from the K6. 
+ 
+The exact networking technology can be chosen later. 
+ 
+Potential mechanisms may include: 
+ 
+- secure relay 
+- private tunnel 
+- authenticated cloud broker 
+- Replit-hosted relay 
+ 
+The architectural requirement is: 
+ 
+«Remote access must not create a second authoritative cloud Brain.» 
+ 
+--- 
+ 
+65. System Manifest 
+ 

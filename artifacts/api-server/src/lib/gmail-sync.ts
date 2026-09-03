@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { connector, connectorSync, connection, db, eventLog, normalizedConnectorEvent } from "@workspace/db";
+import { recordCommitmentsFromNormalizedEvent } from "./commitment-intelligence";
 import { emailProviderFor, type EmailSyncResult } from "./email-provider";
 import { refreshOperationalContextAfterEmailSync, recordActionableEmail } from "./operational-intelligence";
 
@@ -123,7 +124,7 @@ export async function syncGmailConnection(input: {
         .where(eq(normalizedConnectorEvent.externalId, `gmail:${message.id}`))
         .limit(1);
       if (existing.length) continue;
-      await db.insert(normalizedConnectorEvent).values({
+      const [normalizedEvent] = await db.insert(normalizedConnectorEvent).values({
         syncId: sync.id,
         provider: "gmail",
         externalId: `gmail:${message.id}`,
@@ -131,7 +132,8 @@ export async function syncGmailConnection(input: {
         sourceRef: `gmail:${message.threadId}`,
         occurredAt: message.date,
         payload: emailPayload(message),
-      });
+      }).returning();
+      if (normalizedEvent) await recordCommitmentsFromNormalizedEvent(normalizedEvent);
       await recordActionableEmail(message);
       storedCount++;
     }

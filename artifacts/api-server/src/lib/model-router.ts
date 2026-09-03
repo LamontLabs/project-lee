@@ -28,7 +28,7 @@ function buildCILRequest(input: CILConsultInput, executionFailure?: ExecutionFai
   const body = {
     correlation_id: correlationId,
     lee_brain_version: process.env.LEE_BRAIN_VERSION ?? "2026.7.1",
-    source_context_checksum: `sha256:${createHash("sha256").update(JSON.stringify(input.contextItems)).digest("hex")}`,
+    source_context_checksum: `sha256:${createHash("sha256").update(JSON.stringify(context)).digest("hex")}`,
     query_text: input.queryText,
     semantic_domain: input.semanticDomain,
     intent: {

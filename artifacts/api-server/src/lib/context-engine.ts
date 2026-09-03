@@ -8,6 +8,7 @@ import { queryEngine, type QueryEngine } from "./query-engine";
 import { checkPolicy } from "./policy";
 import { connectedEmailProvider, type ConnectedEmailProvider, type EmailProvider, type EmailSearchFilters, type EmailThread } from "./email-provider";
 import { parseEmailSearchFilters } from "./intent";
+import { persistWorkingMemory } from "./working-memory";
 
 export type ConversationMode = "normal" | "deep_think" | "build" | "write" | "review" | "pilot" | "low_cost" | "private" | "no_model" | "governed_action";
 
@@ -21,6 +22,11 @@ export type ContextBuildOptions = {
   resolveEmailProvider?: () => Promise<ConnectedEmailProvider | null>;
   queryEngine?: Pick<QueryEngine, "query">;
   founderContext?: () => Promise<Record<string, unknown>>;
+  workingMemoryScope?: string;
+  workingMemorySessionId?: string | null;
+  workingMemoryObjectiveId?: string | null;
+  correlationId?: string;
+  persistWorkingMemory?: boolean;
 };
 
 function emailCandidateText(message: Awaited<ReturnType<EmailProvider["search"]>>["messages"][number]) {
@@ -85,6 +91,21 @@ export async function hydrateSelectedEmailContext(items: SelectedContext[], cand
 }
 
 export async function buildContextPacket(query: string, mode: ConversationMode, budgetTokens = 3000, intent?: { id?: string; intentType?: string; intentSubtype?: string | null; retrievalMode?: string; emailFilters?: EmailSearchFilters | null }, options: ContextBuildOptions = {}) {
+  const persistWorkingMemoryProjection = async (packet: { items: SelectedContext[]; excluded: SelectedContext[] }) => {
+    if (!options.workingMemoryScope || options.persistWorkingMemory === false) return;
+    await persistWorkingMemory({
+      scopeKey: options.workingMemoryScope,
+      sessionId: options.workingMemorySessionId,
+      objectiveId: options.workingMemoryObjectiveId,
+      query,
+      mode,
+      intentType: intent?.intentType,
+      budgetTokens,
+      selected: packet.items,
+      excluded: packet.excluded,
+      correlationId: options.correlationId,
+    });
+  };
   const retrievalFilters = intent?.retrievalMode === "semantic" ? { text: query } : {};
   const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
   const runQuery = (request: Parameters<QueryEngine["query"]>[0]) =>
@@ -164,7 +185,11 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const [cached] = await db.select().from(contextPacket).where(eq(contextPacket.fingerprint, fingerprint)).orderBy(desc(contextPacket.createdAt)).limit(1);
   const trustScoreValue = trust.length ? Math.round(trust.reduce((sum, item) => sum + Number((item.object as any).score ?? 50), 0) / trust.length) : 50;
   const trustAdvisory = { subsystem: "Context Engine", score: trustScoreValue, lowTrust: trustScoreValue < 60 };
-  if (cached && cached.expiresAt > new Date()) return { id: cached.id, fingerprint, reused: true, items: (cached.packet.items as SelectedContext[]) ?? [], excluded: (cached.packet.excluded as SelectedContext[]) ?? [], tokens: cached.tokenEstimate, excludedRefs: cached.excludedRefs, trustAdvisory };
+  if (cached && cached.expiresAt > new Date()) {
+    const packet = { id: cached.id, fingerprint, reused: true, items: (cached.packet.items as SelectedContext[]) ?? [], excluded: (cached.packet.excluded as SelectedContext[]) ?? [], tokens: cached.tokenEstimate, excludedRefs: cached.excludedRefs, trustAdvisory };
+    await persistWorkingMemoryProjection(packet);
+    return packet;
+  }
   const weightsResult = await checkPolicy("context_economy", "weights", {}, "Context Engine");
   const configured = (weightsResult.value as any)?.[intent?.intentType ?? "defaults"];
   const weights = configured && typeof configured === "object" ? { ...DEFAULT_WEIGHTS, ...configured } : DEFAULT_WEIGHTS;
@@ -176,7 +201,11 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const excluded = [...selected.excluded, ...items.filter((item) => excludedByPolicy.includes(item.id)).map((item: any) => ({ ...item, score: 0, contextValueScore: 0, factorBreakdown: {}, estimatedTokens: 0, exclusionReason: "Excluded by Privacy Policy." }))];
   if (emailResult.unavailable) {
     const unavailableItem = { id: "gmail:unavailable", text: "Gmail · No connected email account is available for this request.", kind: "email_status", confidence: 1, recencyDays: 0, strategicAnchor: false, provider: "gmail", sourceRef: "gmail:connection", score: 0, contextValueScore: 0, factorBreakdown: {}, estimatedTokens: 0 };
-    return { id: null, fingerprint, reused: false, items: [...hydratedItems, unavailableItem], excluded, tokens: selected.tokens, excludedRefs, trustAdvisory };
+    const packet = { id: null, fingerprint, reused: false, items: [...hydratedItems, unavailableItem], excluded, tokens: selected.tokens, excludedRefs, trustAdvisory };
+    await persistWorkingMemoryProjection(packet);
+    return packet;
   }
-  return { id: null, fingerprint, reused: false, items: hydratedItems, excluded, tokens: selected.tokens, excludedRefs, trustAdvisory };
+  const packet = { id: null, fingerprint, reused: false, items: hydratedItems, excluded, tokens: selected.tokens, excludedRefs, trustAdvisory };
+  await persistWorkingMemoryProjection(packet);
+  return packet;
 }

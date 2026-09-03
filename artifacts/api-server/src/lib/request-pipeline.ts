@@ -90,7 +90,12 @@ export async function runRequestPipeline(input: RequestPipelineInput, dependenci
       return result;
     });
     const intent = await runStage("intent", () => classifyIntent(text, { origin: input.origin }, input.origin, input.sessionId));
-    const context = await runStage("context", () => buildContextPacket(text, input.mode ?? "normal", input.budgetTokens ?? 3000, intent, dependencies.context));
+    const context = await runStage("context", () => buildContextPacket(text, input.mode ?? "normal", input.budgetTokens ?? 3000, intent, {
+      ...dependencies.context,
+      workingMemoryScope: dependencies.context?.workingMemoryScope ?? input.sessionId ?? `${input.origin}:default`,
+      workingMemorySessionId: dependencies.context?.workingMemorySessionId ?? input.sessionId ?? null,
+      correlationId,
+    }));
     return { ok: true, correlationId, identity, constitution, intent, context, stages };
   } catch (error) {
     const failedStage = error instanceof PipelineStageFailure ? error.stage : stages.length < REQUEST_PIPELINE_STAGES.length ? REQUEST_PIPELINE_STAGES[stages.length] : "identity";

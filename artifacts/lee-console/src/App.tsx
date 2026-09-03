@@ -5,6 +5,7 @@ import { OrchestrationPanel } from './OrchestrationPanel';
 import SchedulePage from './SchedulePage';
 import FounderProfilePanel from './FounderProfilePanel';
 import MemoryHealthPanel from './MemoryHealthPanel';
+import WorkingMemoryPanel from './WorkingMemoryPanel';
 import KnowledgeMapPage from './KnowledgeMapPage';
 import ObservationsPage from './ObservationsPage';
 import StrategyPage from './StrategyPage';
@@ -1040,7 +1041,7 @@ function InternalServicesPage() {
   return <div className="mx-auto max-w-[1050px]"><SectionHeading eyebrow="Connected Lamont Labs systems" title="Connected systems" detail="LEE calls independent specialist systems through authenticated contracts. Credentials are never displayed." action={<button onClick={() => void load()} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted"><RefreshCw size={14} className="mr-2 inline" />Check health</button>} /><div className="grid gap-4 md:grid-cols-2">{items.map((item) => <Panel key={item.serviceId}><div className="flex items-start justify-between"><div><p className="lee-label text-primary">{item.category}</p><h3 className="mt-1 text-lg font-semibold">{item.displayName}</h3></div><StatusPill status={item.currentHealth === 'healthy' ? 'verified' : item.currentHealth === 'degraded' ? 'evolving' : 'offline'} /></div><div className="mt-5 grid grid-cols-2 gap-3 text-xs"><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Health</p><p className="mt-1 font-medium">{item.currentHealth}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Failure policy</p><p className="mt-1 font-medium">{item.failurePolicy}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Credential</p><p className="mt-1 font-medium">{item.credentialEnvKey} · {item.baseUrl ? 'configured' : 'missing'}</p></div><div className="rounded-xl bg-muted/50 p-3"><p className="lee-label text-muted-foreground">Last call</p><p className="mt-1 font-medium">{item.lastCallAt ? formatDate(item.lastCallAt) : 'none'}</p></div></div></Panel>)}</div><Panel className="mt-5"><p className="lee-label text-primary">Safety boundary</p><p className="mt-2 text-sm leading-relaxed text-muted-foreground">CIL unavailability produces an explicit degraded or held reasoning route; it never triggers silent local cognitive logic. CerbaSeal unavailability places consequential actions on HOLD; there is no authorization fallback.</p></Panel></div>;
 }
 
-function HealthPage() { return <><HealthDetailPage /><CILModelInventoryPanel /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><RecoveryAgendaPanel /><BootHistoryPanel /><AgingHealthPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><TrustScorePanel /></>; }
+function HealthPage() { return <><HealthDetailPage /><CILModelInventoryPanel /><ResourceHealthPanel /><EnginesPanel /><LifecyclePanel /><RecoveryAgendaPanel /><BootHistoryPanel /><AgingHealthPanel /><StateHistoryPanel /><OrchestrationPanel /><MemoryHealthPanel /><WorkingMemoryPanel /><TrustScorePanel /></>; }
 
 function ConnectorsPage() {
   const [items, setItems] = useState<any[]>([]);

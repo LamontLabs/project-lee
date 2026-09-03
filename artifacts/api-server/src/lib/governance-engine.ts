@@ -20,6 +20,7 @@ const riskTable: Record<string, RiskLevel> = {
   "drive_share": "HIGH",
   "governed_action": "MEDIUM",
   "connector_write": "HIGH",
+  "project_apply": "HIGH",
 };
 
 export function classifyAction(actionType: string, payload: Record<string, unknown> = {}): { riskLevel: RiskLevel; known: boolean } {

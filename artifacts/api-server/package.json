@@ -27,6 +27,7 @@
     "test:api-first-boundary": "node --test scripts/api-first-boundary.test.mjs",
     "test:provider-transport": "node scripts/provider-transport.test.mjs",
     "test:mcp-project-bridge": "node scripts/mcp-project-bridge-contract.test.mjs",
+    "test:project-repair": "../lee-desktop/node_modules/.bin/tsx --test scripts/project-repair-contract.test.ts",
     "test:gmail-email-provider": "node --test scripts/gmail-email-provider-contract.test.mjs",
     "test:ask-lee-email": "node --test scripts/ask-lee-email-contract.test.mjs",
     "test:ask-lee-email-filters": "node scripts/ask-lee-email-filters.test.mjs",

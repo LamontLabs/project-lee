@@ -59,12 +59,27 @@ export type Alert = {
 
 export type Approval = {
   id: string;
-  action: string;
-  risk: 'high' | 'medium';
+  lifecycle: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+  requestedAction: string;
+  actionClass: string;
+  target: string;
+  affectedSystem: string;
   reason: string;
-  source: string;
-  verdict: string;
-  actionClass?: string;
-  targetSystem?: string;
-  reasonCodes?: string[];
+  risk: string;
+  proposedChange: string;
+  evidence: Array<{ id: string; label: string }>;
+  cerbaSeal: {
+    state: string;
+    verdict: string | null;
+    decisionId: string | null;
+    reasonCodes: string[];
+    authorizationExpiresAt: string | null;
+  };
+  expiresAt: string | null;
+  ownerConfirmationRequired: boolean;
+  humanConfirmationRequired: boolean;
+  postApprovalEffect: string;
+  source: { subsystem: string; requestId: string; auditTargetId: string };
+  outcome: { verdict: string | null; resolvedAt: string | null; reasonCodes: string[] };
+  requestedAt: string;
 };

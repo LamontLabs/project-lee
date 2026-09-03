@@ -33,7 +33,7 @@ export default function TabLayout() {
       <Tabs.Screen name="alerts" options={{ title: 'Alerts' }} />
       <Tabs.Screen name="systems" options={{ title: 'Systems' }} />
       <Tabs.Screen name="waiting" options={{ href: null }} />
-      <Tabs.Screen name="approvals" options={{ href: null }} />
+      <Tabs.Screen name="approvals" options={{ title: 'Approvals' }} />
     </Tabs>
   );
 }

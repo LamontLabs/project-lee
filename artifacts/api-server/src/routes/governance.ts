@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
-import { and, desc, eq, lt } from "drizzle-orm";
+import { desc, eq, lt } from "drizzle-orm";
 import {
   EvaluateGovernedRequestBody,
   EvaluateGovernedRequestResponse,
@@ -11,6 +11,8 @@ import { routeModelRequest } from "../lib/model-router";
 import { checkConstitution } from "../lib/constitution";
 import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 import { governanceService } from "../services/internal-services";
+import { toApprovalEnvelope } from "../lib/approval-envelope";
+import { reviewGovernanceRequest, type ReviewVerdict } from "../lib/governance-review";
 
 const router: IRouter = Router();
 
@@ -166,6 +168,22 @@ router.get("/governance/requests", async (req, res): Promise<void> => {
   res.json(rows.filter((row) => (!status || row.status === status) && (!risk || row.riskLevel === risk) && (!action || row.actionClass === action)));
 });
 
+router.get("/governance/approvals", async (req, res): Promise<void> => {
+  const rows = await db.select().from(governanceRequest).orderBy(desc(governanceRequest.createdAt));
+  const status = String(req.query.status ?? "PENDING").toUpperCase();
+  const risk = req.query.riskLevel ? String(req.query.riskLevel).toUpperCase() : null;
+  const lifecycle = (row: typeof rows[number]) => toApprovalEnvelope(row).lifecycle;
+  res.json(rows
+    .filter((row) => (status === "ALL" || lifecycle(row) === status) && (!risk || row.riskLevel === risk))
+    .map((row) => toApprovalEnvelope(row)));
+});
+
+router.get("/governance/approvals/:id", async (req, res): Promise<void> => {
+  const [row] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, req.params.id)).limit(1);
+  if (!row) { res.status(404).json({ error: "Approval item not found." }); return; }
+  res.json(toApprovalEnvelope(row));
+});
+
 router.post("/governance/actions", async (req, res): Promise<void> => {
   const actionType = String(req.body?.actionType ?? "").trim();
   const payload = req.body?.payload && typeof req.body.payload === "object" ? req.body.payload : {};
@@ -179,18 +197,9 @@ router.post("/governance/actions", async (req, res): Promise<void> => {
 router.patch("/governance/requests/:id/verdict", async (req, res): Promise<void> => {
   const verdict = String(req.body?.verdict ?? "").toUpperCase();
   if (!["ALLOW", "HOLD", "REJECT"].includes(verdict)) { res.status(400).json({ error: "verdict must be ALLOW, HOLD, or REJECT." }); return; }
-  const [current] = await db.select().from(governanceRequest).where(eq(governanceRequest.id, req.params.id)).limit(1);
-  if (!current) { res.status(404).json({ error: "Governance item not found." }); return; }
-  if (current.status !== "HOLD") { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
-  if (verdict === "ALLOW" && ["HIGH", "CRITICAL"].includes(current.riskLevel) && current.evidenceRefs.length === 0) {
-    res.status(409).json({ error: "Evidence must be shown before approving a HIGH or CRITICAL action." }); return;
-  }
-  const now = new Date();
-  const [updated] = await db.update(governanceRequest).set({ status: verdict, verdict, resolvedAt: verdict === "HOLD" ? null : now, wasEdited: Boolean(req.body?.wasEdited), responsePayload: { ...(current.responsePayload ?? {}), decisionReason: req.body?.reason ?? null } }).where(and(eq(governanceRequest.id, current.id), eq(governanceRequest.status, "HOLD"))).returning();
-  if (!updated) { res.status(409).json({ error: "This governance request has already been resolved." }); return; }
-  await db.insert(auditLog).values({ action: `governance_${verdict.toLowerCase()}`, actor: String(req.body?.actor ?? "founder"), targetType: "governance_request", targetId: current.id, outcome: verdict, metadata: { actionId: current.id, reason: req.body?.reason ?? null, evidenceShown: current.evidenceRefs, wasEdited: Boolean(req.body?.wasEdited) } });
-  await db.insert(eventLog).values({ eventType: `Governance${verdict[0]}${verdict.slice(1).toLowerCase()}`, aggregateType: "governance_request", aggregateId: current.id, actor: String(req.body?.actor ?? "founder"), sourceRef: "governance-engine", occurredAt: now, payload: { verdict, reason: req.body?.reason ?? null } });
-  res.json(updated);
+  const result = await reviewGovernanceRequest({ id: req.params.id, verdict: verdict as ReviewVerdict, actor: String(req.body?.actor ?? "founder"), source: "desktop" });
+  if (!result.ok) { res.status(result.status).json({ error: result.error, reason: result.reason, approval: result.envelope }); return; }
+  res.json(result.envelope);
 });
 
 router.get("/governance/audit", async (_req, res): Promise<void> => {

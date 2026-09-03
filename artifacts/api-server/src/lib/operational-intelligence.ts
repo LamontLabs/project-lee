@@ -29,6 +29,8 @@ function whyChain(summary: string, evidenceRefs: string[]) {
 function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]; significance?: string; value?: unknown; metadata?: Record<string, unknown> }) {
   const evidenceRefs = [...new Set(input.evidenceRefs ?? [])];
   if (evidenceRefs.length === 0) evidenceRefs.push(input.id);
+  const observedAt = input.metadata?.observedAt ?? input.metadata?.occurredAt ?? input.metadata?.updatedAt ?? null;
+  const ageDays = observedAt ? Math.max(0, (Date.now() - new Date(String(observedAt)).getTime()) / 86_400_000) : null;
   return {
     id: input.id,
     text: input.text,
@@ -36,6 +38,20 @@ function evidenceItem(input: { id: string; text: string; evidenceRefs?: string[]
     ...(input.value !== undefined ? { value: input.value } : {}),
     ...(input.metadata ? { metadata: input.metadata } : {}),
     evidenceRefs,
+    memoryEvidence: {
+      memoryId: input.id,
+      memoryType: "operational_observation",
+      epistemicType: "operational",
+      sourceRefs: evidenceRefs,
+      provenance: { sourceRefs: evidenceRefs, complete: evidenceRefs.length > 0 },
+      observedAt: observedAt ? new Date(String(observedAt)).toISOString() : null,
+      ageDays,
+      freshness: ageDays === null ? "unknown" : ageDays > 90 ? "expired" : ageDays > 30 ? "stale" : ageDays > 7 ? "current" : "fresh",
+      contradictionState: "unknown",
+      relevance: { score: 1, factors: { significance: input.significance ?? "operational" } },
+      lastValidatedAt: null,
+      whatCouldChangeConclusion: "New source evidence, a changed operational signal, or owner feedback could change this observation.",
+    },
     whyChain: whyChain(input.text, evidenceRefs),
   };
 }

@@ -1,9 +1,14 @@
 import { Router, type IRouter } from "express";
 import { memoryStatus, reclassifyMemory, setMemoryTier, touchMemory, consolidateHistorical, enqueueMemoryMaintenance } from "../lib/memory-architecture";
+import { getMemoryHealth } from "../lib/memory-health";
 import { db, universalObject } from "@workspace/db";
 import { desc } from "drizzle-orm";
 const router: IRouter = Router();
-router.get("/memory-architecture/status", async (_req, res) => res.json(await memoryStatus()));
+router.get("/memory-architecture/status", async (_req, res) => {
+  const [status, health] = await Promise.all([memoryStatus(), getMemoryHealth()]);
+  res.json({ ...status, health });
+});
+router.get("/memory-architecture/health", async (_req, res) => res.json(await getMemoryHealth()));
 router.get("/memory-architecture/objects", async (req, res) => {
   const tier = typeof req.query.tier === "string" ? req.query.tier : undefined;
   const rows = await db.select().from(universalObject).orderBy(desc(universalObject.updatedAt)).limit(100);

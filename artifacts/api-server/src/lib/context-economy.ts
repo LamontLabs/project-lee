@@ -16,6 +16,12 @@ export type ContextInput = {
   ageState?: string;
   provider?: string;
   sourceRef?: string;
+  evidenceRefs?: string[];
+  epistemicType?: string;
+  observedAt?: string | Date | null;
+  lastValidatedAt?: string | Date | null;
+  contradictionState?: "none" | "open" | "resolved" | "unknown";
+  whatCouldChangeConclusion?: string;
   tokenBudget?: number;
 };
 

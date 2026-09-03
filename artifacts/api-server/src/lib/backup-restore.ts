@@ -41,6 +41,18 @@ import {
   archiveRepresentation,
   retentionDecision,
   storagePressureSnapshot,
+  memoryIndex,
+  memoryConflict,
+  workingMemory,
+  memoryConsolidationRun,
+  memoryConsolidationPhase,
+  learningAsset,
+  lessonRecord,
+  relationshipInteraction,
+  relationshipPromise,
+  commitment,
+  relationshipQuestion,
+  relationshipHealthScore,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 
@@ -87,6 +99,18 @@ const tableSources = {
   archiveRepresentation,
   retentionDecision,
   storagePressureSnapshot,
+  memoryIndex,
+  memoryConflict,
+  workingMemory,
+  memoryConsolidationRun,
+  memoryConsolidationPhase,
+  learningAsset,
+  lessonRecord,
+  relationshipInteraction,
+  relationshipPromise,
+  commitment,
+  relationshipQuestion,
+  relationshipHealthScore,
 } as const;
 
 type PortablePayload = { [K in keyof typeof tableSources]?: unknown[] };
@@ -192,6 +216,11 @@ export async function collectPortableBackup(options: { backupClass?: unknown; re
       provider_credentials_included: false,
       compatible_schema_versions: [DB_SCHEMA_VERSION],
       requires_owner_confirmation: true,
+    },
+    configuration: {
+      required_non_secret: ["LEE_VERSION", "LEE_INSTANCE_ID", "LEE_DATA_DIR"],
+      credentials_excluded: true,
+      provider_reauthorization_required: true,
     },
   };
   (manifest as any).archive_evidence = {
@@ -465,7 +494,7 @@ async function restoreIntoIsolatedSchema(
 export async function verifyPortableBackup(manifest: any, payload: PortablePayload): Promise<RestoreEvidence> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) payload = {};
   const checks: RestoreCheck[] = [];
-  const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord", "beliefState", "predictionRecord", "causalClaim", "knowledgeGap"];
+  const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord", "beliefState", "predictionRecord", "causalClaim", "knowledgeGap", "memoryIndex", "memoryConflict", "workingMemory", "memoryConsolidationRun", "memoryConsolidationPhase", "learningAsset", "lessonRecord", "relationshipInteraction", "relationshipPromise", "commitment", "relationshipQuestion", "relationshipHealthScore", "experienceRecord"];
   const missing = required.filter((name) => !Array.isArray(payload[name as keyof PortablePayload]));
   checks.push({ name: "portable-manifest", result: manifest?.backup_format_version === BACKUP_FORMAT_VERSION && !missing.length ? "PASS" : "FAIL", evidence: { formatVersion: manifest?.backup_format_version, missing } });
   const checksumValid = manifest?.integrity?.payload_checksum === digest(payload);

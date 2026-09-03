@@ -66,18 +66,28 @@ function safeExcerpt(item: SelectedContext) {
 function evidenceFor(item: SelectedContext) {
   const freshness = freshnessFor(item);
   const sensitive = sensitiveKinds.has(item.kind);
+  const epistemicType = item.epistemicType ?? (item.kind === "fact" ? "fact" : item.kind === "interpretation" ? "interpretation" : item.kind === "assumption" ? "assumption" : "operational");
+  const evidenceRefs = Array.isArray((item as any).evidenceRefs) && (item as any).evidenceRefs.length
+    ? (item as any).evidenceRefs
+    : [item.sourceRef ?? item.id];
   return {
     id: item.id,
     title: titleFor(item),
     domain: domainFor(item),
-    epistemicType: item.kind === "fact" ? "fact" : item.kind === "interpretation" ? "interpretation" : item.kind === "assumption" ? "assumption" : "operational",
+    epistemicType,
     sourceRef: item.sourceRef ?? item.id,
-    evidenceRefs: Array.isArray((item as any).evidenceRefs) ? (item as any).evidenceRefs : [item.sourceRef ?? item.id],
+    evidenceRefs,
     excerpt: safeExcerpt(item),
     confidence: item.confidence,
     confidenceLabel: confidenceLabel(item.confidence),
     freshness,
     freshnessScore: Math.max(0, Math.min(1, 1 / (1 + item.recencyDays / 30))),
+    ageDays: item.recencyDays,
+    contradictionState: item.contradictionState ?? (item.kind === "contradiction" ? "open" : "unknown"),
+    relevance: { score: item.contextValueScore ?? item.score ?? 0, factors: item.factorBreakdown ?? {} },
+    lastValidatedAt: item.lastValidatedAt ?? null,
+    whatCouldChangeConclusion: item.whatCouldChangeConclusion ?? (epistemicType === "fact" ? "A newer source or owner verification could change this fact." : "New evidence, freshness changes, or owner feedback could change this conclusion."),
+    provenance: { sourceRefs: evidenceRefs, complete: evidenceRefs.length > 0 },
     rawContentSuppressed: sensitive,
   };
 }
@@ -88,6 +98,11 @@ export function sanitizeContextPacket(packet: { id?: string | null; fingerprint:
     kind: item.kind,
     provider: item.provider,
     sourceRef: item.sourceRef,
+    evidenceRefs: item.evidenceRefs ?? [],
+    epistemicType: item.epistemicType,
+    lastValidatedAt: item.lastValidatedAt ?? null,
+    contradictionState: item.contradictionState ?? "unknown",
+    whatCouldChangeConclusion: item.whatCouldChangeConclusion,
     confidence: item.confidence,
     recencyDays: item.recencyDays,
     ageState: freshnessFor(item),

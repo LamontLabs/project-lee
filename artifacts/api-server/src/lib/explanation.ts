@@ -16,7 +16,7 @@ const PROFILES = {
 } as const;
 export type AudienceProfile = keyof typeof PROFILES;
 export const audienceProfiles = PROFILES;
-function cacheKey(objectId: string, explanationType: string, audience: AudienceProfile) { return `explanation:${createHash("sha256").update(`${objectId}:${explanationType}:${audience}`).digest("hex")}`; }
+function cacheKey(objectId: string, explanationType: string, audience: AudienceProfile) { return `explanation:memory-evidence-v1:${createHash("sha256").update(`${objectId}:${explanationType}:${audience}`).digest("hex")}`; }
 function headline(object: any, type: string) { return `${type.replaceAll("_", " ")}: ${object?.name ?? object?.statement ?? object?.title ?? object?.subject ?? "Lee record"}`; }
 function render(object: any, facts: StandardQueryResult[], audience: AudienceProfile, type: string) {
   const profile = PROFILES[audience]; const label = object?.name ?? object?.statement ?? object?.title ?? object?.subject ?? "This Lee record"; const evidence = facts.slice(0, 5).map((item) => String((item.object as any)?.statement ?? (item.object as any)?.name ?? (item.object as any)?.subject ?? item.object_type)).join("; ");
@@ -40,7 +40,17 @@ export async function explain(input: { objectId: string; explanationType: string
   const supporting = [source, ...facts.slice(0, 5), ...interpretations.slice(0, 3)]; const object = source.object as any; const profile = PROFILES[audience]; const statement = render(object, supporting, audience, input.explanationType); const whyChain = new WhyChainBuilder().addStep("fact_confirmed", "Source-backed records were selected from Query Engine results.", 0.8, "Explanation Engine", supporting[0]?.object_id).addStep("strategy_alignment", `Audience profile ${audience} was applied for ${profile.emphasis.join(", ")}.`, 0.9, "Explanation Engine").buildNonTrivial(); const brief = { headline: headline(object, input.explanationType), keyFacts: supporting.slice(0, 5).map((item) => item.object_id), audienceProfile: audience, explanationType: input.explanationType, confidence: source.propagated_confidence };
   const [saved] = await db.insert(interpretationLedger).values({ statement, interpretationType: "explanation", inputFacts: supporting.filter((item) => item.object_type === "fact").map((item) => item.object_id), inputInterpretations: supporting.filter((item) => item.object_type === "interpretation").map((item) => item.object_id), basis: source.object_id, sourceRef: source.source_refs[0] ?? source.object_id, confidence: source.confidence, propagatedConfidence: source.propagated_confidence, confidenceLineage: { engine: "Explanation Engine", audience, factors: source.why_included }, whyChain, generatedByEngine: "Explanation Engine", generatedBy: { engineId: "Explanation Engine", audience, explanationType: input.explanationType }, validFrom: new Date(), status: "active", canonLevel: "working", needsReview: false, audienceProfile: audience, explanationType: input.explanationType, sourceObjectIds: supporting.map((item) => item.object_id), explanationBrief: { ...brief, whyChain } }).returning();
   await recordProvenance("explanation", saved.id, supporting.flatMap((item) => item.source_refs).slice(0, 20), saved.confidence);
-  const result = { id: saved.id, statement: saved.statement, audienceProfile: audience, explanationType: input.explanationType, confidence: saved.propagatedConfidence ?? saved.confidence, sourceObjectIds: supporting.map((item) => item.object_id), whyChain, brief };
+  const result = {
+    id: saved.id,
+    statement: saved.statement,
+    audienceProfile: audience,
+    explanationType: input.explanationType,
+    confidence: saved.propagatedConfidence ?? saved.confidence,
+    sourceObjectIds: supporting.map((item) => item.object_id),
+    evidence: supporting.map((item) => item.memory_evidence),
+    whyChain,
+    brief,
+  };
   await db.insert(queryCache).values({ cacheKey: key, result: [result], ttlSeconds: 300, cachedAt: new Date(), invalidatedAt: null }).onConflictDoUpdate({ target: queryCache.cacheKey, set: { result: [result], cachedAt: new Date(), invalidatedAt: null } });
   return result;
 }

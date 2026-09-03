@@ -37,6 +37,7 @@ import {
 import { checkConstitution } from "./constitution";
 import { searchSemantic } from "./semantic-index";
 import { isReviewableState, relationshipState } from "./reality-graph";
+import { buildMemoryEvidence, type MemoryEvidence } from "./memory-evidence";
 
 const sourceNames = [
   "universal_objects", "facts", "interpretations", "assumptions", "events",
@@ -76,6 +77,7 @@ export type StandardQueryResult = {
     freshness: number;
     trust: number;
   };
+  memory_evidence: MemoryEvidence;
 };
 
 const TTL: Record<string, number> = {
@@ -111,7 +113,7 @@ const sourceTable = {
 } as const;
 
 function cacheKey(spec: QuerySpec) {
-  return createHash("sha256").update(JSON.stringify(spec, (_, value) => value instanceof Date ? value.toISOString() : value)).digest("hex");
+  return createHash("sha256").update(JSON.stringify({ version: "query-result-memory-evidence-v1", spec }, (_, value) => value instanceof Date ? value.toISOString() : value)).digest("hex");
 }
 function epistemicType(type: string): StandardQueryResult["evidence"]["epistemic_type"] {
   if (type === "fact") return "fact";
@@ -138,13 +140,25 @@ function rank(object: any, type: string, source: string, spec: QuerySpec): Stand
   const trust = Math.max(0, Math.min(1, Number(object.trust ?? object.trustScore ?? 0.5)));
   const recencyWeight = spec.rankingPolicy === "brief_generation" ? 1.3 : spec.rankingPolicy === "strategy_evaluation" ? 0.7 : 1;
   const score = importance * Math.pow(freshness, recencyWeight) * confidence * relevance;
+  const sourceRefs = [object.sourceRef, ...(object.sourceRefs ?? object.evidenceRefs ?? [])].filter(Boolean);
   return {
     object_id: String(object.id), object_type: type, object, confidence,
     propagated_confidence: Math.max(0, Math.min(1, confidence * (0.85 + relevance * 0.15))),
     why_included: { importance, freshness, confidence, relevance, trust, base_score: score },
-    source_refs: [object.sourceRef, ...(object.sourceRefs ?? object.evidenceRefs ?? [])].filter(Boolean),
+    source_refs: sourceRefs,
     memory_tier: object.memoryTier ?? null, age_score: freshness, importance_score: importance,
     evidence: { source, epistemic_type: epistemicType(type), authorization: "constitution", freshness, trust },
+    memory_evidence: buildMemoryEvidence({
+      id: String(object.id),
+      type,
+      epistemicType: epistemicType(type),
+      sourceRefs,
+      observedAt: date,
+      lastValidatedAt: object.lastValidatedAt ?? object.lastVerifiedAt ?? object.verifiedAt ?? object.lastConfirmed,
+      contradictionState: type === "contradiction" || object.status === "open" ? "open" : object.resolvedAt ? "resolved" : "none",
+      relevance: relevance,
+      relevanceFactors: { importance, freshness, confidence, relevance, trust },
+    }),
   };
 }
 
@@ -225,6 +239,13 @@ export class QueryEngine {
         why_included: { importance: 0.5, freshness: 1, confidence: item.similarity_score, relevance: item.similarity_score, trust: 0.5, base_score: item.similarity_score },
         source_refs: [], memory_tier: null, age_score: 1, importance_score: 0.5,
         evidence: { source: "semantic-index", epistemic_type: epistemicType(item.object_type), authorization: "constitution", freshness: 1, trust: 0.5 },
+         memory_evidence: buildMemoryEvidence({
+           id: item.object_id,
+           type: item.object_type,
+           epistemicType: epistemicType(item.object_type),
+           relevance: item.similarity_score,
+           relevanceFactors: { semanticSimilarity: item.similarity_score, freshness: 1 },
+         }),
       }));
       results = [...structured, ...semanticResults]
         .sort((a, b) => Number(b.why_included.base_score) - Number(a.why_included.base_score))

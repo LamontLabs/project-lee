@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Archive, BrainCircuit, CircleAlert, Layers3, Play, RefreshCw } from "lucide-react";
+import { Archive, BrainCircuit, CheckCircle2, CircleAlert, Database, HardDrive, Layers3, Play, RefreshCw, RotateCcw, ShieldAlert } from "lucide-react";
 
 type ConsolidationPhase = {
   phase: string;
@@ -22,6 +22,22 @@ type ConsolidationRun = {
   };
   phases: ConsolidationPhase[];
 };
+
+type MemoryHealthCheck = {
+  id: string;
+  label: string;
+  result: "PASS" | "WARN" | "FAIL";
+  message: string;
+  metrics?: Record<string, unknown>;
+  evidenceRefs?: string[];
+  recoverySteps?: string[];
+};
+
+function resultClasses(result: MemoryHealthCheck["result"]) {
+  if (result === "FAIL") return "border-destructive/30 bg-destructive/10 text-destructive";
+  if (result === "WARN") return "border-accent/30 bg-accent/10 text-accent-foreground";
+  return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+}
 
 export default function MemoryHealthPanel() {
   const [status, setStatus] = useState<any>(null);
@@ -82,7 +98,44 @@ export default function MemoryHealthPanel() {
 
   const run = consolidation?.run;
   const canResume = run && ["failed", "paused"].includes(run.status);
+  const health = status.health;
+  const checks = (health?.checks ?? []) as MemoryHealthCheck[];
+  const failedChecks = checks.filter((check) => check.result === "FAIL");
+  const warningChecks = checks.filter((check) => check.result === "WARN");
+  const passChecks = checks.filter((check) => check.result === "PASS");
+  const latestBackupAge = health?.checks?.find((check: MemoryHealthCheck) => check.id === "backup-freshness")?.metrics?.latestAgeHours;
   return <div className="mx-auto mt-5 max-w-[1280px] space-y-5">
+    {health && <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <ShieldAlert size={19} className={health.overall === "FAIL" ? "text-destructive" : health.overall === "WARN" ? "text-accent-foreground" : "text-emerald-600"} />
+          <div>
+            <p className="lee-label text-primary">Durability evidence</p>
+            <h3 className="mt-1 text-lg font-semibold">Memory Health · {health.overall}</h3>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Canonical Brain integrity is reported separately from rebuildable retrieval and projection state. No derived cache is treated as proof of memory.</p>
+          </div>
+        </div>
+        <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase ${resultClasses(health.overall)}`}>{health.recoveryMode?.replaceAll("_", " ")}</span>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-2 text-muted-foreground"><Database size={14} /><p className="lee-label">Canonical Brain</p></div><p className="mt-2 text-lg font-semibold">{health.canonicalBrain?.status}</p><p className="mt-1 text-[11px] text-muted-foreground">{health.canonicalBrain?.eventCount ?? 0} events · {health.canonicalBrain?.canonicalRecords ?? 0} records</p></div>
+        <div className="rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-2 text-muted-foreground"><BrainCircuit size={14} /><p className="lee-label">Semantic index</p></div><p className="mt-2 text-lg font-semibold">{health.retrieval?.semanticIndex?.staleCount ?? 0} stale</p><p className="mt-1 text-[11px] text-muted-foreground">{health.retrieval?.semanticIndex?.indexedCount ?? 0} indexed · rebuildable</p></div>
+        <div className="rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-2 text-muted-foreground"><Archive size={14} /><p className="lee-label">Latest backup</p></div><p className="mt-2 text-lg font-semibold">{typeof latestBackupAge === "number" ? `${Math.round(latestBackupAge)}h old` : "Missing"}</p><p className="mt-1 text-[11px] text-muted-foreground">Isolated restore required</p></div>
+        <div className="rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-2 text-muted-foreground"><HardDrive size={14} /><p className="lee-label">Recovery plan</p></div><p className="mt-2 text-lg font-semibold">{health.recoveryPlan?.length ?? 0} actions</p><p className="mt-1 text-[11px] text-muted-foreground">{failedChecks.length} fail · {warningChecks.length} warn · {passChecks.length} pass</p></div>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {checks.map((check) => <details key={check.id} className={`rounded-xl border p-3 ${resultClasses(check.result)}`} open={check.result === "FAIL"}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold"><span className="flex items-center gap-2">{check.result === "PASS" ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}{check.label}</span><span className="text-[10px] font-bold uppercase">{check.result}</span></summary>
+          <p className="mt-2 text-xs leading-5">{check.message}</p>
+          {!!check.evidenceRefs?.length && <p className="mt-2 break-all text-[10px] opacity-75">Evidence: {check.evidenceRefs.slice(0, 4).join(", ")}{check.evidenceRefs.length > 4 ? ` +${check.evidenceRefs.length - 4}` : ""}</p>}
+          {!!check.recoverySteps?.length && <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px]">{check.recoverySteps.map((step) => <li key={step}>{step}</li>)}</ul>}
+        </details>)}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3 text-[11px] text-muted-foreground">
+        <RotateCcw size={13} />
+        <span>Machine-loss proof: canonical Brain {health.machineLossProof?.backupIncludesCanonicalBrain ? "included" : "not yet backed up"} · credentials excluded · replacement install only · provider reauthorization required on resume.</span>
+      </div>
+    </div>}
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-3">
         <BrainCircuit size={18} className="text-primary" />

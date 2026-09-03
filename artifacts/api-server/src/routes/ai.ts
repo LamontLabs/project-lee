@@ -5,6 +5,7 @@ import { type ConversationMode } from "../lib/context-engine";
 import { registerAction } from "../lib/governance-engine";
 import { pipelineFailureResponse, runRequestPipeline, type RequestPipelineSuccess } from "../lib/request-pipeline";
 import { consultCILRoute, routeModelRequest } from "../lib/model-router";
+import { buildAskAnswerContract, sanitizeCILResponse, sanitizeContextPacket } from "../lib/ask-lee-evidence";
 
 const router: IRouter = Router();
 const modes = ["normal", "deep_think", "build", "write", "review", "pilot", "low_cost", "private", "no_model", "governed_action"] as const;
@@ -48,7 +49,7 @@ async function preview(query: string, mode: Mode, risk: string, budgetTokens: nu
   const estimatedCostUsd = cil.cost_usd;
   const route = mode === "no_model" ? "packet_only" : selectedTier === "T1" || selectedTier === "T2" ? "cil_reuse" : "cil_selected_model";
   const reason = mode === "no_model" ? "The selected mode prohibits model execution." : `${selectedTier} route selected by CIL.`;
-  return { packet, selectedModel, selectedProvider, routeId, selectedTier, estimatedCostUsd, route, reason: `${reason} Intent: ${pipeline.intent.intentType}.`, budget: state, intent: pipeline.intent, cil };
+  return { packet, publicPacket: sanitizeContextPacket(packet), selectedModel, selectedProvider, routeId, selectedTier, estimatedCostUsd, route, reason: `${reason} Intent: ${pipeline.intent.intentType}.`, budget: state, intent: pipeline.intent, cil };
 }
 
 router.post("/ai/context-preview", async (req, res): Promise<void> => {
@@ -57,7 +58,8 @@ router.post("/ai/context-preview", async (req, res): Promise<void> => {
   const pipeline = await runRequestPipeline({ text: query, origin: "console", actionType: "context_preview", engineName: "Context Engine", mode: parseMode(req.body?.mode), budgetTokens: Number(req.body?.budgetTokens ?? 3000), sessionId: String(req.body?.sessionId ?? "preview") });
   if (!pipeline.ok) { res.status(422).json(pipelineFailureResponse(pipeline)); return; }
   const result = await preview(query, parseMode(req.body?.mode), String(req.body?.risk ?? "LOW"), Number(req.body?.budgetTokens ?? 3000), pipeline);
-  res.json({ ...result, packet: { ...result.packet, selectedModel: result.selectedModel, estimatedCostUsd: result.estimatedCostUsd, riskLevel: String(req.body?.risk ?? "LOW") } });
+  const { packet: _privatePacket, publicPacket, cil, ...publicResult } = result;
+  res.json({ ...publicResult, cil: sanitizeCILResponse(cil), packet: { ...publicPacket, selectedModel: result.selectedModel, estimatedCostUsd: result.estimatedCostUsd, riskLevel: String(req.body?.risk ?? "LOW") } });
 });
 
 router.post("/ai/conversations", async (req, res): Promise<void> => {
@@ -100,7 +102,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
     } else {
       const hold = gate.record;
     await db.insert(eventLog).values({ eventType: "ModelCallHeld", aggregateType: "governance_request", aggregateId: hold.id, sourceRef: "model-router", correlationId, occurredAt: new Date(), payload: { estimatedCostUsd: route.estimatedCostUsd, model: route.selectedModel } });
-    res.status(202).json({ held: true, governanceRequestId: hold.id, correlationId, contextPacket: route.packet, estimatedCostUsd: route.estimatedCostUsd, reason: "Human approval is required before this model call." });
+     res.status(202).json({ held: true, governanceRequestId: hold.id, correlationId, contextPacket: { ...route.publicPacket, selectedModel: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd }, answerContract: buildAskAnswerContract({ answer: "This model call is held for owner approval before execution.", items: route.packet.items, cil: route.cil, route: { tier: route.selectedTier, model: route.selectedModel, provider: route.selectedProvider, routeId: route.routeId }, intentType: intent.intentType }), estimatedCostUsd: route.estimatedCostUsd, reason: "Human approval is required before this model call." });
     return;
     }
   }
@@ -108,7 +110,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
     ? [undefined]
      : await db.insert(conversationMessage).values({ conversationId: item.id, role: "user", content: message, contextPacketId: packetId, intentId: intent.id }).returning();
   if (mode === "no_model") {
-    res.json({ held: false, packetOnly: true, correlationId, contextPacket: route.packet, userMessage });
+    res.json({ held: false, packetOnly: true, correlationId, contextPacket: route.publicPacket, answerContract: buildAskAnswerContract({ answer: "Context-only mode selected. No model was called.", items: route.packet.items, cil: route.cil, route: { tier: route.selectedTier, model: route.selectedModel, provider: route.selectedProvider, routeId: route.routeId }, intentType: intent.intentType }), userMessage });
     return;
   }
    const result = await routeModelRequest({
@@ -130,7 +132,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
      await db.insert(costRecord).values({ correlationId, engine: "ask-lee", provider: result.provider, tier: result.tier, model: result.model, promptTokens: result.promptTokens, completionTokens: result.completionTokens, totalTokens: result.totalTokens, estimatedCostUsd: cost, latencyMs: Date.now() - startedAt, cacheHit: route.packet.reused || result.tier === "T1" || result.tier === "T2", metadata: { conversationId: item.id, mode, route: route.route, routeId: result.routeId, costEstimateSource: result.costEstimateSource, budgetLimited: route.budget.limited, cilReroute: result.cilRerouted ?? false } });
      await db.insert(eventLog).values({ eventType: "CostRecordCreated", aggregateType: "cost_record", aggregateId: correlationId, sourceRef: "ask-lee", correlationId, occurredAt: new Date(), payload: { provider: result.provider, model: result.model, routeId: result.routeId, totalTokens: result.totalTokens, estimatedCostUsd: cost, cacheHit: route.packet.reused } });
   }
-   res.json({ held: false, correlationId, answer: result.answer, userMessage, assistantMessage, intent, contextPacket: route.packet, estimatedCostUsd: cost, provider: result.provider, model: result.model, routeId: result.routeId, evidenceRefs: route.packet.items.map((entry) => entry.id) });
+    res.json({ held: false, correlationId, answer: result.answer, answerContract: buildAskAnswerContract({ answer: result.answer, items: route.packet.items, cil: result.cilEvidence ? { ...route.cil, ...result.cilEvidence } : route.cil, route: { tier: result.tier, model: result.model, provider: result.provider, routeId: result.routeId, cilRerouted: result.cilRerouted, cilRerouteReason: result.cilRerouteReason }, intentType: intent.intentType }), userMessage, assistantMessage, intent, contextPacket: route.publicPacket, estimatedCostUsd: cost, provider: result.provider, model: result.model, routeId: result.routeId, evidenceRefs: route.packet.items.map((entry) => entry.id) });
 });
 
 export default router;

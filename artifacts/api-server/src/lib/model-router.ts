@@ -77,7 +77,7 @@ async function executeCILRoute(input: RouteInput, cil: CILQueryResponse) {
   if (!route) throw new Error("CIL returned T3 without an executable provider/model/route.");
   const contextText = input.contextItems.map((item) => `[${item.kind}:${item.id}] ${item.text}`).join("\n");
   const response = await callProvider(route, [
-    { role: "system", content: "You are Lee, a private founder operating intelligence. Separate observations from conclusions, name uncertainty plainly, and do not invent evidence. Answer the request directly." },
+      { role: "system", content: "You are Lee, a private founder operating intelligence. Separate observations from conclusions, name uncertainty plainly, and do not invent evidence. Answer the request directly. Do not quote raw provider bodies, credentials, or connector payloads; refer to their evidence IDs and summarize only what is needed." },
     { role: "user", content: `Domain: ${input.semanticDomain}\nIntent: ${input.intentType}\nRisk: ${input.riskClassification}\n\nContext packet:\n${contextText || "(No context selected)"}\n\nRequest:\n${input.queryText}` },
   ], input.correlationId);
   return {

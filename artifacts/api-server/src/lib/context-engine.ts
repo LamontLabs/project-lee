@@ -89,7 +89,7 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const retrievalPurpose = intent?.retrievalMode === "semantic" ? "discovery" : "context_assembly";
   const runQuery = (request: Parameters<QueryEngine["query"]>[0]) =>
     options.queryEngine ? options.queryEngine.query(request) : queryEngine.query(request);
-  const [objectResults, factResults, interpretationResults, waiting, commitments, eventResults, founder, trust, objectives, learningRules, constitution, assumptions, emailResult] = await Promise.all([
+  const [objectResults, factResults, interpretationResults, waiting, commitments, eventResults, founder, trust, objectives, learningRules, constitution, assumptions, costResults, governanceResults, serviceResults, conflictResults, emailResult] = await Promise.all([
     runQuery({ sources: ["universal_objects"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 40, requester: "Context Engine", purpose: retrievalPurpose }),
     runQuery({ sources: ["facts"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: retrievalPurpose }),
     runQuery({ sources: ["interpretations"], filters: retrievalFilters, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
@@ -102,6 +102,10 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
     applyLearning(query),
     runQuery({ sources: ["constitution"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
     runQuery({ sources: ["assumptions"], filters: { status: "active" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    runQuery({ sources: ["cost_records"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 30, requester: "Context Engine", purpose: retrievalPurpose }),
+    runQuery({ sources: ["governance_requests"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    runQuery({ sources: ["internal_services"], filters: {}, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
+    runQuery({ sources: ["memory_conflicts"], filters: { status: "open" }, rankingPolicy: "context_assembly", confidenceThreshold: 0, limit: 20, requester: "Context Engine", purpose: retrievalPurpose }),
     retrieveEmailCandidates(query, intent, options.resolveEmailProvider),
   ]);
   const objects = objectResults.map((item) => item.object as any);
@@ -113,6 +117,10 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
   const objectiveRecords = objectives.map((item) => item.object as any);
   const constitutionRecords = constitution.map((item) => item.object as any);
   const assumptionRecords = assumptions.map((item) => item.object as any);
+  const costRecords = costResults.map((item) => item.object as any);
+  const governanceRecords = governanceResults.map((item) => item.object as any);
+  const serviceRecords = serviceResults.map((item) => item.object as any);
+  const conflictRecords = conflictResults.map((item) => item.object as any);
   const queryText = query.toLowerCase();
   const privacyAllowed = await Promise.all(objects.map(async (item) => ({ item, policy: await checkPolicy("privacy", "context_include", { objectType: item.objectType, sourceType: item.sourceType }, "Context Engine") })));
   const excludedByPolicy = privacyAllowed.filter((entry) => !entry.policy.permitted).map((entry) => entry.item.id);
@@ -140,12 +148,16 @@ export async function buildContextPacket(query: string, mode: ConversationMode, 
         evidenceRefs: item.evidenceRefs ?? [],
         sourceRef: item.sourceRef,
       })),
-    ...events.map((item) => { const record = item as any; const occurredAt = record.occurredAt ?? record.createdAt ?? new Date(); return { id: record.id, text: `${record.eventType ?? "Semantic result"}: ${JSON.stringify(record.payload ?? record.excerpt ?? "")}`, kind: "event", confidence: record.confidence ?? record.similarityScore ?? 0.7, recencyDays: Math.max(0, (Date.now() - new Date(occurredAt).getTime()) / 86400000), strategicAnchor: false }; }),
+     ...events.map((item) => { const record = item as any; const occurredAt = record.occurredAt ?? record.createdAt ?? new Date(); return { id: record.id, text: `Event · ${record.eventType ?? "Recorded change"} · ${new Date(occurredAt).toISOString()}`, kind: "event", confidence: record.confidence ?? record.similarityScore ?? 0.7, recencyDays: Math.max(0, (Date.now() - new Date(occurredAt).getTime()) / 86400000), strategicAnchor: false, sourceRef: record.sourceRef, evidenceRefs: record.evidenceRefs ?? [] }; }),
     ...Object.entries(founder).map(([dimension, record]: [string, any]) => ({ id: `founder-${dimension}`, text: `Founder preference · ${dimension}: ${JSON.stringify(record.value)}`, kind: "founder_profile", confidence: record.confidence === "confirmed" ? 1 : 0.85, recencyDays: 0, strategicAnchor: true })),
     ...objectiveRecords.map((item) => ({ id: item.id, text: `Strategy objective · ${item.horizon}: ${item.objective}. Blockers: ${item.blockers.join(", ") || "none"}`, kind: "strategy", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
     ...learningRules.map((rule) => ({ id: `learning-${rule.id}`, text: `Standing correction rule · ${rule.category}: ${rule.correction}`, kind: "learning_rule", confidence: 0.9, recencyDays: 0, strategicAnchor: true })),
     ...constitutionRecords.map((item) => ({ id: `constitution-${item.id}`, text: `Constitution · ${item.title}: ${String(item.machineReadableRule.ruleText ?? item.title)}`, kind: "constitution", confidence: 1, recencyDays: 0, strategicAnchor: true })),
     ...assumptionRecords.map((item) => ({ id: `assumption-${item.id}`, text: `Assumption · ${item.statement}`, kind: "assumption", confidence: item.confidence, recencyDays: 0, strategicAnchor: false })),
+     ...costRecords.map((item) => ({ id: item.id, text: `Cost observation · ${item.engine} via ${item.provider} · ${item.tier} · $${Number(item.estimatedCostUsd ?? 0).toFixed(4)} · ${new Date(item.recordedAt ?? new Date()).toISOString()}`, kind: "cost", confidence: 0.9, recencyDays: Math.max(0, (Date.now() - new Date(item.recordedAt ?? new Date()).getTime()) / 86400000), strategicAnchor: false, sourceRef: `cost-record:${item.id}` })),
+     ...governanceRecords.map((item) => ({ id: item.id, text: `Governance · ${item.actionClass} for ${item.targetSystem} · ${item.status ?? item.verdict ?? "pending"} · risk ${item.riskLevel ?? "unknown"}`, kind: "governance", confidence: 0.9, recencyDays: Math.max(0, (Date.now() - new Date(item.createdAt ?? new Date()).getTime()) / 86400000), strategicAnchor: true, sourceRef: `governance:${item.id}`, evidenceRefs: item.evidenceRefs ?? [] })),
+     ...serviceRecords.map((item) => ({ id: item.id, text: `System · ${item.displayName} · ${item.category} · health ${item.currentHealth}`, kind: "system", confidence: 0.95, recencyDays: Math.max(0, (Date.now() - new Date(item.updatedAt ?? new Date()).getTime()) / 86400000), strategicAnchor: true, sourceRef: `system:${item.serviceId}` })),
+     ...conflictRecords.map((item) => ({ id: item.id, text: `Contradiction · ${item.summary}`, kind: "contradiction", confidence: 0.5, recencyDays: Math.max(0, (Date.now() - new Date(item.createdAt ?? new Date()).getTime()) / 86400000), strategicAnchor: false, sourceRef: `memory-conflict:${item.id}` })),
     ...emailResult.candidates.map((candidate) => candidate.item),
   ];
   const fingerprint = createHash("sha256").update(JSON.stringify({ query: query.trim().toLowerCase(), mode, ids: items.map((item) => item.id) })).digest("hex");

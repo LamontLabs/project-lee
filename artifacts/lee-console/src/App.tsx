@@ -20,6 +20,7 @@ import AssumptionsPage from './AssumptionsPage';
 import ImpactPage from './ImpactPage';
 import TimelinePage from './TimelinePage';
 import ExplanationPage from './ExplanationPage';
+import WhyChainPanel from './WhyChainPanel';
 import PolicyPage from './PolicyPage';
 import TrustScorePanel from './TrustScorePanel';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -1268,6 +1269,7 @@ function AskPage() {
   const [packet, setPacket] = useState<any>(null);
   const [conversationId, setConversationId] = useState('');
   const [answer, setAnswer] = useState('');
+  const [answerContract, setAnswerContract] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const modeLabel = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
@@ -1293,8 +1295,8 @@ function AskPage() {
         setConversationId(id);
       }
       const response = await fetch(`/api/ai/conversations/${id}/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message, mode }) });
-      const result = await response.json();
-      if (result.held) setNotice('This request is waiting for approval.'); else if (result.packetOnly) { setAnswer('Context-only mode selected. No model was called.'); } else if (!response.ok) setNotice(result.error ?? 'LEE could not complete this request.'); else setAnswer(result.answer ?? '');
+       const result = await response.json();
+       if (result.held) { setAnswer('This model call is held for owner approval before execution.'); setAnswerContract(result.answerContract ?? null); setNotice('This request is waiting for approval.'); } else if (result.packetOnly) { setAnswer('Context-only mode selected. No model was called.'); setAnswerContract(result.answerContract ?? null); } else if (!response.ok) setNotice(result.error ?? 'LEE could not complete this request.'); else { setAnswer(result.answer ?? ''); setAnswerContract(result.answerContract ?? null); }
     } catch { setNotice('Unable to ask LEE right now.'); }
     setBusy(false);
   };
@@ -1302,8 +1304,8 @@ function AskPage() {
   return <div className="mx-auto max-w-4xl">
     <SectionHeading eyebrow="Private reasoning" title="Ask LEE" detail="Write one question, review the context, then ask the system." />
     <Panel>
-      {answer ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-5"><p className="lee-label text-primary">LEE response</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{answer}</p></div> : <p className="text-sm text-muted-foreground">Start with a decision, loose thread, or question that deserves a clearer read.</p>}
-      <textarea value={message} onChange={(event) => { setMessage(event.target.value); setPacket(null); }} placeholder="What should the system help you see?" className="mt-5 min-h-32 w-full resize-none rounded-xl border border-input bg-background p-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground focus:border-primary" data-testid="textarea-ask-lee" />
+       {answer ? <AskAnswerCard answer={answer} contract={answerContract} /> : <p className="text-sm text-muted-foreground">Start with a decision, loose thread, or question that deserves a clearer read.</p>}
+       <textarea value={message} onChange={(event) => { setMessage(event.target.value); setPacket(null); setAnswerContract(null); }} placeholder="What should the system help you see?" className="mt-5 min-h-32 w-full resize-none rounded-xl border border-input bg-background p-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground focus:border-primary" data-testid="textarea-ask-lee" />
       <div className="mt-3 flex flex-wrap gap-2">
         <select value={mode} onChange={(event) => { setMode(event.target.value); setPacket(null); }} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm sm:w-auto">{['normal', 'deep_think', 'build', 'write', 'review', 'pilot', 'low_cost', 'private', 'no_model', 'governed_action'].map((item) => <option key={item} value={item}>{modeLabel(item)}</option>)}</select>
         <button onClick={() => void prepare()} disabled={busy || !message.trim()} className="rounded-xl border border-primary/30 px-4 py-2.5 text-xs font-semibold text-primary disabled:opacity-50">{busy ? 'Working…' : 'Review context'}</button>
@@ -1312,6 +1314,26 @@ function AskPage() {
       {packet && <div className="mt-4 rounded-xl border border-border bg-muted/35 p-4 text-xs text-muted-foreground"><span className="font-semibold text-foreground">Context ready</span><span className="ml-2">· {packet.packet?.items?.length ?? 0} items · {packet.selectedModel ?? 'model not selected'} · {packet.estimatedCostUsd != null ? `$${Number(packet.estimatedCostUsd).toFixed(4)}` : 'cost pending'}</span></div>}
       {notice && <p className="mt-4 text-sm text-primary" role="status">{notice}</p>}
     </Panel>
+  </div>;
+}
+
+function AskAnswerCard({ answer, contract }: { answer: string; contract: any }) {
+  const compact = contract?.compact;
+  const evidence = contract?.evidence ?? [];
+  return <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><p className="lee-label text-primary">LEE response</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{compact?.conclusion ?? answer}</p></div>
+      {compact && <div className="flex shrink-0 gap-2 text-[10px] font-semibold uppercase tracking-wide"><span className="rounded-full bg-background/70 px-2 py-1">{Math.round((compact.confidence ?? 0) * 100)}% {compact.confidenceLabel}</span><span className="rounded-full bg-background/70 px-2 py-1">{compact.freshness}</span></div>}
+    </div>
+    {compact && <div className="mt-5 grid gap-2 sm:grid-cols-3"><div className="rounded-lg bg-background/55 p-3"><p className="lee-label text-muted-foreground">Evidence</p><p className="mt-1 text-sm font-semibold">{compact.evidenceCount} grounded items</p></div><div className="rounded-lg bg-background/55 p-3"><p className="lee-label text-muted-foreground">Domains</p><p className="mt-1 text-sm font-semibold">{compact.domains?.join(' · ') || 'Knowledge'}</p></div><div className="rounded-lg bg-background/55 p-3"><p className="lee-label text-muted-foreground">Freshness</p><p className="mt-1 text-sm font-semibold">{contract.freshness?.label}</p></div></div>}
+    {contract && <div className="mt-4 space-y-2">
+      <details className="rounded-xl border border-border/80 bg-background/40 p-3"><summary className="cursor-pointer text-xs font-semibold">Evidence and provenance <span className="ml-1 text-muted-foreground">({evidence.length})</span></summary><div className="mt-3 space-y-2">{evidence.length ? evidence.map((item: any) => <div key={item.id} className="rounded-lg border border-border/70 bg-card/50 p-3"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold">{item.title}</span><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] capitalize">{item.epistemicType}</span><span className="text-[10px] text-muted-foreground">{Math.round(item.confidence * 100)}% · {item.freshness}</span></div>{item.excerpt ? <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{item.excerpt}</p> : item.rawContentSuppressed ? <p className="mt-2 text-xs text-muted-foreground">Provider content is withheld here. The bounded selection remains server-side.</p> : null}<p className="mt-2 text-[10px] text-muted-foreground">Evidence ID {item.id} · source {item.sourceRef}</p></div>) : <p className="mt-3 text-xs text-muted-foreground">No source-backed items were selected.</p>}</div></details>
+      {contract.assumptions?.length > 0 && <details className="rounded-xl border border-border/80 bg-background/40 p-3"><summary className="cursor-pointer text-xs font-semibold">Assumptions ({contract.assumptions.length})</summary><div className="mt-3 space-y-2">{contract.assumptions.map((item: any) => <p key={item.id} className="text-xs leading-relaxed text-muted-foreground">{item.excerpt ?? item.title} · {item.id}</p>)}</div></details>}
+      {contract.contradictions?.detected && <details open className="rounded-xl border border-accent/30 bg-accent/5 p-3"><summary className="cursor-pointer text-xs font-semibold text-accent-foreground">Contradictions need attention</summary><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{contract.contradictions.items?.length ? `${contract.contradictions.items.length} open contradiction(s) are linked in the evidence list.` : 'CIL flagged a contradiction in the reasoning result.'}</p></details>}
+      {contract.domainCards?.length > 0 && <div className="grid gap-2 sm:grid-cols-2">{contract.domainCards.map((card: any) => <div key={card.domain} className="rounded-lg border border-border/70 bg-background/35 p-3"><p className="lee-label text-primary">{card.title}</p><p className="mt-1 text-xs text-muted-foreground">{card.summary}</p></div>)}</div>}
+      <WhyChainPanel chain={contract.whyChain} />
+      <details className="rounded-xl border border-border/80 bg-background/40 p-3"><summary className="cursor-pointer text-xs font-semibold">CIL route and provenance</summary><div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2"><p>Resolution <span className="font-semibold text-foreground">{contract.cilRoute?.resolutionTier}</span></p><p>Authority <span className="font-semibold text-foreground">{contract.cilRoute?.executionAuthority} selected the route</span></p><p>Provider <span className="font-semibold text-foreground">{contract.cilRoute?.provider}</span></p><p>Model <span className="font-semibold text-foreground">{contract.cilRoute?.model}</span></p><p>Route ID <span className="font-semibold text-foreground">{contract.cilRoute?.routeId ?? 'reuse / not applicable'}</span></p><p>Local rerouting <span className="font-semibold text-foreground">{contract.cilRoute?.localModelSelection ? 'enabled' : 'not used'}</span></p></div>{contract.provenance?.cilProvenance?.length > 0 && <p className="mt-3 border-t border-border/70 pt-3 text-[10px] text-muted-foreground">CIL provenance: {contract.provenance.cilProvenance.join(' · ')}</p>}</details>
+    </div>}
   </div>;
 }
 

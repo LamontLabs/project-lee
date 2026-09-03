@@ -6,13 +6,17 @@ import {
   behavioralSignal,
   bootstrapRun,
   commitment,
+  costRecord,
   constitutionProvision,
   db,
   eventLog,
   factLedger,
+  governanceRequest,
   interpretationLedger,
   institutionalKnowledgeLedger,
+  internalCapabilityService,
   initiativeItem,
+  memoryConflict,
   opportunity,
   operationalPattern,
   person,
@@ -34,7 +38,8 @@ const sourceNames = [
   "universal_objects", "facts", "interpretations", "assumptions", "events",
   "waiting_loops", "strategic_objectives", "constitution", "trust_scores",
   "operational_patterns", "behavioral_signals", "institutional_knowledge",
-  "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people", "commitments", "reality_graph",
+  "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people", "commitments",
+  "cost_records", "governance_requests", "internal_services", "memory_conflicts", "reality_graph",
 ] as const;
 
 export const querySpecSchema = z.object({
@@ -91,6 +96,10 @@ const sourceTable = {
   strategic_anchors: [strategicAnchor, "strategic_anchor"],
   people: [person, "person"],
   commitments: [commitment, "commitment"],
+  cost_records: [costRecord, "cost"],
+  governance_requests: [governanceRequest, "governance"],
+  internal_services: [internalCapabilityService, "system"],
+  memory_conflicts: [memoryConflict, "contradiction"],
 } as const;
 
 function cacheKey(spec: QuerySpec) {

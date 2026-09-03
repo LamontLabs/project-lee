@@ -67,3 +67,4 @@
 - [Recovery read boundary](recovery-read-boundary.md) — protected recovery modes block mutations but must keep the canonical read-only Query Engine available.
 - [Ask LEE evidence contract](ask-lee-evidence-contract.md) — concise answers project redacted, labeled evidence while CIL remains the auditable routing authority.
 - [Unified approval inbox boundary](approval-inbox-boundary.md) — desktop and Android review one provider-neutral envelope through the same fail-closed CerbaSeal path.
+- [Connection health projection](connection-health-projection.md) — owner-facing connection health separates authority, availability, recovery, and diagnostics across clients.

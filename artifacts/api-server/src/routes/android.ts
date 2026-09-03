@@ -9,6 +9,7 @@ import { verifyAndroidPairing } from "./android-pairing";
 import { pipelineFailureResponse, runRequestPipeline } from "../lib/request-pipeline";
 import { reviewGovernanceRequest } from "../lib/governance-review";
 import { toApprovalEnvelope } from "../lib/approval-envelope";
+import { listConnectionHealth } from "../lib/connection-center";
 import { extractCommitmentCandidate, recordCommitmentCandidate, reconcileWaitingLoops } from "../lib/commitment-intelligence";
 
 const router: IRouter = Router();
@@ -166,6 +167,11 @@ router.get("/android/approvals", async (req, res): Promise<void> => {
   if (await rejectPairing(req, res)) return;
   const rows = await db.select().from(governanceRequest).where(eq(governanceRequest.status, "HOLD")).orderBy(desc(governanceRequest.createdAt));
   res.json(rows.map((row) => toApprovalEnvelope(row)));
+});
+
+router.get("/android/connections", async (req, res): Promise<void> => {
+  if (await rejectPairing(req, res)) return;
+  res.json(await listConnectionHealth());
 });
 
 router.post("/android/approvals/:id/ask-why", async (req, res): Promise<void> => {

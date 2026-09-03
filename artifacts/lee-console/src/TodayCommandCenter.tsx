@@ -23,13 +23,14 @@ type OperationalContext = {
 };
 
 type Service = { serviceId?: string; displayName?: string; category?: string; currentHealth?: string; metrics?: Record<string, unknown> };
-type Connection = { id: string; displayName: string; status: string; lastError?: string | null };
+type Connection = { id: string; displayName: string; status: string; statusLabel?: string; health?: { summary?: string; whatFailed: string | null; remainsAvailable: string; blocked: string | null; recoveryAutomatic: boolean; ownerActionRequired: boolean }; lastError?: string | null };
 type Momentum = { projectId: string; classification: string; score: number; direction?: string; contributions?: Array<{ label: string; count: number }> };
 type TimeOverview = { waitingLoops?: Array<Record<string, unknown>>; notifications?: Array<Record<string, unknown>>; objects?: Array<{ temporal?: { freshnessState?: string } }> };
 
 const humanize = (value: unknown) => String(value ?? "").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 const signalText = (item: Signal) => item.text ?? item.observation ?? "Operational signal";
 const dateTime = (value?: string) => value ? new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "recently";
+const connectionAttentionText = (item: Connection) => `${item.displayName}: ${item.health?.whatFailed ?? item.health?.summary ?? item.statusLabel ?? "needs attention"} Available: ${item.health?.remainsAvailable ?? "local records remain available."} ${item.health?.blocked ? `Blocked: ${item.health.blocked}` : ""} ${item.health?.ownerActionRequired ? "Owner action required." : item.health?.recoveryAutomatic ? "Lee will retry automatically." : ""}`.trim();
 
 function Section({ title, detail, children, tone = "default" }: { title: string; detail: string; children: ReactNode; tone?: "default" | "attention" | "motion" }) {
   return (
@@ -103,7 +104,7 @@ export default function TodayCommandCenter({ onRefresh }: { onRefresh?: () => vo
   const needsYou = useMemo<Signal[]>(() => [
     ...governance.map((item) => ({ id: item.id, text: item.reason ?? `${humanize(item.actionClass)} approval is waiting.`, significance: item.riskLevel, evidenceRefs: item.evidenceRefs })),
     ...(context?.blockedItems ?? []),
-    ...connections.filter((item) => ["needs_reauthorization", "unavailable", "degraded"].includes(item.status)).map((item) => ({ id: item.id, text: `${item.displayName} needs attention.`, significance: "IMPORTANT", evidenceRefs: item.lastError ? [item.lastError] : [] })),
+    ...connections.filter((item) => ["needs_reauthorization", "unavailable", "degraded", "incompatible", "pending"].includes(item.status)).map((item) => ({ id: item.id, text: connectionAttentionText(item), significance: "IMPORTANT", evidenceRefs: item.lastError ? [item.lastError] : [] })),
   ].slice(0, 5), [connections, context?.blockedItems, governance]);
   const inMotion = useMemo(() => momentum.filter((item) => !["Dormant", "Stalled"].includes(item.classification)).sort((left, right) => right.score - left.score).slice(0, 5), [momentum]);
   const watching = useMemo<Signal[]>(() => [...(context?.waitingItems ?? []), ...(context?.atRiskItems ?? []), ...(context?.driftingItems ?? [])].slice(0, 7), [context]);

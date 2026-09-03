@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Card, Eyebrow, Screen, SectionLabel, Title } from '@/components/Screen';
 import { useLee } from '@/context/LeeContext';
 import { useColors } from '@/hooks/useColors';
+import type { ConnectionSummary } from '@/lib/api';
 
 export default function SystemsTab() {
   const colors = useColors();
-  const { pairing, captures, uncertainty, contract, refresh } = useLee();
+  const { pairing, api, captures, uncertainty, contract, refresh } = useLee();
+  const [connections, setConnections] = useState<ConnectionSummary[]>([]);
+  useEffect(() => { if (!api) { setConnections([]); return; } void api.connections().then(setConnections).catch(() => setConnections([])); }, [api]);
   const queued = captures.filter((capture) => capture.status !== 'synced').length;
   const contractState = contract?.health?.state ?? 'unavailable';
   const statusColor = pairing && contractState === 'available' ? colors.primary : colors.accent;
@@ -21,6 +24,20 @@ export default function SystemsTab() {
         <View style={[styles.icon, { backgroundColor: statusColor }]}><Feather name={pairing ? 'wifi' : 'wifi-off'} size={18} color={colors.primaryForeground} /></View>
         <View style={styles.copy}><Text style={[styles.title, { color: colors.foreground }]}>{pairing ? 'Paired to Lee' : 'Offline companion'}</Text><Text style={[styles.body, { color: colors.mutedForeground }]}>{pairing ? `System contract ${contractState}.` : 'Capture remains local until the companion is paired.'}</Text></View>
       </View>
+    </Card>
+    <SectionLabel>Connection health</SectionLabel>
+    <Card>
+      {connections.length ? connections.map((connection) => {
+        const attention = connection.status !== 'connected';
+        return <View key={connection.id} style={styles.connectionRow}>
+          <View style={[styles.statusDot, { backgroundColor: attention ? colors.accent : colors.primary }]} />
+          <View style={styles.copy}>
+            <Text style={[styles.title, { color: colors.foreground }]}>{connection.displayName}</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>{connection.statusLabel ?? connection.status} · {connection.authority?.primary ?? 'OBSERVE'} authority</Text>
+            {attention && <Text style={[styles.warning, { color: colors.accentForeground }]}>{connection.health?.whatFailed ?? connection.health?.summary ?? 'This connection needs attention.'} {connection.health?.remainsAvailable ?? 'Cached and local records remain available.'} {connection.health?.blocked ?? 'Live operations may be blocked.'} {connection.health?.ownerActionRequired ? 'Owner action required.' : connection.health?.recoveryAutomatic ? 'LEE will retry automatically.' : ''}</Text>}
+          </View>
+        </View>;
+      }) : <Text style={[styles.body, { color: colors.mutedForeground }]}>{pairing ? 'No external connections are registered.' : 'Connection health is unavailable while offline. Local capture remains available.'}</Text>}
     </Card>
     <SectionLabel>Operational shortcuts</SectionLabel>
     <Card>
@@ -40,4 +57,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 14, lineHeight: 21, fontFamily: 'Inter_400Regular', marginTop: 4 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
   action: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  connectionRow: { flexDirection: 'row', gap: 10, paddingVertical: 6 },
+  statusDot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },
+  warning: { fontSize: 12, lineHeight: 18, fontFamily: 'Inter_500Medium', marginTop: 5 },
 });

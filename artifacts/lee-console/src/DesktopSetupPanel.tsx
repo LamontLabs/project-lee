@@ -124,7 +124,7 @@ type SafeConnection = {
   status: string;
   authStatus: string;
   credentialConfigured: boolean;
-  configuration?: Record<string, unknown>;
+  diagnostics?: { configuration?: Record<string, unknown> };
   lastHealthCheck?: string | null;
   lastError?: string | null;
 };
@@ -259,22 +259,22 @@ export function DesktopSetupPanel() {
       {
         label: "LEE Core",
         state: coreReady ? ("live" as const) : runtime?.state === "starting" ? ("degraded" as const) : ("unavailable" as const),
-        detail: coreReady ? "Database, Event Log, Brain, API, and local knowledge are available." : "Local foundation is still starting or needs attention.",
+         detail: coreReady ? "Database, Event Log, Brain, API, and local knowledge are available." : "What failed: a canonical foundation check is incomplete. Available: optional connections remain separately visible. Blocked: core-dependent operations. Recovery: automatic checks continue; owner action is required if this persists.",
       },
       {
         label: "AI",
         state: cilHealth === "healthy" && executionReady ? ("live" as const) : cilHealth === "degraded" || (cilHealth === "healthy" && !executionReady) ? ("degraded" as const) : ("unavailable" as const),
-        detail: cilHealth !== "healthy" ? "CIL is unavailable; model execution remains blocked." : executionReady ? "CIL and an approved execution provider are healthy." : "CIL is reachable, but no approved execution provider is healthy.",
+         detail: cilHealth !== "healthy" ? "What failed: CIL is unavailable. Available: local records and capture. Blocked: model execution. Recovery: Lee will recheck automatically; owner action is required if the service remains unavailable." : executionReady ? "CIL and an approved execution provider are healthy." : "What failed: no approved execution provider is healthy. Available: CIL and local records. Blocked: model execution. Recovery: health checks continue; owner action may be required.",
       },
       {
         label: "Governed Actions",
         state: governanceHealth === "healthy" ? ("live" as const) : governanceHealth === "degraded" ? ("degraded" as const) : ("unavailable" as const),
-        detail: governanceHealth === "healthy" ? "CerbaSeal is reachable and valid." : "CerbaSeal is unavailable; consequential actions remain on HOLD.",
+         detail: governanceHealth === "healthy" ? "CerbaSeal is reachable and valid." : "What failed: CerbaSeal availability is not verified. Available: read-only records and review context. Blocked: consequential actions remain on HOLD. Recovery: Lee will recheck automatically; owner action is required to restore governed execution.",
       },
       {
         label: "Project Operations",
         state: projectBridgeRegistered ? ("live" as const) : ("unavailable" as const),
-        detail: projectBridgeRegistered ? "MCP project operations are connected." : "MCP Project Bridge is unavailable; local LEE Core is unaffected.",
+         detail: projectBridgeRegistered ? "MCP project operations are connected." : "What failed: the project bridge is unavailable. Available: local LEE Core and project records. Blocked: project operations through the bridge. Recovery: automatic health checks continue; owner action is required only to reconnect it.",
       },
     ],
     [cilHealth, coreReady, executionReady, governanceHealth, projectBridgeRegistered, projectTestedIds, projectValidation],
@@ -499,7 +499,7 @@ export function DesktopSetupPanel() {
   };
   const setupProvider = async (provider: ProviderOption) => {
     const existing = connections.find((connection) =>
-      connection.configuration?.oauthProvider === provider.id || connection.configuration?.provider === provider.id,
+      connection.diagnostics?.configuration?.oauthProvider === provider.id || connection.diagnostics?.configuration?.provider === provider.id,
     );
     if (existing) {
       if (existing.method === "oauth" && existing.status !== "connected") await reauthorize(existing);
@@ -976,7 +976,7 @@ function ConnectionsStep({ connections, optionalUnavailable, testingId, onTest, 
 
 function ExternalConnectionsStep({ connections, optionalUnavailable, testingId, connectingProvider, onTest, onReauthorize, onSetupProvider }: { connections: SafeConnection[]; optionalUnavailable: SafeConnection[]; testingId: string | null; connectingProvider: string | null; onTest: (connection: SafeConnection) => void; onReauthorize: (connection: SafeConnection) => void; onSetupProvider: (provider: ProviderOption) => void }) {
   const connectionFor = (provider: ProviderOption) => connections.find((connection) =>
-    connection.configuration?.oauthProvider === provider.id || connection.configuration?.provider === provider.id,
+    connection.diagnostics?.configuration?.oauthProvider === provider.id || connection.diagnostics?.configuration?.provider === provider.id,
   );
   return <div className="space-y-4">
     <div className="rounded-xl border border-sidebar-primary/30 bg-sidebar-primary/10 p-4"><div className="flex items-start gap-3"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-sidebar-primary" /><div><p className="text-sm font-semibold">Choose only the accounts LEE needs</p><p className="mt-1 text-xs leading-relaxed text-sidebar-foreground/70">Each provider begins as a pending OBSERVE-only connection. OAuth opens the provider’s consent page; credentials and scopes stay server-side. Proton is optional and remains visibly degraded until a supported path is configured.</p></div></div></div>

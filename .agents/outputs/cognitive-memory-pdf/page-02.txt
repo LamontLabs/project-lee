@@ -1,0 +1,51 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  2
+The intended flow is:
+Millions of retained memories
+→ retrieval and relevance filtering
+→ bounded Context Packet
+→ CIL
+→ reasoning
+LEE must never attempt to compensate for poor retrieval by stuffing her entire history into model context.
+22. WORKING MEMORY
+Create a deliberately small, fast Working Memory representing what LEE is actively thinking about.
+Working Memory may include:
+current conversation
+active objective
+active project
+active person/relationship
+current investigation
+currently relevant evidence
+unresolved question
+active approvals
+recent important changes
+current operational state
+current plan
+current task
+recent reasoning conclusions
+Working Memory is temporary and dynamic.
+Information should enter and leave Working Memory based on attention and current objectives.
+Leaving Working Memory must not imply deletion from durable memory.
+23. STRUCTURED BRAIN MEMORY
+PostgreSQL should remain the canonical structured Brain.
+It should store durable structured concepts such as:
+People
+Organizations
+Projects
+Systems
+Objectives
+Initiatives
+Facts
+Interpretations
+Assumptions
+Decisions
+Commitments
+Waiting loops
+Risks
+Strategic Anchors
+Relationships
+Knowledge gaps
+Predictions
+Investigations
+Lessons
+Patterns
+Institutional Knowledge

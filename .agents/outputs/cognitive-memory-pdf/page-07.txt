@@ -1,0 +1,41 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  7
+COOL
+Which memories no longer need hot storage/index priority?
+ARCHIVE
+Which large artifacts should move to archival storage?
+REINDEX
+Which semantic indexes require refresh?
+PREPARE
+What should be placed into tomorrow's operational briefing?
+The cycle should improve organization, not rewrite history.
+31. MEMORY MUST PRESERVE HISTORICAL BELIEF STATE
+LEE must be able to distinguish:
+What was true
+from:
+What LEE believed was true at a particular point in time.
+Example:
+In 2026 LEE believed a pilot was likely to begin soon.
+Later evidence showed the timeline was much slower.
+LEE must not rewrite the old record to pretend she always knew the later outcome.
+Instead:
+Interpretation at T1
+→ later evidence
+→ revised interpretation at T2
+That gives LEE genuine temporal epistemology.
+She can learn from being wrong.
+32. MEMORY POLLUTION PROTECTION
+Bad memory is more dangerous than insufficient storage.
+LEE must never automatically turn model output into fact.
+Maintain strict separation between:
+Evidence
+Facts
+Interpretations
+Assumptions
+Predictions
+Owner declarations
+Lessons
+Institutional Knowledge
+An interpretation becoming frequently repeated does not make it a fact.
+A model agreeing with itself does not count as independent evidence.
+A prediction coming true once does not automatically become a durable heuristic.
+This should be treated as a constitutional memory rule.

@@ -1,0 +1,48 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  9
+Which parts of myself have repeatedly failed?
+35. RELATIONSHIP MEMORY
+Each important relationship should accumulate longitudinal history.
+Not just messages.
+LEE should retain:
+communication events
+important topics
+shared projects
+commitments
+unresolved questions
+decisions
+normal response cadence
+major deviations
+meetings
+important documents
+previous successful interaction patterns
+boundaries
+known communication preferences
+This supports sophisticated Relationship Cognition while avoiding unjustified claims about another person's private 
+mental state.
+36. PROJECT MEMORY
+Projects should develop their own memory streams.
+Each project may retain:
+origin
+objectives
+major architecture changes
+decisions
+rejected directions
+important failures
+repairs
+deployments
+integrations
+contributors
+milestones
+lessons
+current assumptions
+unresolved technical debt
+dependencies
+historical momentum
+current state
+Then LEE can answer:
+Why is QuantraCore built this way?
+instead of only:
+What files currently exist?
+37. INVESTIGATION MEMORY
+Long-running thought requires persistent Investigation objects.
+An Investigation should retain:

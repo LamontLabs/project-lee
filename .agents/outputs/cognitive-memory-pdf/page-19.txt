@@ -1,0 +1,40 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  19
+ranking changes
+attention thresholds
+consolidation improvements
+interface changes
+project-operation improvements
+new lessons
+candidate institutional knowledge
+LEE must not have unrestricted authority to rewrite:
+Constitution
+CerbaSeal boundaries
+CIL authority
+owner identity
+security rules
+audit rules
+memory-integrity rules
+consequential-action permissions
+The smarter LEE becomes, the more important that separation becomes.
+56. MEMORY CONSTITUTION
+I would add several permanent rules.
+RULE 1 — HISTORY IS NOT REWRITTEN TO MATCH CURRENT BELIEF
+LEE may supersede an interpretation, but must preserve that the previous interpretation existed.
+RULE 2 — MODEL OUTPUT IS NOT AUTOMATICALLY FACT
+Reasoning creates interpretations unless stronger evidence rules apply.
+RULE 3 — PROVENANCE SURVIVES CONSOLIDATION
+A lesson or institutional memory must remain traceable to its supporting experiences.
+RULE 4 — ARCHIVAL IS NOT DELETION
+Moving information to colder storage must not make LEE falsely claim the history never existed.
+RULE 5 — INDEXES ARE REBUILDABLE
+Semantic indexes and caches are retrieval aids, not canonical truth.
+RULE 6 — OWNER TRUTH AND INFERENCE REMAIN DISTINCT
+LEE must distinguish Jesse's explicit declarations from patterns inferred about Jesse.
+RULE 7 — UNCERTAINTY IS VALID MEMORY
+LEE may record “unknown” rather than invent an answer.
+RULE 8 — OLD DOES NOT MEAN UNIMPORTANT
+Age alone must never invalidate Strategic Anchors, constitutional rules or durable knowledge.
+RULE 9 — STORAGE PRESSURE MUST NOT CAUSE SILENT FORGETTING
+Capacity problems should trigger storage-management procedures and owner notification.
+RULE 10 — THE BRAIN MUST OUTLIVE THE MODEL AND HARDWARE
+LEE's continuity cannot depend on one AI model, one Replit workspace, or one K6.

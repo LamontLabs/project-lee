@@ -1,0 +1,50 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  14
+cold evidence
+historical exports
+INDEPENDENT BACKUP DESTINATION
+Brain backups
+database backups
+Event Log recovery
+archive manifest
+integrity metadata
+LEE should understand storage tiers without changing her conceptual memory model.
+46. MEMORY PORTABILITY
+LEE's accumulated cognition must outlive the machine.
+Create a portable Brain export/restore architecture containing or referencing:
+canonical database
+Event Log
+Brain versions
+source manifest
+archive manifest
+institutional knowledge
+relationship graph
+project memory
+owner model
+self model
+investigation history
+decisions/outcomes
+integrity information
+required configuration excluding unsafe credential transfer
+Target:
+K6 dies → new machine
+→ install LEE
+→ Restore Existing LEE
+→ restore Brain
+→ restore archive
+→ reauthorize external accounts
+→ verify systems
+→ LEE continues.
+Years of experience should not disappear with one computer.
+47. MEMORY HEALTH
+Create Memory Health as part of LEE's system health.
+Measure things like:
+canonical DB health
+Event Log continuity
+archive availability
+semantic-index freshness
+orphaned evidence
+provenance completeness
+unresolved duplicate sources
+backup freshness
+restore-test status
+disk capacity

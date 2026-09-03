@@ -1,0 +1,44 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  13
+LEE retains:
+file identity
+version metadata
+relationships
+extracted evidence
+important snapshots where needed
+Local captures
+LEE may become the canonical source for owner-created captures and therefore requires stronger preservation 
+guarantees.
+Retention policy should understand source ownership.
+44. MEDIA STORAGE
+Images, audio and video will eventually dominate storage much more than text.
+Use specialized archival storage.
+For example:
+Voice capture:
+Original audio
+→ archive according to retention policy
+Transcript
+→ evidence
+Extracted facts / commitments
+→ structured Brain
+Embedding
+→ semantic index
+Summary
+→ cognitive memory if useful
+This prevents heavy media from becoming the active Brain.
+45. STORAGE EXPANSION MUST BE TRANSPARENT TO LEE
+Do not design LEE around a permanently fixed K6 disk size.
+Storage should be expandable.
+Eventually the preferred physical layout could be:
+FAST INTERNAL STORAGE
+PostgreSQL
+active Brain
+semantic indexes
+hot evidence
+working data
+Event Log hot partitions
+LARGE ENCRYPTED ARCHIVE
+historical sources
+screenshots
+attachments
+audio
+video

@@ -1,0 +1,50 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  3
+Brain versions
+operational state
+connection state
+permissions
+provenance
+reasoning telemetry
+economics records
+This is the semantic skeleton of LEE's understanding.
+Large binary files should not be dumped into PostgreSQL simply because PostgreSQL is the Brain database.
+24. EPISODIC MEMORY
+LEE should maintain an autobiographical history through the Event Log and related temporal structures.
+Episodic Memory answers:
+What happened?
+When?
+In what order?
+What changed afterward?
+What was LEE doing?
+What was Jesse doing?
+What decision existed at that time?
+What did LEE believe then?
+What later evidence changed that belief?
+Examples:
+QuantraCore CI failed.
+LEE detected it.
+LEE investigated it.
+LEE proposed a repair.
+Tests passed.
+Jesse approved it.
+The project returned to healthy state.
+That sequence should remain reconstructable years later.
+Older episodic memory may become colder or more compressed for retrieval purposes, but the underlying historical 
+record must remain intact according to retention policy.
+25. SOURCE EVIDENCE ARCHIVE
+Large source material should live in a dedicated content-addressed archive rather than bloating the structured Brain.
+Examples:
+PDFs
+Word documents
+spreadsheets
+images
+screenshots
+photographs
+audio
+video
+email attachments
+repository archives
+large exports
+generated artifacts
+raw connector packages
+Each archived object should have a stable identity based on strong content hashing where appropriate.

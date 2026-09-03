@@ -1,0 +1,43 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  17
+Archive
+Which sources can move from hot to cold storage?
+Curiosity
+Which knowledge gaps now deserve investigation?
+Prioritize
+What deserves attention tomorrow?
+Prepare
+Build tomorrow's briefing.
+The process should be observable and auditable.
+LEE should never secretly rewrite the past during consolidation.
+53. COGNITIVE CONTINUITY
+LEE should eventually experience operational continuity across:
+conversations
+restarts
+model changes
+application updates
+Replit outages
+desktop migration
+K6 replacement
+connector outages
+The model generating the current answer may change.
+LEE's identity and accumulated experience should not.
+The architecture should therefore treat the current LLM as a cognitive resource, not the holder of LEE's identity.
+LEE's continuity comes from:
+Brain
+Event Log
+owner model
+self model
+experience
+institutional knowledge
+goals
+relationships
+decisions
+history
+constitutional boundaries
+54. ADVANCED FUNCTIONAL AWARENESS
+With the 20 original cognitive systems plus the memory architecture above, LEE should eventually maintain 
+continuously updated versions of:
+WORLD MODEL
+What is happening outside LEE?
+OWNER MODEL
+What does Jesse value, want, know, prefer and need?

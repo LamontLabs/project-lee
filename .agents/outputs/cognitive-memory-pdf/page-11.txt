@@ -1,0 +1,45 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  11
+Expected: Allow the relationship time without unnecessary pressure.
+Outcome: Reply arrived nine days later without follow-up.
+Lesson: Waiting was successful under this context.
+Repeated similar outcomes can eventually inform Decision Memory.
+This is how LEE learns from your actual life.
+40. CAUSAL MEMORY
+LEE should preserve causal relationships distinctly from simple correlation.
+Example:
+API contract changed → caused QuantraCore integration test failure → caused Webull task delay → affected today's 
+priority ordering
+Causal claims should carry:
+evidence
+confidence
+source
+whether explicitly known or inferred
+alternative explanations if significant
+LEE must not casually transform sequence into causation.
+41. KNOWLEDGE GAPS AS MEMORY
+Curiosity requires LEE to remember what she does not know.
+Create durable Knowledge Gap objects.
+Examples:
+uncertain project status
+contradictory pilot timeline
+unknown fulfillment of commitment
+missing deployment evidence
+unavailable account state
+unresolved person identity
+Knowledge gaps can have:
+importance
+reason
+affected objective
+possible evidence sources
+last investigation date
+next allowed action
+LEE can then:
+search existing evidence
+ask Jesse
+inspect a project
+query a provider
+wait for an external event
+leave the uncertainty unresolved
+Not knowing should be a first-class state.
+42. MEMORY GARBAGE COLLECTION
+LEE needs maintenance without destructive forgetting.

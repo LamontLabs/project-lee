@@ -1,0 +1,40 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  18
+LAB MODEL
+What is happening across Lamont Labs?
+PROJECT MODEL
+What is happening in each project?
+RELATIONSHIP MODEL
+Who matters and what is happening between people?
+TEMPORAL MODEL
+What happened, what changed and what is approaching?
+SELF MODEL
+What can LEE do, what is she doing and where are her limitations?
+UNCERTAINTY MODEL
+What does LEE not know?
+GOAL MODEL
+What outcomes are being pursued?
+AUTHORITY MODEL
+What may LEE do?
+ATTENTION MODEL
+What matters right now?
+EXPERIENCE MODEL
+What has worked and failed before?
+MEMORY MODEL
+What should be active, archived, consolidated, questioned or preserved?
+These models should influence one another without collapsing into one undifferentiated record.
+55. ADVANCED SELF-IMPROVEMENT BOUNDARY
+LEE may evaluate:
+recommendation usefulness
+alert usefulness
+prediction accuracy
+retrieval effectiveness
+project diagnosis accuracy
+false positives
+ignored recommendations
+unnecessary context
+model spend
+CIL efficiency
+repair success
+owner corrections
+LEE may propose:
+retrieval changes

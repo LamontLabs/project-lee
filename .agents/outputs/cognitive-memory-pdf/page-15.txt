@@ -1,0 +1,48 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  15
+archive capacity
+memory corruption detection
+stale consolidations
+excessive unresolved contradictions
+index rebuild requirements
+Normally healthy memory should remain quiet.
+Problems should appear prominently when they threaten cognition or durability.
+48. MEMORY PRESSURE MANAGEMENT
+If storage approaches capacity, LEE must not simply delete memories.
+Use a staged pressure response:
+21. Remove temporary artifacts.
+22. Delete rebuildable caches.
+23. Deduplicate.
+24. Compress cold content.
+25. Move archival material to colder storage.
+26. Alert Jesse.
+27. Recommend capacity expansion.
+Canonical history should be the last thing considered for removal, and any destructive retention action should follow 
+explicit policy and governance.
+49. RETRIEVAL SHOULD BE MULTI-STAGE
+LEE should not depend on semantic search alone.
+A sophisticated retrieval process may combine:
+exact structured query
+entity graph traversal
+temporal filtering
+project relationships
+person relationships
+semantic similarity
+importance
+freshness
+provenance
+objective relevance
+previous usage
+contradiction state
+Then rank candidates into the bounded Context Packet.
+This gives LEE better memory than “vector search over everything.”
+50. COGNITIVE MEMORY SHOULD BE EXPLAINABLE
+Whenever a memory materially influences a consequential recommendation, LEE should be capable of answering:
+What memory did you use?
+Where did it come from?
+Is it a fact or interpretation?
+How old is it?
+Has it been contradicted?
+Why was it relevant?
+When was it last validated?
+What would change your conclusion?
+That is critical for advanced cognition.

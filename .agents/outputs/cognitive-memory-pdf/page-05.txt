@@ -1,0 +1,45 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  5
+Those individual events remain historically available.
+Eventually LEE may learn:
+Shared dependency upgrades have repeatedly caused cross-project CI failures. Verify dependency alignment before 
+repairing individual downstream projects.
+That consolidated memory becomes easier to retrieve than dozens of raw incidents.
+But it must retain provenance back to the supporting experiences.
+28. MEMORY TEMPERATURE
+Give memory a retrieval-temperature model.
+HOT
+Frequently needed or immediately relevant.
+Examples:
+current projects
+active objectives
+recent important correspondence
+current commitments
+recent project activity
+current system state
+unresolved decisions
+Optimized for fast retrieval.
+WARM
+Still useful but not continuously active.
+Examples:
+earlier stages of current projects
+previous decisions
+older correspondence
+completed initiatives
+historical relationship context
+Searchable without remaining in the hottest indexes.
+COLD
+Rarely needed but still worth preserving.
+Examples:
+old project artifacts
+historical attachments
+old raw events
+closed investigations
+long-completed initiatives
+May be compressed or moved to archival storage.
+CANONICAL / PERMANENT
+Some information must not become unimportant merely because it is old.
+Examples:
+Constitutional rules
+owner-declared identity
+Strategic Anchors
+critical historical decisions

@@ -1,0 +1,49 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  12
+A Memory Garbage Collector can remove or compact things such as:
+duplicate imported files
+duplicate provider payloads
+redundant embeddings
+obsolete caches
+temporary extraction files
+expired diagnostic artifacts
+temporary project clones
+orphaned transient records
+rebuildable indexes
+superseded temporary representations
+It must not automatically delete:
+canonical evidence
+Event Log history
+Strategic Anchors
+constitutional history
+owner declarations
+important decisions
+audit evidence
+institutional knowledge
+Deletion policy must remain explicit and auditable.
+43. SOURCE-SPECIFIC RETENTION
+Different providers require different storage strategies.
+Gmail
+Gmail remains the external canonical mailbox.
+LEE may retain:
+Gmail message/thread IDs
+metadata
+important normalized body content
+entities
+commitments
+relationships
+evidence references
+selected snapshots where preservation matters
+LEE does not necessarily need to duplicate every raw Gmail byte forever.
+GitHub
+GitHub/Git history remains canonical for repository history.
+LEE retains:
+repo identity
+commit references
+meaningful diffs
+build state
+project relationships
+important change summaries
+operational evidence
+LEE should not necessarily maintain endless redundant full repository copies.
+Drive
+Drive remains canonical for cloud files while connected.

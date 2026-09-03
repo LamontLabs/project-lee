@@ -1,0 +1,48 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  4
+The Brain stores things such as:
+Source ID
+hash
+content type
+source/provider
+original location
+archive location
+timestamps
+size
+owner/project/person relationships
+extracted text reference
+provenance
+integrity state
+retention state
+LEE should therefore know about the artifact without carrying the artifact itself through every cognitive operation.
+26. SEMANTIC INDEX
+LEE should maintain a local semantic retrieval index over useful textual memory.
+Possible indexed material:
+Evidence
+Emails
+Documents
+Facts
+Interpretations
+Decisions
+Commitments
+Lessons
+Institutional Knowledge
+Prior investigations
+Important project events
+Relationship history
+The semantic index is not canonical memory.
+It is an index into canonical memory.
+If it is corrupted or deleted, LEE should be able to reconstruct it from canonical records.
+That means:
+Vector/index state must never become the sole surviving copy of an important memory.
+Local embeddings should remain the preferred architecture where practical.
+27. CONSOLIDATED LONG-TERM MEMORY
+LEE should not preserve every observation at identical cognitive weight forever.
+Memory should consolidate.
+The intended progression is:
+Raw Event
+→ Experience
+→ Lesson
+→ Pattern
+→ Institutional Knowledge
+Example:
+LEE experiences several dependency-related CI failures across projects.

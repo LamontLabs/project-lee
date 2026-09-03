@@ -1,0 +1,41 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  16
+51. MEMORY AND CIL SHOULD WORK TOGETHER
+LEE's memory system determines what knowledge may be relevant.
+CIL determines how cognition should resolve the request and whether existing cognitive assets can avoid another 
+frontier-model call.
+Conceptually:
+LEE Brain → Query Engine
+→ Context Economy
+→ relevant memory
+→ CIL
+→ reuse or model route
+→ reasoning
+→ structured result
+→ potential new memory
+New reasoning must not immediately become durable truth.
+It should enter the appropriate category:
+candidate interpretation
+prediction
+proposed decision
+lesson candidate
+investigation update
+and only become stronger knowledge through evidence and governance rules.
+52. NIGHTLY COGNITIVE CONSOLIDATION
+The earlier reflection concept should now become a serious subsystem.
+A scheduled consolidation cycle could perform:
+Observe
+What meaningfully changed?
+Reconcile
+What new evidence conflicts with existing understanding?
+Review
+Which assumptions became stale?
+Evaluate
+Which predictions resolved?
+Learn
+Which decisions produced observable outcomes?
+Consolidate
+Which repeated experiences form lessons?
+Institutionalize
+Which patterns meet promotion requirements?
+Compress
+Which historical material can be represented more efficiently?

@@ -1,0 +1,42 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  8
+33. OWNER MODEL MEMORY
+LEE's model of Jesse should become its own governed memory domain.
+It can contain:
+Explicit Owner Truth
+Things Jesse directly said.
+Observed Behavior
+Things supported by recorded actions.
+Inferred Preference
+Patterns LEE believes may exist.
+Decision Heuristic
+Repeated decision behavior.
+Stable Strategic Anchor
+Explicit durable guidance.
+Uncertain Owner Hypothesis
+A pattern LEE suspects but has insufficient evidence to rely on strongly.
+Every owner-model record must clearly identify which category it belongs to.
+LEE must never present inferred traits as if Jesse explicitly declared them.
+34. SELF MEMORY
+LEE should preserve meaningful history about herself.
+Examples:
+version history
+capability additions
+capability removals
+failures
+outages
+repairs
+performance
+prediction accuracy
+recommendation outcomes
+project-operation outcomes
+connector reliability
+cost history
+previous operational-confidence states
+self-improvement proposals
+rejected self-improvement proposals
+This gives the Self Model continuity.
+LEE should know not only:
+What can I do?
+but eventually:
+What could I do six months ago?
+and:

@@ -1,0 +1,48 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  10
+question
+objective
+created date
+current hypothesis
+supporting evidence
+contradictory evidence
+unresolved questions
+assumptions
+research performed
+related people/projects
+conclusions
+confidence
+conclusion history
+current status
+next evidence needed
+Investigations can remain open for days, weeks, months, or years.
+New evidence can automatically trigger reconsideration.
+This allows cognition to continue beyond a chat session.
+38. PREDICTION MEMORY
+Predictions should be stored separately from facts.
+Every meaningful prediction should retain:
+prediction
+timestamp
+predicted time horizon
+supporting evidence
+reasoning
+confidence range
+relevant variables
+eventual outcome
+accuracy result
+lesson derived
+LEE should periodically score her predictions.
+This creates real calibration over time.
+Eventually she can know:
+I am historically reliable at predicting project delay but poorly calibrated on human response timing.
+That is useful metacognition.
+39. DECISION → OUTCOME MEMORY
+Decisions should not end when they are recorded.
+Build an explicit lifecycle:
+Decision
+→ Expected outcome
+→ Observed outcome
+→ Difference
+→ Lesson
+→ Potential heuristic
+Example:
+Decision: Wait before following up.

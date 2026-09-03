@@ -1,0 +1,54 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  1
+PROJECT LEE — COGNITIVE RUNTIME + LONG-TERM 
+MEMORY ARCHITECTURE
+Yes. I would keep the entire cognition design you pasted and add a Memory Architecture Foundation 
+underneath it, because practically every one of those cognitive abilities depends on LEE being able to 
+retain years of experience without turning the Brain into an enormous, polluted, expensive database.
+I would add the following to the design.
+The cognitive objective remains:
+A continuously running cognitive environment that maintains a model of Jesse, itself, Lamont Labs, relationships, 
+projects, goals and the outside world; notices change; learns from outcomes; allocates attention; reasons about 
+uncertainty; performs bounded work; and preserves its experience over years.
+LEE should pursue extremely advanced functional cognition and operational awareness without making unsupported 
+claims of consciousness or subjective experience.
+The existing 20 cognitive capabilities remain:
+1.
+Persistent situational awareness
+2.
+Temporal awareness
+3.
+Attention
+4.
+Owner model
+5.
+Self-model
+6.
+Metacognition
+7.
+Prediction
+8.
+Counterfactual reasoning
+9.
+Goal awareness
+10. Initiative
+11. Long-running thought
+12. Relationship cognition
+13. Cross-system causal reasoning
+14. Learning from outcomes
+15. Cognitive specialization
+16. Internal reflection cycles
+17. Curiosity / uncertainty-driven information seeking
+18. Governed self-improvement
+19. Multiple time horizons
+20. Persistent cognitive runtime
+The following memory architecture should now be treated as the foundation supporting all twenty.
+21. MEMORY MUST BE TIERED, NOT MONOLITHIC
+LEE must never treat “memory” as one giant prompt, one huge table, or one undifferentiated vector store.
+Separate:
+Durable Memory
+Everything LEE has legitimately retained.
+from:
+Active Cognitive Context
+The small amount of information required for the reasoning process currently taking place.
+LEE may eventually contain millions of records and years of operational history while a particular reasoning task 
+retrieves only a few dozen relevant records.

@@ -1,0 +1,967 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  1
+PROJECT LEE — COGNITIVE RUNTIME + LONG-TERM 
+MEMORY ARCHITECTURE
+Yes. I would keep the entire cognition design you pasted and add a Memory Architecture Foundation 
+underneath it, because practically every one of those cognitive abilities depends on LEE being able to 
+retain years of experience without turning the Brain into an enormous, polluted, expensive database.
+I would add the following to the design.
+The cognitive objective remains:
+A continuously running cognitive environment that maintains a model of Jesse, itself, Lamont Labs, relationships, 
+projects, goals and the outside world; notices change; learns from outcomes; allocates attention; reasons about 
+uncertainty; performs bounded work; and preserves its experience over years.
+LEE should pursue extremely advanced functional cognition and operational awareness without making unsupported 
+claims of consciousness or subjective experience.
+The existing 20 cognitive capabilities remain:
+1.
+Persistent situational awareness
+2.
+Temporal awareness
+3.
+Attention
+4.
+Owner model
+5.
+Self-model
+6.
+Metacognition
+7.
+Prediction
+8.
+Counterfactual reasoning
+9.
+Goal awareness
+10. Initiative
+11. Long-running thought
+12. Relationship cognition
+13. Cross-system causal reasoning
+14. Learning from outcomes
+15. Cognitive specialization
+16. Internal reflection cycles
+17. Curiosity / uncertainty-driven information seeking
+18. Governed self-improvement
+19. Multiple time horizons
+20. Persistent cognitive runtime
+The following memory architecture should now be treated as the foundation supporting all twenty.
+21. MEMORY MUST BE TIERED, NOT MONOLITHIC
+LEE must never treat “memory” as one giant prompt, one huge table, or one undifferentiated vector store.
+Separate:
+Durable Memory
+Everything LEE has legitimately retained.
+from:
+Active Cognitive Context
+The small amount of information required for the reasoning process currently taking place.
+LEE may eventually contain millions of records and years of operational history while a particular reasoning task 
+retrieves only a few dozen relevant records.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  2
+The intended flow is:
+Millions of retained memories
+→ retrieval and relevance filtering
+→ bounded Context Packet
+→ CIL
+→ reasoning
+LEE must never attempt to compensate for poor retrieval by stuffing her entire history into model context.
+22. WORKING MEMORY
+Create a deliberately small, fast Working Memory representing what LEE is actively thinking about.
+Working Memory may include:
+current conversation
+active objective
+active project
+active person/relationship
+current investigation
+currently relevant evidence
+unresolved question
+active approvals
+recent important changes
+current operational state
+current plan
+current task
+recent reasoning conclusions
+Working Memory is temporary and dynamic.
+Information should enter and leave Working Memory based on attention and current objectives.
+Leaving Working Memory must not imply deletion from durable memory.
+23. STRUCTURED BRAIN MEMORY
+PostgreSQL should remain the canonical structured Brain.
+It should store durable structured concepts such as:
+People
+Organizations
+Projects
+Systems
+Objectives
+Initiatives
+Facts
+Interpretations
+Assumptions
+Decisions
+Commitments
+Waiting loops
+Risks
+Strategic Anchors
+Relationships
+Knowledge gaps
+Predictions
+Investigations
+Lessons
+Patterns
+Institutional Knowledge
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  3
+Brain versions
+operational state
+connection state
+permissions
+provenance
+reasoning telemetry
+economics records
+This is the semantic skeleton of LEE's understanding.
+Large binary files should not be dumped into PostgreSQL simply because PostgreSQL is the Brain database.
+24. EPISODIC MEMORY
+LEE should maintain an autobiographical history through the Event Log and related temporal structures.
+Episodic Memory answers:
+What happened?
+When?
+In what order?
+What changed afterward?
+What was LEE doing?
+What was Jesse doing?
+What decision existed at that time?
+What did LEE believe then?
+What later evidence changed that belief?
+Examples:
+QuantraCore CI failed.
+LEE detected it.
+LEE investigated it.
+LEE proposed a repair.
+Tests passed.
+Jesse approved it.
+The project returned to healthy state.
+That sequence should remain reconstructable years later.
+Older episodic memory may become colder or more compressed for retrieval purposes, but the underlying historical 
+record must remain intact according to retention policy.
+25. SOURCE EVIDENCE ARCHIVE
+Large source material should live in a dedicated content-addressed archive rather than bloating the structured Brain.
+Examples:
+PDFs
+Word documents
+spreadsheets
+images
+screenshots
+photographs
+audio
+video
+email attachments
+repository archives
+large exports
+generated artifacts
+raw connector packages
+Each archived object should have a stable identity based on strong content hashing where appropriate.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  4
+The Brain stores things such as:
+Source ID
+hash
+content type
+source/provider
+original location
+archive location
+timestamps
+size
+owner/project/person relationships
+extracted text reference
+provenance
+integrity state
+retention state
+LEE should therefore know about the artifact without carrying the artifact itself through every cognitive operation.
+26. SEMANTIC INDEX
+LEE should maintain a local semantic retrieval index over useful textual memory.
+Possible indexed material:
+Evidence
+Emails
+Documents
+Facts
+Interpretations
+Decisions
+Commitments
+Lessons
+Institutional Knowledge
+Prior investigations
+Important project events
+Relationship history
+The semantic index is not canonical memory.
+It is an index into canonical memory.
+If it is corrupted or deleted, LEE should be able to reconstruct it from canonical records.
+That means:
+Vector/index state must never become the sole surviving copy of an important memory.
+Local embeddings should remain the preferred architecture where practical.
+27. CONSOLIDATED LONG-TERM MEMORY
+LEE should not preserve every observation at identical cognitive weight forever.
+Memory should consolidate.
+The intended progression is:
+Raw Event
+→ Experience
+→ Lesson
+→ Pattern
+→ Institutional Knowledge
+Example:
+LEE experiences several dependency-related CI failures across projects.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  5
+Those individual events remain historically available.
+Eventually LEE may learn:
+Shared dependency upgrades have repeatedly caused cross-project CI failures. Verify dependency alignment before 
+repairing individual downstream projects.
+That consolidated memory becomes easier to retrieve than dozens of raw incidents.
+But it must retain provenance back to the supporting experiences.
+28. MEMORY TEMPERATURE
+Give memory a retrieval-temperature model.
+HOT
+Frequently needed or immediately relevant.
+Examples:
+current projects
+active objectives
+recent important correspondence
+current commitments
+recent project activity
+current system state
+unresolved decisions
+Optimized for fast retrieval.
+WARM
+Still useful but not continuously active.
+Examples:
+earlier stages of current projects
+previous decisions
+older correspondence
+completed initiatives
+historical relationship context
+Searchable without remaining in the hottest indexes.
+COLD
+Rarely needed but still worth preserving.
+Examples:
+old project artifacts
+historical attachments
+old raw events
+closed investigations
+long-completed initiatives
+May be compressed or moved to archival storage.
+CANONICAL / PERMANENT
+Some information must not become unimportant merely because it is old.
+Examples:
+Constitutional rules
+owner-declared identity
+Strategic Anchors
+critical historical decisions
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  6
+important legal/commercial evidence
+institutional knowledge
+evidence required for audit
+durable owner corrections
+Temperature and importance must remain separate concepts.
+A ten-year-old Strategic Anchor may be more important than yesterday's email.
+29. MEMORY IMPORTANCE
+Each durable memory should be able to carry dimensions such as:
+importance
+freshness
+confidence
+provenance strength
+usage frequency
+current-objective relevance
+project relevance
+relationship relevance
+operational impact
+contradiction status
+canonical status
+retention class
+Do not collapse all of these into one opaque score.
+LEE should be able to explain why something is prioritized.
+30. MEMORY CONSOLIDATION CYCLES
+Expand LEE's reflection cycles into explicit memory consolidation.
+A nightly or scheduled cognitive-maintenance cycle could perform:
+OBSERVE
+What happened?
+RECONCILE
+Did new evidence contradict existing records?
+DEDUPLICATE
+Are multiple records describing the same event or source?
+REVIEW
+Which assumptions or interpretations became stale?
+LEARN
+Did a decision produce an observable outcome?
+CONSOLIDATE
+Can repeated experiences form a useful lesson or pattern?
+COMPRESS
+Can verbose historical material be represented by a higher-level memory while retaining provenance?
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  7
+COOL
+Which memories no longer need hot storage/index priority?
+ARCHIVE
+Which large artifacts should move to archival storage?
+REINDEX
+Which semantic indexes require refresh?
+PREPARE
+What should be placed into tomorrow's operational briefing?
+The cycle should improve organization, not rewrite history.
+31. MEMORY MUST PRESERVE HISTORICAL BELIEF STATE
+LEE must be able to distinguish:
+What was true
+from:
+What LEE believed was true at a particular point in time.
+Example:
+In 2026 LEE believed a pilot was likely to begin soon.
+Later evidence showed the timeline was much slower.
+LEE must not rewrite the old record to pretend she always knew the later outcome.
+Instead:
+Interpretation at T1
+→ later evidence
+→ revised interpretation at T2
+That gives LEE genuine temporal epistemology.
+She can learn from being wrong.
+32. MEMORY POLLUTION PROTECTION
+Bad memory is more dangerous than insufficient storage.
+LEE must never automatically turn model output into fact.
+Maintain strict separation between:
+Evidence
+Facts
+Interpretations
+Assumptions
+Predictions
+Owner declarations
+Lessons
+Institutional Knowledge
+An interpretation becoming frequently repeated does not make it a fact.
+A model agreeing with itself does not count as independent evidence.
+A prediction coming true once does not automatically become a durable heuristic.
+This should be treated as a constitutional memory rule.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  8
+33. OWNER MODEL MEMORY
+LEE's model of Jesse should become its own governed memory domain.
+It can contain:
+Explicit Owner Truth
+Things Jesse directly said.
+Observed Behavior
+Things supported by recorded actions.
+Inferred Preference
+Patterns LEE believes may exist.
+Decision Heuristic
+Repeated decision behavior.
+Stable Strategic Anchor
+Explicit durable guidance.
+Uncertain Owner Hypothesis
+A pattern LEE suspects but has insufficient evidence to rely on strongly.
+Every owner-model record must clearly identify which category it belongs to.
+LEE must never present inferred traits as if Jesse explicitly declared them.
+34. SELF MEMORY
+LEE should preserve meaningful history about herself.
+Examples:
+version history
+capability additions
+capability removals
+failures
+outages
+repairs
+performance
+prediction accuracy
+recommendation outcomes
+project-operation outcomes
+connector reliability
+cost history
+previous operational-confidence states
+self-improvement proposals
+rejected self-improvement proposals
+This gives the Self Model continuity.
+LEE should know not only:
+What can I do?
+but eventually:
+What could I do six months ago?
+and:
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  9
+Which parts of myself have repeatedly failed?
+35. RELATIONSHIP MEMORY
+Each important relationship should accumulate longitudinal history.
+Not just messages.
+LEE should retain:
+communication events
+important topics
+shared projects
+commitments
+unresolved questions
+decisions
+normal response cadence
+major deviations
+meetings
+important documents
+previous successful interaction patterns
+boundaries
+known communication preferences
+This supports sophisticated Relationship Cognition while avoiding unjustified claims about another person's private 
+mental state.
+36. PROJECT MEMORY
+Projects should develop their own memory streams.
+Each project may retain:
+origin
+objectives
+major architecture changes
+decisions
+rejected directions
+important failures
+repairs
+deployments
+integrations
+contributors
+milestones
+lessons
+current assumptions
+unresolved technical debt
+dependencies
+historical momentum
+current state
+Then LEE can answer:
+Why is QuantraCore built this way?
+instead of only:
+What files currently exist?
+37. INVESTIGATION MEMORY
+Long-running thought requires persistent Investigation objects.
+An Investigation should retain:
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  10
+question
+objective
+created date
+current hypothesis
+supporting evidence
+contradictory evidence
+unresolved questions
+assumptions
+research performed
+related people/projects
+conclusions
+confidence
+conclusion history
+current status
+next evidence needed
+Investigations can remain open for days, weeks, months, or years.
+New evidence can automatically trigger reconsideration.
+This allows cognition to continue beyond a chat session.
+38. PREDICTION MEMORY
+Predictions should be stored separately from facts.
+Every meaningful prediction should retain:
+prediction
+timestamp
+predicted time horizon
+supporting evidence
+reasoning
+confidence range
+relevant variables
+eventual outcome
+accuracy result
+lesson derived
+LEE should periodically score her predictions.
+This creates real calibration over time.
+Eventually she can know:
+I am historically reliable at predicting project delay but poorly calibrated on human response timing.
+That is useful metacognition.
+39. DECISION → OUTCOME MEMORY
+Decisions should not end when they are recorded.
+Build an explicit lifecycle:
+Decision
+→ Expected outcome
+→ Observed outcome
+→ Difference
+→ Lesson
+→ Potential heuristic
+Example:
+Decision: Wait before following up.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  11
+Expected: Allow the relationship time without unnecessary pressure.
+Outcome: Reply arrived nine days later without follow-up.
+Lesson: Waiting was successful under this context.
+Repeated similar outcomes can eventually inform Decision Memory.
+This is how LEE learns from your actual life.
+40. CAUSAL MEMORY
+LEE should preserve causal relationships distinctly from simple correlation.
+Example:
+API contract changed → caused QuantraCore integration test failure → caused Webull task delay → affected today's 
+priority ordering
+Causal claims should carry:
+evidence
+confidence
+source
+whether explicitly known or inferred
+alternative explanations if significant
+LEE must not casually transform sequence into causation.
+41. KNOWLEDGE GAPS AS MEMORY
+Curiosity requires LEE to remember what she does not know.
+Create durable Knowledge Gap objects.
+Examples:
+uncertain project status
+contradictory pilot timeline
+unknown fulfillment of commitment
+missing deployment evidence
+unavailable account state
+unresolved person identity
+Knowledge gaps can have:
+importance
+reason
+affected objective
+possible evidence sources
+last investigation date
+next allowed action
+LEE can then:
+search existing evidence
+ask Jesse
+inspect a project
+query a provider
+wait for an external event
+leave the uncertainty unresolved
+Not knowing should be a first-class state.
+42. MEMORY GARBAGE COLLECTION
+LEE needs maintenance without destructive forgetting.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  12
+A Memory Garbage Collector can remove or compact things such as:
+duplicate imported files
+duplicate provider payloads
+redundant embeddings
+obsolete caches
+temporary extraction files
+expired diagnostic artifacts
+temporary project clones
+orphaned transient records
+rebuildable indexes
+superseded temporary representations
+It must not automatically delete:
+canonical evidence
+Event Log history
+Strategic Anchors
+constitutional history
+owner declarations
+important decisions
+audit evidence
+institutional knowledge
+Deletion policy must remain explicit and auditable.
+43. SOURCE-SPECIFIC RETENTION
+Different providers require different storage strategies.
+Gmail
+Gmail remains the external canonical mailbox.
+LEE may retain:
+Gmail message/thread IDs
+metadata
+important normalized body content
+entities
+commitments
+relationships
+evidence references
+selected snapshots where preservation matters
+LEE does not necessarily need to duplicate every raw Gmail byte forever.
+GitHub
+GitHub/Git history remains canonical for repository history.
+LEE retains:
+repo identity
+commit references
+meaningful diffs
+build state
+project relationships
+important change summaries
+operational evidence
+LEE should not necessarily maintain endless redundant full repository copies.
+Drive
+Drive remains canonical for cloud files while connected.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  13
+LEE retains:
+file identity
+version metadata
+relationships
+extracted evidence
+important snapshots where needed
+Local captures
+LEE may become the canonical source for owner-created captures and therefore requires stronger preservation 
+guarantees.
+Retention policy should understand source ownership.
+44. MEDIA STORAGE
+Images, audio and video will eventually dominate storage much more than text.
+Use specialized archival storage.
+For example:
+Voice capture:
+Original audio
+→ archive according to retention policy
+Transcript
+→ evidence
+Extracted facts / commitments
+→ structured Brain
+Embedding
+→ semantic index
+Summary
+→ cognitive memory if useful
+This prevents heavy media from becoming the active Brain.
+45. STORAGE EXPANSION MUST BE TRANSPARENT TO LEE
+Do not design LEE around a permanently fixed K6 disk size.
+Storage should be expandable.
+Eventually the preferred physical layout could be:
+FAST INTERNAL STORAGE
+PostgreSQL
+active Brain
+semantic indexes
+hot evidence
+working data
+Event Log hot partitions
+LARGE ENCRYPTED ARCHIVE
+historical sources
+screenshots
+attachments
+audio
+video
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  14
+cold evidence
+historical exports
+INDEPENDENT BACKUP DESTINATION
+Brain backups
+database backups
+Event Log recovery
+archive manifest
+integrity metadata
+LEE should understand storage tiers without changing her conceptual memory model.
+46. MEMORY PORTABILITY
+LEE's accumulated cognition must outlive the machine.
+Create a portable Brain export/restore architecture containing or referencing:
+canonical database
+Event Log
+Brain versions
+source manifest
+archive manifest
+institutional knowledge
+relationship graph
+project memory
+owner model
+self model
+investigation history
+decisions/outcomes
+integrity information
+required configuration excluding unsafe credential transfer
+Target:
+K6 dies → new machine
+→ install LEE
+→ Restore Existing LEE
+→ restore Brain
+→ restore archive
+→ reauthorize external accounts
+→ verify systems
+→ LEE continues.
+Years of experience should not disappear with one computer.
+47. MEMORY HEALTH
+Create Memory Health as part of LEE's system health.
+Measure things like:
+canonical DB health
+Event Log continuity
+archive availability
+semantic-index freshness
+orphaned evidence
+provenance completeness
+unresolved duplicate sources
+backup freshness
+restore-test status
+disk capacity
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  15
+archive capacity
+memory corruption detection
+stale consolidations
+excessive unresolved contradictions
+index rebuild requirements
+Normally healthy memory should remain quiet.
+Problems should appear prominently when they threaten cognition or durability.
+48. MEMORY PRESSURE MANAGEMENT
+If storage approaches capacity, LEE must not simply delete memories.
+Use a staged pressure response:
+21. Remove temporary artifacts.
+22. Delete rebuildable caches.
+23. Deduplicate.
+24. Compress cold content.
+25. Move archival material to colder storage.
+26. Alert Jesse.
+27. Recommend capacity expansion.
+Canonical history should be the last thing considered for removal, and any destructive retention action should follow 
+explicit policy and governance.
+49. RETRIEVAL SHOULD BE MULTI-STAGE
+LEE should not depend on semantic search alone.
+A sophisticated retrieval process may combine:
+exact structured query
+entity graph traversal
+temporal filtering
+project relationships
+person relationships
+semantic similarity
+importance
+freshness
+provenance
+objective relevance
+previous usage
+contradiction state
+Then rank candidates into the bounded Context Packet.
+This gives LEE better memory than “vector search over everything.”
+50. COGNITIVE MEMORY SHOULD BE EXPLAINABLE
+Whenever a memory materially influences a consequential recommendation, LEE should be capable of answering:
+What memory did you use?
+Where did it come from?
+Is it a fact or interpretation?
+How old is it?
+Has it been contradicted?
+Why was it relevant?
+When was it last validated?
+What would change your conclusion?
+That is critical for advanced cognition.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  16
+51. MEMORY AND CIL SHOULD WORK TOGETHER
+LEE's memory system determines what knowledge may be relevant.
+CIL determines how cognition should resolve the request and whether existing cognitive assets can avoid another 
+frontier-model call.
+Conceptually:
+LEE Brain → Query Engine
+→ Context Economy
+→ relevant memory
+→ CIL
+→ reuse or model route
+→ reasoning
+→ structured result
+→ potential new memory
+New reasoning must not immediately become durable truth.
+It should enter the appropriate category:
+candidate interpretation
+prediction
+proposed decision
+lesson candidate
+investigation update
+and only become stronger knowledge through evidence and governance rules.
+52. NIGHTLY COGNITIVE CONSOLIDATION
+The earlier reflection concept should now become a serious subsystem.
+A scheduled consolidation cycle could perform:
+Observe
+What meaningfully changed?
+Reconcile
+What new evidence conflicts with existing understanding?
+Review
+Which assumptions became stale?
+Evaluate
+Which predictions resolved?
+Learn
+Which decisions produced observable outcomes?
+Consolidate
+Which repeated experiences form lessons?
+Institutionalize
+Which patterns meet promotion requirements?
+Compress
+Which historical material can be represented more efficiently?
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  17
+Archive
+Which sources can move from hot to cold storage?
+Curiosity
+Which knowledge gaps now deserve investigation?
+Prioritize
+What deserves attention tomorrow?
+Prepare
+Build tomorrow's briefing.
+The process should be observable and auditable.
+LEE should never secretly rewrite the past during consolidation.
+53. COGNITIVE CONTINUITY
+LEE should eventually experience operational continuity across:
+conversations
+restarts
+model changes
+application updates
+Replit outages
+desktop migration
+K6 replacement
+connector outages
+The model generating the current answer may change.
+LEE's identity and accumulated experience should not.
+The architecture should therefore treat the current LLM as a cognitive resource, not the holder of LEE's identity.
+LEE's continuity comes from:
+Brain
+Event Log
+owner model
+self model
+experience
+institutional knowledge
+goals
+relationships
+decisions
+history
+constitutional boundaries
+54. ADVANCED FUNCTIONAL AWARENESS
+With the 20 original cognitive systems plus the memory architecture above, LEE should eventually maintain 
+continuously updated versions of:
+WORLD MODEL
+What is happening outside LEE?
+OWNER MODEL
+What does Jesse value, want, know, prefer and need?
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  18
+LAB MODEL
+What is happening across Lamont Labs?
+PROJECT MODEL
+What is happening in each project?
+RELATIONSHIP MODEL
+Who matters and what is happening between people?
+TEMPORAL MODEL
+What happened, what changed and what is approaching?
+SELF MODEL
+What can LEE do, what is she doing and where are her limitations?
+UNCERTAINTY MODEL
+What does LEE not know?
+GOAL MODEL
+What outcomes are being pursued?
+AUTHORITY MODEL
+What may LEE do?
+ATTENTION MODEL
+What matters right now?
+EXPERIENCE MODEL
+What has worked and failed before?
+MEMORY MODEL
+What should be active, archived, consolidated, questioned or preserved?
+These models should influence one another without collapsing into one undifferentiated record.
+55. ADVANCED SELF-IMPROVEMENT BOUNDARY
+LEE may evaluate:
+recommendation usefulness
+alert usefulness
+prediction accuracy
+retrieval effectiveness
+project diagnosis accuracy
+false positives
+ignored recommendations
+unnecessary context
+model spend
+CIL efficiency
+repair success
+owner corrections
+LEE may propose:
+retrieval changes
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  19
+ranking changes
+attention thresholds
+consolidation improvements
+interface changes
+project-operation improvements
+new lessons
+candidate institutional knowledge
+LEE must not have unrestricted authority to rewrite:
+Constitution
+CerbaSeal boundaries
+CIL authority
+owner identity
+security rules
+audit rules
+memory-integrity rules
+consequential-action permissions
+The smarter LEE becomes, the more important that separation becomes.
+56. MEMORY CONSTITUTION
+I would add several permanent rules.
+RULE 1 — HISTORY IS NOT REWRITTEN TO MATCH CURRENT BELIEF
+LEE may supersede an interpretation, but must preserve that the previous interpretation existed.
+RULE 2 — MODEL OUTPUT IS NOT AUTOMATICALLY FACT
+Reasoning creates interpretations unless stronger evidence rules apply.
+RULE 3 — PROVENANCE SURVIVES CONSOLIDATION
+A lesson or institutional memory must remain traceable to its supporting experiences.
+RULE 4 — ARCHIVAL IS NOT DELETION
+Moving information to colder storage must not make LEE falsely claim the history never existed.
+RULE 5 — INDEXES ARE REBUILDABLE
+Semantic indexes and caches are retrieval aids, not canonical truth.
+RULE 6 — OWNER TRUTH AND INFERENCE REMAIN DISTINCT
+LEE must distinguish Jesse's explicit declarations from patterns inferred about Jesse.
+RULE 7 — UNCERTAINTY IS VALID MEMORY
+LEE may record “unknown” rather than invent an answer.
+RULE 8 — OLD DOES NOT MEAN UNIMPORTANT
+Age alone must never invalidate Strategic Anchors, constitutional rules or durable knowledge.
+RULE 9 — STORAGE PRESSURE MUST NOT CAUSE SILENT FORGETTING
+Capacity problems should trigger storage-management procedures and owner notification.
+RULE 10 — THE BRAIN MUST OUTLIVE THE MODEL AND HARDWARE
+LEE's continuity cannot depend on one AI model, one Replit workspace, or one K6.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  20
+57. WHAT THIS MAKES POSSIBLE
+After years of operation, LEE might have:
+millions of events
+hundreds of thousands of emails
+thousands of documents
+years of calendar history
+hundreds of projects
+thousands of decisions
+extensive relationship history
+thousands of model interactions
+years of predictions
+years of lessons
+a large institutional-knowledge base
+enormous source archives
+And yet a question like:
+Where do things stand with Olivia?
+does not load millions of records.
+LEE identifies:
+Olivia → Line Axia
+→ CerbaSeal
+→ pilot initiative
+→ current objective
+→ relevant email history
+→ commitments
+→ waiting state
+→ latest meaningful evidence
+→ related decisions
+→ current communication pattern
+and perhaps retrieves only 20–50 highly relevant memory objects.
+That becomes the active cognitive context.
+Everything else remains available without becoming active.
+58. THE END-STATE EXPERIENCE
+You could eventually return to the K6 after several days and LEE could say:
+Welcome back.
+I processed 43 meaningful events while you were away. Most were routine.
+Three changed active objectives.
+Olivia replied regarding the CerbaSeal offering. That moves the pilot initiative from Waiting to Action Required.
+QuantraCore experienced a build failure. I traced it to a dependency change, prepared a repair and verified the safe 
+test path. The modification is waiting for your approval.
+Greyline completed two publication packages. Both passed structural validation. One cover has an unresolved low-
+confidence typography issue.
+I resolved 82% of eligible reasoning requests through CIL without new frontier execution.
+During consolidation, one previous assumption about Project X became stale, two predictions resolved correctly, and 
+one repeated project failure pattern qualified as a lesson candidate.
+
+
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  21
+Operational confidence is 96%.
+Memory health is good. The Brain backup was restore-tested last night. The semantic index is current. Archive storage 
+is at 41%.
+My largest current knowledge gap is Google Drive because synchronization has been unavailable since 4:17 AM.
+The most important thing requiring you is Olivia's message.
+That would appear extraordinarily aware because LEE would have genuine functional continuity across attention, 
+memory, time, relationships, goals, systems, uncertainty and experience.
+The central product objective would then be:
+LEE should not attempt to remember everything equally. She should preserve everything worth preserving, understand 
+what each memory means, consolidate experience without falsifying history, retrieve the right memory at the right time, 
+and know when she does not know enough.
+That is the memory architecture I would put underneath the full cognition design.
+And I would now make this a major formal Project LEE development track, not a later storage optimization. The 
+cognition you want and the memory architecture are really one system.

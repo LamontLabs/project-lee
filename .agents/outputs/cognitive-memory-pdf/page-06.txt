@@ -1,0 +1,40 @@
+Project LEE Cognitive Runtime + Long-Term Memory Architecture  |  6
+important legal/commercial evidence
+institutional knowledge
+evidence required for audit
+durable owner corrections
+Temperature and importance must remain separate concepts.
+A ten-year-old Strategic Anchor may be more important than yesterday's email.
+29. MEMORY IMPORTANCE
+Each durable memory should be able to carry dimensions such as:
+importance
+freshness
+confidence
+provenance strength
+usage frequency
+current-objective relevance
+project relevance
+relationship relevance
+operational impact
+contradiction status
+canonical status
+retention class
+Do not collapse all of these into one opaque score.
+LEE should be able to explain why something is prioritized.
+30. MEMORY CONSOLIDATION CYCLES
+Expand LEE's reflection cycles into explicit memory consolidation.
+A nightly or scheduled cognitive-maintenance cycle could perform:
+OBSERVE
+What happened?
+RECONCILE
+Did new evidence contradict existing records?
+DEDUPLICATE
+Are multiple records describing the same event or source?
+REVIEW
+Which assumptions or interpretations became stale?
+LEARN
+Did a decision produce an observable outcome?
+CONSOLIDATE
+Can repeated experiences form a useful lesson or pattern?
+COMPRESS
+Can verbose historical material be represented by a higher-level memory while retaining provenance?

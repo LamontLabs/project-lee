@@ -16,6 +16,7 @@ import {
 import { extractUnderstanding } from "../lib/understanding";
 import { processExperiences } from "../lib/experience";
 import { assertFactProvenance } from "../lib/provenance";
+import { recordBeliefState } from "../lib/epistemic-history";
 
 const router: IRouter = Router();
 
@@ -169,6 +170,17 @@ router.post("/understanding/runs", async (req, res): Promise<void> => {
     eventId: result.eventId,
   });
   await processExperiences({ since: new Date(now.getTime() - 60_000) });
+  await Promise.all(result.interpretations.map((interpretation) => recordBeliefState({
+    beliefKey: `interpretation:${interpretation.id}`,
+    conclusion: interpretation.statement,
+    interpretationId: interpretation.id,
+    evidenceRefs: [...new Set([...result.facts.map((fact) => fact.id), input.sourceRef])],
+    sourceRef: input.sourceRef,
+    confidence: interpretation.confidence,
+    generatedByEngine: "Understanding Pipeline",
+    generatedBy: { engineId: "Understanding Pipeline", runType: "source_interpretation", runId: result.run.id },
+    revisionReason: "Initial source-backed interpretation state",
+  })));
 
   req.log.info(
     {

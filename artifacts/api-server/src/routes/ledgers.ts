@@ -3,6 +3,7 @@ import { Router, type IRouter } from "express";
 import { db, eventLog, factLedger, interpretationLedger } from "@workspace/db";
 import { checkConstitution } from "../lib/constitution";
 import { assertFactProvenance, assertInterpretationEvidence, recordProvenance } from "../lib/provenance";
+import { recordBeliefState } from "../lib/epistemic-history";
 const router: IRouter = Router();
 const FACT_TYPES = ["observed", "extracted", "declared", "verified"];
 const INTERPRETATION_TYPES = ["pattern", "prediction", "observation", "opportunity", "strategy", "simulation_result", "inference"];
@@ -37,6 +38,7 @@ router.post("/interpretations", async (req, res): Promise<void> => {
   const [item] = await db.insert(interpretationLedger).values({ statement: String(input.statement), interpretationType: input.interpretationType, inputFacts, inputInterpretations: input.inputInterpretations ?? [], basis: input.sourceRef ?? inputFacts[0] ?? input.inputInterpretations[0], sourceRef: input.sourceRef ?? inputFacts[0] ?? input.inputInterpretations[0], confidence: input.confidence, propagatedConfidence: input.propagatedConfidence, confidenceLineage: input.confidenceLineage ?? {}, whyChain: input.whyChain, generatedByEngine: input.generatedByEngine, validFrom: now, status: "active", canonLevel: "working", needsReview: Boolean(input.needsReview), createdBy, currentOwner: input.currentOwner ?? createdBy, importedFrom: input.importedFrom, generatedBy }).returning();
   await recordProvenance("interpretation", item.id, [...new Set([...(input.inputFacts ?? []), ...(input.inputInterpretations ?? [])])], input.confidence);
   await db.insert(eventLog).values({ eventType: "InterpretationCreated", aggregateType: "interpretation_ledger", aggregateId: item.id, sourceRef: "interpretation-ledger", occurredAt: now, payload: { interpretationType: item.interpretationType, inputFacts: item.inputFacts } });
+  await recordBeliefState({ beliefKey: `interpretation:${item.id}`, conclusion: item.statement, interpretationId: item.id, evidenceRefs: [...new Set([...(item.inputFacts ?? []), ...(item.inputInterpretations ?? []), item.sourceRef])], sourceRef: item.sourceRef, confidence: item.confidence, generatedByEngine: item.generatedByEngine, generatedBy: item.generatedBy ?? {}, revisionReason: "Initial Interpretation Ledger state" });
   res.status(201).json(item);
 });
 router.post("/interpretations/:id/promote", async (req, res): Promise<void> => {

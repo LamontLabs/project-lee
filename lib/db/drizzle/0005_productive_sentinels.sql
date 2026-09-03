@@ -1,0 +1,2 @@
+ALTER TABLE "belief_state" ADD COLUMN "prior_interpretation_id" uuid;--> statement-breakpoint
+CREATE INDEX "belief_state_prior_interpretation_idx" ON "belief_state" USING btree ("prior_interpretation_id");

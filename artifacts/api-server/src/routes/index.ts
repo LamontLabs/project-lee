@@ -78,6 +78,7 @@ import storageRouter from "./storage";
 import emailRouter from "./email";
 import desktopSetupRouter from "./desktop-setup";
 import workingMemoryRouter from "./working-memory";
+import epistemicHistoryRouter from "./epistemic-history";
 
 const router: IRouter = Router();
 
@@ -155,6 +156,7 @@ router.use(androidPairingRouter);
 router.use(emailRouter);
 router.use(desktopSetupRouter);
 router.use(workingMemoryRouter);
+router.use(epistemicHistoryRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

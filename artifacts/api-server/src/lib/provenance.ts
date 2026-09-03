@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { db, eventLog, factLedger, interpretationLedger, provenanceRecord, sourceChunk, sourceVault } from "@workspace/db";
+import { beliefState, causalClaim, db, eventLog, factLedger, interpretationLedger, knowledgeGap, predictionRecord, provenanceRecord, sourceChunk, sourceVault } from "@workspace/db";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -14,11 +14,15 @@ async function existingIds(refs: string[]) {
     db.select({ id: sourceChunk.id }).from(sourceChunk).where(inArray(sourceChunk.id, ids)),
     db.select({ id: eventLog.id }).from(eventLog).where(inArray(eventLog.id, ids)),
   ]);
-  const [facts, interpretations] = await Promise.all([
+  const [facts, interpretations, beliefs, predictions, causalClaims, gaps] = await Promise.all([
     db.select({ id: factLedger.id }).from(factLedger).where(inArray(factLedger.id, ids)),
     db.select({ id: interpretationLedger.id }).from(interpretationLedger).where(inArray(interpretationLedger.id, ids)),
+    db.select({ id: beliefState.id }).from(beliefState).where(inArray(beliefState.id, ids)),
+    db.select({ id: predictionRecord.id }).from(predictionRecord).where(inArray(predictionRecord.id, ids)),
+    db.select({ id: causalClaim.id }).from(causalClaim).where(inArray(causalClaim.id, ids)),
+    db.select({ id: knowledgeGap.id }).from(knowledgeGap).where(inArray(knowledgeGap.id, ids)),
   ]);
-  return new Set([...sources, ...chunks, ...events, ...facts, ...interpretations].map((row) => row.id));
+  return new Set([...sources, ...chunks, ...events, ...facts, ...interpretations, ...beliefs, ...predictions, ...causalClaims, ...gaps].map((row) => row.id));
 }
 
 export async function assertFactProvenance(sourceEvidence: unknown) {

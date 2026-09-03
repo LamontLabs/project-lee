@@ -6,6 +6,7 @@ import SchedulePage from './SchedulePage';
 import FounderProfilePanel from './FounderProfilePanel';
 import MemoryHealthPanel from './MemoryHealthPanel';
 import WorkingMemoryPanel from './WorkingMemoryPanel';
+import EpistemicHistoryPage from './EpistemicHistoryPage';
 import KnowledgeMapPage from './KnowledgeMapPage';
 import ObservationsPage from './ObservationsPage';
 import StrategyPage from './StrategyPage';
@@ -91,7 +92,7 @@ import { getGetCilModelInventoryQueryKey, useGetCilModelInventory } from '@works
 
 function NotFound() {
   const [path] = useLocation();
-  return path === '/schedule' ? <SchedulePage /> : path === '/projects' ? <ProjectsPage /> : path === '/portfolio' ? <PortfolioPage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/strategy/anchors' ? <AnchorsPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : path === '/assumptions' ? <AssumptionsPage /> : path === '/impact' ? <ImpactPage /> : path === '/timeline' ? <TimelinePage /> : path === '/explain' ? <ExplanationPage /> : path === '/settings/policies' ? <PolicyPage /> : path === '/settings/android' ? <AndroidPairingPage /> : <NotFoundPage />;
+  return path === '/schedule' ? <SchedulePage /> : path === '/projects' ? <ProjectsPage /> : path === '/portfolio' ? <PortfolioPage /> : path === '/knowledge-map' ? <KnowledgeMapPage /> : path === '/observations' ? <ObservationsPage /> : path === '/strategy' ? <StrategyPage /> : path === '/strategy/anchors' ? <AnchorsPage /> : path === '/simulations' ? <SimulationPage /> : path === '/reflections' ? <ReflectionPage /> : path === '/learning' ? <LearningPage /> : path === '/people' ? <RelationshipsPage /> : path === '/workspace' ? <WorkspacePage /> : path === '/constitution' ? <ConstitutionPage /> : path === '/confidence' ? <ConfidencePage /> : path === '/evidence' ? <EvidenceLedgerPage /> : path === '/epistemic-history' ? <EpistemicHistoryPage /> : path === '/assumptions' ? <AssumptionsPage /> : path === '/impact' ? <ImpactPage /> : path === '/timeline' ? <TimelinePage /> : path === '/explain' ? <ExplanationPage /> : path === '/settings/policies' ? <PolicyPage /> : path === '/settings/android' ? <AndroidPairingPage /> : <NotFoundPage />;
 }
 
 const queryClient = new QueryClient();
@@ -188,6 +189,7 @@ const moreNavigation = [
   { href: '/health', label: 'System health', icon: Gauge },
   { href: '/backups', label: 'Backups', icon: Archive },
   { href: '/evidence', label: 'Evidence', icon: FileText },
+  { href: '/epistemic-history', label: 'Epistemic history', icon: GitBranch },
   { href: '/imports', label: 'Imports', icon: Upload },
   { href: '/knowledge-map', label: 'Knowledge Map', icon: Network },
   { href: '/connectors', label: 'Connectors', icon: PlugZap },
@@ -321,7 +323,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/systems': 'Systems', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/systems': 'Systems', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/epistemic-history': 'Epistemic history', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
   const pageTitle = pageTitles[location] ?? 'Console';
   const moreIsActive = moreNavigation.some((item) => item.href === location);
   useEffect(() => { if (moreIsActive) setMoreOpen(true); }, [moreIsActive]);

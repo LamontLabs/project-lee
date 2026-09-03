@@ -32,6 +32,10 @@ import {
   observation,
   opportunity,
   strategicObjective,
+  beliefState,
+  predictionRecord,
+  causalClaim,
+  knowledgeGap,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 
@@ -69,6 +73,10 @@ const tableSources = {
   observation,
   opportunity,
   strategicObjective,
+  beliefState,
+  predictionRecord,
+  causalClaim,
+  knowledgeGap,
 } as const;
 
 type PortablePayload = { [K in keyof typeof tableSources]?: unknown[] };
@@ -439,7 +447,7 @@ async function restoreIntoIsolatedSchema(
 export async function verifyPortableBackup(manifest: any, payload: PortablePayload): Promise<RestoreEvidence> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) payload = {};
   const checks: RestoreCheck[] = [];
-  const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord"];
+  const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord", "beliefState", "predictionRecord", "causalClaim", "knowledgeGap"];
   const missing = required.filter((name) => !Array.isArray(payload[name as keyof PortablePayload]));
   checks.push({ name: "portable-manifest", result: manifest?.backup_format_version === BACKUP_FORMAT_VERSION && !missing.length ? "PASS" : "FAIL", evidence: { formatVersion: manifest?.backup_format_version, missing } });
   const checksumValid = manifest?.integrity?.payload_checksum === digest(payload);
@@ -530,7 +538,7 @@ export async function verifyPortableBackup(manifest: any, payload: PortablePaylo
   }
 
   const restoredCounts = Object.fromEntries(Object.entries(payload).map(([name, value]) => [name, value?.length ?? 0]));
-  const canonicalStateHash = digest({ facts: rows(payload, "factLedger"), interpretations: rows(payload, "interpretationLedger"), objects: rows(payload, "universalObject"), events });
+  const canonicalStateHash = digest({ facts: rows(payload, "factLedger"), interpretations: rows(payload, "interpretationLedger"), beliefs: rows(payload, "beliefState"), predictions: rows(payload, "predictionRecord"), causalClaims: rows(payload, "causalClaim"), knowledgeGaps: rows(payload, "knowledgeGap"), objects: rows(payload, "universalObject"), events });
   const overall = checks.some((check) => check.result === "FAIL") ? "FAIL" : checks.some((check) => check.result === "WARN") ? "WARN" : "PASS";
   return { overall, isolated: true, checks, restoredCounts, canonicalStateHash, isolatedDatabase };
 }

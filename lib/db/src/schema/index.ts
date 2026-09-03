@@ -6,6 +6,7 @@ export * from "./brain-versions";
 export * from "./scheduler";
 export * from "./governance";
 export * from "./memory";
+export * from "./epistemic-history";
 export * from "./graph";
 export * from "./relationships";
 export * from "./reviews";

@@ -29,6 +29,10 @@ import {
   trustScore,
   universalObject,
   waitingLoop,
+  beliefState,
+  predictionRecord,
+  causalClaim,
+  knowledgeGap,
 } from "@workspace/db";
 import { checkConstitution } from "./constitution";
 import { searchSemantic } from "./semantic-index";
@@ -39,7 +43,7 @@ const sourceNames = [
   "waiting_loops", "strategic_objectives", "constitution", "trust_scores",
   "operational_patterns", "behavioral_signals", "institutional_knowledge",
   "initiatives", "bootstrap_runs", "opportunities", "strategic_anchors", "people", "commitments",
-  "cost_records", "governance_requests", "internal_services", "memory_conflicts", "reality_graph",
+  "cost_records", "governance_requests", "internal_services", "memory_conflicts", "belief_history", "predictions", "causal_claims", "knowledge_gaps", "reality_graph",
 ] as const;
 
 export const querySpecSchema = z.object({
@@ -67,7 +71,7 @@ export type StandardQueryResult = {
   importance_score: number;
   evidence: {
     source: string;
-    epistemic_type: "fact" | "interpretation" | "assumption" | "event" | "operational" | "policy" | "identity";
+    epistemic_type: "fact" | "interpretation" | "assumption" | "belief" | "prediction" | "causal_claim" | "knowledge_gap" | "event" | "operational" | "policy" | "identity";
     authorization: "constitution";
     freshness: number;
     trust: number;
@@ -100,6 +104,10 @@ const sourceTable = {
   governance_requests: [governanceRequest, "governance"],
   internal_services: [internalCapabilityService, "system"],
   memory_conflicts: [memoryConflict, "contradiction"],
+  belief_history: [beliefState, "belief_state"],
+  predictions: [predictionRecord, "prediction"],
+  causal_claims: [causalClaim, "causal_claim"],
+  knowledge_gaps: [knowledgeGap, "knowledge_gap"],
 } as const;
 
 function cacheKey(spec: QuerySpec) {
@@ -109,6 +117,10 @@ function epistemicType(type: string): StandardQueryResult["evidence"]["epistemic
   if (type === "fact") return "fact";
   if (type === "interpretation" || type === "institutional_knowledge") return "interpretation";
   if (type === "assumption") return "assumption";
+  if (type === "belief_state") return "belief";
+  if (type === "prediction") return "prediction";
+  if (type === "causal_claim") return "causal_claim";
+  if (type === "knowledge_gap") return "knowledge_gap";
   if (type === "event") return "event";
   if (type === "constitution" || type === "strategic_objective" || type === "strategic_anchor") return "policy";
   if (type === "person" || type === "trust_score") return "identity";

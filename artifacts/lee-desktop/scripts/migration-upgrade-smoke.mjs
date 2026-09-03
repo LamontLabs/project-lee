@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { execFileSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -93,6 +93,7 @@ let postgresStarted = false;
 let pool;
 
 try {
+  await mkdir(socketDir, { recursive: true, mode: 0o700 });
   for (const command of [initdb, pgCtl, createdb, pgIsReady]) {
     if (!existsSync(command)) throw new Error(`Packaged PostgreSQL command is missing: ${command}`);
   }
@@ -102,6 +103,7 @@ try {
   const journal = JSON.parse(await readFile(journalPath, "utf8"));
   const baseEntry = journal.entries.at(-1);
   if (!baseEntry) throw new Error("Packaged migration journal has no base entry.");
+  const baseJournalEntries = journal.entries.length;
   const upgradeEntry = {
     ...baseEntry,
     idx: baseEntry.idx + 1,
@@ -122,7 +124,7 @@ try {
   await runPackagedMigration(runner, oldMigrations, databaseUrl);
   pool = new Pool({ connectionString: databaseUrl });
   const before = await pool.query('SELECT hash, created_at FROM "drizzle"."__drizzle_migrations" ORDER BY created_at ASC');
-  if (before.rows.length !== 1) throw new Error(`Expected one prior migration journal row, found ${before.rows.length}.`);
+  if (before.rows.length !== baseJournalEntries) throw new Error(`Expected ${baseJournalEntries} prior migration journal rows, found ${before.rows.length}.`);
   const previousJournalHashes = before.rows.map((row) => row.hash);
 
   await runPackagedMigration(runner, upgradeMigrations, databaseUrl);
@@ -134,7 +136,7 @@ try {
       AND table_name = 'identity_profile'
       AND column_name = 'desktop_upgrade_probe'
   `);
-  if (after.rows.length !== 2) throw new Error(`Expected two migration journal rows after upgrade, found ${after.rows.length}.`);
+  if (after.rows.length !== baseJournalEntries + 1) throw new Error(`Expected ${baseJournalEntries + 1} migration journal rows after upgrade, found ${after.rows.length}.`);
   if (after.rows[0].hash !== previousJournalHashes[0]) throw new Error("The prior migration journal hash changed during upgrade.");
   if (probe.rows.length !== 1) throw new Error("The next migration did not create desktop_upgrade_probe.");
 

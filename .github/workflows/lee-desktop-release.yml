@@ -169,8 +169,17 @@ jobs:
       - name: Smoke test bundled Linux runtime
         shell: bash
         run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb
           command -v xvfb-run >/dev/null || { echo "xvfb-run is required for the Linux desktop smoke test." >&2; exit 1; }
-          xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE
+          xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE --evidence release/unix-runtime-smoke-linux.json
+      - name: Retain Linux runtime smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lee-linux-runtime-smoke-evidence
+          path: artifacts/lee-desktop/release/unix-runtime-smoke-linux.json
+          if-no-files-found: warn
       - name: Write Linux release metadata
         run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform linux
       - name: Verify Linux release metadata
@@ -188,6 +197,7 @@ jobs:
             artifacts/lee-desktop/release/*.sha256
             artifacts/lee-desktop/release/SHA256SUMS-linux.txt
             artifacts/lee-desktop/release/release-manifest-linux.json
+            artifacts/lee-desktop/release/unix-runtime-smoke-linux.json
           if-no-files-found: error
 
   windows-installer-validation:

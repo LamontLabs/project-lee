@@ -42,6 +42,9 @@ await build({
   format: "esm",
   outfile: resolve(resources, "migrate-runtime.mjs"),
   external: ["pg-native"],
+  banner: {
+    js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
+  },
   logLevel: "info",
 });
 const { assertProductionMigrationSource, verifyPackagedMigrations } = await import("./verify-packaged-migrations.mjs");

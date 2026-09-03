@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import { join } from "node:path";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { RuntimeSupervisor } from "./runtime.js";
 import { startConsoleServer } from "./static-server.js";
 
@@ -21,6 +21,7 @@ const smokeUpdateInstall = process.env.LEE_SMOKE_UPDATE_INSTALL === "1";
 const smokeUpdateInterrupt = process.env.LEE_SMOKE_UPDATE_INTERRUPT;
 const smokeUpdateInterruptFile = process.env.LEE_SMOKE_UPDATE_INTERRUPT_FILE;
 const smokeUpdateInterruptDelayMs = Number(process.env.LEE_SMOKE_UPDATE_INTERRUPT_DELAY_MS ?? 250);
+const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
 let smokeInterruptionTriggered = false;
 const hasSingleInstance = app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
@@ -48,6 +49,17 @@ function interruptSmokeUpdate(phase: "download" | "install", version?: string): 
   } else {
     setTimeout(() => autoUpdater.quitAndInstall(), Math.max(0, smokeUpdateInterruptDelayMs));
   }
+}
+
+function waitForSmokeOwnerAuthentication(): void {
+  if (!smokeOwnerAuthFile) { app.quit(); return; }
+  const deadline = Date.now() + 30_000;
+  const check = () => {
+    if (existsSync(smokeOwnerAuthFile)) { app.quit(); return; }
+    if (Date.now() >= deadline) { console.error("Timed out waiting for packaged owner authentication smoke confirmation."); app.exit(1); return; }
+    setTimeout(check, 50);
+  };
+  check();
 }
 
 function configureUpdates(): void {
@@ -169,7 +181,7 @@ async function boot(): Promise<void> {
   if (smokeUpdateFeedUrl && smokeUpdateExpectedVersion && app.getVersion() === smokeUpdateExpectedVersion) {
     if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify({ status: "installed", version: app.getVersion() }, null, 2), "utf8");
   }
-  if (app.commandLine.hasSwitch("lee-smoke-exit") && !awaitingSmokeUpdate) app.quit();
+  if (app.commandLine.hasSwitch("lee-smoke-exit") && !awaitingSmokeUpdate) waitForSmokeOwnerAuthentication();
 }
 
 app.on("before-quit", (event) => {

@@ -21,7 +21,7 @@
   "scripts": {
     "dev": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
-    "package": "pnpm run build && node scripts/prepare-runtime.mjs && electron-builder --config electron-builder.yml --publish never",
+    "package": "pnpm run build && node scripts/package-runtime.mjs && node scripts/prepare-runtime.mjs && electron-builder --config electron-builder.yml --publish never",
     "smoke:unix": "node scripts/unix-runtime-smoke.mjs",
     "test:runtime-contract": "node --test scripts/desktop-runtime-contract.test.mjs",
     "test:migration-assets": "node --test scripts/migration-assets-contract.test.mjs",

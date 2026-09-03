@@ -10,6 +10,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const runtime = await read("src/runtime.ts");
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
+  const packageRuntime = await read("scripts/package-runtime.mjs");
   const migrationCheck = await read("scripts/verify-packaged-migrations.mjs");
   const windowsSmoke = await read("scripts/windows-smoke-test.ps1");
   const windowsUpdate = await read("scripts/windows-update-smoke.ps1");
@@ -39,8 +40,16 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);
   assert.match(runtime, /\/api\/recovery\/status/);
   assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);
+  assert.match(main, /LEE_SMOKE_OWNER_AUTH_FILE/);
+  assert.match(main, /waitForSmokeOwnerAuthentication/);
   assert.match(main, /quitAndInstall/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
+  assert.match(packageRuntime, /LEE_POSTGRES_SOURCE/);
+  assert.match(packageRuntime, /macOS and Windows runtimes must be staged explicitly/);
+  assert.match(packageRuntime, /stagePostgresRuntime/);
+  assert.match(packageRuntime, /verifyPostgresRuntime/);
+  assert.match(packageRuntime, /suppliedRoot.*executableName/s);
+  assert.match(prepare, /createRequire\(import\.meta\.url\)/);
   assert.match(prepare, /verifyPackagedMigrations/);
   assert.match(migrationCheck, /_journal\.json/);
   assert.match(migrationCheck, /workspace fallback disabled/);

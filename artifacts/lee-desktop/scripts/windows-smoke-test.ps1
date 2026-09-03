@@ -245,7 +245,7 @@ try {
     --platform windows `
     --output $migrationUpgradeFile
   $migrationUpgrade = Get-Content $migrationUpgradeFile -Raw | ConvertFrom-Json
-  Assert-True ($migrationUpgrade.status -eq "passed" -and $migrationUpgrade.migration.previousJournalEntries -eq 1 -and $migrationUpgrade.migration.upgradedJournalEntries -eq 2) "existing-database migration upgrade did not complete"
+  Assert-True ($migrationUpgrade.status -eq "passed" -and $migrationUpgrade.migration.previousJournalEntries -ge 1 -and $migrationUpgrade.migration.upgradedJournalEntries -eq ($migrationUpgrade.migration.previousJournalEntries + 1)) "existing-database migration upgrade did not complete"
   Write-Host ("Migration upgrade evidence: " + ($migrationUpgrade.migration | ConvertTo-Json -Compress))
 
   $commonEnvironment = @{

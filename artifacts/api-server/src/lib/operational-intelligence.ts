@@ -142,7 +142,18 @@ export async function generateOperationalContext() {
     value: change.significanceScore,
     metadata: { ...change.metadata, source: change.source, entityType: change.entityType, entityId: change.entityId, changeKind: change.changeKind, confidence: change.confidence, freshness: change.freshness },
   }));
-  const changedItems = (changeItems.length ? changeItems : scored.map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, value: item.score, metadata: item.metadata }))).slice(0, limit);
+  const initiativeItems = scored.map((item) => evidenceItem({
+    id: item.id,
+    text: item.observation,
+    evidenceRefs: item.evidenceRefs,
+    significance: item.significance,
+    value: item.score,
+    metadata: item.metadata,
+  }));
+  const changedItems = [...initiativeItems, ...changeItems]
+    .sort((left, right) => Number(right.value ?? 0) - Number(left.value ?? 0))
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index)
+    .slice(0, limit);
   const waitingItems = initiatives.filter((item) => !item.dismissedAt && !item.acknowledgedAt).slice(0, 10).map((item) => evidenceItem({ id: item.id, text: item.observation, evidenceRefs: item.evidenceRefs, significance: item.significance, metadata: item.metadata }));
   const driftingItems = objects.filter((item: any) => item.ageState === "STALE" || item.ageState === "OLD").slice(0, 10).map((item: any) => evidenceItem({ id: item.id, text: `${item.title ?? item.name ?? "Knowledge item"} is ${item.ageState.toLowerCase()}.`, evidenceRefs: item.sourceRefs, value: item.ageState }));
   const momentumRisk = momentum.filter((item) => item.classification === "Dormant" || item.classification === "Stalled").map((item) => evidenceItem({ id: item.projectId, text: `Project ${item.projectId} momentum is ${item.classification.toLowerCase()}.`, evidenceRefs: [item.id], value: item.score }));

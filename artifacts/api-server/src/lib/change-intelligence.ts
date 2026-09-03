@@ -44,6 +44,7 @@ const EVENT_RULES: Record<string, { classification: ChangeClassification; kind: 
   StateInitialized: { classification: "NOTABLE", kind: "operational_state_changed", source: "lee" },
   UniversalObjectCreated: { classification: "NOTABLE", kind: "entity_created", source: "project" },
   UniversalObjectUpdated: { classification: "NOTABLE", kind: "entity_updated", source: "project" },
+  BootstrapCompleted: { classification: "CRITICAL", kind: "project_bootstrapped", source: "project" },
   SourceVaultRecordCreated: { classification: "NOTABLE", kind: "evidence_added", source: "evidence" },
   FactCreated: { classification: "NOTABLE", kind: "fact_added", source: "evidence" },
   FactAccepted: { classification: "IMPORTANT", kind: "fact_validated", source: "evidence" },

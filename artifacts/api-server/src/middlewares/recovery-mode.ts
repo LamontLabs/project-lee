@@ -5,7 +5,8 @@ export const recoveryModeGuard: RequestHandler = (req, res, next) => {
   const { mode } = getRecoveryMode();
   const blockedMode = ["READ_ONLY", "RECOVERY_MODE", "MIGRATION_MODE", "SAFE_MODE"].includes(mode);
   const safeRecoveryWrite = /\/recovery\/|\/auth\/|\/health|\/backups(?:\/|$)/.test(req.path);
-  if (blockedMode && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !safeRecoveryWrite) {
+  const safeRecoveryRead = req.method === "POST" && req.path === "/api/internal/query";
+  if (blockedMode && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !safeRecoveryWrite && !safeRecoveryRead) {
     res.status(423).json({
       error: mode === "RECOVERY_MODE"
         ? "Lee is in Recovery Mode. Writes are disabled until the canonical Brain is verified."

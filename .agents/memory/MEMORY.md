@@ -63,3 +63,5 @@
 - [Desktop update interruption](desktop-update-interruption.md) — interrupted download/install phases must preserve a live previous version before retry.
  - [Hosted release prerequisites](hosted-release-prerequisites.md) — local checks cannot replace a published tagged run from a GitHub connection with target-repository and signing-secret access.
 - [Owner authentication boundary](owner-auth-boundary.md) — packaged installs use local salted credentials and per-install signed sessions with revocation.
+- [Commitment waiting boundary](commitment-waiting-boundary.md) — relationship commitments stay evidence-backed, and known communication cadence influences waiting severity.
+- [Recovery read boundary](recovery-read-boundary.md) — protected recovery modes block mutations but must keep the canonical read-only Query Engine available.

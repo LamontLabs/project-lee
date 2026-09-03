@@ -125,6 +125,7 @@ type SafeConnection = {
   authStatus: string;
   credentialConfigured: boolean;
   diagnostics?: { configuration?: Record<string, unknown> };
+  configuration?: Record<string, unknown>;
   lastHealthCheck?: string | null;
   lastError?: string | null;
 };
@@ -499,7 +500,10 @@ export function DesktopSetupPanel() {
   };
   const setupProvider = async (provider: ProviderOption) => {
     const existing = connections.find((connection) =>
-      connection.diagnostics?.configuration?.oauthProvider === provider.id || connection.diagnostics?.configuration?.provider === provider.id,
+      connection.diagnostics?.configuration?.oauthProvider === provider.id ||
+      connection.diagnostics?.configuration?.provider === provider.id ||
+      connection.configuration?.oauthProvider === provider.id ||
+      connection.configuration?.provider === provider.id,
     );
     if (existing) {
       if (existing.method === "oauth" && existing.status !== "connected") await reauthorize(existing);
@@ -976,7 +980,10 @@ function ConnectionsStep({ connections, optionalUnavailable, testingId, onTest, 
 
 function ExternalConnectionsStep({ connections, optionalUnavailable, testingId, connectingProvider, onTest, onReauthorize, onSetupProvider }: { connections: SafeConnection[]; optionalUnavailable: SafeConnection[]; testingId: string | null; connectingProvider: string | null; onTest: (connection: SafeConnection) => void; onReauthorize: (connection: SafeConnection) => void; onSetupProvider: (provider: ProviderOption) => void }) {
   const connectionFor = (provider: ProviderOption) => connections.find((connection) =>
-    connection.diagnostics?.configuration?.oauthProvider === provider.id || connection.diagnostics?.configuration?.provider === provider.id,
+    connection.diagnostics?.configuration?.oauthProvider === provider.id ||
+    connection.diagnostics?.configuration?.provider === provider.id ||
+    connection.configuration?.oauthProvider === provider.id ||
+    connection.configuration?.provider === provider.id,
   );
   return <div className="space-y-4">
     <div className="rounded-xl border border-sidebar-primary/30 bg-sidebar-primary/10 p-4"><div className="flex items-start gap-3"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-sidebar-primary" /><div><p className="text-sm font-semibold">Choose only the accounts LEE needs</p><p className="mt-1 text-xs leading-relaxed text-sidebar-foreground/70">Each provider begins as a pending OBSERVE-only connection. OAuth opens the provider’s consent page; credentials and scopes stay server-side. Proton is optional and remains visibly degraded until a supported path is configured.</p></div></div></div>

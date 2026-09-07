@@ -73,11 +73,15 @@ jobs:
           $certificatePath = Join-Path $env:RUNNER_TEMP "project-lee-signing.cer"
           $bytes = [Convert]::FromBase64String(($env:CSC_LINK -replace '\s', ''))
           [IO.File]::WriteAllBytes($pfxPath, $bytes)
-          $password = ConvertTo-SecureString $env:CSC_KEY_PASSWORD -AsPlainText -Force
-          $certificates = @(Import-PfxCertificate -FilePath $pfxPath -Password $password -CertStoreLocation Cert:\CurrentUser\My)
-          $certificate = $certificates | Where-Object { $_.HasPrivateKey } | Select-Object -First 1
-          if (-not $certificate) { throw "The Windows signing PFX did not contain an importable certificate with a private key." }
-          Export-Certificate -Cert $certificate -FilePath $certificatePath | Out-Null
+          $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            $bytes,
+            $env:CSC_KEY_PASSWORD,
+            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+          )
+          [IO.File]::WriteAllBytes(
+            $certificatePath,
+            $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+          )
           Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
           Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\TrustedPublisher | Out-Null
           Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force

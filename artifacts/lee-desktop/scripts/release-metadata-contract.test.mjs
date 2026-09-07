@@ -10,7 +10,9 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /name: lee-windows-installer/);
   assert.match(workflow, /name: lee-linux-installers/);
   assert.match(workflow, /"latest\.yml", "latest-linux\.yml"/);
-  assert.match(workflow, /Import-PfxCertificate/);
+  assert.match(workflow, /X509Certificate2/);
+  assert.match(workflow, /EphemeralKeySet/);
+  assert.doesNotMatch(workflow, /Import-PfxCertificate/);
   assert.match(workflow, /Cert:\\CurrentUser\\Root/);
   assert.match(workflow, /Cert:\\CurrentUser\\TrustedPublisher/);
   assert.match(workflow, /resources\\lee-signing\.cer/);

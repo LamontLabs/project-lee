@@ -4,17 +4,24 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$tracePath = Join-Path $env:TEMP "lee-installer-trust.log"
+"start" | Set-Content $tracePath
 $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath)
+"certificate-loaded" | Add-Content $tracePath
 
 foreach ($storeName in @("Root", "TrustedPublisher")) {
+  "opening-$storeName" | Add-Content $tracePath
   $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
     $storeName,
     [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
   )
   try {
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+    "opened-$storeName" | Add-Content $tracePath
     $store.Add($certificate)
+    "added-$storeName" | Add-Content $tracePath
   } finally {
     $store.Close()
   }
 }
+"complete" | Add-Content $tracePath

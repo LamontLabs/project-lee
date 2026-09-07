@@ -358,7 +358,9 @@ try {
   $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -PassThru
   if (-not $installer.WaitForExit(300000)) {
     Stop-ProcessTree $installer.Id
-    throw "silent installer did not exit after its bounded 300 second install run; process $($installer.Id) was terminated"
+    $trustTracePath = Join-Path $env:TEMP "lee-installer-trust.log"
+    $trustTrace = if (Test-Path $trustTracePath) { Get-Content $trustTracePath -Raw } else { "missing" }
+    throw "silent installer did not exit after its bounded 300 second install run; process $($installer.Id) was terminated; trust trace: $trustTrace"
   }
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1

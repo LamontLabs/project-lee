@@ -92,25 +92,85 @@ jobs:
             Write-Host "[certificate-trust] $phase - $message"
             Write-TrustEvidence
           }
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class LeeCertificateStoreNative {
+            [DllImport("crypt32.dll", SetLastError = true)]
+            public static extern IntPtr CertOpenStore(
+              IntPtr lpszStoreProvider,
+              uint dwEncodingType,
+              IntPtr hCryptProv,
+              uint dwFlags,
+              IntPtr pvPara
+            );
+
+            [DllImport("crypt32.dll", SetLastError = true)]
+            public static extern bool CertAddEncodedCertificateToStore(
+              IntPtr hCertStore,
+              uint dwCertEncodingType,
+              byte[] pbCertEncoded,
+              uint cbCertEncoded,
+              uint dwAddDisposition,
+              IntPtr ppCertContext
+            );
+
+            [DllImport("crypt32.dll", SetLastError = true)]
+            public static extern bool CertCloseStore(IntPtr hCertStore, uint dwFlags);
+          }
+'@
+
           function Import-PublicCertificateToCurrentUserStore(
             [string] $store,
             [string] $certificatePath
           ) {
             $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
             $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
-            $certificateKey = "HKCU:\Software\Microsoft\SystemCertificates\$store\Certificates\$thumbprint"
-            New-Item -Path $certificateKey -Force | Out-Null
-            Set-ItemProperty -Path $certificateKey -Name Blob -Value ([IO.File]::ReadAllBytes($certificatePath))
+            $storeName = [Runtime.InteropServices.Marshal]::StringToHGlobalUni($store)
+            $certificateStore = [IntPtr]::Zero
+            try {
+              $certificateStore = [LeeCertificateStoreNative]::CertOpenStore(
+                [IntPtr]10,
+                0x00010001,
+                [IntPtr]::Zero,
+                0x00010000,
+                $storeName
+              )
+              if ($certificateStore -eq [IntPtr]::Zero) {
+                $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+                throw "Could not open the current user's $store store (Win32 error $errorCode)."
+              }
+              $certificateBytes = [IO.File]::ReadAllBytes($certificatePath)
+              $added = [LeeCertificateStoreNative]::CertAddEncodedCertificateToStore(
+                $certificateStore,
+                0x00010001,
+                $certificateBytes,
+                $certificateBytes.Length,
+                3,
+                [IntPtr]::Zero
+              )
+              if (-not $added) {
+                $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+                throw "Could not add the public certificate to the current user's $store store (Win32 error $errorCode)."
+              }
+            } finally {
+              if ($certificateStore -ne [IntPtr]::Zero) {
+                [void][LeeCertificateStoreNative]::CertCloseStore($certificateStore, 0)
+              }
+              if ($storeName -ne [IntPtr]::Zero) {
+                [Runtime.InteropServices.Marshal]::FreeHGlobal($storeName)
+              }
+            }
 
-            $certificateStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+            $verificationStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
               $store,
               [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
             )
             try {
-              $certificateStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-              $matches = @($certificateStore.Certificates | Where-Object { $_.Thumbprint -eq $thumbprint })
+              $verificationStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+              $matches = @($verificationStore.Certificates | Where-Object { $_.Thumbprint -eq $thumbprint })
             } finally {
-              $certificateStore.Close()
+              $verificationStore.Close()
             }
             if ($matches.Count -ne 1) {
               throw "The public certificate was not recognized exactly once in the current user's $store store."

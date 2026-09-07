@@ -166,6 +166,19 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
   }
 }
 
+function Wait-ForPackagedCertificateTrusted([string] $certificatePath) {
+  $deadline = [DateTime]::UtcNow.AddSeconds(60)
+  do {
+    try {
+      Assert-PackagedCertificateTrusted $certificatePath
+      return
+    } catch {
+      if ([DateTime]::UtcNow -ge $deadline) { throw }
+      Start-Sleep -Seconds 1
+    }
+  } while ($true)
+}
+
 function Stop-ProcessTree([int] $processId) {
   & taskkill.exe /pid $processId /t /f 2>$null | Out-Null
 }
@@ -372,7 +385,7 @@ try {
   $appExe = $appExe.FullName
   $installDir = Split-Path -Parent $appExe
   Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
-  Assert-PackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
+  Wait-ForPackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
   Set-Phase "migration-assets" "Checking packaged migration assets."
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `
     --resources-root (Join-Path (Split-Path $appExe) "resources") `

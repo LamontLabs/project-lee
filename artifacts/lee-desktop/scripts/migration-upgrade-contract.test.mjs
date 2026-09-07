@@ -26,10 +26,13 @@ test("Windows and Linux packaged smoke tests execute and validate migration-upgr
   assert.match(unixSmoke, /firstRun\.output/);
   assert.match(unixSmoke, /verifyOwnerAuthentication/);
   assert.match(unixSmoke, /Packaged LEE restart process exited/);
+  assert.match(unixSmoke, /LEE_SMOKE_NO_SANDBOX/);
+  assert.match(unixSmoke, /--no-sandbox/);
   assert.match(windowsSmoke, /migration-upgrade-smoke\.mjs/);
   assert.match(windowsSmoke, /\$migrationUpgrade\.migration\.upgradedJournalEntries -eq \(\$migrationUpgrade\.migration\.previousJournalEntries \+ 1\)/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
   assert.match(workflow, /Smoke test bundled Linux runtime/);
+  assert.match(workflow, /LEE_SMOKE_NO_SANDBOX: "1"/);
   assert.match(workflow, /windows-smoke-test\.ps1/);
   assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
 });

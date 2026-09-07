@@ -64,7 +64,9 @@ async function runPackagedApp({ waitForOwnerAuthentication = false } = {}) {
   const appendOutput = (chunk) => {
     output = `${output}${chunk}`.slice(-32_768);
   };
-  const child = spawn(appPath, ["--lee-smoke-exit"], { cwd: dirname(appPath), env, stdio: ["ignore", "pipe", "pipe"] });
+  const launchArgs = ["--lee-smoke-exit"];
+  if (platform === "linux" && env.LEE_SMOKE_NO_SANDBOX === "1") launchArgs.push("--no-sandbox");
+  const child = spawn(appPath, launchArgs, { cwd: dirname(appPath), env, stdio: ["ignore", "pipe", "pipe"] });
   child.stdout?.on("data", appendOutput);
   child.stderr?.on("data", appendOutput);
   const exitCode = await new Promise((resolveExit, reject) => {

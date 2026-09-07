@@ -173,6 +173,8 @@ jobs:
           sudo apt-get install --no-install-recommends -y xvfb
           command -v xvfb-run >/dev/null || { echo "xvfb-run is required for the Linux desktop smoke test." >&2; exit 1; }
           xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE --evidence release/unix-runtime-smoke-linux.json
+        env:
+          LEE_SMOKE_NO_SANDBOX: "1"
       - name: Retain Linux runtime smoke evidence
         if: always()
         uses: actions/upload-artifact@v4

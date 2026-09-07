@@ -92,16 +92,39 @@ jobs:
             Write-Host "[certificate-trust] $phase - $message"
             Write-TrustEvidence
           }
-          function Import-PublicCertificateToCurrentUserStore(
-            [string] $store,
-            [string] $certificatePath
-          ) {
-            $imported = Import-Certificate -FilePath $certificatePath -CertStoreLocation "Cert:\CurrentUser\$store"
+          function Invoke-BoundedCertificateImport([string] $store, [string] $certificatePath) {
+            # Silent, bounded equivalent of: certutil.exe -silent -user -f -addstore <store> <certificate>
+            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+            $startInfo.FileName = "certutil.exe"
+            $startInfo.UseShellExecute = $false
+            $startInfo.CreateNoWindow = $true
+            $startInfo.RedirectStandardInput = $true
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            foreach ($argument in @("-silent", "-user", "-f", "-addstore", $store, $certificatePath)) {
+              [void] $startInfo.ArgumentList.Add($argument)
+            }
+            $process = [System.Diagnostics.Process]::new()
+            $process.StartInfo = $startInfo
+            if (-not $process.Start()) { throw "certutil could not start for $store." }
+            $process.StandardInput.Close()
+            $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+            $stderrTask = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(60000)) {
+              try { $process.Kill($true) } catch { }
+              $stdout = $stdoutTask.GetAwaiter().GetResult()
+              $stderr = $stderrTask.GetAwaiter().GetResult()
+              throw "certutil timed out after 60 seconds while importing into the current user's $store store. stdout=$stdout stderr=$stderr"
+            }
+            $process.WaitForExit()
+            $stdout = $stdoutTask.GetAwaiter().GetResult()
+            $stderr = $stderrTask.GetAwaiter().GetResult()
             return [ordered]@{
               store = $store
               storeLocation = "CurrentUser"
-              thumbprint = $imported.Thumbprint
-              imported = $true
+              exitCode = $process.ExitCode
+              stdout = $stdout
+              stderr = $stderr
             }
           }
 
@@ -123,8 +146,11 @@ jobs:
             foreach ($store in @("Root", "TrustedPublisher")) {
               Write-TrustMarker "import-$store-start" "Importing the public certificate into the current user's $store store."
               try {
-                $result = Import-PublicCertificateToCurrentUserStore $store $certificatePath
+                $result = Invoke-BoundedCertificateImport $store $certificatePath
                 $trustEvidence.stores += $result
+                if ($result.exitCode -ne 0) {
+                  throw "certutil could not add the signing certificate to the current user's $store store (exit code $($result.exitCode)). stdout=$($result.stdout) stderr=$($result.stderr)"
+                }
                 Write-TrustMarker "import-$store-complete" "The current user's $store store accepted the public certificate."
               } catch {
                 $trustEvidence.status = "failed"

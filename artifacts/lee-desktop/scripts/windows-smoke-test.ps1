@@ -190,8 +190,8 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
       "-NoProfile",
       "-NonInteractive",
       "-ExecutionPolicy", "Bypass",
-      "-File", $trustScriptPath,
-      "-CertificatePath", $certificatePath
+      "-File", "`"$trustScriptPath`"",
+      "-CertificatePath", "`"$certificatePath`""
     ) `
     -WindowStyle Hidden `
     -Wait `

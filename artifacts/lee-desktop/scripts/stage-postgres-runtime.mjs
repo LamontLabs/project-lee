@@ -173,7 +173,13 @@ export async function stagePostgresRuntime({ platform, source, explicitShare = n
   await cp(sourceBin, resolve(destination, "bin"), { recursive: true, force: true });
   if (existsSync(sourceLib)) await cp(sourceLib, resolve(destination, "lib"), { recursive: true, force: true });
   await mkdir(resolve(destination, "share"), { recursive: true });
-  await cp(sourceShare, resolve(destination, "share", "postgresql"), { recursive: true, force: true });
+  await cp(sourceShare, resolve(destination, "share", "postgresql"), {
+    recursive: true,
+    force: true,
+    // Ubuntu's PostgreSQL dictionaries include symlinks into /var/cache.
+    // A desktop bundle must contain the targets, not escape its resources tree.
+    dereference: platform === "linux",
+  });
   await makeDirectoriesWritable(destination);
   if (platform !== "win32" && platform !== "windows") {
     for (const name of executableNames) await chmod(resolve(destination, "bin", name), 0o755);

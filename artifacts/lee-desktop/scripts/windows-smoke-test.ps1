@@ -130,12 +130,15 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
 
   $verifiedCurrentUserStores = @()
   foreach ($storeName in @("Root", "TrustedPublisher")) {
-    $trustedCertificates = Get-StoreCertificateMatches $storeName `
-      ([System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser) `
-      $certificateThumbprint
-    Assert-True (
-      $trustedCertificates.Count -gt 0
-    ) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
+    $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$certificateThumbprint"
+    $registryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($registryPath)
+    try {
+      Assert-True ($null -ne $registryKey) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
+      $registryBlob = [byte[]] $registryKey.GetValue("Blob", $null)
+      Assert-True ($null -ne $registryBlob -and [Convert]::ToBase64String($registryBlob) -eq [Convert]::ToBase64String($packagedCertificate.RawData)) "current user's $storeName registry certificate blob does not match the packaged public certificate"
+    } finally {
+      if ($null -ne $registryKey) { $registryKey.Dispose() }
+    }
     $verifiedCurrentUserStores += $storeName
     Write-Host "Verified packaged Project LEE certificate $certificateThumbprint in the current user's $storeName store."
   }
@@ -196,6 +199,23 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
     $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
     throw "installed certificate trust helper exited with $trustExitCode; trace: $trace"
+  }
+}
+
+function Invoke-InstalledCertificateVerification([string] $certificatePath) {
+  $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
+  $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+  & $powershellPath `
+    -NoLogo `
+    -NoProfile `
+    -NonInteractive `
+    -ExecutionPolicy Bypass `
+    -File $trustScriptPath `
+    -CertificatePath $certificatePath `
+    -VerifyOnly
+  $verifyExitCode = $LASTEXITCODE
+  if ($verifyExitCode -ne 0) {
+    throw "fresh certificate-store verification exited with $verifyExitCode"
   }
 }
 
@@ -407,6 +427,7 @@ try {
   Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
   $installedCertificatePath = Join-Path (Split-Path $appExe) "resources\lee-signing.cer"
   Invoke-InstalledCertificateBootstrap $installedCertificatePath
+  Invoke-InstalledCertificateVerification $installedCertificatePath
   Wait-ForPackagedCertificateTrusted $installedCertificatePath
   Set-Phase "migration-assets" "Checking packaged migration assets."
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `

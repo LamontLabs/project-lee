@@ -29,6 +29,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installer, /-File "\$INSTDIR\\resources\\installer-trust\.ps1"/);
   assert.doesNotMatch(installer, /certutil\.exe/);
   assert.match(installerTrust, /Registry\]::CurrentUser/);
+  assert.match(installerTrust, /VerifyOnly/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);
   assert.match(windowsSmoke, /WaitForExit\(300000\)/);
@@ -42,6 +43,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installerTrust, /TrustedPublisher/);
   assert.match(windowsSmoke, /resources\\lee-signing\.cer/);
   assert.match(windowsSmoke, /Invoke-InstalledCertificateBootstrap/);
+  assert.match(windowsSmoke, /Invoke-InstalledCertificateVerification/);
   assert.match(windowsSmoke, /WindowsPowerShell\\v1\.0\\powershell\.exe/);
   assert.match(windowsSmoke, /X509Store/);
   assert.match(windowsSmoke, /StoreLocation\]::CurrentUser/);

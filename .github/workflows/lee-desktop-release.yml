@@ -93,7 +93,7 @@ jobs:
             Write-TrustEvidence
           }
           function Invoke-BoundedCertificateImport([string] $store, [string] $certificatePath) {
-            # Silent, bounded equivalent of: certutil.exe -silent -user -f -addstore <store> <certificate>
+            # Bounded noninteractive equivalent of: certutil.exe -user -f -addstore <store> <certificate>
             $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
             $startInfo.FileName = "certutil.exe"
             $startInfo.UseShellExecute = $false
@@ -101,12 +101,13 @@ jobs:
             $startInfo.RedirectStandardInput = $true
             $startInfo.RedirectStandardOutput = $true
             $startInfo.RedirectStandardError = $true
-            foreach ($argument in @("-silent", "-user", "-f", "-addstore", $store, $certificatePath)) {
+            foreach ($argument in @("-user", "-f", "-addstore", $store, $certificatePath)) {
               [void] $startInfo.ArgumentList.Add($argument)
             }
             $process = [System.Diagnostics.Process]::new()
             $process.StartInfo = $startInfo
             if (-not $process.Start()) { throw "certutil could not start for $store." }
+            $process.StandardInput.WriteLine("y")
             $process.StandardInput.Close()
             $stdoutTask = $process.StandardOutput.ReadToEndAsync()
             $stderrTask = $process.StandardError.ReadToEndAsync()

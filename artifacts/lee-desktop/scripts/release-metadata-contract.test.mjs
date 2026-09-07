@@ -13,7 +13,8 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /X509Certificate2/);
   assert.match(workflow, /EphemeralKeySet/);
   assert.match(workflow, /Invoke-BoundedCertificateImport/);
-  assert.match(workflow, /"-silent", "-user", "-f", "-addstore"/);
+  assert.match(workflow, /"-user", "-f", "-addstore"/);
+  assert.match(workflow, /StandardInput\.WriteLine\("y"\)/);
   assert.match(workflow, /WaitForExit\(60000\)/);
   assert.doesNotMatch(workflow, /Import-Certificate|Import-PfxCertificate|StoreLocation\]::LocalMachine/);
   assert.doesNotMatch(workflow, /Import-PfxCertificate/);

@@ -92,24 +92,15 @@ jobs:
             Write-Host "[certificate-trust] $phase - $message"
             Write-TrustEvidence
           }
-          function Add-PublicCertificateToCurrentUserStore(
+          function Import-PublicCertificateToCurrentUserStore(
             [string] $store,
-            [System.Security.Cryptography.X509Certificates.X509Certificate2] $certificate
+            [string] $certificatePath
           ) {
-            $certificateStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
-              $store,
-              [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
-            )
-            try {
-              $certificateStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-              $certificateStore.Add($certificate)
-            } finally {
-              $certificateStore.Close()
-            }
+            $imported = Import-Certificate -FilePath $certificatePath -CertStoreLocation "Cert:\CurrentUser\$store"
             return [ordered]@{
               store = $store
               storeLocation = "CurrentUser"
-              thumbprint = $certificate.Thumbprint
+              thumbprint = $imported.Thumbprint
               imported = $true
             }
           }
@@ -129,11 +120,10 @@ jobs:
               $certificatePath,
               $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
             )
-            $publicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
             foreach ($store in @("Root", "TrustedPublisher")) {
               Write-TrustMarker "import-$store-start" "Importing the public certificate into the current user's $store store."
               try {
-                $result = Add-PublicCertificateToCurrentUserStore $store $publicCertificate
+                $result = Import-PublicCertificateToCurrentUserStore $store $certificatePath
                 $trustEvidence.stores += $result
                 Write-TrustMarker "import-$store-complete" "The current user's $store store accepted the public certificate."
               } catch {

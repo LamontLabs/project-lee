@@ -8,6 +8,7 @@ files:
   - dist/**
   - resources/**
   - "!resources/installer.nsh"
+  - "!resources/installer-trust.ps1"
   - "!resources/migrate-runtime.mjs"
   - "!resources/migrations/**"
   - "!**/*.map"

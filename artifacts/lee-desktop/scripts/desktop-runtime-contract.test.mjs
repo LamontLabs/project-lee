@@ -7,6 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 test("all desktop packages include the relocatable PostgreSQL runtime", async () => {
   const builder = await read("electron-builder.yml");
   const installer = await read("resources/installer.nsh");
+  const installerTrust = await read("resources/installer-trust.ps1");
   const runtime = await read("src/runtime.ts");
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
@@ -19,12 +20,16 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
   assert.match(builder, /nsis:[\s\S]*include: resources\/installer\.nsh/);
   assert.match(builder, /nsis:[\s\S]*oneClick: false[\s\S]*perMachine: false/);
-  assert.match(installer, /certutil\.exe" -silent -user -addstore/);
+  assert.match(builder, /"!resources\/installer-trust\.ps1"/);
+  assert.match(installer, /project-lee-trust\.ps1/);
+  assert.doesNotMatch(installer, /certutil\.exe/);
+  assert.match(installerTrust, /StoreLocation\]::CurrentUser/);
+  assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(windowsSmoke, /WaitForExit\(300000\)/);
   assert.match(installer, /customInstall/);
   assert.match(installer, /IfSilent/);
-  assert.match(installer, /certutil\.exe/);
-  assert.match(installer, /TrustedPublisher/);
+  assert.match(installer, /WindowsPowerShell\\v1\.0\\powershell\.exe/);
+  assert.match(installerTrust, /TrustedPublisher/);
   assert.match(windowsSmoke, /resources\\lee-signing\.cer/);
   assert.match(windowsSmoke, /X509Store/);
   assert.match(windowsSmoke, /StoreLocation\]::CurrentUser/);

@@ -663,7 +663,13 @@ export class RuntimeSupervisor {
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
     this.snapshot = { ...this.snapshot, state: "stopped", reason: null };
     await this.terminate(this.child);
-    if (this.postgresCtl) spawnSync(this.postgresCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore" });
+    if (this.postgresCtl) {
+      spawnSync(this.postgresCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], {
+        windowsHide: true,
+        stdio: "ignore",
+        timeout: 15_000,
+      });
+    }
     await this.terminate(this.postgres);
     this.child = null;
     this.postgres = null;

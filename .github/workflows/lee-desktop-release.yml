@@ -82,8 +82,10 @@ jobs:
             $certificatePath,
             $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
           )
-          Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\Root | Out-Null
-          Import-Certificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\TrustedPublisher | Out-Null
+          foreach ($store in @("Root", "TrustedPublisher")) {
+            & certutil.exe -user -f -addstore $store $certificatePath | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "certutil could not add the signing certificate to $store." }
+          }
           Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force
       - run: pnpm --filter @workspace/lee-desktop run package
         env:

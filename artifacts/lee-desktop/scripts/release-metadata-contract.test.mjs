@@ -12,9 +12,9 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /"latest\.yml", "latest-linux\.yml"/);
   assert.match(workflow, /X509Certificate2/);
   assert.match(workflow, /EphemeralKeySet/);
+  assert.match(workflow, /certutil\.exe -user -f -addstore/);
   assert.doesNotMatch(workflow, /Import-PfxCertificate/);
-  assert.match(workflow, /Cert:\\CurrentUser\\Root/);
-  assert.match(workflow, /Cert:\\CurrentUser\\TrustedPublisher/);
+  assert.match(workflow, /@\("Root", "TrustedPublisher"\)/);
   assert.match(workflow, /resources\\lee-signing\.cer/);
   assert.doesNotMatch(workflow, /macos|macOS|latest-mac|LEE_APPLE|LEE_MACOS|merge-mac/i);
 });

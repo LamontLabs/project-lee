@@ -24,8 +24,12 @@ try {
     } finally {
       $store.Close()
     }
-    Import-Certificate -FilePath $CertificatePath -CertStoreLocation "Cert:\CurrentUser\$storeName" | Out-Null
-    "imported-$storeName" | Add-Content $tracePath
+    try {
+      Import-Certificate -FilePath $CertificatePath -CertStoreLocation "Cert:\CurrentUser\$storeName" | Out-Null
+      "imported-$storeName" | Add-Content $tracePath
+    } catch {
+      "import-fallback-error-$storeName-$($_.Exception.Message)" | Add-Content $tracePath
+    }
   }
   "complete" | Add-Content $tracePath
 } catch {

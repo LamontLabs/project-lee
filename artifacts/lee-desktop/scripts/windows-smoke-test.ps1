@@ -196,7 +196,11 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
     -WindowStyle Hidden `
     -Wait `
     -PassThru
-  Assert-True ($trustProcess.ExitCode -eq 0) "installed certificate trust helper exited with $($trustProcess.ExitCode)"
+  if ($trustProcess.ExitCode -ne 0) {
+    $tracePath = Join-Path $env:TEMP "lee-installer-trust.log"
+    $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
+    throw "installed certificate trust helper exited with $($trustProcess.ExitCode); trace: $trace"
+  }
 }
 
 function Stop-ProcessTree([int] $processId) {

@@ -193,7 +193,7 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
     -CertificatePath $certificatePath
   $trustExitCode = $LASTEXITCODE
   if ($trustExitCode -ne 0) {
-    $tracePath = Join-Path $env:LOCALAPPDATA "Project LEE\installer-trust.log"
+    $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
     throw "installed certificate trust helper exited with $trustExitCode; trace: $trace"
   }

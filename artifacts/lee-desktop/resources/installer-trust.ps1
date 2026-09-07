@@ -4,9 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$traceDirectory = Join-Path $env:LOCALAPPDATA "Project LEE"
-New-Item -ItemType Directory -Path $traceDirectory -Force | Out-Null
-$tracePath = Join-Path $traceDirectory "installer-trust.log"
+$tracePath = Join-Path $PSScriptRoot "installer-trust.log"
 "start" | Set-Content $tracePath
 try {
   $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath)

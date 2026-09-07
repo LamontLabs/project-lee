@@ -11,7 +11,6 @@ try {
   $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath)
   "certificate-loaded" | Add-Content $tracePath
   $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
-  $certificateBytes = $certificate.RawData
 
   if ($VerifyOnly) {
     foreach ($storeName in @("Root", "TrustedPublisher")) {
@@ -38,9 +37,14 @@ try {
     exit 0
   }
 
+  $certutilPath = Join-Path $env:WINDIR "System32\certutil.exe"
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    Import-Certificate -FilePath $CertificatePath -CertStoreLocation "Cert:\CurrentUser\$storeName" | Out-Null
+    & $certutilPath "-user" "-addstore" "-f" $storeName $CertificatePath 2>&1 | Add-Content $tracePath
+    $certutilExitCode = $LASTEXITCODE
+    if ($certutilExitCode -ne 0) {
+      throw "certutil failed for CurrentUser $storeName with exit code $certutilExitCode"
+    }
     "imported-$storeName" | Add-Content $tracePath
   }
   "complete" | Add-Content $tracePath

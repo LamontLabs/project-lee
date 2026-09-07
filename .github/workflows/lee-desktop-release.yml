@@ -289,24 +289,24 @@ jobs:
             printf 'outer_timeout=true\n' >> "$command_status"
             if [[ ! -s release/unix-runtime-smoke-linux.json ]]; then
               node - "$console_log" "$process_state" release/unix-runtime-smoke-linux.json "$smoke_status" <<'NODE'
-const fs = require("node:fs");
-const [consolePath, processPath, evidencePath, status] = process.argv.slice(2);
-const read = (path) => {
-  try { return fs.readFileSync(path, "utf8").slice(-32768); } catch (error) { return `Unable to read ${path}: ${error.message}`; }
-};
-const consoleOutput = read(consolePath);
-const phases = [...consoleOutput.matchAll(/\[unix-runtime-smoke\] phase: ([^\r\n]+)/g)].map((match) => match[1]);
-const lastPhase = phases.at(-1) ?? "outer-timeout";
-fs.writeFileSync(evidencePath, `${JSON.stringify({
-  platform: "linux",
-  status: "failed",
-  phase: lastPhase,
-  timedOut: true,
-  error: { message: `Linux runtime smoke exceeded its outer timeout (exit ${status}).` },
-  child: { output: consoleOutput, processState: read(processPath) },
-  processState: read(processPath),
-}, null, 2)}\n`);
-NODE
+          const fs = require("node:fs");
+          const [consolePath, processPath, evidencePath, status] = process.argv.slice(2);
+          const read = (path) => {
+            try { return fs.readFileSync(path, "utf8").slice(-32768); } catch (error) { return `Unable to read ${path}: ${error.message}`; }
+          };
+          const consoleOutput = read(consolePath);
+          const phases = [...consoleOutput.matchAll(/\[unix-runtime-smoke\] phase: ([^\r\n]+)/g)].map((match) => match[1]);
+          const lastPhase = phases.at(-1) ?? "outer-timeout";
+          fs.writeFileSync(evidencePath, `${JSON.stringify({
+            platform: "linux",
+            status: "failed",
+            phase: lastPhase,
+            timedOut: true,
+            error: { message: `Linux runtime smoke exceeded its outer timeout (exit ${status}).` },
+            child: { output: consoleOutput, processState: read(processPath) },
+            processState: read(processPath),
+          }, null, 2)}\n`);
+          NODE
             fi
           fi
           exit "$smoke_status"

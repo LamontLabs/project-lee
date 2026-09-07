@@ -46,3 +46,10 @@ test("Windows installer validation uses a fresh non-admin user profile", () => {
   assert.match(workflow, /-RequireNonAdmin/);
   assert.match(workflow, /Remove-LocalUser -Name \$userName/);
 });
+
+test("Linux timeout evidence heredoc remains valid YAML", () => {
+  assert.match(
+    workflow,
+    /run: \|\n(?:(?: {10}).*\n)+\s+node - .*<<'NODE'\n {10}const fs = require\("node:fs"\);[\s\S]*\n {10}NODE\n/,
+  );
+});

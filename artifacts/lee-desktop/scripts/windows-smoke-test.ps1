@@ -9,7 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $testRoot = Join-Path $env:RUNNER_TEMP "lee-windows-smoke-$([guid]::NewGuid())"
-$installDir = Join-Path $testRoot "install"
+$installRoot = Join-Path $env:LOCALAPPDATA "Programs"
+$installDir = $null
 $appData = Join-Path $testRoot "appdata"
 $statusFile = Join-Path $testRoot "runtime-status.json"
 $discoveryFile = Join-Path $testRoot "local-discovery.json"
@@ -355,7 +356,7 @@ try {
 }
 '@ | Set-Content $mockScript -Encoding utf8
   Set-Phase "install" "Running the installer silently."
-  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/currentuser", "/D=$installDir") -PassThru
+  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/currentuser") -PassThru
   if (-not $installer.WaitForExit(300000)) {
     Stop-ProcessTree $installer.Id
     $trustTracePath = Join-Path $env:TEMP "lee-installer-trust.log"
@@ -363,9 +364,12 @@ try {
     throw "silent installer did not exit after its bounded 300 second install run; process $($installer.Id) was terminated; trust trace: $trustTrace"
   }
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
-  $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
+  $appExe = Get-ChildItem $installRoot -Recurse -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -notlike "Uninstall*" } |
+    Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"
   $appExe = $appExe.FullName
+  $installDir = Split-Path -Parent $appExe
   Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
   Assert-PackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
   Set-Phase "migration-assets" "Checking packaged migration assets."
@@ -608,5 +612,8 @@ try {
   throw
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
+  if ($null -ne $installDir -and (Test-Path $installDir)) {
+    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
 }

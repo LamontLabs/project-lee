@@ -127,6 +127,7 @@ export async function processExperiences(options: { since?: Date } = {}) {
       }).map((experience) => experience.id);
       const contradictionCount = groupExperiences.filter((experience) => experience.significanceClassification === "contradiction").length;
       if (contradictionCount > 0) {
+        assertCanonicalMemoryWrite({ recordType: "lesson", operation: "status_change", sourceRef: group[0].experienceRefs[0], sourceRefs: evidenceRefs, origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "pattern_review" }, currentOwner: "owner", actor: "Experience Engine" });
         assertCanonicalMemoryWrite({ recordType: "institutional_knowledge", operation: "status_change", sourceRef: group[0].experienceRefs[0], sourceRefs: evidenceRefs, origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "pattern_review" }, currentOwner: "owner", actor: "Experience Engine" });
         await tx.update(lessonRecord).set({ status: "pattern_needs_review", updatedAt: new Date() })
           .where(inArray(lessonRecord.id, group.map((lesson) => lesson.id)));
@@ -152,6 +153,7 @@ export async function processExperiences(options: { since?: Date } = {}) {
       const status = confidenceTier === "HIGH" ? "pending_owner_review" : "established";
       const existing = await tx.select().from(institutionalKnowledgeLedger)
         .where(eq(institutionalKnowledgeLedger.statement, first.statement)).limit(1);
+      assertCanonicalMemoryWrite({ recordType: "lesson", operation: "status_change", sourceRef: first.experienceRefs[0], sourceRefs: evidenceRefs, origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "pattern_confirmation" }, currentOwner: "owner", actor: "Experience Engine" });
       assertCanonicalMemoryWrite({ recordType: "institutional_knowledge", operation: existing[0] ? "update" : "create", sourceRef: "experience-engine", sourceRefs: supportingEvidenceRefs, origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "institutional_promotion" }, currentOwner: "owner", actor: "Experience Engine" });
       let item: typeof institutionalKnowledgeLedger.$inferSelect;
       if (existing[0]) {

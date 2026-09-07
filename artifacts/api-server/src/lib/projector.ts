@@ -9,7 +9,7 @@ import {
   stateHistory,
   universalObject,
 } from "@workspace/db";
-import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
+import { assertCanonicalMemoryWrite, assertDerivedMemoryWrite } from "./memory-write-boundary";
 
 export const PROJECTION_NAMES = ["universal_objects", "operational_state"] as const;
 export type ProjectionName = typeof PROJECTION_NAMES[number];
@@ -129,6 +129,7 @@ async function applyStateEvent(event: typeof eventLog.$inferSelect, dryRun: bool
   const [current] = await db.select().from(leeState).limit(1);
   if (event.eventType === "StateChanged" && current && current.currentState === nextState) return null;
   if (!dryRun) {
+    assertDerivedMemoryWrite({ projection: "operational_state", rebuildable: true, sourceRefs: [event.id, event.sourceRef] });
     if (!current) {
       await db.insert(leeState).values({ id: event.aggregateId, currentState: nextState, enteredAt, reason, estimatedDurationSeconds: typeof payload.estimatedDurationSeconds === "number" ? payload.estimatedDurationSeconds : undefined, updatedAt: event.occurredAt });
     } else {
@@ -158,6 +159,7 @@ export async function projectEvent(event: typeof eventLog.$inferSelect, options:
 export async function rebuildProjection(projection: ProjectionName, options: { dryRun?: boolean; reset?: boolean } = {}): Promise<ProjectionResult> {
   const dryRun = options.dryRun ?? false;
   if (options.reset && !dryRun) {
+    assertDerivedMemoryWrite({ projection, rebuildable: true });
     if (projection === "universal_objects") await db.delete(universalObject);
     if (projection === "operational_state") {
       await db.delete(stateHistory);

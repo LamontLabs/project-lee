@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { cognitiveRuntimeHistory, currentCognitiveRuntime, runCognitiveRuntimeCycle } from "../lib/cognitive-runtime";
+import { getWelcomeBackBriefing } from "../lib/welcome-back-briefing";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,14 @@ async function refresh(req: any, res: any) {
 router.get("/cognitive-runtime/current", current);
 router.get("/cognitive-runtime/history", history);
 router.post("/cognitive-runtime/refresh", refresh);
+router.get("/cognitive-runtime/welcome-back", async (_req, res) => {
+  try {
+    const briefing = await getWelcomeBackBriefing();
+    res.status(briefing.status === "recovery_protected" ? 423 : 200).json(briefing);
+  } catch (error) {
+    res.status(503).json({ error: error instanceof Error ? error.message : "Welcome-back briefing is unavailable." });
+  }
+});
 router.get("/internal/cognitive-runtime/current", current);
 router.get("/internal/cognitive-runtime/history", history);
 router.post("/internal/cognitive-runtime/refresh", refresh);

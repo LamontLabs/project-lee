@@ -58,7 +58,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Project LEE
-  runAfterFinish: true
+  runAfterFinish: false
   differentialPackage: true
 publish:
   provider: github

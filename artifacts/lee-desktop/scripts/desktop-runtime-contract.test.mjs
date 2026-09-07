@@ -20,6 +20,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
   assert.match(builder, /nsis:[\s\S]*include: resources\/installer\.nsh/);
   assert.match(builder, /nsis:[\s\S]*oneClick: false[\s\S]*perMachine: false/);
+  assert.match(builder, /nsis:[\s\S]*runAfterFinish: false/);
   assert.match(builder, /"!resources\/installer-trust\.ps1"/);
   assert.match(installer, /project-lee-trust\.ps1/);
   assert.doesNotMatch(installer, /certutil\.exe/);

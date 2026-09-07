@@ -1,6 +1,8 @@
 param(
   [Parameter(Mandatory = $true)]
-  [string] $InstallerPath
+  [string] $InstallerPath,
+  [Parameter(Mandatory = $false)]
+  [string] $EvidencePath
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,8 +18,54 @@ $migrationLog = Join-Path $appData "Project LEE\logs\migration.log"
 $databaseDir = Join-Path $appData "Project LEE\database"
 $migrationUpgradeFile = Join-Path $testRoot "migration-upgrade.json"
 $appExe = $null
+$phase = "initialize"
+$smokeStartedAt = [DateTime]::UtcNow.ToString("o")
+$markers = @()
+$lastOperation = $null
 
 New-Item -ItemType Directory -Force $testRoot | Out-Null
+
+function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
+  if ([string]::IsNullOrWhiteSpace($EvidencePath)) { return }
+  $parent = Split-Path -Parent $EvidencePath
+  if (-not [string]::IsNullOrWhiteSpace($parent)) {
+    New-Item -ItemType Directory -Force $parent | Out-Null
+  }
+  $processState = @(
+    Get-Process -Name "Project-LEE", "postgres", "pg_ctl" -ErrorAction SilentlyContinue |
+      Select-Object ProcessName, Id, HasExited, StartTime
+  )
+  $payload = [ordered]@{
+    status = $status
+    phase = $phase
+    startedAt = $script:smokeStartedAt
+    completedAt = [DateTime]::UtcNow.ToString("o")
+    installerPath = $InstallerPath
+    testRoot = $testRoot
+    appPath = $appExe
+    lastOperation = $lastOperation
+    markers = $markers
+    processState = $processState
+  }
+  if ($null -ne $failure) {
+    $payload.error = [ordered]@{
+      message = $failure.Exception.Message
+      scriptStackTrace = $failure.ScriptStackTrace
+    }
+  }
+  $payload | ConvertTo-Json -Depth 20 | Set-Content -Path $EvidencePath -Encoding utf8
+}
+
+function Set-Phase([string] $nextPhase, [string] $message = "") {
+  $script:phase = $nextPhase
+  $script:markers += [ordered]@{
+    at = [DateTime]::UtcNow.ToString("o")
+    phase = $nextPhase
+    message = $message
+  }
+  Write-Host "[windows-smoke] $nextPhase$(if ($message) { " - $message" })"
+  Write-SmokeEvidence "running"
+}
 
 function Assert-True([bool] $condition, [string] $message) {
   if (-not $condition) { throw "LEE Windows smoke test failed: $message" }
@@ -56,6 +104,7 @@ function Stop-ProcessTree([int] $processId) {
 }
 
 function Invoke-Lee([hashtable] $environment, [string] $label) {
+  Set-Phase "launch-$label" "Starting the packaged application."
   $psi = [System.Diagnostics.ProcessStartInfo]::new()
   $psi.FileName = $appExe
   $psi.Arguments = "--lee-smoke-exit"
@@ -66,10 +115,12 @@ function Invoke-Lee([hashtable] $environment, [string] $label) {
   }
   $process = [System.Diagnostics.Process]::Start($psi)
   Assert-True ($null -ne $process) "$label did not start"
+  $script:lastOperation = [ordered]@{ label = $label; processId = $process.Id; timeoutSeconds = 120 }
   if (-not $process.WaitForExit(120000)) {
     Stop-ProcessTree $process.Id
-    throw "$label did not exit after its smoke run"
+    throw "$label did not exit after its bounded 120 second smoke run; process $($process.Id) was terminated"
   }
+  $script:lastOperation.exitCode = $process.ExitCode
   Assert-True (Test-Path $statusFile) "$label did not write runtime status"
   $status = Get-Content $statusFile -Raw | ConvertFrom-Json
   Remove-Item $statusFile -Force
@@ -183,6 +234,7 @@ public static class LeeMouse {
 }
 
 try {
+  Set-Phase "validate-installer" "Checking the downloaded installer."
   Assert-True (Test-Path $InstallerPath) "installer is missing: $InstallerPath"
   @'
 param(
@@ -229,16 +281,20 @@ try {
   $listener.Stop()
 }
 '@ | Set-Content $mockScript -Encoding utf8
+  Set-Phase "install" "Running the installer silently."
   $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"
   $appExe = $appExe.FullName
+  Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
   Assert-PackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
+  Set-Phase "migration-assets" "Checking packaged migration assets."
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `
     --resources-root (Join-Path (Split-Path $appExe) "resources") `
     --source-file (Join-Path $PSScriptRoot "..\src\runtime.ts") `
     --platform windows
+  Set-Phase "migration-upgrade" "Proving an existing database can be upgraded."
   node (Join-Path $PSScriptRoot "migration-upgrade-smoke.mjs") `
     --resources-root (Join-Path (Split-Path $appExe) "resources") `
     --postgres-root (Join-Path (Split-Path $appExe) "resources\postgres") `
@@ -266,6 +322,7 @@ try {
   Assert-True ($first.migration -eq "complete") "clean migration did not complete"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived Exit LEE"
 
+  Set-Phase "tray-launch" "Starting the normal tray application."
   $trayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
     APPDATA = $appData
     LEE_MIGRATION_COMMAND = "cmd /c exit 0"
@@ -293,6 +350,7 @@ try {
   Assert-True (Test-Path $migrationLog) "migration log was not written"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived failed startup"
 
+  Set-Phase "failed-tray-launch" "Checking visible migration failure handling."
   $failedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
     APPDATA = $appData
     LEE_SMOKE_STATUS_FILE = $statusFile
@@ -316,6 +374,7 @@ try {
   $config | Add-Member -NotePropertyName apiCommand -NotePropertyValue "cmd.exe" -Force
   $config | Add-Member -NotePropertyName apiArgs -NotePropertyValue @("/c", "ping.exe -n 601 127.0.0.1 > nul") -Force
   $config | ConvertTo-Json | Set-Content $configFile -Encoding utf8
+  Set-Phase "degraded-tray-launch" "Checking bounded degraded startup handling."
   $degradedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
     APPDATA = $appData
     LEE_SMOKE_STATUS_FILE = $statusFile
@@ -348,6 +407,7 @@ try {
   Assert-True (Test-Path (Join-Path $databaseDir "PG_VERSION")) "restart did not reuse the configured database directory"
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived restart Exit LEE"
 
+  Set-Phase "local-discovery" "Checking bounded local service discovery and owner review."
   $mock = Start-K6Mock "contract"
   try {
     $discoveryRun = Invoke-Discovery $commonEnvironment "allowlisted local discovery"
@@ -461,7 +521,12 @@ try {
     Stop-Mock $mock
   }
 
+  Set-Phase "complete" "All Windows installer smoke checks passed."
+  Write-SmokeEvidence "passed"
   Write-Host "LEE Windows installer smoke test passed: clean launch, existing-database migration upgrade, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
+} catch {
+  Write-SmokeEvidence "failed" $_
+  throw
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }

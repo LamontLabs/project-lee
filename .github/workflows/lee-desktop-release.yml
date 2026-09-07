@@ -24,6 +24,7 @@ jobs:
   windows-installer:
     needs: validate-release-ref
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -69,24 +70,113 @@ jobs:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
-          $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.pfx"
-          $certificatePath = Join-Path $env:RUNNER_TEMP "project-lee-signing.cer"
-          $bytes = [Convert]::FromBase64String(($env:CSC_LINK -replace '\s', ''))
-          [IO.File]::WriteAllBytes($pfxPath, $bytes)
-          $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
-            $bytes,
-            $env:CSC_KEY_PASSWORD,
-            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
-          )
-          [IO.File]::WriteAllBytes(
-            $certificatePath,
-            $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-          )
-          foreach ($store in @("Root", "TrustedPublisher")) {
-            & certutil.exe -user -f -addstore $store $certificatePath | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw "certutil could not add the signing certificate to $store." }
+          $trustEvidencePath = Join-Path $env:GITHUB_WORKSPACE "windows-certificate-trust-evidence.json"
+          $trustEvidence = [ordered]@{
+            status = "running"
+            phase = "initialize"
+            startedAt = [DateTime]::UtcNow.ToString("o")
+            failedStore = $null
+            stores = @()
+            markers = @()
           }
-          Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force
+          function Write-TrustEvidence {
+            $trustEvidence | ConvertTo-Json -Depth 20 | Set-Content -Path $trustEvidencePath -Encoding utf8
+          }
+          function Write-TrustMarker([string] $phase, [string] $message) {
+            $trustEvidence.phase = $phase
+            $trustEvidence.markers += [ordered]@{
+              at = [DateTime]::UtcNow.ToString("o")
+              phase = $phase
+              message = $message
+            }
+            Write-Host "[certificate-trust] $phase - $message"
+            Write-TrustEvidence
+          }
+          function Invoke-BoundedCertificateImport([string] $store, [string] $certificatePath) {
+            # Bounded noninteractive equivalent of: certutil.exe -user -f -addstore <store> <certificate>
+            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+            $startInfo.FileName = "certutil.exe"
+            $startInfo.UseShellExecute = $false
+            $startInfo.CreateNoWindow = $true
+            $startInfo.RedirectStandardInput = $true
+            $startInfo.RedirectStandardOutput = $true
+            $startInfo.RedirectStandardError = $true
+            foreach ($argument in @("-user", "-f", "-addstore", $store, $certificatePath)) {
+              [void] $startInfo.ArgumentList.Add($argument)
+            }
+            $process = [System.Diagnostics.Process]::new()
+            $process.StartInfo = $startInfo
+            if (-not $process.Start()) { throw "certutil could not start for $store." }
+            $process.StandardInput.Close()
+            $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+            $stderrTask = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit(60000)) {
+              try { $process.Kill($true) } catch { }
+              $stdout = $stdoutTask.GetAwaiter().GetResult()
+              $stderr = $stderrTask.GetAwaiter().GetResult()
+              throw "certutil timed out after 60 seconds while importing into the current user's $store store. stdout=$stdout stderr=$stderr"
+            }
+            $process.WaitForExit()
+            $stdout = $stdoutTask.GetAwaiter().GetResult()
+            $stderr = $stderrTask.GetAwaiter().GetResult()
+            return [ordered]@{
+              store = $store
+              exitCode = $process.ExitCode
+              stdout = $stdout
+              stderr = $stderr
+            }
+          }
+
+          try {
+            Write-TrustMarker "decode-certificate" "Decoding the CI signing certificate."
+            $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.pfx"
+            $certificatePath = Join-Path $env:RUNNER_TEMP "project-lee-signing.cer"
+            $bytes = [Convert]::FromBase64String(($env:CSC_LINK -replace '\s', ''))
+            [IO.File]::WriteAllBytes($pfxPath, $bytes)
+            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+              $bytes,
+              $env:CSC_KEY_PASSWORD,
+              [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+            )
+            [IO.File]::WriteAllBytes(
+              $certificatePath,
+              $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+            )
+            foreach ($store in @("Root", "TrustedPublisher")) {
+              Write-TrustMarker "import-$store-start" "Importing the public certificate into the current user's $store store."
+              try {
+                $result = Invoke-BoundedCertificateImport $store $certificatePath
+                $trustEvidence.stores += $result
+                if ($result.exitCode -ne 0) {
+                  throw "certutil could not add the signing certificate to the current user's $store store (exit code $($result.exitCode)). stdout=$($result.stdout) stderr=$($result.stderr)"
+                }
+                Write-TrustMarker "import-$store-complete" "The current user's $store store accepted the public certificate."
+              } catch {
+                $trustEvidence.status = "failed"
+                $trustEvidence.failedStore = $store
+                $trustEvidence.error = $_.Exception.Message
+                Write-TrustMarker "import-$store-failed" "Certificate trust setup failed for the current user's $store store."
+                throw
+              }
+            }
+            Write-TrustMarker "package-certificate" "Copying the public certificate into the packaged resources."
+            Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force
+            $trustEvidence.status = "passed"
+            $trustEvidence.completedAt = [DateTime]::UtcNow.ToString("o")
+            Write-TrustEvidence
+          } catch {
+            $trustEvidence.status = "failed"
+            $trustEvidence.error = $_.Exception.Message
+            Write-TrustMarker "trust-setup-failed" "Certificate trust setup stopped before the signing verification phase."
+            throw
+          }
+      - name: Retain Windows certificate trust evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lee-windows-certificate-trust-evidence
+          path: windows-certificate-trust-evidence.json
+          if-no-files-found: warn
       - run: pnpm --filter @workspace/lee-desktop run package
         env:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
@@ -130,6 +220,7 @@ jobs:
   linux-package:
     needs: validate-release-ref
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -174,11 +265,51 @@ jobs:
         run: node artifacts/lee-desktop/scripts/verify-packaged-migrations.mjs --resources-root artifacts/lee-desktop/release/linux-unpacked/resources --source-file artifacts/lee-desktop/src/runtime.ts --platform linux
       - name: Smoke test bundled Linux runtime
         shell: bash
+        timeout-minutes: 12
         run: |
+          set -o pipefail
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y xvfb
           command -v xvfb-run >/dev/null || { echo "xvfb-run is required for the Linux desktop smoke test." >&2; exit 1; }
-          xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE --evidence release/unix-runtime-smoke-linux.json
+          evidence_dir="release/unix-runtime-smoke-linux-evidence"
+          mkdir -p "$evidence_dir"
+          console_log="$evidence_dir/console.log"
+          process_state="$evidence_dir/process-state.txt"
+          command_status="$evidence_dir/command-status.txt"
+          set +e
+          timeout --foreground --signal=TERM --kill-after=30s 10m \
+            xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
+            pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE --evidence release/unix-runtime-smoke-linux.json \
+            2>&1 | tee "$console_log"
+          smoke_status=${PIPESTATUS[0]}
+          set -e
+          ps -eo pid=,ppid=,stat=,etime=,args= > "$process_state" || true
+          printf 'exit_code=%s\n' "$smoke_status" > "$command_status"
+          if [[ "$smoke_status" -eq 124 || "$smoke_status" -eq 137 ]]; then
+            printf 'outer_timeout=true\n' >> "$command_status"
+            if [[ ! -s release/unix-runtime-smoke-linux.json ]]; then
+              node - "$console_log" "$process_state" release/unix-runtime-smoke-linux.json "$smoke_status" <<'NODE'
+const fs = require("node:fs");
+const [consolePath, processPath, evidencePath, status] = process.argv.slice(2);
+const read = (path) => {
+  try { return fs.readFileSync(path, "utf8").slice(-32768); } catch (error) { return `Unable to read ${path}: ${error.message}`; }
+};
+const consoleOutput = read(consolePath);
+const phases = [...consoleOutput.matchAll(/\[unix-runtime-smoke\] phase: ([^\r\n]+)/g)].map((match) => match[1]);
+const lastPhase = phases.at(-1) ?? "outer-timeout";
+fs.writeFileSync(evidencePath, `${JSON.stringify({
+  platform: "linux",
+  status: "failed",
+  phase: lastPhase,
+  timedOut: true,
+  error: { message: `Linux runtime smoke exceeded its outer timeout (exit ${status}).` },
+  child: { output: consoleOutput, processState: read(processPath) },
+  processState: read(processPath),
+}, null, 2)}\n`);
+NODE
+            fi
+          fi
+          exit "$smoke_status"
         env:
           LEE_SMOKE_NO_SANDBOX: "1"
       - name: Retain Linux runtime smoke evidence
@@ -211,6 +342,7 @@ jobs:
   windows-installer-validation:
     needs: windows-installer
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -230,7 +362,16 @@ jobs:
         run: |
           $installer = Get-ChildItem "$env:RUNNER_TEMP\lee-installer\*.exe" | Select-Object -First 1
           if (-not $installer) { throw "Downloaded NSIS installer is missing." }
-          & "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\scripts\windows-smoke-test.ps1" -InstallerPath $installer.FullName
+          & "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\scripts\windows-smoke-test.ps1" `
+            -InstallerPath $installer.FullName `
+            -EvidencePath "$env:GITHUB_WORKSPACE\windows-smoke-evidence.json"
+      - name: Retain Windows installer smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lee-windows-installer-smoke-evidence
+          path: windows-smoke-evidence.json
+          if-no-files-found: warn
 
   publish-release:
     needs:

@@ -52,6 +52,110 @@ delete env.DATABASE_URL;
 let phase = "verify-postgres-runtime";
 let migrationUpgrade = null;
 let status = null;
+let migrationOutput = "";
+let activeChild = null;
+let lastChild = null;
+let terminationInProgress = false;
+let timeoutSignal = null;
+
+function safeOutput(value) {
+  return String(value).replaceAll(ownerPassword, "[redacted]").slice(-32_768);
+}
+
+function captureProcessState() {
+  try {
+    return execFileSync("ps", ["-eo", "pid=,ppid=,stat=,etime=,args="], {
+      encoding: "utf8",
+      timeout: 5_000,
+    }).trim();
+  } catch (error) {
+    return `Unable to capture process state: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
+function childEvidence() {
+  if (!lastChild) return null;
+  return {
+    pid: lastChild.pid,
+    startedAt: lastChild.startedAt,
+    endedAt: lastChild.endedAt ?? null,
+    exitCode: lastChild.exitCode ?? null,
+    signal: lastChild.signal ?? null,
+    timedOut: lastChild.timedOut === true,
+    output: lastChild.output,
+    processState: lastChild.processState ?? null,
+  };
+}
+
+function smokeEvidence(statusValue, error = null) {
+  return {
+    platform,
+    architecture,
+    status: statusValue,
+    phase,
+    appPath,
+    resourcesRoot,
+    migrationUpgrade,
+    migrationOutput,
+    runtime: status,
+    child: childEvidence(),
+    processState: captureProcessState(),
+    timedOut: Boolean(lastChild?.timedOut),
+    timeoutSignal,
+    ...(error ? {
+      error: {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+    } : {}),
+  };
+}
+
+function setPhase(nextPhase) {
+  phase = nextPhase;
+  console.log(`[unix-runtime-smoke] phase: ${phase}`);
+}
+
+async function terminateChild(child, graceMs = 5_000) {
+  if (!child || child.exitCode !== null) return;
+  try {
+    if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGTERM");
+    else child.kill("SIGTERM");
+  } catch {
+    try { child.kill("SIGTERM"); } catch { /* The child may have exited between checks. */ }
+  }
+  await new Promise((resolve) => setTimeout(resolve, graceMs));
+  if (child.exitCode === null) {
+    try {
+      if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGKILL");
+      else child.kill("SIGKILL");
+    } catch {
+      try { child.kill("SIGKILL"); } catch { /* The child may have exited between checks. */ }
+    }
+  }
+}
+
+async function handleTerminationSignal(signal) {
+  if (terminationInProgress) return;
+  terminationInProgress = true;
+  timeoutSignal = signal;
+  console.error(`[unix-runtime-smoke] outer timeout received during phase: ${phase}`);
+  if (activeChild) {
+    lastChild.timedOut = true;
+    lastChild.processState = captureProcessState();
+    await terminateChild(activeChild);
+    lastChild.endedAt = new Date().toISOString();
+    lastChild.output = lastChild.output || "";
+  }
+  try {
+    await writeEvidence(smokeEvidence("failed", new Error(`Smoke test received ${signal} while in phase ${phase}.`)));
+  } finally {
+    process.exit(124);
+  }
+}
+
+process.once("SIGTERM", () => { void handleTerminationSignal("SIGTERM"); });
+process.once("SIGINT", () => { void handleTerminationSignal("SIGINT"); });
 
 async function runPackagedApp({ waitForOwnerAuthentication = false } = {}) {
   if (waitForOwnerAuthentication) {
@@ -61,19 +165,59 @@ async function runPackagedApp({ waitForOwnerAuthentication = false } = {}) {
     delete env.LEE_SMOKE_OWNER_AUTH_FILE;
   }
   let output = "";
-  const appendOutput = (chunk) => {
-    output = `${output}${chunk}`.slice(-32_768);
-  };
   const launchArgs = ["--lee-smoke-exit"];
   if (platform === "linux" && env.LEE_SMOKE_NO_SANDBOX === "1") launchArgs.push("--no-sandbox");
-  const child = spawn(appPath, launchArgs, { cwd: dirname(appPath), env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(appPath, launchArgs, {
+    cwd: dirname(appPath),
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32",
+  });
+  const childRecord = {
+    pid: child.pid ?? null,
+    startedAt: new Date().toISOString(),
+    output: "",
+    timedOut: false,
+  };
+  lastChild = childRecord;
+  activeChild = child;
+  const appendOutput = (chunk) => {
+    output = safeOutput(`${output}${chunk}`);
+    childRecord.output = output;
+  };
   child.stdout?.on("data", appendOutput);
   child.stderr?.on("data", appendOutput);
-  const exitCode = await new Promise((resolveExit, reject) => {
-    child.once("error", reject);
-    child.once("exit", (code, signal) => resolveExit(code ?? (signal ? 1 : 0)));
-  });
-  return { exitCode, output };
+  const requestedTimeoutMs = Number(process.env.LEE_SMOKE_CHILD_TIMEOUT_MS ?? 120_000);
+  const timeoutMs = Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0 ? requestedTimeoutMs : 120_000;
+  let timeoutHandle;
+  try {
+    const result = await Promise.race([
+      new Promise((resolveExit, reject) => {
+        child.once("error", reject);
+        child.once("exit", (code, signal) => resolveExit({ code: code ?? (signal ? 1 : 0), signal }));
+      }),
+      new Promise((_, reject) => {
+        timeoutHandle = setTimeout(async () => {
+          childRecord.timedOut = true;
+          childRecord.processState = captureProcessState();
+          await terminateChild(child);
+          reject(new Error(`Packaged LEE smoke process exceeded its ${timeoutMs}ms timeout.`));
+        }, timeoutMs);
+      }),
+    ]);
+    childRecord.endedAt = new Date().toISOString();
+    childRecord.output = safeOutput(output);
+    childRecord.exitCode = result.code;
+    childRecord.signal = result.signal;
+    return { exitCode: result.code, output };
+  } catch (error) {
+    childRecord.endedAt = new Date().toISOString();
+    childRecord.output = safeOutput(output);
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+    activeChild = null;
+  }
 }
 
 async function verifyRuntimeStatus(label) {
@@ -106,14 +250,24 @@ async function verifyOwnerAuthentication(apiUrl) {
 
 try {
   verifyPostgresRuntime(join(resourcesRoot, "postgres"), { platform, architecture });
-  phase = "migration-upgrade";
-  execFileSync(process.execPath, [
-    join(dirname(new URL(import.meta.url).pathname), "migration-upgrade-smoke.mjs"),
-    "--resources-root", resourcesRoot,
-    "--postgres-root", join(resourcesRoot, "postgres"),
-    "--platform", platform,
-    "--output", migrationUpgradeFile,
-  ], { cwd: dirname(new URL(import.meta.url).pathname), env, stdio: "inherit" });
+  setPhase("migration-upgrade");
+  try {
+    migrationOutput = execFileSync(process.execPath, [
+      join(dirname(new URL(import.meta.url).pathname), "migration-upgrade-smoke.mjs"),
+      "--resources-root", resourcesRoot,
+      "--postgres-root", join(resourcesRoot, "postgres"),
+      "--platform", platform,
+      "--output", migrationUpgradeFile,
+    ], {
+      cwd: dirname(new URL(import.meta.url).pathname),
+      env,
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+  } catch (error) {
+    migrationOutput = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
+    throw error;
+  }
   migrationUpgrade = JSON.parse(await readFile(migrationUpgradeFile, "utf8"));
   if (
     migrationUpgrade.status !== "passed" ||
@@ -124,16 +278,16 @@ try {
     throw new Error(`Existing-database migration upgrade did not complete: ${JSON.stringify(migrationUpgrade)}`);
   }
 
-  phase = "packaged-startup";
+  setPhase("packaged-startup");
   const firstRun = await runPackagedApp({ waitForOwnerAuthentication: true });
   if (firstRun.exitCode !== 0) {
     throw new Error(`Packaged LEE smoke process exited with ${firstRun.exitCode}.${firstRun.output.trim() ? ` Output: ${firstRun.output.trim()}` : ""}`);
   }
   status = await verifyRuntimeStatus("initial startup");
-  phase = "owner-authentication";
+  setPhase("owner-authentication");
   await verifyOwnerAuthentication(status.apiUrl);
 
-  phase = "shutdown";
+  setPhase("shutdown");
   const databaseDir = join(configRoot, "Project LEE", "database");
   if (!existsSync(join(databaseDir, "PG_VERSION"))) throw new Error("Bundled PostgreSQL did not initialize its database directory.");
   if (!existsSync(join(configRoot, "Project LEE", "logs", "migration.log"))) throw new Error("Desktop migration log was not produced.");
@@ -144,7 +298,7 @@ try {
     throw new Error("PostgreSQL survived the packaged LEE shutdown.");
   }
 
-  phase = "restart";
+  setPhase("restart");
   const secondRun = await runPackagedApp();
   if (secondRun.exitCode !== 0) {
     throw new Error(`Packaged LEE restart process exited with ${secondRun.exitCode}.${secondRun.output.trim() ? ` Output: ${secondRun.output.trim()}` : ""}`);
@@ -157,29 +311,12 @@ try {
   }
 
   await writeEvidence({
-    platform,
-    architecture,
-    status: "passed",
-    phase,
-    appPath,
-    resourcesRoot,
-    migrationUpgrade,
-    runtime: status,
+    ...smokeEvidence("passed"),
     checks: { initialization: "passed", migration: "passed", ownerAuthentication: "passed", ownerRuntimeContract: "passed", shutdown: "passed", restart: "passed" },
   });
   console.log(`LEE Unix desktop runtime smoke passed: bundled PostgreSQL initialization, existing-database migration upgrade ${JSON.stringify(migrationUpgrade.migration)}, startup, migration, contract health, and shutdown.`);
 } catch (error) {
-  await writeEvidence({
-    platform,
-    architecture,
-    status: "failed",
-    phase,
-    appPath,
-    resourcesRoot,
-    migrationUpgrade,
-    runtime: status,
-    error: { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
-  });
+  await writeEvidence(smokeEvidence("failed", error));
   throw error;
 } finally {
   await rm(testRoot, { recursive: true, force: true });

@@ -118,7 +118,7 @@ jobs:
             [DllImport("crypt32.dll", SetLastError = true)]
             public static extern bool CertCloseStore(IntPtr hCertStore, uint dwFlags);
           }
-'@
+          '@
 
           function Import-PublicCertificateToCurrentUserStore(
             [string] $store,

@@ -19,6 +19,8 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /0x00010000/);
   assert.match(workflow, /0x00010001/);
   assert.match(workflow, /GetLastWin32Error/);
+  assert.match(workflow, /Add-Type -TypeDefinition @'/);
+  assert.match(workflow, /\n {10}'@\n/);
   assert.match(workflow, /StoreLocation\]::CurrentUser/);
   assert.match(workflow, /OpenFlags\]::ReadOnly/);
   assert.match(workflow, /The public certificate was not recognized exactly once/);

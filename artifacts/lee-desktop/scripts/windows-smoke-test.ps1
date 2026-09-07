@@ -355,7 +355,11 @@ try {
 }
 '@ | Set-Content $mockScript -Encoding utf8
   Set-Phase "install" "Running the installer silently."
-  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
+  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -PassThru
+  if (-not $installer.WaitForExit(300000)) {
+    Stop-ProcessTree $installer.Id
+    throw "silent installer did not exit after its bounded 300 second install run; process $($installer.Id) was terminated"
+  }
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"

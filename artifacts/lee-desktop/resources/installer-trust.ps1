@@ -9,26 +9,18 @@ $tracePath = Join-Path $PSScriptRoot "installer-trust.log"
 try {
   $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath)
   "certificate-loaded" | Add-Content $tracePath
+  $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
+  $certificateBytes = $certificate.RawData
 
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
-      $storeName,
-      [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
-    )
+    $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
+    $registryKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($registryPath)
     try {
-      $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-      "opened-$storeName" | Add-Content $tracePath
-      $store.Add($certificate)
-      "added-$storeName" | Add-Content $tracePath
+      $registryKey.SetValue("Blob", $certificateBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
+      "written-$storeName" | Add-Content $tracePath
     } finally {
-      $store.Close()
-    }
-    try {
-      Import-Certificate -FilePath $CertificatePath -CertStoreLocation "Cert:\CurrentUser\$storeName" | Out-Null
-      "imported-$storeName" | Add-Content $tracePath
-    } catch {
-      "import-fallback-error-$storeName-$($_.Exception.Message)" | Add-Content $tracePath
+      $registryKey.Dispose()
     }
   }
   "complete" | Add-Content $tracePath

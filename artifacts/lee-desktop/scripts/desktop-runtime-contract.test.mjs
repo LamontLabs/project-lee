@@ -28,7 +28,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installer, /File \/oname=installer-trust\.ps1/);
   assert.match(installer, /-File "\$INSTDIR\\resources\\installer-trust\.ps1"/);
   assert.doesNotMatch(installer, /certutil\.exe/);
-  assert.match(installerTrust, /StoreLocation\]::CurrentUser/);
+  assert.match(installerTrust, /Registry\]::CurrentUser/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);
   assert.match(windowsSmoke, /WaitForExit\(300000\)/);

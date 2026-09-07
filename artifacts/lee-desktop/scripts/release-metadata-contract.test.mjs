@@ -17,6 +17,7 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /Get-AuthenticodeSignature/);
   assert.match(workflow, /SignerCertificate\.Thumbprint/);
   assert.match(workflow, /expectedThumbprint/);
+  assert.match(workflow, /"UnknownError"/);
   assert.doesNotMatch(workflow, /certutil\.exe|HKCU:\\Software\\Microsoft\\SystemCertificates|Import-Certificate|Import-PfxCertificate|StoreLocation\]::LocalMachine|CertOpenStore|CertOpenSystemStore|CertAddEncodedCertificateToStore|LeeCertificateStoreNative/);
   assert.doesNotMatch(workflow, /result\.exitCode|certutil could not add/);
   assert.match(workflow, /resources\\lee-signing\.cer/);

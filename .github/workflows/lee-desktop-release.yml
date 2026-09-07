@@ -64,7 +64,7 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) { throw "LEE_WINDOWS_CERTIFICATE is required for a trusted release." }
           if ([string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) { throw "LEE_WINDOWS_CERTIFICATE_PASSWORD is required for a trusted release." }
-      - name: Trust private Windows signing certificate for CI verification
+      - name: Prepare public Windows signing certificate for CI verification
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
@@ -78,6 +78,7 @@ jobs:
             failedStore = $null
             stores = @()
             markers = @()
+            storeMutation = "not-performed"
           }
           function Write-TrustEvidence {
             $trustEvidence | ConvertTo-Json -Depth 20 | Set-Content -Path $trustEvidencePath -Encoding utf8
@@ -92,91 +93,6 @@ jobs:
             Write-Host "[certificate-trust] $phase - $message"
             Write-TrustEvidence
           }
-          Add-Type -TypeDefinition @'
-          using System;
-          using System.Runtime.InteropServices;
-          public static class LeeCertificateStoreNative {
-            [DllImport("crypt32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-            public static extern IntPtr CertOpenSystemStore(
-              IntPtr hProv,
-              string storeName
-            );
-
-            [DllImport("crypt32.dll", SetLastError = true)]
-            public static extern bool CertAddEncodedCertificateToStore(
-              IntPtr hCertStore,
-              uint dwCertEncodingType,
-              byte[] pbCertEncoded,
-              uint cbCertEncoded,
-              uint dwAddDisposition,
-              IntPtr ppCertContext
-            );
-
-            [DllImport("crypt32.dll", SetLastError = true)]
-            public static extern bool CertCloseStore(IntPtr hCertStore, uint dwFlags);
-          }
-          '@
-
-          function Import-PublicCertificateToCurrentUserStore(
-            [string] $store,
-            [string] $certificatePath
-          ) {
-            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
-            $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
-            $certificateStore = [IntPtr]::Zero
-            try {
-              Write-TrustMarker "open-$store-start" "Opening the current user's $store store through crypt32."
-              $certificateStore = [LeeCertificateStoreNative]::CertOpenSystemStore([IntPtr]::Zero, $store)
-              if ($certificateStore -eq [IntPtr]::Zero) {
-                $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-                throw "Could not open the current user's $store store (Win32 error $errorCode)."
-              }
-              Write-TrustMarker "open-$store-complete" "Opened the current user's $store store through crypt32."
-              $certificateBytes = [IO.File]::ReadAllBytes($certificatePath)
-              Write-TrustMarker "add-$store-start" "Adding the public certificate to the current user's $store store through crypt32."
-              $added = [LeeCertificateStoreNative]::CertAddEncodedCertificateToStore(
-                $certificateStore,
-                0x00010001,
-                $certificateBytes,
-                $certificateBytes.Length,
-                3,
-                [IntPtr]::Zero
-              )
-              if (-not $added) {
-                $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-                throw "Could not add the public certificate to the current user's $store store (Win32 error $errorCode)."
-              }
-              Write-TrustMarker "add-$store-complete" "Added the public certificate to the current user's $store store through crypt32."
-            } finally {
-              if ($certificateStore -ne [IntPtr]::Zero) {
-                [void][LeeCertificateStoreNative]::CertCloseStore($certificateStore, 0)
-              }
-              Write-TrustMarker "close-$store-complete" "Closed the current user's $store store through crypt32."
-            }
-
-            Write-TrustMarker "verify-$store-start" "Verifying the public certificate in the current user's $store store."
-            $verificationStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
-              $store,
-              [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
-            )
-            try {
-              $verificationStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-              $matches = @($verificationStore.Certificates | Where-Object { $_.Thumbprint -eq $thumbprint })
-            } finally {
-              $verificationStore.Close()
-            }
-            if ($matches.Count -ne 1) {
-              throw "The public certificate was not recognized exactly once in the current user's $store store."
-            }
-            Write-TrustMarker "verify-$store-complete" "Verified exactly one public certificate in the current user's $store store."
-            return [ordered]@{
-              store = $store
-              storeLocation = "CurrentUser"
-              thumbprint = $thumbprint
-              imported = $true
-            }
-          }
-
           try {
             Write-TrustMarker "decode-certificate" "Decoding the CI signing certificate."
             $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.pfx"
@@ -192,22 +108,14 @@ jobs:
               $certificatePath,
               $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
             )
-            foreach ($store in @("Root", "TrustedPublisher")) {
-              Write-TrustMarker "import-$store-start" "Importing the public certificate into the current user's $store store."
-              try {
-                $result = Import-PublicCertificateToCurrentUserStore $store $certificatePath
-                $trustEvidence.stores += $result
-                Write-TrustMarker "import-$store-complete" "The current user's $store store accepted the public certificate."
-              } catch {
-                $trustEvidence.status = "failed"
-                $trustEvidence.failedStore = $store
-                $trustEvidence.error = $_.Exception.Message
-                Write-TrustMarker "import-$store-failed" "Certificate trust setup failed for the current user's $store store."
-                throw
-              }
-            }
             Write-TrustMarker "package-certificate" "Copying the public certificate into the packaged resources."
             Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force
+            $trustEvidence.certificate = [ordered]@{
+              subject = $certificate.Subject
+              thumbprint = $certificate.Thumbprint.ToUpperInvariant()
+              privateKeyPresent = $false
+              source = "CI signing PFX export"
+            }
             $trustEvidence.status = "passed"
             $trustEvidence.completedAt = [DateTime]::UtcNow.ToString("o")
             Write-TrustEvidence
@@ -239,11 +147,10 @@ jobs:
           }
           if (-not $signtool) { throw "Windows SDK signtool.exe is unavailable on the runner." }
           $signtoolPath = if ($signtool.PSObject.Properties.Name -contains "Source") { $signtool.Source } else { $signtool.FullName }
+          $publicCertificate = (Resolve-Path "artifacts/lee-desktop/resources/lee-signing.cer").Path
           foreach ($installer in $installers) {
-            $signature = Get-AuthenticodeSignature $installer.FullName
-            if ($signature.Status -ne "Valid") { throw "$($installer.Name) has an invalid Authenticode signature: $($signature.Status)." }
-            & $signtoolPath verify /pa /all $installer.FullName
-            if ($LASTEXITCODE -ne 0) { throw "signtool verification failed for $($installer.Name)." }
+            & $signtoolPath verify /pa /all /c $publicCertificate $installer.FullName
+            if ($LASTEXITCODE -ne 0) { throw "$($installer.Name) failed signtool verification." }
           }
       - name: Write Windows release metadata
         run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform windows

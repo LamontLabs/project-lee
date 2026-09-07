@@ -355,7 +355,7 @@ try {
 }
 '@ | Set-Content $mockScript -Encoding utf8
   Set-Phase "install" "Running the installer silently."
-  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -PassThru
+  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/currentuser", "/D=$installDir") -PassThru
   if (-not $installer.WaitForExit(300000)) {
     Stop-ProcessTree $installer.Id
     $trustTracePath = Join-Path $env:TEMP "lee-installer-trust.log"

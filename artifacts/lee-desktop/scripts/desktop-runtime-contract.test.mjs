@@ -28,6 +28,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);
   assert.match(windowsSmoke, /WaitForExit\(300000\)/);
+  assert.match(windowsSmoke, /ArgumentList @\("\/S", "\/currentuser", "\/D=\$installDir"\)/);
   assert.match(installer, /customInstall/);
   assert.doesNotMatch(installer, /certificate to verify updates/i);
   assert.match(installer, /WindowsPowerShell\\v1\.0\\powershell\.exe/);

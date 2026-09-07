@@ -10,6 +10,7 @@ import {
   provenanceRecord,
 } from "@workspace/db";
 import { queryEngine } from "./query-engine";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 const SIGNIFICANT_EVENT = /fail|error|reject|degrad|complete|resolved|success|outcome|review|govern|decision|health/i;
 const EVIDENCE_THRESHOLD = 3;
@@ -45,6 +46,7 @@ export async function processExperiences(options: { since?: Date } = {}) {
     .limit(1000);
   const significant = events.filter((event) => SIGNIFICANT_EVENT.test(event.eventType));
   if (significant.length === 0) return { experiences: [], lessons: [], institutionalKnowledge: [] };
+  assertCanonicalMemoryWrite({ recordType: "experience", operation: "create", sourceRef: significant[0].id, sourceRefs: significant.map((event) => event.id), origin: "source", currentOwner: "owner", actor: "Experience Engine" });
 
   const result = await db.transaction(async (tx) => {
     const experiences = await tx.insert(experienceRecord).values(significant.map((event) => ({
@@ -55,6 +57,9 @@ export async function processExperiences(options: { since?: Date } = {}) {
       metadata: { eventType: event.eventType, sourceRef: event.sourceRef, patternKey: patternKey(event), outcome: outcomeFor(event), aggregateId: event.aggregateId },
     }))).onConflictDoNothing({ target: experienceRecord.sourceEventId }).returning();
 
+    if (experiences.length > 0) {
+      assertCanonicalMemoryWrite({ recordType: "lesson", operation: "create", sourceRef: experiences[0].sourceEventId, sourceRefs: experiences.map((experience) => experience.id), origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "lesson_extraction" }, currentOwner: "owner", actor: "Experience Engine" });
+    }
     const lessons = experiences.length > 0
       ? await tx.insert(lessonRecord).values(experiences.map((experience) => {
         const event = significant.find((candidate) => candidate.id === experience.sourceEventId)!;
@@ -122,6 +127,7 @@ export async function processExperiences(options: { since?: Date } = {}) {
       }).map((experience) => experience.id);
       const contradictionCount = groupExperiences.filter((experience) => experience.significanceClassification === "contradiction").length;
       if (contradictionCount > 0) {
+        assertCanonicalMemoryWrite({ recordType: "institutional_knowledge", operation: "status_change", sourceRef: group[0].experienceRefs[0], sourceRefs: evidenceRefs, origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "pattern_review" }, currentOwner: "owner", actor: "Experience Engine" });
         await tx.update(lessonRecord).set({ status: "pattern_needs_review", updatedAt: new Date() })
           .where(inArray(lessonRecord.id, group.map((lesson) => lesson.id)));
         const existing = await tx.select().from(institutionalKnowledgeLedger).where(eq(institutionalKnowledgeLedger.statement, group[0].statement)).limit(1);
@@ -146,6 +152,7 @@ export async function processExperiences(options: { since?: Date } = {}) {
       const status = confidenceTier === "HIGH" ? "pending_owner_review" : "established";
       const existing = await tx.select().from(institutionalKnowledgeLedger)
         .where(eq(institutionalKnowledgeLedger.statement, first.statement)).limit(1);
+      assertCanonicalMemoryWrite({ recordType: "institutional_knowledge", operation: existing[0] ? "update" : "create", sourceRef: "experience-engine", sourceRefs: supportingEvidenceRefs, origin: "engine", generatedByEngine: "Experience Engine", generatedBy: { engineId: "Experience Engine", operation: "institutional_promotion" }, currentOwner: "owner", actor: "Experience Engine" });
       let item: typeof institutionalKnowledgeLedger.$inferSelect;
       if (existing[0]) {
         const [updated] = await tx.update(institutionalKnowledgeLedger).set({
@@ -264,6 +271,9 @@ export async function listInstitutionalKnowledge() {
 }
 
 export async function reviewInstitutionalKnowledge(id: string, approved: boolean) {
+  const [prior] = await db.select().from(institutionalKnowledgeLedger).where(eq(institutionalKnowledgeLedger.id, id)).limit(1);
+  if (!prior) return null;
+  assertCanonicalMemoryWrite({ recordType: "institutional_knowledge", operation: "status_change", sourceRef: prior.sourceRef, sourceRefs: prior.evidenceRefs, origin: "owner", currentOwner: "owner", actor: "owner", ownerConfirmed: true });
   const [item] = await db.update(institutionalKnowledgeLedger).set({
     ownerReviewed: approved,
     status: approved ? "established" : "rejected",
@@ -286,6 +296,7 @@ export async function transitionInstitutionalKnowledge(id: string, action: "defe
   const current = await db.select().from(institutionalKnowledgeLedger).where(eq(institutionalKnowledgeLedger.id, id)).limit(1);
   if (!current[0]) return null;
   const evidenceRefs = replacementId ? [...new Set([...current[0].evidenceRefs, replacementId])] : current[0].evidenceRefs;
+  assertCanonicalMemoryWrite({ recordType: "institutional_knowledge", operation: "status_change", sourceRef: current[0].sourceRef, sourceRefs: evidenceRefs, origin: "owner", currentOwner: "owner", actor: "owner", ownerConfirmed: true });
   const [item] = await db.update(institutionalKnowledgeLedger).set({ status, evidenceRefs, sourceRef: replacementId ? `superseded-by:${replacementId}` : current[0].sourceRef, updatedAt: new Date() }).where(eq(institutionalKnowledgeLedger.id, id)).returning();
   await db.insert(eventLog).values({
     eventType: action === "defer" ? "InstitutionalKnowledgeDeferred" : action === "reject" ? "InstitutionalKnowledgeRejected" : action === "invalidate" ? "InstitutionalKnowledgeInvalidated" : "InstitutionalKnowledgeSuperseded",

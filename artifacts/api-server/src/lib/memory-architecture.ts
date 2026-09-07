@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNotNull, lt, or } from "drizzle-orm";
 import { db, eventLog, universalObject } from "@workspace/db";
 import { enqueueWork } from "./orchestration";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 export const MEMORY_TIERS = ["recent", "working", "reference", "historical", "archived", "dormant", "evergreen", "foundational", "canonical"] as const;
 type Tier = typeof MEMORY_TIERS[number];
@@ -27,6 +28,7 @@ export async function reclassifyMemory() {
     if (object.manualTierOverride) continue;
     const next = automaticTier(object);
     if (next === object.memoryTier) continue;
+    assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "update", sourceRef: object.sourceRefs[0], sourceRefs: object.sourceRefs, origin: "engine", generatedByEngine: "Memory Architecture Engine", generatedBy: { engineId: "Memory Architecture Engine", operation: "automatic_tier_change" }, currentOwner: object.currentOwner, actor: "Memory Architecture Engine" });
     await db.update(universalObject).set({ memoryTier: next, updatedAt: new Date() }).where(eq(universalObject.id, object.id));
     await db.insert(eventLog).values({ eventType: "MemoryTierChanged", aggregateType: "universal_object", aggregateId: object.id, sourceRef: "memory-architecture", occurredAt: new Date(), payload: { from: object.memoryTier, to: next, automatic: true } });
     changed.push({ id: object.id, from: object.memoryTier, to: next });
@@ -39,12 +41,16 @@ export async function setMemoryTier(id: string, tier: string, reason: string) {
   const [object] = await db.select().from(universalObject).where(eq(universalObject.id, id)).limit(1);
   if (!object) return null;
   if (protectedTiers.has(object.memoryTier) && object.memoryTier !== tier) throw new Error(`${object.memoryTier} memory requires an owner-led reclassification path.`);
+  assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "update", sourceRef: object.sourceRefs[0], sourceRefs: object.sourceRefs, origin: "owner", currentOwner: object.currentOwner, actor: "owner", ownerConfirmed: true });
   const [updated] = await db.update(universalObject).set({ memoryTier: tier, manualTierOverride: true, updatedAt: new Date() }).where(eq(universalObject.id, id)).returning();
   await db.insert(eventLog).values({ eventType: "MemoryTierChanged", aggregateType: "universal_object", aggregateId: id, sourceRef: "owner-memory-control", occurredAt: new Date(), payload: { from: object.memoryTier, to: tier, automatic: false, reason } });
   return updated;
 }
 
 export async function touchMemory(id: string) {
+  const [object] = await db.select().from(universalObject).where(eq(universalObject.id, id)).limit(1);
+  if (!object) return undefined;
+  assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "verification", sourceRef: object.sourceRefs[0], sourceRefs: object.sourceRefs, origin: "owner", currentOwner: object.currentOwner, actor: "owner", ownerConfirmed: true });
   const [updated] = await db.update(universalObject).set({ lastAccessedAt: new Date(), accessCount: 1, updatedAt: new Date() }).where(eq(universalObject.id, id)).returning();
   return updated;
 }
@@ -54,6 +60,7 @@ export async function consolidateHistorical() {
   const results = [];
   for (const object of candidates) {
     const summary = { entity_list: [object.name, object.objectType], key_decisions: [], key_facts: [object.description ?? object.name], original_object_ids: [object.id], source_refs: object.sourceRefs, compression_stage: 2, source_confidence: object.propagatedConfidence ?? object.confidence };
+    assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "update", sourceRef: object.sourceRefs[0], sourceRefs: object.sourceRefs, origin: "engine", generatedByEngine: "Memory Architecture Engine", generatedBy: { engineId: "Memory Architecture Engine", operation: "historical_consolidation" }, currentOwner: object.currentOwner, actor: "Memory Architecture Engine" });
     const beforeSize = JSON.stringify(object).length; const afterSize = JSON.stringify(summary).length;
     const [updated] = await db.update(universalObject).set({ memorySummary: summary, keyEntities: [object.name, object.objectType], compressionStage: 2, consolidatedAt: new Date(), updatedAt: new Date() }).where(eq(universalObject.id, object.id)).returning();
     await db.insert(eventLog).values({ eventType: "MemoryConsolidated", aggregateType: "universal_object", aggregateId: object.id, sourceRef: "memory-compression-stage-2", occurredAt: new Date(), payload: { beforeSize, afterSize, compressionStage: 2, originalObjectIds: [object.id], sourceRefs: object.sourceRefs } });

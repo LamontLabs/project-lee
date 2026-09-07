@@ -55,6 +55,7 @@ import {
   relationshipHealthScore,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 export const BACKUP_FORMAT_VERSION = "2";
 export const DB_SCHEMA_VERSION = "1";
@@ -368,6 +369,7 @@ async function reconcileLegacyIntegrity(): Promise<ReconciliationResult> {
     ? await db.select().from(eventLog).where(inArray(eventLog.eventType, ["LegacyProvenanceMigrated"]))
     : [];
   for (const { fact, ref } of legacyFactRefs) {
+    assertCanonicalMemoryWrite({ recordType: "fact", operation: "update", sourceRef: fact.sourceRef, sourceRefs: [fact.sourceRef, ...(fact.sourceEvidence ?? [])], epistemicType: fact.factType, origin: "migration", currentOwner: fact.currentOwner, actor: "migration" });
     const existing = factMigrationEvents.find((event) => event.payload.recordType === "fact" && event.payload.recordId === fact.id && event.payload.originalSourceRef === ref);
     const migration = existing ?? await emitEvent({
       eventType: "LegacyProvenanceMigrated",

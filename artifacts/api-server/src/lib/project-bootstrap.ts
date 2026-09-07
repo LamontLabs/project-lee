@@ -17,6 +17,7 @@ import {
 } from "@workspace/db";
 import type { DevelopmentProvider } from "./provider-abstraction";
 import { emitEvent } from "./foundation-events";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 export type RepositoryFile = {
   path: string;
@@ -201,6 +202,7 @@ export async function runBootstrap(
       ["repository", "documentation_files", JSON.stringify(report.documentation.files)],
       ["repository", "system_contract", JSON.stringify(report.systemContract)],
     ] as const;
+    assertCanonicalMemoryWrite({ recordType: "fact", operation: "create", sourceRef: source.id, sourceRefs: [source.id], epistemicType: "observed", origin: "source", currentOwner: "owner", actor: "Project Bootstrap" });
     const facts = await db.insert(factLedger).values(factInputs.map(([subject, predicate, object]) => ({
       subject,
       predicate,
@@ -218,6 +220,7 @@ export async function runBootstrap(
       { step_type: "repository_manifest", statement: "The repository manifest was collected by DevelopmentProvider.", evidence_id: source.id, confidence: 0.95, engine_name: "Project Bootstrap" },
       { step_type: "static_inventory", statement: "The inventory was derived without executing repository code.", evidence_id: facts[0].id, confidence: 0.9, engine_name: "Project Bootstrap" },
     ];
+    assertCanonicalMemoryWrite({ recordType: "interpretation", operation: "create", sourceRef: source.id, sourceRefs: [source.id, ...facts.map((fact) => fact.id)], origin: "engine", generatedByEngine: "Project Bootstrap", generatedBy: { engineId: "Project Bootstrap", runType: "static_inventory" }, currentOwner: "owner", actor: "Project Bootstrap" });
     const [interpretation] = await db.insert(interpretationLedger).values({
       statement: `The repository has ${report.repositoryMap.totalFiles} inventoried files and requires owner review of ${report.questions.length} unresolved question(s).`,
       basis: "Static repository inventory",
@@ -237,6 +240,7 @@ export async function runBootstrap(
       { runId: run.id, recordType: "interpretation", recordId: interpretation.id, sourceRef: source.id, excerpt: "Bootstrap interpretation from source-backed facts.", confidence: interpretation.confidence },
     ]);
 
+    assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "create", sourceRef: source.id, sourceRefs: [source.id], origin: "source", currentOwner: "owner", actor: "Project Bootstrap" });
     const [project] = await db.insert(universalObject).values({
       objectType: "project",
       name: repositoryId,

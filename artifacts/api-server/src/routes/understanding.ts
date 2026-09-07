@@ -17,6 +17,7 @@ import { extractUnderstanding } from "../lib/understanding";
 import { processExperiences } from "../lib/experience";
 import { assertFactProvenance } from "../lib/provenance";
 import { recordBeliefState } from "../lib/epistemic-history";
+import { assertCanonicalMemoryWrite } from "../lib/memory-write-boundary";
 
 const router: IRouter = Router();
 
@@ -36,6 +37,12 @@ router.post("/understanding/runs", async (req, res): Promise<void> => {
     return;
   }
   const extraction = extractUnderstanding(input);
+  if (extraction.facts.length) {
+    assertCanonicalMemoryWrite({ recordType: "fact", operation: "create", sourceRef: input.sourceRef, sourceRefs: [input.sourceRef], epistemicType: "extracted", origin: "source", sourceDerived: true, currentOwner: "owner", actor: "Understanding Pipeline" });
+  }
+  if (extraction.interpretations.length) {
+    assertCanonicalMemoryWrite({ recordType: "interpretation", operation: "create", sourceRef: input.sourceRef, sourceRefs: [input.sourceRef], origin: "engine", generatedByEngine: "Understanding Pipeline", generatedBy: { engineId: "Understanding Pipeline", runType: "source_interpretation" }, currentOwner: "owner", actor: "Understanding Pipeline" });
+  }
   const now = new Date();
 
   const result = await db.transaction(async (tx) => {

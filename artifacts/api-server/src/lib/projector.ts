@@ -9,6 +9,7 @@ import {
   stateHistory,
   universalObject,
 } from "@workspace/db";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 export const PROJECTION_NAMES = ["universal_objects", "operational_state"] as const;
 export type ProjectionName = typeof PROJECTION_NAMES[number];
@@ -54,6 +55,17 @@ async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boo
       return null;
     }
     if (!dryRun) {
+      assertCanonicalMemoryWrite({
+        recordType: "universal_object",
+        operation: "create",
+        sourceRef: event.sourceRef,
+        sourceRefs: Array.isArray(payload.sourceRefs) ? payload.sourceRefs : [event.sourceRef],
+        origin: event.actor === "owner" ? "owner" : "engine",
+        generatedByEngine: event.actor === "owner" ? undefined : "Event Log Projector",
+        generatedBy: event.actor === "owner" ? undefined : { engineId: "Event Log Projector", eventId: event.id },
+        currentOwner: typeof payload.currentOwner === "string" ? payload.currentOwner : "owner",
+        actor: event.actor ?? "Event Log Projector",
+      });
       await db.insert(universalObject).values({
         id: event.aggregateId,
         objectType: String(payload.objectType),
@@ -82,6 +94,17 @@ async function applyObjectEvent(event: typeof eventLog.$inferSelect, dryRun: boo
   }
   if (event.sequenceNumber < existing.version) return null;
   if (!dryRun) {
+    assertCanonicalMemoryWrite({
+      recordType: "universal_object",
+      operation: "update",
+      sourceRef: event.sourceRef,
+      sourceRefs: Array.isArray(payload.sourceRefs) ? payload.sourceRefs : [event.sourceRef],
+      origin: event.actor === "owner" ? "owner" : "engine",
+      generatedByEngine: event.actor === "owner" ? undefined : "Event Log Projector",
+      generatedBy: event.actor === "owner" ? undefined : { engineId: "Event Log Projector", eventId: event.id },
+      currentOwner: typeof payload.currentOwner === "string" ? payload.currentOwner : "owner",
+      actor: event.actor ?? "Event Log Projector",
+    });
     await db.update(universalObject).set({
       ...(typeof payload.name === "string" ? { name: payload.name } : {}),
       ...(typeof payload.description === "string" ? { description: payload.description } : {}),

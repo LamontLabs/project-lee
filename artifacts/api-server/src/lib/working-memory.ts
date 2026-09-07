@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { db, workingMemory } from "@workspace/db";
 import type { SelectedContext } from "./context-economy";
 import { emitEvent } from "./foundation-events";
+import { assertDerivedMemoryWrite } from "./memory-write-boundary";
 
 export const WORKING_MEMORY_MAX_SELECTED = 24;
 export const WORKING_MEMORY_MAX_EXCLUDED = 32;
@@ -218,6 +219,7 @@ export async function persistWorkingMemory(input: {
   reason?: string;
   rebuilt?: boolean;
 }) {
+  assertDerivedMemoryWrite({ projection: "working_memory", rebuildable: true, sourceRefs: [...input.selected, ...input.excluded].map((item) => item.id) });
   const envelope = buildWorkingMemoryEnvelope(input);
   const now = new Date();
   const [record] = await db.insert(workingMemory).values({

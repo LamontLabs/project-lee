@@ -21,6 +21,7 @@ import { CONSOLIDATION_PHASES } from "@workspace/db";
 import { expireStale } from "./assumptions";
 import { processExperiences } from "./experience";
 import { recomputeDecisionHeuristics } from "./decision-memory";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 import { getResourceState } from "./resource";
 import { consolidateHistorical } from "./memory-architecture";
 import { indexObject } from "./semantic-index";
@@ -247,6 +248,7 @@ async function learnOutcomes(): Promise<PhaseResult> {
     if (!outcomeEvent) continue;
     const payload = outcomeEvent.payload ?? {};
     const outcome = typeof payload.outcome === "string" ? payload.outcome : "observed";
+    assertCanonicalMemoryWrite({ recordType: "prediction", operation: "status_change", sourceRef: prediction.sourceRef, sourceRefs: [prediction.sourceRef, ...prediction.supportingEvidenceRefs, outcomeEvent.id], origin: "engine", generatedByEngine: prediction.generatedByEngine, generatedBy: prediction.generatedBy, currentOwner: "owner", actor: "Memory Consolidation Engine" });
     await db.update(predictionRecord).set({
       eventualOutcome: outcome,
       accuracyResult: typeof payload.accuracyResult === "string" ? payload.accuracyResult : "observed",
@@ -315,6 +317,7 @@ async function coolHotMemory(): Promise<PhaseResult> {
   const cooled: string[] = [];
   for (const object of candidates) {
     const nextScore = Math.max(0, Number((object.relevanceScore * 0.9).toFixed(4)));
+    assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "update", sourceRef: object.sourceRefs[0], sourceRefs: object.sourceRefs, origin: "engine", generatedByEngine: "Memory Consolidation Engine", generatedBy: { engineId: "Memory Consolidation Engine", operation: "cool_hot_memory" }, currentOwner: object.currentOwner, actor: "Memory Consolidation Engine" });
     await db.update(universalObject).set({ relevanceScore: nextScore, updatedAt: new Date() }).where(eq(universalObject.id, object.id));
     await appendRunEvent("MemoryCooled", object.id, "cool_hot_memory", { objectId: object.id, from: object.relevanceScore, to: nextScore, evidenceRefs: object.sourceRefs });
     cooled.push(object.id);

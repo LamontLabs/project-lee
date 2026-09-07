@@ -5,6 +5,7 @@ import { queryEngine, type StandardQueryResult } from "./query-engine";
 import { recordProvenance } from "./provenance";
 import { WhyChainBuilder } from "./why-chain";
 import { checkConstitution } from "./constitution";
+import { appendCanonicalMemoryEvent, assertCanonicalMemoryWrite } from "./memory-write-boundary";
 const PROFILES = {
   Developer: { vocabularyLevel: "technical", depth: "deep", tone: "precise", emphasis: ["mechanics", "architecture", "trade-offs"], sentenceLength: "detailed" },
   Investor: { vocabularyLevel: "business", depth: "medium", tone: "forward-looking", emphasis: ["outcomes", "risk", "opportunity"], sentenceLength: "concise" },
@@ -38,7 +39,31 @@ export async function explain(input: { objectId: string; explanationType: string
   const source = objects.find((item) => item.object_id === input.objectId) ?? interpretations.find((item) => item.object_id === input.objectId) ?? facts.find((item) => item.object_id === input.objectId);
   if (!source) throw new Error("Explanation target was not found.");
   const supporting = [source, ...facts.slice(0, 5), ...interpretations.slice(0, 3)]; const object = source.object as any; const profile = PROFILES[audience]; const statement = render(object, supporting, audience, input.explanationType); const whyChain = new WhyChainBuilder().addStep("fact_confirmed", "Source-backed records were selected from Query Engine results.", 0.8, "Explanation Engine", supporting[0]?.object_id).addStep("strategy_alignment", `Audience profile ${audience} was applied for ${profile.emphasis.join(", ")}.`, 0.9, "Explanation Engine").buildNonTrivial(); const brief = { headline: headline(object, input.explanationType), keyFacts: supporting.slice(0, 5).map((item) => item.object_id), audienceProfile: audience, explanationType: input.explanationType, confidence: source.propagated_confidence };
+  const explanationRefs = [...new Set(supporting.flatMap((item) => item.source_refs).filter((ref): ref is string => typeof ref === "string" && ref.length > 0))];
+  assertCanonicalMemoryWrite({
+    recordType: "interpretation",
+    operation: "create",
+    sourceRef: source.source_refs[0] ?? source.object_id,
+    sourceRefs: explanationRefs.length ? explanationRefs : [source.object_id],
+    origin: "engine",
+    generatedByEngine: "Explanation Engine",
+    generatedBy: { engineId: "Explanation Engine", audience, explanationType: input.explanationType },
+    currentOwner: "owner",
+    actor: "Explanation Engine",
+  });
   const [saved] = await db.insert(interpretationLedger).values({ statement, interpretationType: "explanation", inputFacts: supporting.filter((item) => item.object_type === "fact").map((item) => item.object_id), inputInterpretations: supporting.filter((item) => item.object_type === "interpretation").map((item) => item.object_id), basis: source.object_id, sourceRef: source.source_refs[0] ?? source.object_id, confidence: source.confidence, propagatedConfidence: source.propagated_confidence, confidenceLineage: { engine: "Explanation Engine", audience, factors: source.why_included }, whyChain, generatedByEngine: "Explanation Engine", generatedBy: { engineId: "Explanation Engine", audience, explanationType: input.explanationType }, validFrom: new Date(), status: "active", canonLevel: "working", needsReview: false, audienceProfile: audience, explanationType: input.explanationType, sourceObjectIds: supporting.map((item) => item.object_id), explanationBrief: { ...brief, whyChain } }).returning();
+  await appendCanonicalMemoryEvent({
+    recordType: "interpretation",
+    operation: "create",
+    sourceRef: saved.sourceRef,
+    sourceRefs: explanationRefs.length ? explanationRefs : [saved.sourceRef],
+    origin: "engine",
+    generatedByEngine: saved.generatedByEngine,
+    generatedBy: saved.generatedBy,
+    currentOwner: "owner",
+    actor: "Explanation Engine",
+    event: { eventType: "InterpretationCreated", aggregateType: "interpretation_ledger", aggregateId: saved.id, sourceRef: saved.sourceRef, payload: { interpretationType: saved.interpretationType, inputFacts: saved.inputFacts, explanationType: input.explanationType } },
+  });
   await recordProvenance("explanation", saved.id, supporting.flatMap((item) => item.source_refs).slice(0, 20), saved.confidence);
   const result = {
     id: saved.id,

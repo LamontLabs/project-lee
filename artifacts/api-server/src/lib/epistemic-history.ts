@@ -8,7 +8,7 @@ import {
   predictionRecord,
 } from "@workspace/db";
 import { assertFactProvenance } from "./provenance";
-import { emitEvent } from "./foundation-events";
+import { appendCanonicalMemoryEvent, assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 const BELIEF_STATES = ["current", "superseded", "retracted"] as const;
 const CONTRADICTION_STATES = ["none", "open", "resolved"] as const;
@@ -132,6 +132,17 @@ export async function recordBeliefState(input: BeliefInput) {
     ? await db.select().from(beliefState).where(eq(beliefState.interpretationId, input.interpretationId)).limit(1)
     : [];
   if (existing) return existing;
+  assertCanonicalMemoryWrite({
+    recordType: "belief",
+    operation: "create",
+    sourceRef,
+    sourceRefs: evidenceRefs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+  });
   const [item] = await db.insert(beliefState).values({
     beliefKey,
     conclusion,
@@ -147,19 +158,29 @@ export async function recordBeliefState(input: BeliefInput) {
     generatedBy: input.generatedBy,
     validFrom: new Date(),
   }).returning();
-  await emitEvent({
-    eventType: input.contradictionState === "open" ? "BeliefContradicted" : "BeliefStateCreated",
-    aggregateType: "belief_state",
-    aggregateId: item.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "belief",
+    operation: "create",
     sourceRef,
-    payload: {
-      beliefId: item.id,
-      beliefKey,
-      interpretationId: input.interpretationId ?? null,
-      evidenceRefs,
-      contradictionRefs,
-      contradictionState: item.contradictionState,
-      confidence: item.confidence,
+    sourceRefs: evidenceRefs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+    event: {
+      eventType: input.contradictionState === "open" ? "BeliefContradicted" : "BeliefStateCreated",
+      aggregateType: "belief_state",
+      aggregateId: item.id,
+      payload: {
+        beliefId: item.id,
+        beliefKey,
+        interpretationId: input.interpretationId ?? null,
+        evidenceRefs,
+        contradictionRefs,
+        contradictionState: item.contradictionState,
+        confidence: item.confidence,
+      },
     },
   });
   return item;
@@ -179,6 +200,17 @@ export async function reviseBeliefState(
   await assertEvidenceRefs(evidenceRefs);
   assertGeneratedBy(input.generatedByEngine, input.generatedBy);
   const confidence = boundedConfidence(input.confidence, "confidence");
+  assertCanonicalMemoryWrite({
+    recordType: "belief",
+    operation: "revision",
+    sourceRef,
+    sourceRefs: evidenceRefs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+  });
   const now = new Date();
   const next = await db.transaction(async (tx) => {
     await tx.update(beliefState).set({
@@ -205,22 +237,32 @@ export async function reviseBeliefState(
     }).returning();
     return created;
   });
-  await emitEvent({
-    eventType: next.contradictionState === "open" ? "BeliefContradicted" : "BeliefStateRevised",
-    aggregateType: "belief_state",
-    aggregateId: next.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "belief",
+    operation: "revision",
     sourceRef,
-    payload: {
-      beliefId: next.id,
-      priorBeliefId: prior.id,
-      priorInterpretationId: prior.interpretationId,
-      interpretationId: next.interpretationId,
-      newEvidenceRefs: evidenceRefs,
-      contradictionRefs,
-      contradictionState: next.contradictionState,
-      revisedConclusion: next.conclusion,
-      confidence: next.confidence,
-      revisedAt: now.toISOString(),
+    sourceRefs: evidenceRefs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+    event: {
+      eventType: next.contradictionState === "open" ? "BeliefContradicted" : "BeliefStateRevised",
+      aggregateType: "belief_state",
+      aggregateId: next.id,
+      payload: {
+        beliefId: next.id,
+        priorBeliefId: prior.id,
+        priorInterpretationId: prior.interpretationId,
+        interpretationId: next.interpretationId,
+        newEvidenceRefs: evidenceRefs,
+        contradictionRefs,
+        contradictionState: next.contradictionState,
+        revisedConclusion: next.conclusion,
+        confidence: next.confidence,
+        revisedAt: now.toISOString(),
+      },
     },
   });
   return next;
@@ -255,6 +297,17 @@ export async function recordPrediction(input: PredictionInput) {
   }
   await assertEvidenceRefs(refs);
   assertGeneratedBy(input.generatedByEngine, input.generatedBy);
+  assertCanonicalMemoryWrite({
+    recordType: "prediction",
+    operation: "create",
+    sourceRef,
+    sourceRefs: refs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+  });
   const [item] = await db.insert(predictionRecord).values({
     statement,
     horizon,
@@ -270,12 +323,22 @@ export async function recordPrediction(input: PredictionInput) {
     generatedByEngine: input.generatedByEngine,
     generatedBy: input.generatedBy,
   }).returning();
-  await emitEvent({
-    eventType: "PredictionRecorded",
-    aggregateType: "prediction_record",
-    aggregateId: item.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "prediction",
+    operation: "create",
     sourceRef,
-    payload: { predictionId: item.id, supportingEvidenceRefs: refs, horizon, confidenceLower: lower, confidenceUpper: upper },
+    sourceRefs: refs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+    event: {
+      eventType: "PredictionRecorded",
+      aggregateType: "prediction_record",
+      aggregateId: item.id,
+      payload: { predictionId: item.id, supportingEvidenceRefs: refs, horizon, confidenceLower: lower, confidenceUpper: upper },
+    },
   });
   return item;
 }
@@ -283,6 +346,19 @@ export async function recordPrediction(input: PredictionInput) {
 export async function resolvePrediction(id: string, input: { eventualOutcome: string; accuracyResult: (typeof PREDICTION_RESULTS)[number]; derivedLesson?: string; outcomeObservedAt?: Date }) {
   const eventualOutcome = requiredText(input.eventualOutcome, "eventualOutcome");
   if (!PREDICTION_RESULTS.includes(input.accuracyResult)) throw new Error("accuracyResult is invalid.");
+  const [prior] = await db.select().from(predictionRecord).where(eq(predictionRecord.id, id)).limit(1);
+  if (!prior) return null;
+  assertCanonicalMemoryWrite({
+    recordType: "prediction",
+    operation: "status_change",
+    sourceRef: prior.sourceRef,
+    sourceRefs: [prior.sourceRef, ...prior.supportingEvidenceRefs],
+    origin: "engine",
+    generatedByEngine: prior.generatedByEngine,
+    generatedBy: prior.generatedBy,
+    currentOwner: "owner",
+    actor: prior.generatedByEngine,
+  });
   const [item] = await db.update(predictionRecord).set({
     eventualOutcome,
     accuracyResult: input.accuracyResult,
@@ -292,12 +368,22 @@ export async function resolvePrediction(id: string, input: { eventualOutcome: st
     updatedAt: new Date(),
   }).where(eq(predictionRecord.id, id)).returning();
   if (!item) return null;
-  await emitEvent({
-    eventType: "PredictionResolved",
-    aggregateType: "prediction_record",
-    aggregateId: item.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "prediction",
+    operation: "status_change",
     sourceRef: item.sourceRef,
-    payload: { predictionId: item.id, accuracyResult: item.accuracyResult, eventualOutcome: item.eventualOutcome, derivedLesson: item.derivedLesson },
+    sourceRefs: [item.sourceRef, ...item.supportingEvidenceRefs],
+    origin: "engine",
+    generatedByEngine: item.generatedByEngine,
+    generatedBy: item.generatedBy,
+    currentOwner: "owner",
+    actor: item.generatedByEngine,
+    event: {
+      eventType: "PredictionResolved",
+      aggregateType: "prediction_record",
+      aggregateId: item.id,
+      payload: { predictionId: item.id, accuracyResult: item.accuracyResult, eventualOutcome: item.eventualOutcome, derivedLesson: item.derivedLesson },
+    },
   });
   return item;
 }
@@ -312,6 +398,17 @@ export async function recordCausalClaim(input: CausalClaimInput) {
   if (input.interpretationId) await assertInterpretationIsActive(input.interpretationId);
   await assertEvidenceRefs(refs);
   assertGeneratedBy(input.generatedByEngine, input.generatedBy);
+  assertCanonicalMemoryWrite({
+    recordType: "causal_claim",
+    operation: "create",
+    sourceRef,
+    sourceRefs: refs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+  });
   const [item] = await db.insert(causalClaim).values({
     claim,
     cause,
@@ -326,12 +423,22 @@ export async function recordCausalClaim(input: CausalClaimInput) {
     generatedByEngine: input.generatedByEngine,
     generatedBy: input.generatedBy,
   }).returning();
-  await emitEvent({
-    eventType: "CausalClaimRecorded",
-    aggregateType: "causal_claim",
-    aggregateId: item.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "causal_claim",
+    operation: "create",
     sourceRef,
-    payload: { causalClaimId: item.id, relationshipType: "causal", evidenceRefs: refs, explicitness: item.explicitness, alternatives: item.alternatives },
+    sourceRefs: refs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy: input.generatedBy,
+    currentOwner: "owner",
+    actor: input.generatedByEngine,
+    event: {
+      eventType: "CausalClaimRecorded",
+      aggregateType: "causal_claim",
+      aggregateId: item.id,
+      payload: { causalClaimId: item.id, relationshipType: "causal", evidenceRefs: refs, explicitness: item.explicitness, alternatives: item.alternatives },
+    },
   });
   return item;
 }
@@ -343,6 +450,17 @@ export async function recordKnowledgeGap(input: KnowledgeGapInput) {
   const possibleEvidenceSources = nonEmptyRefs(input.possibleEvidenceSources, "possibleEvidenceSources");
   const affectedObjectRefs = input.affectedObjectRefs ? nonEmptyRefs(input.affectedObjectRefs, "affectedObjectRefs") : [];
   if (input.nextAllowedAction && !GAP_ACTIONS.includes(input.nextAllowedAction)) throw new Error("nextAllowedAction is invalid.");
+  assertCanonicalMemoryWrite({
+    recordType: "knowledge_gap",
+    operation: "create",
+    sourceRef,
+    sourceRefs: [sourceRef, ...possibleEvidenceSources, ...affectedObjectRefs],
+    origin: "engine",
+    generatedByEngine: input.createdByEngine,
+    generatedBy: { engineId: input.createdByEngine },
+    currentOwner: "owner",
+    actor: input.createdByEngine,
+  });
   const [item] = await db.insert(knowledgeGap).values({
     question,
     importance: boundedImportance(input.importance),
@@ -354,12 +472,22 @@ export async function recordKnowledgeGap(input: KnowledgeGapInput) {
     sourceRef,
     createdByEngine: requiredText(input.createdByEngine, "createdByEngine"),
   }).returning();
-  await emitEvent({
-    eventType: "KnowledgeGapRecorded",
-    aggregateType: "knowledge_gap",
-    aggregateId: item.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "knowledge_gap",
+    operation: "create",
     sourceRef,
-    payload: { knowledgeGapId: item.id, objectiveId: item.objectiveId, importance: item.importance, possibleEvidenceSources },
+    sourceRefs: [sourceRef, ...possibleEvidenceSources, ...affectedObjectRefs],
+    origin: "engine",
+    generatedByEngine: input.createdByEngine,
+    generatedBy: { engineId: input.createdByEngine },
+    currentOwner: "owner",
+    actor: input.createdByEngine,
+    event: {
+      eventType: "KnowledgeGapRecorded",
+      aggregateType: "knowledge_gap",
+      aggregateId: item.id,
+      payload: { knowledgeGapId: item.id, objectiveId: item.objectiveId, importance: item.importance, possibleEvidenceSources },
+    },
   });
   return item;
 }
@@ -367,6 +495,19 @@ export async function recordKnowledgeGap(input: KnowledgeGapInput) {
 export async function investigateKnowledgeGap(id: string, input: { nextAllowedAction?: (typeof GAP_ACTIONS)[number]; status?: "open" | "investigating" | "resolved" | "deferred" }) {
   if (input.nextAllowedAction && !GAP_ACTIONS.includes(input.nextAllowedAction)) throw new Error("nextAllowedAction is invalid.");
   if (input.status && !["open", "investigating", "resolved", "deferred"].includes(input.status)) throw new Error("status is invalid.");
+  const [prior] = await db.select().from(knowledgeGap).where(eq(knowledgeGap.id, id)).limit(1);
+  if (!prior) return null;
+  assertCanonicalMemoryWrite({
+    recordType: "knowledge_gap",
+    operation: "status_change",
+    sourceRef: prior.sourceRef,
+    sourceRefs: [prior.sourceRef, ...prior.possibleEvidenceSources, ...prior.affectedObjectRefs],
+    origin: "engine",
+    generatedByEngine: prior.createdByEngine,
+    generatedBy: { engineId: prior.createdByEngine },
+    currentOwner: "owner",
+    actor: prior.createdByEngine,
+  });
   const [item] = await db.update(knowledgeGap).set({
     lastInvestigatedAt: new Date(),
     nextAllowedAction: input.nextAllowedAction,
@@ -374,12 +515,22 @@ export async function investigateKnowledgeGap(id: string, input: { nextAllowedAc
     updatedAt: new Date(),
   }).where(eq(knowledgeGap.id, id)).returning();
   if (!item) return null;
-  await emitEvent({
-    eventType: "KnowledgeGapInvestigated",
-    aggregateType: "knowledge_gap",
-    aggregateId: item.id,
+  await appendCanonicalMemoryEvent({
+    recordType: "knowledge_gap",
+    operation: "status_change",
     sourceRef: item.sourceRef,
-    payload: { knowledgeGapId: item.id, status: item.status, nextAllowedAction: item.nextAllowedAction, investigatedAt: item.lastInvestigatedAt },
+    sourceRefs: [item.sourceRef, ...item.possibleEvidenceSources, ...item.affectedObjectRefs],
+    origin: "engine",
+    generatedByEngine: item.createdByEngine,
+    generatedBy: { engineId: item.createdByEngine },
+    currentOwner: "owner",
+    actor: item.createdByEngine,
+    event: {
+      eventType: "KnowledgeGapInvestigated",
+      aggregateType: "knowledge_gap",
+      aggregateId: item.id,
+      payload: { knowledgeGapId: item.id, status: item.status, nextAllowedAction: item.nextAllowedAction, investigatedAt: item.lastInvestigatedAt },
+    },
   });
   return item;
 }

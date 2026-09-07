@@ -1,6 +1,7 @@
 import { db, eventLog, factLedger, interpretationLedger, person, sourceVault, universalObject } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { recordTrustEvent } from "./trust";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 export type OwnershipActor = "owner" | "migration" | "system" | string;
 export function actor(input: unknown, fallback: OwnershipActor = "owner") {
@@ -13,9 +14,24 @@ export function ownershipSummary(item: any) {
 }
 export async function verifyObject(type: string, id: string) {
   const now = new Date();
-  if (type === "object") return (await db.update(universalObject).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(universalObject.id, id)).returning())[0];
-  if (type === "fact") return (await db.update(factLedger).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(factLedger.id, id)).returning())[0];
-  if (type === "interpretation") return (await db.update(interpretationLedger).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(interpretationLedger.id, id)).returning())[0];
+  if (type === "object") {
+    const [object] = await db.select().from(universalObject).where(eq(universalObject.id, id)).limit(1);
+    if (!object) return undefined;
+    assertCanonicalMemoryWrite({ recordType: "universal_object", operation: "verification", sourceRef: object.sourceRefs[0], sourceRefs: object.sourceRefs, origin: "owner", currentOwner: object.currentOwner, actor: "owner", ownerConfirmed: true });
+    return (await db.update(universalObject).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(universalObject.id, id)).returning())[0];
+  }
+  if (type === "fact") {
+    const [fact] = await db.select().from(factLedger).where(eq(factLedger.id, id)).limit(1);
+    if (!fact) return undefined;
+    assertCanonicalMemoryWrite({ recordType: "fact", operation: "verification", sourceRef: fact.sourceRef, sourceRefs: fact.sourceEvidence, epistemicType: fact.factType, origin: "owner", currentOwner: fact.currentOwner, actor: "owner", ownerConfirmed: true });
+    return (await db.update(factLedger).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(factLedger.id, id)).returning())[0];
+  }
+  if (type === "interpretation") {
+    const [interpretation] = await db.select().from(interpretationLedger).where(eq(interpretationLedger.id, id)).limit(1);
+    if (!interpretation) return undefined;
+    assertCanonicalMemoryWrite({ recordType: "interpretation", operation: "verification", sourceRef: interpretation.sourceRef, sourceRefs: [...interpretation.inputFacts, ...interpretation.inputInterpretations, interpretation.sourceRef], origin: "owner", currentOwner: interpretation.currentOwner, actor: "owner", ownerConfirmed: true });
+    return (await db.update(interpretationLedger).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(interpretationLedger.id, id)).returning())[0];
+  }
   if (type === "person") return (await db.update(person).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(person.id, id)).returning())[0];
   if (type === "source") return (await db.update(sourceVault).set({ verifiedBy: "owner", verifiedAt: now, lastVerifiedAt: now, modifiedBy: "owner", modifiedAt: now, updatedAt: now, ageState: "FRESH" }).where(eq(sourceVault.id, id)).returning())[0];
   return null;

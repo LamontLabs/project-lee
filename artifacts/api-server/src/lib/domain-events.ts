@@ -16,7 +16,7 @@ const EVENT_TYPES = [
     "UniversalObjectCreated","UniversalObjectUpdated","SourceVaultRecordCreated","ImpactNodeCreated","ImpactEdgeCreated","ConstitutionProvisionCreated","OperationalAdaptationApplied","OperationalAdaptationRejected",
     "ConnectionCreated","ConnectionAuthenticationSucceeded","ConnectionAuthenticationFailed","ConnectionPermissionsChanged","ConnectionCapabilitiesChanged","ConnectionHealthChanged","ConnectionReauthorizationRequired","ConnectionReauthorizationCompleted","ConnectionDisconnected","ConnectionContractChanged",
     "RequestPipelineStageStarted","RequestPipelineStageCompleted","RequestPipelineFailed","EventDeliveryTested","LegacyProvenanceMigrated","GmailWatchRenewed","GmailWatchRenewalFailed","GmailHistoryGapRecovered","EmailSyncCompleted","EmailSyncFailed",
-    "WorkingMemoryUpdated","WorkingMemoryRebuilt","BeliefStateCreated","BeliefStateRevised","BeliefContradicted","PredictionRecorded","PredictionResolved","CausalClaimRecorded","KnowledgeGapRecorded","KnowledgeGapInvestigated",
+    "WorkingMemoryUpdated","WorkingMemoryRebuilt","BeliefStateCreated","BeliefStateRevised","BeliefContradicted","PredictionRecorded","PredictionResolved","CausalClaimRecorded","KnowledgeGapRecorded","KnowledgeGapInvestigated","DecisionHeuristicEstablished","DecisionHeuristicRevised",
     "ConsolidationRunStarted","ConsolidationPhaseCompleted","ConsolidationPhaseFailed","ConsolidationDeferred","ConsolidationCompleted","MemoryCooled","SourceArchived","ResourceStateSampled",
     "ArchiveManifestCreated","ArchiveIntegrityVerified","ArchiveIntegrityFailed","RetentionDecisionRequested","RetentionDecisionApproved","RetentionDecisionRejected","RetentionApplied","StoragePressureAssessed","ArchiveMovedCold",
 ] as const;

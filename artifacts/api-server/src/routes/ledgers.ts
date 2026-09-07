@@ -1,9 +1,10 @@
 import { desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { db, eventLog, factLedger, interpretationLedger } from "@workspace/db";
+import { db, factLedger, interpretationLedger } from "@workspace/db";
 import { checkConstitution } from "../lib/constitution";
 import { assertFactProvenance, assertInterpretationEvidence, recordProvenance } from "../lib/provenance";
 import { recordBeliefState } from "../lib/epistemic-history";
+import { appendCanonicalMemoryEvent, assertCanonicalMemoryWrite } from "../lib/memory-write-boundary";
 const router: IRouter = Router();
 const FACT_TYPES = ["observed", "extracted", "declared", "verified"];
 const INTERPRETATION_TYPES = ["pattern", "prediction", "observation", "opportunity", "strategy", "simulation_result", "inference"];
@@ -19,9 +20,32 @@ router.post("/facts", async (req, res): Promise<void> => {
   if (!constitutional.permitted) { res.status(403).json({ error: "Constitution blocked this fact write.", constitutional }); return; }
   const now = new Date();
   const createdBy = typeof input.createdBy === "string" ? input.createdBy : "owner";
+  assertCanonicalMemoryWrite({
+    recordType: "fact",
+    operation: "create",
+    sourceRef: input.sourceEvidence[0],
+    sourceRefs: input.sourceEvidence,
+    epistemicType: input.factType,
+    origin: input.factType === "extracted" ? "source" : "owner",
+    sourceDerived: input.factType === "extracted",
+    currentOwner: input.currentOwner ?? createdBy,
+    actor: createdBy,
+    mode: undefined,
+  });
   const [item] = await db.insert(factLedger).values({ subject: String(input.subject), predicate: String(input.predicate), object: String(input.object), factType: input.factType, sourceEvidence: input.sourceEvidence, sourceRef: String(input.sourceEvidence[0]), confidence: input.confidence, propagatedConfidence: input.propagatedConfidence, confidenceLineage: input.confidenceLineage ?? {}, observedAt: input.observedAt ? new Date(input.observedAt) : now, firstSeen: now, lastConfirmed: input.factType === "verified" ? now : null, verifiedAt: input.factType === "verified" ? now : null, verifiable: Boolean(input.verifiable), relatedProjects: input.relatedProjects ?? [], relatedPeople: input.relatedPeople ?? [], createdBy, currentOwner: input.currentOwner ?? createdBy, importedFrom: input.importedFrom, generatedBy: input.generatedBy }).returning();
   await recordProvenance("fact", item.id, input.sourceEvidence, input.confidence);
-  await db.insert(eventLog).values({ eventType: "FactCreated", aggregateType: "fact_ledger", aggregateId: item.id, sourceRef: "fact-ledger", occurredAt: now, payload: { factType: item.factType, sourceEvidence: item.sourceEvidence } });
+  await appendCanonicalMemoryEvent({
+    recordType: "fact",
+    operation: "create",
+    sourceRef: input.sourceEvidence[0],
+    sourceRefs: input.sourceEvidence,
+    epistemicType: item.factType,
+    origin: item.factType === "extracted" ? "source" : "owner",
+    sourceDerived: item.factType === "extracted",
+    currentOwner: item.currentOwner,
+    actor: createdBy,
+    event: { eventType: "FactCreated", aggregateType: "fact_ledger", aggregateId: item.id, sourceRef: "fact-ledger", payload: { factType: item.factType, sourceEvidence: item.sourceEvidence } },
+  });
   res.status(201).json(item);
 });
 router.post("/interpretations", async (req, res): Promise<void> => {
@@ -35,9 +59,32 @@ router.post("/interpretations", async (req, res): Promise<void> => {
   const generatedBy = input.generatedBy as Record<string, unknown>;
   const createdBy = typeof input.createdBy === "string" ? input.createdBy : String(input.generatedByEngine);
   const inputFacts = input.inputFacts ?? [];
+  const interpretationRefs = [...new Set([...(inputFacts ?? []), ...(input.inputInterpretations ?? []), input.sourceRef].filter((value): value is string => typeof value === "string" && value.length > 0))];
+  assertCanonicalMemoryWrite({
+    recordType: "interpretation",
+    operation: "create",
+    sourceRef: input.sourceRef ?? inputFacts[0] ?? input.inputInterpretations[0],
+    sourceRefs: interpretationRefs,
+    origin: "engine",
+    generatedByEngine: input.generatedByEngine,
+    generatedBy,
+    currentOwner: input.currentOwner ?? createdBy,
+    actor: createdBy,
+  });
   const [item] = await db.insert(interpretationLedger).values({ statement: String(input.statement), interpretationType: input.interpretationType, inputFacts, inputInterpretations: input.inputInterpretations ?? [], basis: input.sourceRef ?? inputFacts[0] ?? input.inputInterpretations[0], sourceRef: input.sourceRef ?? inputFacts[0] ?? input.inputInterpretations[0], confidence: input.confidence, propagatedConfidence: input.propagatedConfidence, confidenceLineage: input.confidenceLineage ?? {}, whyChain: input.whyChain, generatedByEngine: input.generatedByEngine, validFrom: now, status: "active", canonLevel: "working", needsReview: Boolean(input.needsReview), createdBy, currentOwner: input.currentOwner ?? createdBy, importedFrom: input.importedFrom, generatedBy }).returning();
   await recordProvenance("interpretation", item.id, [...new Set([...(input.inputFacts ?? []), ...(input.inputInterpretations ?? [])])], input.confidence);
-  await db.insert(eventLog).values({ eventType: "InterpretationCreated", aggregateType: "interpretation_ledger", aggregateId: item.id, sourceRef: "interpretation-ledger", occurredAt: now, payload: { interpretationType: item.interpretationType, inputFacts: item.inputFacts } });
+  await appendCanonicalMemoryEvent({
+    recordType: "interpretation",
+    operation: "create",
+    sourceRef: item.sourceRef,
+    sourceRefs: interpretationRefs,
+    origin: "engine",
+    generatedByEngine: item.generatedByEngine,
+    generatedBy: item.generatedBy,
+    currentOwner: item.currentOwner,
+    actor: createdBy,
+    event: { eventType: "InterpretationCreated", aggregateType: "interpretation_ledger", aggregateId: item.id, sourceRef: "interpretation-ledger", payload: { interpretationType: item.interpretationType, inputFacts: item.inputFacts } },
+  });
   await recordBeliefState({ beliefKey: `interpretation:${item.id}`, conclusion: item.statement, interpretationId: item.id, evidenceRefs: [...new Set([...(item.inputFacts ?? []), ...(item.inputInterpretations ?? []), item.sourceRef])], sourceRef: item.sourceRef, confidence: item.confidence, generatedByEngine: item.generatedByEngine, generatedBy: item.generatedBy ?? {}, revisionReason: "Initial Interpretation Ledger state" });
   res.status(201).json(item);
 });

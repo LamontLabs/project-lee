@@ -4,6 +4,7 @@ import {
   db, eventLog, factLedger, graphEdge, graphNode, interpretationLedger, person, provenanceRecord, sourceChunk, sourceVault, understandingReviewItem, understandingRun, universalObject,
 } from "@workspace/db";
 import { extractUnderstanding } from "./understanding";
+import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 export type ImportInput = {
   filename: string; mimeType: string; content: string; metadata?: Record<string, unknown>;
@@ -103,7 +104,9 @@ export async function importSource(input: ImportInput) {
   for (const chunk of chunkRows) {
     const entities = await detectEntities(chunk.content);
     const extraction = extractUnderstanding({ sourceType: input.mimeType, sourceRef: source.id, content: chunk.content, sourceReliability: "medium" });
+    assertCanonicalMemoryWrite({ recordType: "fact", operation: "create", sourceRef: source.id, sourceRefs: [source.id], epistemicType: "extracted", origin: "source", sourceDerived: true, currentOwner: "owner", actor: "Understanding Pipeline" });
     const facts = await db.insert(factLedger).values(extraction.facts.map((fact) => ({ subject: fact.subject, predicate: fact.predicate, object: fact.object, factType: "extracted", sourceEvidence: [source.id], sourceRef: source.id, confidence: fact.confidence, generatedBy: { engineId: "Understanding Pipeline", runType: "source_extraction" }, observedAt: now, firstSeen: now, status: "active", canonLevel: "candidate" }))).returning();
+    assertCanonicalMemoryWrite({ recordType: "interpretation", operation: "create", sourceRef: source.id, sourceRefs: [source.id, ...facts.map((fact) => fact.id)], origin: "engine", generatedByEngine: "Understanding Pipeline", generatedBy: { engineId: "Understanding Pipeline", runType: "source_interpretation" }, currentOwner: "owner", actor: "Understanding Pipeline" });
     const interpretations = await db.insert(interpretationLedger).values(extraction.interpretations.map((item) => ({ statement: item.statement, interpretationType: "inference", inputFacts: facts.map((fact) => fact.id), inputInterpretations: [], basis: source.id, sourceRef: source.id, confidence: item.confidence, whyChain: [{ step_type: "fact_confirmed", statement: "The interpretation is grounded in extracted facts.", evidence_id: facts[0]?.id ?? source.id, confidence: item.confidence, engine_name: "Understanding Pipeline" }, { step_type: "freshness_threshold", statement: "The source is part of the current understanding run.", evidence_id: source.id, confidence: 0.5, engine_name: "Understanding Pipeline" }], generatedBy: { engineId: "Understanding Pipeline", runType: "source_interpretation" }, validFrom: now, status: "active", canonLevel: "working", generatedByEngine: "Understanding Pipeline" }))).returning();
     factCount += facts.length; interpretationCount += interpretations.length;
     await db.insert(provenanceRecord).values([...facts.map((fact) => ({ runId: activeRun.id, recordType: "fact", recordId: fact.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: fact.confidence })), ...interpretations.map((item) => ({ runId: activeRun.id, recordType: "interpretation", recordId: item.id, sourceRef: source.id, excerpt: chunk.content.slice(0, 500), confidence: item.confidence }))]);

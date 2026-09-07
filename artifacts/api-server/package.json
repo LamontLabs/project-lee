@@ -38,6 +38,7 @@
     "test:epistemic-history": "../lee-desktop/node_modules/.bin/tsx --test scripts/epistemic-history.test.ts",
     "test:memory-consolidation": "../lee-desktop/node_modules/.bin/tsx --test scripts/memory-consolidation.test.ts",
     "test:memory-health": "../lee-desktop/node_modules/.bin/tsx --test scripts/memory-health.test.ts",
+    "test:memory-write-boundary": "../lee-desktop/node_modules/.bin/tsx --test scripts/memory-write-boundary.test.ts",
     "test:retention": "../lee-desktop/node_modules/.bin/tsx --test scripts/retention.test.ts",
     "test:cognitive-runtime": "../lee-desktop/node_modules/.bin/tsx --test scripts/cognitive-runtime.test.ts",
     "test:desktop-discovery": "../lee-desktop/node_modules/.bin/tsx scripts/desktop-discovery-sanitization.test.ts",

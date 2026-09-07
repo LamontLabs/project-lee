@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db, decisionHeuristicLedger, eventLog } from "@workspace/db";
+import { appendCanonicalMemoryEvent, assertCanonicalMemoryWrite } from "./memory-write-boundary";
 
 type Observation = {
   pattern: string;
@@ -26,6 +27,7 @@ export async function recordDecisionObservation(observation: Observation) {
   const now = new Date();
   const previousEvidence = existing?.evidenceRefs ?? [];
   const evidenceRef = observation.evidenceRef ?? observation.sourceRef ?? `decision-observation:${now.toISOString()}`;
+  if (!observation.evidenceRef && !observation.sourceRef) throw new Error("Decision observations require an evidence reference.");
   if (existing && previousEvidence.includes(evidenceRef)) return existing;
   const evidenceRefs = previousEvidence.includes(evidenceRef) ? previousEvidence : [...previousEvidence, evidenceRef];
   const priorSupport = Number(existing?.evidence?.supportCount ?? 0);
@@ -34,6 +36,7 @@ export async function recordDecisionObservation(observation: Observation) {
   const exceptionCount = priorExceptions + (observation.outcome === "exception" ? 1 : 0);
   const confidence = confidenceFor(supportCount, exceptionCount);
   const statement = observation.statement ?? `The owner tends to ${observation.outcome === "support" ? "favor" : "make exceptions to"} ${observation.pattern}.`;
+  assertCanonicalMemoryWrite({ recordType: "decision_heuristic", operation: existing ? "update" : "create", sourceRef: observation.sourceRef ?? evidenceRef, sourceRefs: evidenceRefs, origin: "engine", generatedByEngine: "Decision Memory", generatedBy: { engineId: "Decision Memory", outcome: observation.outcome }, currentOwner: "owner", actor: "Decision Memory" });
   const [heuristic] = existing
     ? await db.update(decisionHeuristicLedger).set({
       rule: observation.statement ?? existing.rule,
@@ -60,14 +63,7 @@ export async function recordDecisionObservation(observation: Observation) {
       createdAt: now,
       updatedAt: now,
     }).returning();
-  await db.insert(eventLog).values({
-    eventType: existing ? "DecisionHeuristicRevised" : "DecisionHeuristicEstablished",
-    aggregateType: "decision_heuristic",
-    aggregateId: heuristic.id,
-    sourceRef: observation.sourceRef ?? "decision-memory",
-    occurredAt: now,
-    payload: { heuristicId: heuristic.id, pattern: observation.pattern, outcome: observation.outcome, confidence, evidenceRef },
-  });
+  await appendCanonicalMemoryEvent({ recordType: "decision_heuristic", operation: existing ? "update" : "create", sourceRef: observation.sourceRef ?? evidenceRef, sourceRefs: evidenceRefs, origin: "engine", generatedByEngine: "Decision Memory", generatedBy: { engineId: "Decision Memory", outcome: observation.outcome }, currentOwner: "owner", actor: "Decision Memory", event: { eventType: existing ? "DecisionHeuristicRevised" : "DecisionHeuristicEstablished", aggregateType: "decision_heuristic", aggregateId: heuristic.id, sourceRef: observation.sourceRef ?? evidenceRef, payload: { heuristicId: heuristic.id, pattern: observation.pattern, outcome: observation.outcome, confidence, evidenceRef } } });
   return heuristic;
 }
 

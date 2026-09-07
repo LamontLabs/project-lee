@@ -141,16 +141,21 @@ jobs:
         run: |
           $installers = Get-ChildItem artifacts/lee-desktop/release/*.exe -File
           if ($installers.Count -eq 0) { throw "No Windows installer was produced." }
-          $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
-          if (-not $signtool) {
-            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
-          }
-          if (-not $signtool) { throw "Windows SDK signtool.exe is unavailable on the runner." }
-          $signtoolPath = if ($signtool.PSObject.Properties.Name -contains "Source") { $signtool.Source } else { $signtool.FullName }
-          $publicCertificate = (Resolve-Path "artifacts/lee-desktop/resources/lee-signing.cer").Path
+          $publicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            (Resolve-Path "artifacts/lee-desktop/resources/lee-signing.cer").Path
+          )
+          $expectedThumbprint = $publicCertificate.Thumbprint.ToUpperInvariant()
           foreach ($installer in $installers) {
-            & $signtoolPath verify /pa /all /c $publicCertificate $installer.FullName
-            if ($LASTEXITCODE -ne 0) { throw "$($installer.Name) failed signtool verification." }
+            $signature = Get-AuthenticodeSignature $installer.FullName
+            if ($null -eq $signature.SignerCertificate) {
+              throw "$($installer.Name) has no Authenticode signer certificate."
+            }
+            if ($signature.SignerCertificate.Thumbprint.ToUpperInvariant() -ne $expectedThumbprint) {
+              throw "$($installer.Name) is signed by an unexpected certificate: $($signature.SignerCertificate.Thumbprint)."
+            }
+            if ($signature.Status -notin @("Valid", "Unknown")) {
+              throw "$($installer.Name) has an invalid Authenticode signature status: $($signature.Status)."
+            }
           }
       - name: Write Windows release metadata
         run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform windows

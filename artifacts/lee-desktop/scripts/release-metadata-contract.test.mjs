@@ -14,9 +14,11 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /EphemeralKeySet/);
   assert.match(workflow, /Prepare public Windows signing certificate for CI verification/);
   assert.match(workflow, /storeMutation = "not-performed"/);
-  assert.match(workflow, /signtoolPath verify \/pa \/all \/c \$publicCertificate/);
+  assert.match(workflow, /Get-AuthenticodeSignature/);
+  assert.match(workflow, /SignerCertificate\.Thumbprint/);
+  assert.match(workflow, /expectedThumbprint/);
   assert.doesNotMatch(workflow, /certutil\.exe|HKCU:\\Software\\Microsoft\\SystemCertificates|Import-Certificate|Import-PfxCertificate|StoreLocation\]::LocalMachine|CertOpenStore|CertOpenSystemStore|CertAddEncodedCertificateToStore|LeeCertificateStoreNative/);
-  assert.doesNotMatch(workflow, /result\.exitCode|certutil could not add|Get-AuthenticodeSignature/);
+  assert.doesNotMatch(workflow, /result\.exitCode|certutil could not add/);
   assert.match(workflow, /resources\\lee-signing\.cer/);
   assert.doesNotMatch(workflow, /macos|macOS|latest-mac|LEE_APPLE|LEE_MACOS|merge-mac/i);
 });

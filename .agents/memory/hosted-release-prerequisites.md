@@ -21,6 +21,12 @@ The Windows installer bootstraps the owner's trust automatically by importing on
 
 **How to apply:** Keep the installer trust bootstrap limited to the exact public certificate produced from the release PFX, and verify that bootstrap on a real Windows runner before treating the first release as complete.
 
+Hosted release validation also needs explicit bounds and retained diagnostics around platform smoke and certificate-trust phases; a tagged run can remain active without downloadable logs while those phases stall.
+
+**Why:** Repeated real tagged runs reached Linux runtime smoke and Windows certificate trust after all builds passed, but neither active step produced a terminal result or live log evidence.
+
+**How to apply:** Add process/step timeouts and always-uploaded phase evidence before relying on a tagged workflow as proof of a signed desktop release.
+
 The Replit GitHub OAuth connector's `repo` scope can create a private repository and administer Actions settings, but its offered scope set may omit GitHub's separate `workflow` authorization. In that case GitHub rejects writes under `.github/workflows/` even when repository admin access is present.
 
 **Why:** Repository write access and workflow-file write access are distinct GitHub permissions; retrying or reconnecting with the same offered scope set cannot add a missing scope.

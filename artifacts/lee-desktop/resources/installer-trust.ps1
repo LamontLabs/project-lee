@@ -37,13 +37,61 @@ try {
     exit 0
   }
 
-  $certutilPath = Join-Path $env:WINDIR "System32\certutil.exe"
+  Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class ProjectLeeCertificateStore
+{
+    [DllImport("crypt32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr CertOpenStore(
+        IntPtr storeProvider,
+        uint encodingType,
+        IntPtr cryptographicProvider,
+        uint flags,
+        string storeName);
+
+    [DllImport("crypt32.dll", SetLastError = true)]
+    public static extern bool CertAddEncodedCertificateToStore(
+        IntPtr certificateStore,
+        uint encodingType,
+        byte[] encodedCertificate,
+        int encodedCertificateLength,
+        uint addDisposition,
+        IntPtr certificateContext);
+
+    [DllImport("crypt32.dll", SetLastError = true)]
+    public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
+}
+"@
+
+  $certificateBytes = $certificate.RawData
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    & $certutilPath "-user" "-addstore" "-f" $storeName $CertificatePath 2>&1 | Add-Content $tracePath
-    $certutilExitCode = $LASTEXITCODE
-    if ($certutilExitCode -ne 0) {
-      throw "certutil failed for CurrentUser $storeName with exit code $certutilExitCode"
+    $store = [ProjectLeeCertificateStore]::CertOpenStore(
+      [IntPtr]10,
+      [uint32]0x00010001,
+      [IntPtr]::Zero,
+      [uint32]0x00010000,
+      $storeName
+    )
+    if ($store -eq [IntPtr]::Zero) {
+      throw "CertOpenStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+    }
+    try {
+      $added = [ProjectLeeCertificateStore]::CertAddEncodedCertificateToStore(
+        $store,
+        [uint32]0x00010001,
+        $certificateBytes,
+        $certificateBytes.Length,
+        [uint32]3,
+        [IntPtr]::Zero
+      )
+      if (-not $added) {
+        throw "CertAddEncodedCertificateToStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+      }
+    } finally {
+      [ProjectLeeCertificateStore]::CertCloseStore($store, 0) | Out-Null
     }
     "imported-$storeName" | Add-Content $tracePath
   }

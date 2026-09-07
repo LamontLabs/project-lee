@@ -28,8 +28,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installer, /File \/oname=installer-trust\.ps1/);
   assert.match(installer, /-File "\$INSTDIR\\resources\\installer-trust\.ps1"/);
   assert.doesNotMatch(installer, /certutil\.exe/);
-  assert.match(installerTrust, /certutil\.exe/);
-  assert.match(installerTrust, /"-user" "-addstore" "-f"/);
+  assert.match(installerTrust, /CertOpenStore/);
+  assert.match(installerTrust, /CertAddEncodedCertificateToStore/);
   assert.match(installerTrust, /VerifyOnly/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);

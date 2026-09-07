@@ -310,6 +310,7 @@ try {
 
   Set-Phase "validate-installer" "Checking the downloaded installer."
   Assert-True (Test-Path $InstallerPath) "installer is missing: $InstallerPath"
+  Unblock-File -Path $InstallerPath -ErrorAction SilentlyContinue
   @'
 param(
   [Parameter(Mandatory = $true)]

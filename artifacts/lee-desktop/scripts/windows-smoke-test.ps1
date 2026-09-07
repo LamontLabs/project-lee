@@ -167,11 +167,13 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
 
 function Wait-ForPackagedCertificateTrusted([string] $certificatePath) {
   $deadline = [DateTime]::UtcNow.AddSeconds(60)
+  $lastError = $null
   do {
     try {
       Assert-PackagedCertificateTrusted $certificatePath
       return
     } catch {
+      $lastError = $_
       if ([DateTime]::UtcNow -ge $deadline) { throw }
       Start-Sleep -Seconds 1
     }

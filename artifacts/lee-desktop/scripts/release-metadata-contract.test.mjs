@@ -37,3 +37,12 @@ test("release workflow rejects branch and malformed manual dispatches", () => {
   assert.match(workflow, /linux-package:\s*\n\s+needs: validate-release-ref/);
   assert.doesNotMatch(workflow, /macos-package|macOS|APPLE_ID|LEE_MACOS/);
 });
+
+test("Windows installer validation uses a fresh non-admin user profile", () => {
+  assert.match(workflow, /Validate clean non-admin Windows installation/);
+  assert.match(workflow, /New-LocalUser -Name \$userName/);
+  assert.match(workflow, /-Credential \$credential/);
+  assert.match(workflow, /-LoadUserProfile/);
+  assert.match(workflow, /-RequireNonAdmin/);
+  assert.match(workflow, /Remove-LocalUser -Name \$userName/);
+});

@@ -2,7 +2,9 @@ param(
   [Parameter(Mandatory = $true)]
   [string] $InstallerPath,
   [Parameter(Mandatory = $false)]
-  [string] $EvidencePath
+  [string] $EvidencePath,
+  [Parameter(Mandatory = $false)]
+  [switch] $RequireNonAdmin
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +24,7 @@ $phase = "initialize"
 $smokeStartedAt = [DateTime]::UtcNow.ToString("o")
 $markers = @()
 $lastOperation = $null
+$certificateEvidence = $null
 
 New-Item -ItemType Directory -Force $testRoot | Out-Null
 
@@ -45,6 +48,7 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
     appPath = $appExe
     lastOperation = $lastOperation
     markers = $markers
+    certificateTrust = $certificateEvidence
     processState = $processState
   }
   if ($null -ne $failure) {
@@ -71,31 +75,93 @@ function Assert-True([bool] $condition, [string] $message) {
   if (-not $condition) { throw "LEE Windows smoke test failed: $message" }
 }
 
-function Assert-PackagedCertificateTrusted([string] $certificatePath) {
-  Assert-True (Test-Path $certificatePath) "installed package is missing its packaged signing certificate: $certificatePath"
-  $packagedCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
-  $certificateThumbprint = $packagedCertificate.Thumbprint
-  Assert-True (-not [string]::IsNullOrWhiteSpace($certificateThumbprint)) "packaged Project LEE signing certificate has no usable identity"
+function Get-StoreCertificateMatches(
+  [string] $storeName,
+  [System.Security.Cryptography.X509Certificates.StoreLocation] $storeLocation,
+  [string] $thumbprint
+) {
+  $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($storeName, $storeLocation)
+  try {
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+    return @($store.Certificates.Find(
+      [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+      $thumbprint,
+      $false
+    ))
+  } finally {
+    $store.Close()
+  }
+}
 
-  foreach ($storeName in @("Root", "TrustedPublisher")) {
+function Assert-NoPreexistingProjectLeeCertificate {
+  foreach ($storeName in @("Root", "TrustedPublisher", "My", "CA", "TrustedPeople")) {
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
       $storeName,
       [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
     )
     try {
       $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
-      $trustedCertificates = $store.Certificates.Find(
-        [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
-        $certificateThumbprint,
-        $false
-      )
-      Assert-True (
-        $trustedCertificates.Count -gt 0
-      ) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
-      Write-Host "Verified packaged Project LEE certificate $certificateThumbprint in the current user's $storeName store."
+      $matches = @($store.Certificates | Where-Object {
+        $_.Subject -match "(?i)Project[\s-]?LEE" -or $_.Issuer -match "(?i)Project[\s-]?LEE"
+      })
+      Assert-True ($matches.Count -eq 0) "clean smoke user already has a Project LEE certificate in its current user's $storeName store"
     } finally {
       $store.Close()
     }
+  }
+}
+
+function Assert-PackagedCertificateTrusted([string] $certificatePath) {
+  Assert-True (Test-Path $certificatePath) "installed package is missing its packaged signing certificate: $certificatePath"
+  $packagedCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
+  $certificateThumbprint = $packagedCertificate.Thumbprint
+  Assert-True (-not [string]::IsNullOrWhiteSpace($certificateThumbprint)) "packaged Project LEE signing certificate has no usable identity"
+  Assert-True (-not $packagedCertificate.HasPrivateKey) "installed Project LEE signing certificate unexpectedly contains a private key"
+
+  $resourcesRoot = Split-Path $certificatePath
+  $privateKeyFiles = @(
+    Get-ChildItem $resourcesRoot -Recurse -File -ErrorAction Stop |
+      Where-Object {
+        $_.Name -match "(?i)(signing|project[-_]?lee).*(pfx|p12|pvk|key|pem)$" -or
+        $_.Extension -in @(".pfx", ".p12", ".pvk")
+      }
+  )
+  Assert-True ($privateKeyFiles.Count -eq 0) "installed resources contain possible private signing material: $($privateKeyFiles.FullName -join ', ')"
+
+  $verifiedCurrentUserStores = @()
+  foreach ($storeName in @("Root", "TrustedPublisher")) {
+    $trustedCertificates = Get-StoreCertificateMatches $storeName `
+      ([System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser) `
+      $certificateThumbprint
+    Assert-True (
+      $trustedCertificates.Count -gt 0
+    ) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
+    $verifiedCurrentUserStores += $storeName
+    Write-Host "Verified packaged Project LEE certificate $certificateThumbprint in the current user's $storeName store."
+  }
+
+  foreach ($storeName in @("My", "CA", "TrustedPeople", "Disallowed")) {
+    $matches = Get-StoreCertificateMatches $storeName `
+      ([System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser) `
+      $certificateThumbprint
+    Assert-True ($matches.Count -eq 0) "packaged Project LEE certificate was unexpectedly added to the current user's $storeName store"
+  }
+
+  foreach ($storeName in @("Root", "TrustedPublisher")) {
+    $matches = Get-StoreCertificateMatches $storeName `
+      ([System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine) `
+      $certificateThumbprint
+    Assert-True ($matches.Count -eq 0) "packaged Project LEE certificate was unexpectedly added to the local machine's $storeName store; installer trust must remain current-user scoped"
+  }
+
+  $script:certificateEvidence = [ordered]@{
+    subject = $packagedCertificate.Subject
+    thumbprint = $certificateThumbprint
+    privateKeyPresent = $packagedCertificate.HasPrivateKey
+    privateKeyFiles = @($privateKeyFiles | ForEach-Object { $_.FullName })
+    currentUserStores = @($verifiedCurrentUserStores)
+    currentUserForbiddenStores = @("My", "CA", "TrustedPeople", "Disallowed")
+    localMachineStoresChecked = @("Root", "TrustedPublisher")
   }
 }
 
@@ -234,6 +300,13 @@ public static class LeeMouse {
 }
 
 try {
+  $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+  $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
+  $isAdministrator = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+  Assert-True (-not $RequireNonAdmin -or -not $isAdministrator) "clean installer smoke must run as a non-admin user"
+  Set-Phase "preinstall-certificate-state" "Confirming the smoke user has no pre-existing Project LEE certificate."
+  Assert-NoPreexistingProjectLeeCertificate
+
   Set-Phase "validate-installer" "Checking the downloaded installer."
   Assert-True (Test-Path $InstallerPath) "installer is missing: $InstallerPath"
   @'

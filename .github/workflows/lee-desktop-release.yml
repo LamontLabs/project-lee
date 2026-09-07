@@ -357,14 +357,48 @@ NODE
         with:
           name: lee-windows-installer
           path: ${{ runner.temp }}/lee-installer
-      - name: Validate disposable Windows installation
+      - name: Validate clean non-admin Windows installation
         shell: pwsh
         run: |
           $installer = Get-ChildItem "$env:RUNNER_TEMP\lee-installer\*.exe" | Select-Object -First 1
           if (-not $installer) { throw "Downloaded NSIS installer is missing." }
-          & "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\scripts\windows-smoke-test.ps1" `
-            -InstallerPath $installer.FullName `
-            -EvidencePath "$env:GITHUB_WORKSPACE\windows-smoke-evidence.json"
+          $userName = "lee-installer-smoke-owner"
+          $password = ConvertTo-SecureString "$([guid]::NewGuid().ToString('N'))!aA1" -AsPlainText -Force
+          $evidencePath = Join-Path $env:RUNNER_TEMP "windows-smoke-evidence.json"
+          $stdoutPath = Join-Path $env:RUNNER_TEMP "windows-smoke-owner.stdout.log"
+          $stderrPath = Join-Path $env:RUNNER_TEMP "windows-smoke-owner.stderr.log"
+          $scriptPath = Join-Path $env:GITHUB_WORKSPACE "artifacts\lee-desktop\scripts\windows-smoke-test.ps1"
+          New-LocalUser -Name $userName -Password $password -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
+          try {
+            $credential = [System.Management.Automation.PSCredential]::new(".\$userName", $password)
+            $process = Start-Process -FilePath "pwsh.exe" `
+              -Credential $credential `
+              -LoadUserProfile `
+              -WorkingDirectory $env:GITHUB_WORKSPACE `
+              -ArgumentList @(
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-File", $scriptPath,
+                "-InstallerPath", $installer.FullName,
+                "-EvidencePath", $evidencePath,
+                "-RequireNonAdmin"
+              ) `
+              -RedirectStandardOutput $stdoutPath `
+              -RedirectStandardError $stderrPath `
+              -Wait `
+              -PassThru
+            if ($process.ExitCode -ne 0) {
+              if (Test-Path $stdoutPath) { Get-Content $stdoutPath }
+              if (Test-Path $stderrPath) { Get-Content $stderrPath }
+              throw "Clean non-admin Windows installer smoke test exited with $($process.ExitCode)."
+            }
+          } finally {
+            if (Test-Path $evidencePath) {
+              Copy-Item $evidencePath "$env:GITHUB_WORKSPACE\windows-smoke-evidence.json" -Force
+            }
+            Remove-LocalUser -Name $userName -ErrorAction SilentlyContinue
+          }
       - name: Retain Windows installer smoke evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -27,6 +27,11 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /StoreLocation\]::CurrentUser/);
   assert.match(windowsSmoke, /FindByThumbprint/);
   assert.match(windowsSmoke, /certificateThumbprint = \$packagedCertificate\.Thumbprint/);
+  assert.match(windowsSmoke, /RequireNonAdmin/);
+  assert.match(windowsSmoke, /Assert-NoPreexistingProjectLeeCertificate/);
+  assert.match(windowsSmoke, /HasPrivateKey/);
+  assert.match(windowsSmoke, /StoreLocation\]::LocalMachine/);
+  assert.match(windowsSmoke, /private signing material/);
   assert.match(windowsSmoke, /automatic trust bootstrap may have regressed/);
   assert.doesNotMatch(builder, /win:[\s\S]*extraResources:/);
   assert.match(runtime, /join\(process\.resourcesPath, "postgres", "bin"\)/);

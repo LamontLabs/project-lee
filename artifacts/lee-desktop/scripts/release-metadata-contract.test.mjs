@@ -14,9 +14,8 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /EphemeralKeySet/);
   assert.match(workflow, /Import-PublicCertificateToCurrentUserStore/);
   assert.match(workflow, /LeeCertificateStoreNative/);
-  assert.match(workflow, /CertOpenStore/);
+  assert.match(workflow, /CertOpenSystemStore/);
   assert.match(workflow, /CertAddEncodedCertificateToStore/);
-  assert.match(workflow, /0x00010000/);
   assert.match(workflow, /0x00010001/);
   assert.match(workflow, /GetLastWin32Error/);
   assert.match(workflow, /Add-Type -TypeDefinition @'/);

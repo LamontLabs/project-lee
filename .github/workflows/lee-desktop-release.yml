@@ -92,40 +92,34 @@ jobs:
             Write-Host "[certificate-trust] $phase - $message"
             Write-TrustEvidence
           }
-          function Invoke-BoundedCertificateImport([string] $store, [string] $certificatePath) {
-            # Bounded noninteractive equivalent of: certutil.exe -user -f -addstore <store> <certificate>
-            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-            $startInfo.FileName = "certutil.exe"
-            $startInfo.UseShellExecute = $false
-            $startInfo.CreateNoWindow = $true
-            $startInfo.RedirectStandardInput = $true
-            $startInfo.RedirectStandardOutput = $true
-            $startInfo.RedirectStandardError = $true
-            foreach ($argument in @("-user", "-f", "-addstore", $store, $certificatePath)) {
-              [void] $startInfo.ArgumentList.Add($argument)
+          function Import-PublicCertificateToCurrentUserStore(
+            [string] $store,
+            [string] $certificatePath
+          ) {
+            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
+            $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
+            $certificateKey = "HKCU:\Software\Microsoft\SystemCertificates\$store\Certificates\$thumbprint"
+            New-Item -Path $certificateKey -Force | Out-Null
+            Set-ItemProperty -Path $certificateKey -Name Blob -Value ([IO.File]::ReadAllBytes($certificatePath))
+
+            $certificateStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+              $store,
+              [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+            )
+            try {
+              $certificateStore.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+              $matches = @($certificateStore.Certificates | Where-Object { $_.Thumbprint -eq $thumbprint })
+            } finally {
+              $certificateStore.Close()
             }
-            $process = [System.Diagnostics.Process]::new()
-            $process.StartInfo = $startInfo
-            if (-not $process.Start()) { throw "certutil could not start for $store." }
-            $process.StandardInput.WriteLine("y")
-            $process.StandardInput.Close()
-            $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-            $stderrTask = $process.StandardError.ReadToEndAsync()
-            if (-not $process.WaitForExit(60000)) {
-              try { $process.Kill($true) } catch { }
-              $stdout = $stdoutTask.GetAwaiter().GetResult()
-              $stderr = $stderrTask.GetAwaiter().GetResult()
-              throw "certutil timed out after 60 seconds while importing into the current user's $store store. stdout=$stdout stderr=$stderr"
+            if ($matches.Count -ne 1) {
+              throw "The public certificate was not recognized exactly once in the current user's $store store."
             }
-            $process.WaitForExit()
-            $stdout = $stdoutTask.GetAwaiter().GetResult()
-            $stderr = $stderrTask.GetAwaiter().GetResult()
             return [ordered]@{
               store = $store
               storeLocation = "CurrentUser"
-              exitCode = $process.ExitCode
-              stdout = $stdout
-              stderr = $stderr
+              thumbprint = $thumbprint
+              imported = $true
             }
           }
 
@@ -147,11 +141,8 @@ jobs:
             foreach ($store in @("Root", "TrustedPublisher")) {
               Write-TrustMarker "import-$store-start" "Importing the public certificate into the current user's $store store."
               try {
-                $result = Invoke-BoundedCertificateImport $store $certificatePath
+                $result = Import-PublicCertificateToCurrentUserStore $store $certificatePath
                 $trustEvidence.stores += $result
-                if ($result.exitCode -ne 0) {
-                  throw "certutil could not add the signing certificate to the current user's $store store (exit code $($result.exitCode)). stdout=$($result.stdout) stderr=$($result.stderr)"
-                }
                 Write-TrustMarker "import-$store-complete" "The current user's $store store accepted the public certificate."
               } catch {
                 $trustEvidence.status = "failed"

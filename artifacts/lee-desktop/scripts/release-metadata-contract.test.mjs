@@ -49,6 +49,7 @@ test("Windows installer validation uses a fresh non-admin user profile", () => {
   assert.match(workflow, /-Credential \$credential/);
   assert.match(workflow, /-LoadUserProfile/);
   assert.match(workflow, /-RequireNonAdmin/);
+  assert.match(workflow, /\$userName = "lee-smoke-owner"/);
   assert.match(workflow, /Remove-LocalUser -Name \$userName/);
 });
 

@@ -28,7 +28,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installer, /File \/oname=installer-trust\.ps1/);
   assert.match(installer, /-File "\$INSTDIR\\resources\\installer-trust\.ps1"/);
   assert.doesNotMatch(installer, /certutil\.exe/);
-  assert.match(installerTrust, /Registry\]::CurrentUser/);
+  assert.match(installerTrust, /CertStoreLocation "Cert:\\CurrentUser\\\$storeName"/);
   assert.match(installerTrust, /VerifyOnly/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);
@@ -54,7 +54,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /HasPrivateKey/);
   assert.match(windowsSmoke, /StoreLocation\]::LocalMachine/);
   assert.match(windowsSmoke, /private signing material/);
-  assert.match(windowsSmoke, /automatic trust bootstrap may have regressed/);
+  assert.match(windowsSmoke, /fresh certificate-store verification exited/);
   assert.doesNotMatch(builder, /win:[\s\S]*extraResources:/);
   assert.match(runtime, /join\(process\.resourcesPath, "postgres", "bin"\)/);
   assert.match(runtime, /LD_LIBRARY_PATH/);

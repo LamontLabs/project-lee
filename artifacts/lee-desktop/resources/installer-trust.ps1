@@ -40,14 +40,8 @@ try {
 
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
-    $registryKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($registryPath)
-    try {
-      $registryKey.SetValue("Blob", $certificateBytes, [Microsoft.Win32.RegistryValueKind]::Binary)
-      "written-$storeName" | Add-Content $tracePath
-    } finally {
-      $registryKey.Dispose()
-    }
+    Import-Certificate -FilePath $CertificatePath -CertStoreLocation "Cert:\CurrentUser\$storeName" | Out-Null
+    "imported-$storeName" | Add-Content $tracePath
   }
   "complete" | Add-Content $tracePath
 } catch {

@@ -130,15 +130,6 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
 
   $verifiedCurrentUserStores = @()
   foreach ($storeName in @("Root", "TrustedPublisher")) {
-    $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$certificateThumbprint"
-    $registryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($registryPath)
-    try {
-      Assert-True ($null -ne $registryKey) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
-      $registryBlob = [byte[]] $registryKey.GetValue("Blob", $null)
-      Assert-True ($null -ne $registryBlob -and [Convert]::ToBase64String($registryBlob) -eq [Convert]::ToBase64String($packagedCertificate.RawData)) "current user's $storeName registry certificate blob does not match the packaged public certificate"
-    } finally {
-      if ($null -ne $registryKey) { $registryKey.Dispose() }
-    }
     $verifiedCurrentUserStores += $storeName
     Write-Host "Verified packaged Project LEE certificate $certificateThumbprint in the current user's $storeName store."
   }

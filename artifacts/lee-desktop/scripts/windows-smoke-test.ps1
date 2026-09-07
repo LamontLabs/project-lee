@@ -180,6 +180,25 @@ function Wait-ForPackagedCertificateTrusted([string] $certificatePath) {
   } while ($true)
 }
 
+function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
+  $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
+  Assert-True (Test-Path $trustScriptPath) "installed certificate trust helper is missing: $trustScriptPath"
+  $trustProcess = Start-Process `
+    -FilePath (Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe") `
+    -ArgumentList @(
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy", "Bypass",
+      "-File", $trustScriptPath,
+      "-CertificatePath", $certificatePath
+    ) `
+    -WindowStyle Hidden `
+    -Wait `
+    -PassThru
+  Assert-True ($trustProcess.ExitCode -eq 0) "installed certificate trust helper exited with $($trustProcess.ExitCode)"
+}
+
 function Stop-ProcessTree([int] $processId) {
   & taskkill.exe /pid $processId /t /f 2>$null | Out-Null
 }
@@ -386,7 +405,9 @@ try {
   $appExe = $appExe.FullName
   $installDir = Split-Path -Parent $appExe
   Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
-  Wait-ForPackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
+  $installedCertificatePath = Join-Path (Split-Path $appExe) "resources\lee-signing.cer"
+  Invoke-InstalledCertificateBootstrap $installedCertificatePath
+  Wait-ForPackagedCertificateTrusted $installedCertificatePath
   Set-Phase "migration-assets" "Checking packaged migration assets."
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `
     --resources-root (Join-Path (Split-Path $appExe) "resources") `

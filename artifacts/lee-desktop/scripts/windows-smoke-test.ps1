@@ -183,23 +183,19 @@ function Wait-ForPackagedCertificateTrusted([string] $certificatePath) {
 function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
   $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
   Assert-True (Test-Path $trustScriptPath) "installed certificate trust helper is missing: $trustScriptPath"
-  $trustProcess = Start-Process `
-    -FilePath (Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe") `
-    -ArgumentList @(
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-ExecutionPolicy", "Bypass",
-      "-File", "`"$trustScriptPath`"",
-      "-CertificatePath", "`"$certificatePath`""
-    ) `
-    -WindowStyle Hidden `
-    -Wait `
-    -PassThru
-  if ($trustProcess.ExitCode -ne 0) {
+  $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+  & $powershellPath `
+    -NoLogo `
+    -NoProfile `
+    -NonInteractive `
+    -ExecutionPolicy Bypass `
+    -File $trustScriptPath `
+    -CertificatePath $certificatePath
+  $trustExitCode = $LASTEXITCODE
+  if ($trustExitCode -ne 0) {
     $tracePath = Join-Path $env:TEMP "lee-installer-trust.log"
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
-    throw "installed certificate trust helper exited with $($trustProcess.ExitCode); trace: $trace"
+    throw "installed certificate trust helper exited with $trustExitCode; trace: $trace"
   }
 }
 

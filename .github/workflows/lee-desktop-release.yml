@@ -96,13 +96,10 @@ jobs:
           using System;
           using System.Runtime.InteropServices;
           public static class LeeCertificateStoreNative {
-            [DllImport("crypt32.dll", SetLastError = true)]
-            public static extern IntPtr CertOpenStore(
-              IntPtr lpszStoreProvider,
-              uint dwEncodingType,
-              IntPtr hCryptProv,
-              uint dwFlags,
-              IntPtr pvPara
+            [DllImport("crypt32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            public static extern IntPtr CertOpenSystemStore(
+              IntPtr hProv,
+              string storeName
             );
 
             [DllImport("crypt32.dll", SetLastError = true)]
@@ -126,21 +123,17 @@ jobs:
           ) {
             $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
             $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
-            $storeName = [Runtime.InteropServices.Marshal]::StringToHGlobalUni($store)
             $certificateStore = [IntPtr]::Zero
             try {
-              $certificateStore = [LeeCertificateStoreNative]::CertOpenStore(
-                [IntPtr]10,
-                0x00010001,
-                [IntPtr]::Zero,
-                0x00010000,
-                $storeName
-              )
+              Write-TrustMarker "open-$store-start" "Opening the current user's $store store through crypt32."
+              $certificateStore = [LeeCertificateStoreNative]::CertOpenSystemStore([IntPtr]::Zero, $store)
               if ($certificateStore -eq [IntPtr]::Zero) {
                 $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
                 throw "Could not open the current user's $store store (Win32 error $errorCode)."
               }
+              Write-TrustMarker "open-$store-complete" "Opened the current user's $store store through crypt32."
               $certificateBytes = [IO.File]::ReadAllBytes($certificatePath)
+              Write-TrustMarker "add-$store-start" "Adding the public certificate to the current user's $store store through crypt32."
               $added = [LeeCertificateStoreNative]::CertAddEncodedCertificateToStore(
                 $certificateStore,
                 0x00010001,
@@ -153,15 +146,15 @@ jobs:
                 $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
                 throw "Could not add the public certificate to the current user's $store store (Win32 error $errorCode)."
               }
+              Write-TrustMarker "add-$store-complete" "Added the public certificate to the current user's $store store through crypt32."
             } finally {
               if ($certificateStore -ne [IntPtr]::Zero) {
                 [void][LeeCertificateStoreNative]::CertCloseStore($certificateStore, 0)
               }
-              if ($storeName -ne [IntPtr]::Zero) {
-                [Runtime.InteropServices.Marshal]::FreeHGlobal($storeName)
-              }
+              Write-TrustMarker "close-$store-complete" "Closed the current user's $store store through crypt32."
             }
 
+            Write-TrustMarker "verify-$store-start" "Verifying the public certificate in the current user's $store store."
             $verificationStore = [System.Security.Cryptography.X509Certificates.X509Store]::new(
               $store,
               [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
@@ -175,6 +168,7 @@ jobs:
             if ($matches.Count -ne 1) {
               throw "The public certificate was not recognized exactly once in the current user's $store store."
             }
+            Write-TrustMarker "verify-$store-complete" "Verified exactly one public certificate in the current user's $store store."
             return [ordered]@{
               store = $store
               storeLocation = "CurrentUser"

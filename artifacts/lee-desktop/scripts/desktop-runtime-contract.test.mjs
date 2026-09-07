@@ -28,7 +28,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);
   assert.match(windowsSmoke, /WaitForExit\(300000\)/);
-  assert.match(windowsSmoke, /ArgumentList @\("\/S", "\/currentuser"\)/);
+  assert.match(windowsSmoke, /ArgumentList @\("\/S", "\/currentuser", "\/D=\$installDir"\)/);
   assert.match(windowsSmoke, /Unblock-File -Path \$InstallerPath/);
   assert.match(installer, /customInstall/);
   assert.match(installer, /Exec '/);

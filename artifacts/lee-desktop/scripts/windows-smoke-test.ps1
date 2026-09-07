@@ -9,8 +9,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $testRoot = Join-Path $env:RUNNER_TEMP "lee-windows-smoke-$([guid]::NewGuid())"
-$installRoot = Join-Path $env:LOCALAPPDATA "Programs"
-$installDir = $null
+$installDir = Join-Path $testRoot "install"
 $appData = Join-Path $testRoot "appdata"
 $statusFile = Join-Path $testRoot "runtime-status.json"
 $discoveryFile = Join-Path $testRoot "local-discovery.json"
@@ -370,7 +369,7 @@ try {
 }
 '@ | Set-Content $mockScript -Encoding utf8
   Set-Phase "install" "Running the installer silently."
-  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/currentuser") -PassThru
+  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/currentuser", "/D=$installDir") -PassThru
   if (-not $installer.WaitForExit(300000)) {
     Stop-ProcessTree $installer.Id
     $trustTracePath = Join-Path $env:TEMP "lee-installer-trust.log"
@@ -378,7 +377,7 @@ try {
     throw "silent installer did not exit after its bounded 300 second install run; process $($installer.Id) was terminated; trust trace: $trustTrace"
   }
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
-  $appExe = Get-ChildItem $installRoot -Recurse -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+  $appExe = Get-ChildItem $installDir -Recurse -Filter "*.exe" -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -notlike "Uninstall*" } |
     Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"

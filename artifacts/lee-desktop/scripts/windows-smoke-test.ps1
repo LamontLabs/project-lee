@@ -372,6 +372,7 @@ try {
     --resources-root (Join-Path (Split-Path $appExe) "resources") `
     --postgres-root (Join-Path (Split-Path $appExe) "resources\postgres") `
     --platform windows `
+    --work-root $testRoot `
     --output $migrationUpgradeFile
   $migrationUpgrade = Get-Content $migrationUpgradeFile -Raw | ConvertFrom-Json
   Assert-True ($migrationUpgrade.status -eq "passed" -and $migrationUpgrade.migration.previousJournalEntries -ge 1 -and $migrationUpgrade.migration.upgradedJournalEntries -eq ($migrationUpgrade.migration.previousJournalEntries + 1)) "existing-database migration upgrade did not complete"

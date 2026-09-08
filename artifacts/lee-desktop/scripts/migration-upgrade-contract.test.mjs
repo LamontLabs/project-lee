@@ -17,6 +17,8 @@ test("existing-database migration smoke preserves history and records the upgrad
   assert.match(script, /after\.rows\[0\]\.hash !== previousJournalHashes\[0\]/);
   assert.match(script, /identity_profile\.desktop_upgrade_probe/);
   assert.match(script, /upgradedJournalEntries: after\.rows\.length/);
+  assert.match(script, /requestedWorkRoot/);
+  assert.match(script, /ownsWorkRoot/);
 });
 
 test("Windows packaged smoke tests execute and validate migration-upgrade evidence", () => {
@@ -27,6 +29,7 @@ test("Windows packaged smoke tests execute and validate migration-upgrade eviden
   assert.match(unixSmoke, /verifyOwnerAuthentication/);
   assert.match(unixSmoke, /Packaged LEE restart process exited/);
   assert.match(windowsSmoke, /migration-upgrade-smoke\.mjs/);
+  assert.match(windowsSmoke, /--work-root \$testRoot/);
   assert.match(windowsSmoke, /\$migrationUpgrade\.migration\.upgradedJournalEntries -eq \(\$migrationUpgrade\.migration\.previousJournalEntries \+ 1\)/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
   assert.match(workflow, /windows-smoke-test\.ps1/);

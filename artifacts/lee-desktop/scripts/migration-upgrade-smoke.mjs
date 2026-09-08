@@ -76,7 +76,10 @@ if (!["windows", "macos", "linux"].includes(platform)) throw new Error(`Unsuppor
 
 const packaged = verifyPackagedMigrations(resourcesRoot, platform);
 const runner = packaged.runner;
-const root = await mkdtemp(join(tmpdir(), "lee-migration-upgrade-"));
+const requestedWorkRoot = argument("--work-root");
+const ownsWorkRoot = !requestedWorkRoot;
+const root = requestedWorkRoot ? resolve(requestedWorkRoot) : await mkdtemp(join(tmpdir(), "lee-migration-upgrade-"));
+if (!ownsWorkRoot) await mkdir(root, { recursive: true });
 const oldMigrations = join(root, "old-migrations");
 const upgradeMigrations = join(root, "upgrade-migrations");
 const databaseDir = join(root, "database");
@@ -158,5 +161,15 @@ try {
   if (postgresStarted) {
     try { run(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], environment); } catch { /* Cleanup must not hide the migration result. */ }
   }
-  await rm(root, { recursive: true, force: true });
+  if (ownsWorkRoot) {
+    await rm(root, { recursive: true, force: true });
+  } else {
+    await Promise.all([
+      oldMigrations,
+      upgradeMigrations,
+      databaseDir,
+      socketDir,
+      postgresLog,
+    ].map((path) => rm(path, { recursive: true, force: true })));
+  }
 }

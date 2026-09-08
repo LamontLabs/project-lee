@@ -30,7 +30,6 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.doesNotMatch(installer, /certutil\.exe/);
   assert.match(installerTrust, /CertOpenStore/);
   assert.match(installerTrust, /CertAddEncodedCertificateToStore/);
-  assert.match(installerTrust, /OutputAssembly \$nativeAssemblyPath/);
   assert.match(installerTrust, /\$nativeApiType = Add-Type/);
   assert.match(installerTrust, /\$env:TEMP = \$compileTempPath/);
   assert.match(installerTrust, /\$env:TMP = \$compileTempPath/);

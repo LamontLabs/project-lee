@@ -37,7 +37,6 @@ try {
     exit 0
   }
 
-  $nativeAssemblyPath = Join-Path $PSScriptRoot "ProjectLeeCertificateStore-$PID.dll"
   $compileTempPath = Join-Path $PSScriptRoot "installer-trust-temp-$PID"
   New-Item -ItemType Directory -Path $compileTempPath -Force | Out-Null
   $originalTemp = $env:TEMP
@@ -71,7 +70,7 @@ public static class ProjectLeeCertificateStore
     [DllImport("crypt32.dll", SetLastError = true)]
     public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
 }
-"@ -OutputAssembly $nativeAssemblyPath -PassThru
+"@ -PassThru
     "native-type-loaded" | Add-Content $tracePath
   } finally {
     $env:TEMP = $originalTemp

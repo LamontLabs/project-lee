@@ -12,6 +12,7 @@ $testRoot = Join-Path $env:RUNNER_TEMP "lee-windows-smoke-$([guid]::NewGuid())"
 $installDir = Join-Path $testRoot "install"
 $appData = Join-Path $testRoot "appdata"
 $statusFile = Join-Path $testRoot "runtime-status.json"
+$diagnosticFile = Join-Path $testRoot "runtime-diagnostics.log"
 $discoveryFile = Join-Path $testRoot "local-discovery.json"
 $mockScript = Join-Path $testRoot "mock-k6.ps1"
 $mockLog = Join-Path $testRoot "mock-k6-requests.log"
@@ -50,6 +51,9 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
     markers = $markers
     certificateTrust = $certificateEvidence
     processState = $processState
+  }
+  if (Test-Path $diagnosticFile) {
+    $payload.runtimeDiagnostics = Get-Content $diagnosticFile -Raw
   }
   if ($null -ne $failure) {
     $payload.error = [ordered]@{
@@ -386,6 +390,7 @@ try {
     APPDATA = $appData
     LEE_MIGRATION_COMMAND = "cmd /c exit 0"
     LEE_SMOKE_STATUS_FILE = $statusFile
+    LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
     LEE_SMOKE_EXIT = "1"
   }
   $first = Invoke-Lee $commonEnvironment "clean first launch"

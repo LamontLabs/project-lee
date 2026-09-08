@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -389,19 +389,23 @@ export class RuntimeSupervisor {
   }
 
   async start(): Promise<RuntimeSnapshot> {
+    this.smokePhase("start");
     ensureRuntimeDirectories();
     this.stopping = false;
     this.restartAttempts = 0;
     this.port = await this.availablePort(this.port);
+    this.smokePhase("port-ready");
     this.apiUrl = `http://127.0.0.1:${this.port}`;
     const config = loadConfig();
     const instanceId = validInstanceId(config.instanceId) ? config.instanceId : randomUUID();
     this.snapshot = { ...this.snapshot, state: "starting", apiUrl: this.apiUrl, database: "starting", migration: "pending", reason: null, apiProcessId: null, postgresProcessId: null };
     const configuredDatabaseUrl = config.databaseUrl ?? process.env.DATABASE_URL;
     const hasPrivatePostgres = this.production || Boolean(config.postgresBin ?? process.env.LEE_POSTGRES_BIN);
+    this.smokePhase("database-start");
     const databaseUrl = configuredDatabaseUrl && (!this.isLocalDatabaseUrl(configuredDatabaseUrl) || !hasPrivatePostgres)
       ? configuredDatabaseUrl
       : await this.ensurePostgres(config);
+    this.smokePhase(databaseUrl ? "database-ready" : "database-unavailable");
     if (!databaseUrl) {
       this.snapshot = { ...this.snapshot, state: "unavailable", database: "unavailable", reason: "LEE could not find or start its private PostgreSQL service. Set postgresBin in the LEE config or reinstall with the bundled database runtime." };
       return this.snapshot;
@@ -411,11 +415,14 @@ export class RuntimeSupervisor {
     })();
     saveRuntimeConfig({ ...config, databaseUrl, instanceId });
     this.snapshot = { ...this.snapshot, database: "configured" };
+    this.smokePhase("migration-start");
     if (!this.runMigrations(config, databaseUrl, instanceId, databaseName)) {
+      this.smokePhase("migration-failed");
       this.snapshot = { ...this.snapshot, state: "degraded", migration: "failed", reason: `The local database is available, but migrations failed. Review ${this.snapshot.migrationLogPath} and repair the migration command before continuing.` };
       return this.snapshot;
     }
     this.snapshot = { ...this.snapshot, migration: "complete" };
+    this.smokePhase("migration-complete");
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? process.execPath;
     const args = config.apiArgs ?? [apiPath];
@@ -431,6 +438,7 @@ export class RuntimeSupervisor {
       ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     const apiLog = this.openLog(this.snapshot.apiLogPath);
+    this.smokePhase("api-start");
     this.child = spawn(command, args, {
       cwd: this.production ? process.resourcesPath : this.root,
       env: childEnv,
@@ -446,7 +454,14 @@ export class RuntimeSupervisor {
     this.snapshot = health
       ? { ...this.snapshot, state: health.proof ? "live" : "degraded", contract: "live", recoveryMode: health.mode, checks: { ...this.snapshot.checks, "System Contract": "live", Brain: health.proof ? "live" : "degraded", "Event Log": health.proof ? "live" : "degraded" }, reason: health.proof ? null : "LEE Core is reachable, but it remains in a protected recovery mode until the owner resolves the repair agenda." }
       : { ...this.snapshot, state: "degraded", contract: "unavailable", recoveryMode: "RECOVERY_MODE", checks: { ...this.snapshot.checks, "System Contract": "degraded", Brain: "degraded", "Event Log": "degraded" }, reason: "LEE Core started, but startup could not prove the canonical Brain and Event Log. LEE is in recovery mode." };
+    this.smokePhase(health ? "contract-ready" : "contract-timeout");
     return this.snapshot;
+  }
+
+  private smokePhase(label: string): void {
+    const path = process.env.LEE_SMOKE_DIAGNOSTIC_FILE;
+    if (!path) return;
+    try { appendFileSync(path, `${new Date().toISOString()} ${label}\n`, { mode: 0o600 }); } catch { /* Diagnostics must never affect startup. */ }
   }
 
   private openLog(path: string): ReturnType<typeof createWriteStream> {
@@ -537,6 +552,7 @@ export class RuntimeSupervisor {
   }
 
   private async ensurePostgres(config: RuntimeConfig): Promise<string | null> {
+    this.smokePhase("postgres-enter");
     const bin = config.postgresBin
       ?? (this.production ? join(process.resourcesPath, "postgres", "bin") : process.env.LEE_POSTGRES_BIN)
       ?? findPostgresBin();
@@ -550,6 +566,7 @@ export class RuntimeSupervisor {
     const socketDir = join(dataDir, "postgres-socket");
     mkdirSync(socketDir, { recursive: true, mode: 0o700 });
     if (!existsSync(join(databaseDir, "PG_VERSION"))) {
+      this.smokePhase("postgres-init");
       const initialized = spawnSync(initdb, ["-D", databaseDir, "--auth=trust", "--username=lee"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 60_000 });
       if (initialized.status !== 0) {
         writeFileSync(join(dataDir, "logs", "postgres-init.log"), `${initialized.stdout ?? ""}\n${initialized.stderr ?? ""}`, { mode: 0o600 });
@@ -557,6 +574,7 @@ export class RuntimeSupervisor {
       }
     }
     const postgresLog = this.openLog(this.snapshot.postgresLogPath);
+    this.smokePhase("postgres-status");
     const existingStatus = spawnSync(pgCtl, ["-D", databaseDir, "-w", "status"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
     if (existingStatus.status === 0) {
       const stopped = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
@@ -569,6 +587,7 @@ export class RuntimeSupervisor {
       }
     }
     const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: ["ignore", postgresLog, postgresLog], env: postgresEnvironment, detached: process.platform !== "win32" });
+    this.smokePhase("postgres-started");
     this.postgres = started;
     this.postgresCtl = pgCtl;
     this.snapshot = { ...this.snapshot, postgresProcessId: started.pid ?? null };
@@ -576,12 +595,14 @@ export class RuntimeSupervisor {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true, env: postgresEnvironment, timeout: 2_000 });
       if (probe.status === 0) {
+        this.smokePhase("postgres-ready");
         const created = spawnSync(executable("createdb"), ["-h", "127.0.0.1", "-p", String(port), "-U", "lee", "lee"], { windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
         if (created.status === 0 || created.stderr?.toString().includes("already exists")) return url;
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
     spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
+    this.smokePhase("postgres-failed");
     this.postgres = null;
     return null;
   }
@@ -629,6 +650,7 @@ export class RuntimeSupervisor {
       encoding: "utf8",
       windowsHide: true,
     } as const;
+    this.smokePhase("migration-command");
     const result = bundledMigration
       ? spawnSync(process.execPath, args, { ...migrationOptions, timeout: 60_000 })
       : spawnSync(command, { ...migrationOptions, shell: true, timeout: 60_000 });
@@ -637,6 +659,7 @@ export class RuntimeSupervisor {
       `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? `\n${result.error.message}\n` : ""}`,
       { mode: 0o600 },
     );
+    this.smokePhase(result.status === 0 ? "migration-command-success" : "migration-command-failure");
     return result.status === 0;
   }
 

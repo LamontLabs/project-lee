@@ -61,8 +61,7 @@ public static class ProjectLeeCertificateSerialization
         IntPtr certificateContext,
         uint flags,
         byte[] serializedElement,
-        ref uint serializedElementLength,
-        IntPtr reserved);
+        ref uint serializedElementLength);
 
     [DllImport("crypt32.dll", SetLastError = true)]
     public static extern bool CertFreeCertificateContext(IntPtr certificateContext);
@@ -90,8 +89,7 @@ public static class ProjectLeeCertificateSerialization
       $certificateContext,
       [uint32]0,
       $null,
-      [ref]$serializedLength,
-      [IntPtr]::Zero
+      [ref]$serializedLength
     )
     if ($serializedLength -eq 0) {
       throw "CertSerializeCertificateStoreElement returned an empty store element"
@@ -101,8 +99,7 @@ public static class ProjectLeeCertificateSerialization
       $certificateContext,
       [uint32]0,
       $serializedElement,
-      [ref]$serializedLength,
-      [IntPtr]::Zero
+      [ref]$serializedLength
     )
     if (-not $serialized) {
       throw "CertSerializeCertificateStoreElement failed with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"

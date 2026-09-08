@@ -596,18 +596,25 @@ export class RuntimeSupervisor {
     const startArgs = process.platform === "win32"
       ? ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "start"]
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
-    let started: ChildProcess;
+    let started: ChildProcess | null;
     if (process.platform === "win32") {
-      started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment });
-      this.smokePhase("postgres-started");
+      const quotePowerShell = (value: string) => `'${value.replace(/'/g, "''")}'`;
+      const argumentsLiteral = startArgs.map(quotePowerShell).join(", ");
+      const launchScript = `$arguments = @(${argumentsLiteral}); Start-Process -FilePath ${quotePowerShell(pgCtl)} -ArgumentList $arguments -WindowStyle Hidden | Out-Null`;
+      const launched = spawnSync("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", launchScript], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
+      const launcherOutput = `${launched.stdout ?? ""}\n${launched.stderr ?? ""}${launched.error ? `\n${launched.error.message}\n` : ""}`;
+      if (launcherOutput.trim()) appendFileSync(this.snapshot.postgresLogPath, launcherOutput, { mode: 0o600 });
+      this.smokePhase(launched.status === 0 ? "postgres-started" : "postgres-start-failed");
+      if (launched.status !== 0) return null;
+      started = null;
     } else {
       started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
       this.smokePhase("postgres-started");
     }
-    if (process.platform !== "win32") started.unref();
+    started?.unref();
     this.postgres = started;
     this.postgresCtl = pgCtl;
-    this.snapshot = { ...this.snapshot, postgresProcessId: started.pid ?? null };
+    this.snapshot = { ...this.snapshot, postgresProcessId: started?.pid ?? null };
     const url = `postgresql://lee@127.0.0.1:${port}/lee`;
     this.smokePhase("postgres-probe");
     for (let attempt = 0; attempt < 20; attempt += 1) {

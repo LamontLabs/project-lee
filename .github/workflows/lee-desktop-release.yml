@@ -341,7 +341,8 @@ jobs:
                 "-File", $scriptPath,
                 "-InstallerPath", $installer.FullName,
                 "-EvidencePath", $evidencePath,
-                "-RequireNonAdmin"
+                "-RequireNonAdmin",
+                "-ExpectedUserName", $userName
               ) `
               -RedirectStandardOutput $stdoutPath `
               -RedirectStandardError $stderrPath `

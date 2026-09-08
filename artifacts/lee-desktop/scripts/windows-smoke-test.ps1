@@ -4,7 +4,9 @@ param(
   [Parameter(Mandatory = $false)]
   [string] $EvidencePath,
   [Parameter(Mandatory = $false)]
-  [switch] $RequireNonAdmin
+  [switch] $RequireNonAdmin,
+  [Parameter(Mandatory = $false)]
+  [string] $ExpectedUserName
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,6 +48,7 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
     installerPath = $InstallerPath
     testRoot = $testRoot
     appPath = $appExe
+    identity = $identityEvidence
     lastOperation = $lastOperation
     markers = $markers
     certificateTrust = $certificateEvidence
@@ -384,6 +387,13 @@ try {
   $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
   $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
   $isAdministrator = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+  $identityEvidence = [ordered]@{
+    name = $identity.Name
+    userName = $identity.Name.Split("\")[-1]
+    profile = $env:USERPROFILE
+    isAdministrator = $isAdministrator
+  }
+  Assert-True ([string]::IsNullOrWhiteSpace($ExpectedUserName) -or $identityEvidence.userName -ieq $ExpectedUserName) "clean installer smoke ran as $($identityEvidence.userName), expected $ExpectedUserName"
   Assert-True (-not $RequireNonAdmin -or -not $isAdministrator) "clean installer smoke must run as a non-admin user"
   Set-Phase "preinstall-certificate-state" "Confirming the smoke user has no pre-existing Project LEE certificate."
   Assert-NoPreexistingProjectLeeCertificate

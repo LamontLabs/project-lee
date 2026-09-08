@@ -22,6 +22,8 @@ extraResources:
     to: migrate-runtime.mjs
   - from: resources/migrations
     to: migrations
+  - from: resources/lee-signing.cer
+    to: lee-signing.cer
 linux:
   icon: resources/lee.png
   target:

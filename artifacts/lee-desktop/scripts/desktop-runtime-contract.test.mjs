@@ -17,6 +17,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const unixUpdate = await read("scripts/unix-update-smoke.mjs");
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
+  assert.match(builder, /from: resources\/lee-signing\.cer[\s\S]*to: lee-signing\.cer/);
   assert.match(builder, /nsis:[\s\S]*include: resources\/installer\.nsh/);
   assert.match(installer, /customInstall/);
   assert.match(installer, /IfSilent/);

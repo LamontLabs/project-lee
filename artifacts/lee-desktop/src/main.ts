@@ -164,6 +164,16 @@ async function boot(): Promise<void> {
   if (process.env.LEE_SMOKE_STATUS_FILE) {
     writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify({ version: app.getVersion(), ...runtime }, null, 2), "utf8");
   }
+  const awaitingSmokeUpdate = Boolean(
+    smokeUpdateFeedUrl &&
+    smokeUpdateExpectedVersion &&
+    app.getVersion() !== smokeUpdateExpectedVersion,
+  );
+  if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile) {
+    await supervisor.stop();
+    app.exit(0);
+    return;
+  }
   if (isProduction) {
     consoleServer = await startConsoleServer(join(process.resourcesPath, "console"), runtime.apiUrl);
     setupWindow(`${consoleServer.url}/connections?desktop=1`);
@@ -174,21 +184,12 @@ async function boot(): Promise<void> {
   if (process.env.LEE_SMOKE_DISCOVERY_FILE) {
     await writeSmokeDiscovery(process.env.LEE_SMOKE_DISCOVERY_FILE);
   }
-  const awaitingSmokeUpdate = Boolean(
-    smokeUpdateFeedUrl &&
-    smokeUpdateExpectedVersion &&
-    app.getVersion() !== smokeUpdateExpectedVersion,
-  );
   if (smokeUpdateFeedUrl && smokeUpdateExpectedVersion && app.getVersion() === smokeUpdateExpectedVersion) {
     if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify({ status: "installed", version: app.getVersion() }, null, 2), "utf8");
   }
   if (smokeExitRequested && !awaitingSmokeUpdate) {
     if (smokeOwnerAuthFile) {
       waitForSmokeOwnerAuthentication();
-    } else {
-      await supervisor.stop();
-      consoleServer?.server.close();
-      app.exit(0);
     }
   }
 }

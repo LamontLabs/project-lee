@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, createWriteStream, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { createConnection, createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -596,7 +596,19 @@ export class RuntimeSupervisor {
     const startArgs = process.platform === "win32"
       ? ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "start"]
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
-    const started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
+    let started: ChildProcess;
+    if (process.platform === "win32") {
+      const postgresBinary = executable("postgres");
+      if (!existsSync(postgresBinary)) return null;
+      const logFd = openSync(this.snapshot.postgresLogPath, "a", 0o600);
+      try {
+        started = spawn(postgresBinary, ["-D", databaseDir, "-p", String(port)], { windowsHide: true, stdio: ["ignore", "ignore", logFd], env: postgresEnvironment, detached: true });
+      } finally {
+        closeSync(logFd);
+      }
+    } else {
+      started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
+    }
     started.unref();
     this.smokePhase("postgres-started");
     this.postgres = started;

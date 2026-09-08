@@ -124,6 +124,7 @@ public static class ProjectLeeCertificateSerialization
         $serializedElement,
         [Microsoft.Win32.RegistryValueKind]::Binary
       )
+      $registryKey.Flush()
     } finally {
       $registryKey.Close()
     }

@@ -234,7 +234,9 @@ function Invoke-InstalledCertificateVerification([string] $certificatePath) {
   $verifyProcess.WaitForExit()
   $verifyExitCode = $verifyProcess.ExitCode
   if ($verifyExitCode -ne 0) {
-    throw "fresh certificate-store verification exited with $verifyExitCode"
+    $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+    $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
+    throw "fresh certificate-store verification exited with $verifyExitCode; trace: $trace"
   }
 }
 

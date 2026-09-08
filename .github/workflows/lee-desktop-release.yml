@@ -95,12 +95,47 @@ jobs:
           }
           try {
             Write-TrustMarker "decode-certificate" "Decoding the CI signing certificate."
-            $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.pfx"
+            $sourcePfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing-source.pfx"
+            $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing-release.pfx"
+            $privateKeyPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.key.pem"
+            $opensslCertificatePath = Join-Path $env:RUNNER_TEMP "project-lee-signing.release.cer"
+            $opensslConfigPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.openssl.cnf"
             $certificatePath = Join-Path $env:RUNNER_TEMP "project-lee-signing.cer"
             $bytes = [Convert]::FromBase64String(($env:CSC_LINK -replace '\s', ''))
-            [IO.File]::WriteAllBytes($pfxPath, $bytes)
-            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            [IO.File]::WriteAllBytes($sourcePfxPath, $bytes)
+            $sourceCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
               $bytes,
+              $env:CSC_KEY_PASSWORD,
+              [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+            )
+            $openssl = (Get-Command openssl.exe -ErrorAction Stop).Source
+            & $openssl pkcs12 -legacy -in $sourcePfxPath -nocerts -nodes -passin env:CSC_KEY_PASSWORD -out $privateKeyPath 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "OpenSSL could not extract the CI signing key." }
+            @"
+[req]
+distinguished_name = distinguished_name
+x509_extensions = extensions
+prompt = no
+
+[distinguished_name]
+CN = $($sourceCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false))
+
+[extensions]
+basicConstraints = critical,CA:true
+keyUsage = critical,keyCertSign,digitalSignature
+extendedKeyUsage = codeSigning
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always
+"@ | Set-Content $opensslConfigPath -Encoding utf8
+            & $openssl req -new -x509 -sha256 -days 3650 -key $privateKeyPath -out $opensslCertificatePath -config $opensslConfigPath 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "OpenSSL could not create the CA-capable CI signing certificate." }
+            & $openssl pkcs12 -export -out $pfxPath -inkey $privateKeyPath -in $opensslCertificatePath -passout env:CSC_KEY_PASSWORD -name "Project LEE Internal" 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "OpenSSL could not package the CA-capable CI signing certificate." }
+            $releaseBytes = [IO.File]::ReadAllBytes($pfxPath)
+            $env:CSC_LINK = [Convert]::ToBase64String($releaseBytes)
+            "CSC_LINK=$($env:CSC_LINK)" | Add-Content $env:GITHUB_ENV -Encoding utf8
+            $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+              $releaseBytes,
               $env:CSC_KEY_PASSWORD,
               [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
             )
@@ -114,7 +149,8 @@ jobs:
               subject = $certificate.Subject
               thumbprint = $certificate.Thumbprint.ToUpperInvariant()
               privateKeyPresent = $false
-              source = "CI signing PFX export"
+              source = "CA-capable certificate generated from the CI signing key"
+              sourceCertificate = $sourceCertificate.Subject
               extensions = @(
                 $certificate.Extensions | ForEach-Object {
                   [ordered]@{

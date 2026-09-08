@@ -13,6 +13,9 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /X509Certificate2/);
   assert.match(workflow, /EphemeralKeySet/);
   assert.match(workflow, /Prepare public Windows signing certificate for CI verification/);
+  assert.match(workflow, /basicConstraints = critical,CA:true/);
+  assert.match(workflow, /CSC_LINK=\$\(\$env:CSC_LINK\)/);
+  assert.match(workflow, /privateKeyPresent = \$false/);
   assert.match(workflow, /storeMutation = "not-performed"/);
   assert.match(workflow, /Get-AuthenticodeSignature/);
   assert.match(workflow, /SignerCertificate\.Thumbprint/);

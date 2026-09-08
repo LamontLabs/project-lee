@@ -24,7 +24,7 @@ const smokeUpdateInterruptDelayMs = Number(process.env.LEE_SMOKE_UPDATE_INTERRUP
 const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
 const smokeExitRequested = app.commandLine.hasSwitch("lee-smoke-exit") || process.env.LEE_SMOKE_EXIT === "1";
 let smokeInterruptionTriggered = false;
-const hasSingleInstance = app.requestSingleInstanceLock();
+const hasSingleInstance = smokeExitRequested || app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
 else app.on("second-instance", () => { window?.show(); window?.focus(); });
 app.setAppUserModelId("com.lamontlabs.projectlee");

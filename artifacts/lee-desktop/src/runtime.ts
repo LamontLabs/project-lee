@@ -596,20 +596,12 @@ export class RuntimeSupervisor {
     const startArgs = process.platform === "win32"
       ? ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "start"]
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
-    let started: ChildProcess | null = null;
-    if (process.platform === "win32") {
-      const result = spawnSync(pgCtl, startArgs, { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 15_000 });
-      const launcherOutput = `${result.stdout ?? ""}\n${result.stderr ?? ""}${result.error ? `\n${result.error.message}\n` : ""}`;
-      if (launcherOutput.trim()) writeFileSync(this.snapshot.postgresLogPath, launcherOutput, { flag: "a", mode: 0o600 });
-      this.smokePhase(result.status === 0 ? "postgres-started" : "postgres-start-failed");
-      if (result.status !== 0) return null;
-    } else {
-      started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
-      this.smokePhase("postgres-started");
-    }
+    const started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
+    started.unref();
+    this.smokePhase("postgres-started");
     this.postgres = started;
     this.postgresCtl = pgCtl;
-    this.snapshot = { ...this.snapshot, postgresProcessId: started?.pid ?? null };
+    this.snapshot = { ...this.snapshot, postgresProcessId: started.pid ?? null };
     const url = `postgresql://lee@127.0.0.1:${port}/lee`;
     this.smokePhase("postgres-probe");
     for (let attempt = 0; attempt < 20; attempt += 1) {

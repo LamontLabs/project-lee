@@ -4,6 +4,7 @@ import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, re
 import { createConnection, createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { Worker } from "node:worker_threads";
 
 export type RuntimeState = "starting" | "live" | "degraded" | "unavailable" | "stopped";
 export type RuntimeSnapshot = {
@@ -353,6 +354,7 @@ export class RuntimeSupervisor {
   private child: ChildProcess | null = null;
   private postgres: ChildProcess | null = null;
   private postgresCtl: string | null = null;
+  private postgresLauncher: Worker | null = null;
   private snapshot: RuntimeSnapshot = {
     state: "stopped", apiUrl: "", database: "unavailable", migration: "pending",
     contract: "unavailable", checks: this.emptyChecks(), reason: null,
@@ -596,18 +598,21 @@ export class RuntimeSupervisor {
     const startArgs = process.platform === "win32"
       ? ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "start"]
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
-    let started: ChildProcess;
+    let started: ChildProcess | null;
     if (process.platform === "win32") {
-      const quotePowerShell = (value: string) => `'${value.replace(/'/g, "''")}'`;
-      const argumentsLiteral = startArgs.map(quotePowerShell).join(", ");
-      const launchScript = `$arguments = @(${argumentsLiteral}); Start-Process -FilePath ${quotePowerShell(pgCtl)} -ArgumentList $arguments -WindowStyle Hidden -Wait`;
-      started = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", launchScript], { windowsHide: true, stdio: "ignore", env: postgresEnvironment });
+      const launcher = new Worker(
+        `const { spawnSync } = require("node:child_process"); const { parentPort, workerData } = require("node:worker_threads"); const result = spawnSync(workerData.file, workerData.args, { windowsHide: true, stdio: "ignore", env: workerData.env }); parentPort?.postMessage({ status: result.status, error: result.error?.message ?? null });`,
+        { eval: true, workerData: { file: pgCtl, args: startArgs, env: postgresEnvironment } },
+      );
+      launcher.unref();
+      this.postgresLauncher = launcher;
+      started = null;
       this.smokePhase("postgres-started");
     } else {
       started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
       this.smokePhase("postgres-started");
     }
-    if (process.platform !== "win32") started.unref();
+    if (process.platform !== "win32") started?.unref();
     this.postgres = started;
     this.postgresCtl = pgCtl;
     this.snapshot = { ...this.snapshot, postgresProcessId: started?.pid ?? null };
@@ -720,6 +725,10 @@ export class RuntimeSupervisor {
         stdio: "ignore",
         timeout: 15_000,
       });
+    }
+    if (this.postgresLauncher) {
+      await this.postgresLauncher.terminate();
+      this.postgresLauncher = null;
     }
     await this.terminate(this.postgres);
     this.child = null;

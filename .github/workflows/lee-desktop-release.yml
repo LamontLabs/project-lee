@@ -200,7 +200,7 @@ jobs:
         run: |
           $installer = Get-ChildItem "$env:RUNNER_TEMP\lee-installer\*.exe" | Select-Object -First 1
           if (-not $installer) { throw "Downloaded NSIS installer is missing." }
-          $userName = "lee-installer-smoke-owner"
+          $userName = "lee-smoke-owner"
           $password = ConvertTo-SecureString "$([guid]::NewGuid().ToString('N'))!aA1" -AsPlainText -Force
           $evidencePath = Join-Path $env:RUNNER_TEMP "windows-smoke-evidence.json"
           $stdoutPath = Join-Path $env:RUNNER_TEMP "windows-smoke-owner.stdout.log"

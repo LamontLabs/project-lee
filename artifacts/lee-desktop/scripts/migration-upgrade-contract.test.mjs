@@ -19,20 +19,17 @@ test("existing-database migration smoke preserves history and records the upgrad
   assert.match(script, /upgradedJournalEntries: after\.rows\.length/);
 });
 
-test("Windows and Linux packaged smoke tests execute and validate migration-upgrade evidence", () => {
+test("Windows packaged smoke tests execute and validate migration-upgrade evidence", () => {
   assert.match(unixSmoke, /migration-upgrade-smoke\.mjs/);
   assert.match(unixSmoke, /migrationUpgrade\.status !== "passed"/);
   assert.match(unixSmoke, /--evidence/);
   assert.match(unixSmoke, /firstRun\.output/);
   assert.match(unixSmoke, /verifyOwnerAuthentication/);
   assert.match(unixSmoke, /Packaged LEE restart process exited/);
-  assert.match(unixSmoke, /LEE_SMOKE_NO_SANDBOX/);
-  assert.match(unixSmoke, /--no-sandbox/);
   assert.match(windowsSmoke, /migration-upgrade-smoke\.mjs/);
   assert.match(windowsSmoke, /\$migrationUpgrade\.migration\.upgradedJournalEntries -eq \(\$migrationUpgrade\.migration\.previousJournalEntries \+ 1\)/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
-  assert.match(workflow, /Smoke test bundled Linux runtime/);
-  assert.match(workflow, /LEE_SMOKE_NO_SANDBOX: "1"/);
   assert.match(workflow, /windows-smoke-test\.ps1/);
+  assert.doesNotMatch(workflow, /linux-package:|Smoke test bundled Linux runtime|LEE_SMOKE_NO_SANDBOX|--no-sandbox/);
   assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
 });

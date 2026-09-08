@@ -4,17 +4,16 @@ import test from "node:test";
 
 const workflow = await readFile(new URL("../../../.github/workflows/lee-desktop-release.yml", import.meta.url), "utf8");
 
-test("publish workflow is limited to Windows and Linux release metadata", () => {
+test("publish workflow is limited to Windows release metadata", () => {
   assert.match(workflow, /windows-installer:/);
-  assert.match(workflow, /linux-package:/);
   assert.match(workflow, /name: lee-windows-installer/);
-  assert.match(workflow, /name: lee-linux-installers/);
-  assert.match(workflow, /"latest\.yml", "latest-linux\.yml"/);
+  assert.doesNotMatch(workflow, /linux-package:|lee-linux-installers|latest-linux\.yml/);
+  assert.match(workflow, /foreach \(\$metadata in @\("latest\.yml"\)\)/);
   assert.match(workflow, /X509Certificate2/);
   assert.match(workflow, /EphemeralKeySet/);
   assert.match(workflow, /Import-PublicCertificateToCurrentUserStore/);
   assert.match(workflow, /LeeCertificateStoreNative/);
-  assert.match(workflow, /CertOpenSystemStore/);
+  assert.match(workflow, /CertOpenStore/);
   assert.match(workflow, /CertAddEncodedCertificateToStore/);
   assert.match(workflow, /0x00010001/);
   assert.match(workflow, /GetLastWin32Error/);
@@ -30,13 +29,12 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.doesNotMatch(workflow, /macos|macOS|latest-mac|LEE_APPLE|LEE_MACOS|merge-mac/i);
 });
 
-test("published update evidence is unique for Windows and Linux validation", () => {
+test("published update evidence is unique for Windows validation", () => {
   assert.match(workflow, /evidence_suffix: windows/);
-  assert.match(workflow, /evidence_suffix: linux/);
   assert.match(workflow, /name: lee-update-verification-\$\{\{ matrix\.evidence_suffix \}\}/);
   assert.match(workflow, /update-verification-\$\{\{ matrix\.evidence_suffix \}\}\.json/);
   assert.match(workflow, /UPDATE-VERIFICATION-\$\{\{ matrix\.evidence_suffix \}\}\.md/);
-  assert.doesNotMatch(workflow, /evidence_suffix: macos/);
+  assert.doesNotMatch(workflow, /evidence_suffix: linux|evidence_suffix: macos/);
   assert.doesNotMatch(workflow, /gh release upload[\s\S]*update-verification-\$\{\{ matrix\.platform \}\}\.json/);
 });
 
@@ -45,7 +43,8 @@ test("release workflow rejects branch and malformed manual dispatches", () => {
   assert.match(workflow, /GITHUB_REF_TYPE.*tag/);
   assert.match(workflow, /GITHUB_REF_NAME.*\^lee-v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+/);
   assert.match(workflow, /windows-installer:\s*\n\s+needs: validate-release-ref/);
-  assert.match(workflow, /linux-package:\s*\n\s+needs: validate-release-ref/);
+  assert.match(workflow, /publish-release:\s*\n\s+needs:\s*\n\s+- windows-installer-validation/);
+  assert.doesNotMatch(workflow, /linux-package:/);
   assert.doesNotMatch(workflow, /macos-package|macOS|APPLE_ID|LEE_MACOS/);
 });
 
@@ -56,11 +55,4 @@ test("Windows installer validation uses a fresh non-admin user profile", () => {
   assert.match(workflow, /-LoadUserProfile/);
   assert.match(workflow, /-RequireNonAdmin/);
   assert.match(workflow, /Remove-LocalUser -Name \$userName/);
-});
-
-test("Linux timeout evidence heredoc remains valid YAML", () => {
-  assert.match(
-    workflow,
-    /run: \|\n(?:(?: {10}).*\n)+\s+node - .*<<'NODE'\n {10}const fs = require\("node:fs"\);[\s\S]*\n {10}NODE\n/,
-  );
 });

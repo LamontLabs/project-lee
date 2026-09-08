@@ -22,12 +22,11 @@ test("macOS PostgreSQL staging relocates and verifies native dependencies", asyn
   assert.match(smoke, /--architecture/);
 });
 
-test("release workflow stages PostgreSQL for Windows and Linux", async () => {
+test("release workflow stages PostgreSQL for Windows", async () => {
   const workflow = await read("../../.github/workflows/lee-desktop-release.yml");
 
   assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
   assert.match(workflow, /runner: windows-latest/);
-  assert.match(workflow, /runner: ubuntu-latest/);
   assert.match(workflow, /postgresql-\$version-windows-x64-binaries\.zip/);
-  assert.match(workflow, /apt-get install --no-install-recommends -y postgresql/);
+  assert.doesNotMatch(workflow, /runner: ubuntu-latest|apt-get install --no-install-recommends -y postgresql|linux-package:/);
 });

@@ -71,19 +71,16 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(unixUpdate, /after-install-interruption/);
 });
 
-test("Windows and Linux release jobs stage and smoke-test PostgreSQL", async () => {
+test("Windows release jobs stage and smoke-test PostgreSQL", async () => {
   const workflow = await read("../../.github/workflows/lee-desktop-release.yml");
 
-  assert.equal((workflow.match(/name: Stage private PostgreSQL runtime/g) ?? []).length, 2);
+  assert.equal((workflow.match(/name: Stage private PostgreSQL runtime/g) ?? []).length, 1);
   assert.match(workflow, /postgresql-\$version-windows-x64-binaries\.zip/);
-  assert.match(workflow, /apt-get install --no-install-recommends -y postgresql/);
-  assert.match(workflow, /Smoke test bundled Linux runtime/);
-  assert.match(workflow, /xvfb-run --auto-servernum/);
+  assert.doesNotMatch(workflow, /apt-get install --no-install-recommends -y postgresql|Smoke test bundled Linux runtime|xvfb-run --auto-servernum/);
   assert.match(workflow, /windows-update-smoke\.ps1/);
   assert.match(workflow, /download-release-assets\.mjs/);
   assert.match(workflow, /update-verification-\$\{\{ matrix\.evidence_suffix \}\}\.json/);
-  assert.match(workflow, /Verify packaged Linux migration assets/);
-  assert.match(workflow, /verify-packaged-migrations\.mjs/);
   assert.match(workflow, /--platform windows/);
+  assert.doesNotMatch(workflow, /--platform linux|latest-linux\.yml/);
   assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
 });

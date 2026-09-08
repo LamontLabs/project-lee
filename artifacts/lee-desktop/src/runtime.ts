@@ -598,20 +598,16 @@ export class RuntimeSupervisor {
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
     let started: ChildProcess | null;
     if (process.platform === "win32") {
-      const launcherPath = this.production
-        ? join(process.resourcesPath, "postgres-launcher.mjs")
-        : join(this.root, "resources", "postgres-launcher.mjs");
-      started = spawn(process.execPath, [launcherPath], {
+      const quotePowerShell = (value: string) => `'${value.replace(/'/g, "''")}'`;
+      const launcherCommand = `& ${quotePowerShell(pgCtl)} ${startArgs.map(quotePowerShell).join(" ")}`;
+      const launcherLog = this.openLog(join(dataDir, "logs", "postgres-launcher.log"));
+      started = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", launcherCommand], {
+        cwd: this.production ? process.resourcesPath : this.root,
         windowsHide: true,
-        stdio: "ignore",
-        env: {
-          ...postgresEnvironment,
-          ELECTRON_RUN_AS_NODE: "1",
-          LEE_POSTGRES_CTL: pgCtl,
-          LEE_POSTGRES_ARGS: JSON.stringify(startArgs),
-          LEE_POSTGRES_LAUNCHER_LOG: join(dataDir, "logs", "postgres-launcher.log"),
-        },
+        stdio: ["ignore", launcherLog, launcherLog],
+        env: postgresEnvironment,
       });
+      started.once("error", (error) => appendFileSync(join(dataDir, "logs", "postgres-launcher.log"), `spawn-error: ${error.message}\n`, { mode: 0o600 }));
       this.smokePhase("postgres-started");
     } else {
       started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });

@@ -20,8 +20,6 @@ extraResources:
     to: postgres
   - from: resources/migrate-runtime.mjs
     to: migrate-runtime.mjs
-  - from: resources/postgres-launcher.mjs
-    to: postgres-launcher.mjs
   - from: resources/migrations
     to: migrations
   - from: resources/lee-signing.cer

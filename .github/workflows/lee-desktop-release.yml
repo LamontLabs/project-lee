@@ -270,128 +270,6 @@ jobs:
             artifacts/lee-desktop/release/release-manifest-windows.json
           if-no-files-found: error
 
-  linux-package:
-    needs: validate-release-ref
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Set release version from tag
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF_NAME" == lee-v* ]]; then
-            VERSION="${GITHUB_REF_NAME#lee-v}"
-            node -e "const fs=require('fs'); const p='artifacts/lee-desktop/package.json'; const data=JSON.parse(fs.readFileSync(p,'utf8')); data.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(data,null,2)+'\n')" "$VERSION"
-          fi
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @workspace/api-zod exec tsc -p tsconfig.json
-      - run: pnpm --filter @workspace/api-server run build
-      - run: pnpm --filter @workspace/lee-console run build
-        env:
-          PORT: 4173
-          BASE_PATH: /
-      - name: Stage private PostgreSQL runtime
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y postgresql
-          initdb_path="$(find /usr/lib/postgresql -path '*/bin/initdb' -type f -print | sort -V | tail -n 1)"
-          test -n "$initdb_path"
-          postgres_root="$(dirname "$(dirname "$initdb_path")")"
-          postgres_major="$(basename "$postgres_root")"
-          node artifacts/lee-desktop/scripts/stage-postgres-runtime.mjs \
-            --platform linux \
-            --source "$postgres_root" \
-            --share-source "/usr/share/postgresql/$postgres_major"
-      - name: Build Linux packages
-        run: pnpm --filter @workspace/lee-desktop run package
-      - name: Build unpacked Linux app for runtime smoke test
-        run: pnpm --filter @workspace/lee-desktop exec electron-builder --config electron-builder.yml --dir --publish never
-      - name: Verify packaged Linux migration assets
-        run: node artifacts/lee-desktop/scripts/verify-packaged-migrations.mjs --resources-root artifacts/lee-desktop/release/linux-unpacked/resources --source-file artifacts/lee-desktop/src/runtime.ts --platform linux
-      - name: Smoke test bundled Linux runtime
-        shell: bash
-        timeout-minutes: 12
-        run: |
-          set -o pipefail
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y xvfb
-          command -v xvfb-run >/dev/null || { echo "xvfb-run is required for the Linux desktop smoke test." >&2; exit 1; }
-          evidence_dir="release/unix-runtime-smoke-linux-evidence"
-          mkdir -p "$evidence_dir"
-          console_log="$evidence_dir/console.log"
-          process_state="$evidence_dir/process-state.txt"
-          command_status="$evidence_dir/command-status.txt"
-          set +e
-          timeout --foreground --signal=TERM --kill-after=30s 10m \
-            xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
-            pnpm --filter @workspace/lee-desktop run smoke:unix -- release/linux-unpacked/Project-LEE --evidence release/unix-runtime-smoke-linux.json \
-            2>&1 | tee "$console_log"
-          smoke_status=${PIPESTATUS[0]}
-          set -e
-          ps -eo pid=,ppid=,stat=,etime=,args= > "$process_state" || true
-          printf 'exit_code=%s\n' "$smoke_status" > "$command_status"
-          if [[ "$smoke_status" -eq 124 || "$smoke_status" -eq 137 ]]; then
-            printf 'outer_timeout=true\n' >> "$command_status"
-            if [[ ! -s release/unix-runtime-smoke-linux.json ]]; then
-              node - "$console_log" "$process_state" release/unix-runtime-smoke-linux.json "$smoke_status" <<'NODE'
-          const fs = require("node:fs");
-          const [consolePath, processPath, evidencePath, status] = process.argv.slice(2);
-          const read = (path) => {
-            try { return fs.readFileSync(path, "utf8").slice(-32768); } catch (error) { return `Unable to read ${path}: ${error.message}`; }
-          };
-          const consoleOutput = read(consolePath);
-          const phases = [...consoleOutput.matchAll(/\[unix-runtime-smoke\] phase: ([^\r\n]+)/g)].map((match) => match[1]);
-          const lastPhase = phases.at(-1) ?? "outer-timeout";
-          fs.writeFileSync(evidencePath, `${JSON.stringify({
-            platform: "linux",
-            status: "failed",
-            phase: lastPhase,
-            timedOut: true,
-            error: { message: `Linux runtime smoke exceeded its outer timeout (exit ${status}).` },
-            child: { output: consoleOutput, processState: read(processPath) },
-            processState: read(processPath),
-          }, null, 2)}\n`);
-          NODE
-            fi
-          fi
-          exit "$smoke_status"
-        env:
-          LEE_SMOKE_NO_SANDBOX: "1"
-      - name: Retain Linux runtime smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lee-linux-runtime-smoke-evidence
-          path: artifacts/lee-desktop/release/unix-runtime-smoke-linux.json
-          if-no-files-found: warn
-      - name: Write Linux release metadata
-        run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform linux
-      - name: Verify Linux release metadata
-        run: node artifacts/lee-desktop/scripts/verify-release-manifests.mjs artifacts/lee-desktop/release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: lee-linux-installers
-          path: |
-            artifacts/lee-desktop/release/*.AppImage
-            artifacts/lee-desktop/release/*.deb
-            artifacts/lee-desktop/release/*.rpm
-            artifacts/lee-desktop/release/*.tar.gz
-            artifacts/lee-desktop/release/*.yml
-            artifacts/lee-desktop/release/*.blockmap
-            artifacts/lee-desktop/release/*.sha256
-            artifacts/lee-desktop/release/SHA256SUMS-linux.txt
-            artifacts/lee-desktop/release/release-manifest-linux.json
-            artifacts/lee-desktop/release/unix-runtime-smoke-linux.json
-          if-no-files-found: error
-
   windows-installer-validation:
     needs: windows-installer
     runs-on: windows-latest
@@ -463,7 +341,6 @@ jobs:
   publish-release:
     needs:
       - windows-installer-validation
-      - linux-package
     runs-on: windows-latest
     permissions:
       contents: write
@@ -473,17 +350,13 @@ jobs:
         with:
           name: lee-windows-installer
           path: artifacts/lee-desktop/release
-      - uses: actions/download-artifact@v4
-        with:
-          name: lee-linux-installers
-          path: artifacts/lee-desktop/release
       - name: Verify all release manifests and checksums
         shell: bash
         run: node artifacts/lee-desktop/scripts/verify-release-manifests.mjs artifacts/lee-desktop/release
       - name: Confirm updater metadata is complete
         shell: pwsh
         run: |
-          foreach ($metadata in @("latest.yml", "latest-linux.yml")) {
+          foreach ($metadata in @("latest.yml")) {
             if (-not (Test-Path "artifacts/lee-desktop/release/$metadata")) { throw "Missing electron-updater metadata: $metadata" }
           }
       - uses: softprops/action-gh-release@v2
@@ -501,9 +374,6 @@ jobs:
           - platform: windows
             runner: windows-latest
             evidence_suffix: windows
-          - platform: linux
-            runner: ubuntu-latest
-            evidence_suffix: linux
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
@@ -534,21 +404,6 @@ jobs:
             -ExpectedVersion "$env:LEE_UPDATE_VERSION" `
             -Output "$env:GITHUB_WORKSPACE\update-verification-${{ matrix.evidence_suffix }}.json" `
             -Selection "$env:RUNNER_TEMP\lee-update\selection.json"
-      - name: Verify Linux signed update installation
-        if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y xvfb
-          command -v xvfb-run >/dev/null 2>&1 || { echo "xvfb-run is required for Linux updater validation." >&2; exit 1; }
-          xvfb-run --auto-servernum --server-args="-screen 0 1440x960x24" \
-            node artifacts/lee-desktop/scripts/unix-update-smoke.mjs \
-            --platform linux \
-            --current-dir "$RUNNER_TEMP/lee-update/current" \
-            --previous-dir "$RUNNER_TEMP/lee-update/previous" \
-            --expected-version "$LEE_UPDATE_VERSION" \
-            --record "$RUNNER_TEMP/lee-update/selection.json" \
-            --output "$GITHUB_WORKSPACE/update-verification-${{ matrix.evidence_suffix }}.json"
       - name: Write signed update verification checklist
         shell: bash
         run: |

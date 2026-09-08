@@ -598,8 +598,10 @@ export class RuntimeSupervisor {
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
     let started: ChildProcess | null;
     if (process.platform === "win32") {
-      const launcherSource = "const { spawnSync } = require('node:child_process'); const result = spawnSync(process.env.LEE_POSTGRES_CTL, JSON.parse(process.env.LEE_POSTGRES_ARGS), { windowsHide: true, stdio: 'ignore', env: process.env }); process.exit(result.status ?? 1);";
-      started = spawn(process.execPath, ["-e", launcherSource], {
+      const launcherPath = this.production
+        ? join(process.resourcesPath, "postgres-launcher.mjs")
+        : join(this.root, "resources", "postgres-launcher.mjs");
+      started = spawn(process.execPath, [launcherPath], {
         windowsHide: true,
         stdio: "ignore",
         env: { ...postgresEnvironment, ELECTRON_RUN_AS_NODE: "1", LEE_POSTGRES_CTL: pgCtl, LEE_POSTGRES_ARGS: JSON.stringify(startArgs) },

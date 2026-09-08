@@ -48,6 +48,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /ELECTRON_RUN_AS_NODE/);
   assert.match(runtime, /LEE_POSTGRES_CTL/);
   assert.match(runtime, /LEE_POSTGRES_ARGS/);
+  assert.match(runtime, /postgres-launcher\.mjs/);
   assert.match(runtime, /spawn\(process\.execPath/);
   assert.match(runtime, /randomUUID\(\)/);
   assert.match(runtime, /LEE_INSTANCE_ID: instanceId/);

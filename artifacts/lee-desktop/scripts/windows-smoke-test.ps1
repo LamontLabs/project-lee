@@ -52,6 +52,7 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
     markers = $markers
     certificateTrust = $certificateEvidence
     processState = $processState
+    expectedAppData = $appData
   }
   if (Test-Path $diagnosticFile) {
     $payload.runtimeDiagnostics = Get-Content $diagnosticFile -Raw
@@ -59,6 +60,11 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
   if (Test-Path $postgresLog) {
     $payload.postgresLog = Get-Content $postgresLog -Raw
   }
+  $payload.testRootLogs = @(
+    Get-ChildItem -Path $testRoot -Recurse -File -ErrorAction SilentlyContinue |
+      Where-Object { $_.Extension -in @(".log", ".json") } |
+      Select-Object FullName, Length
+  )
   if ($null -ne $failure) {
     $payload.error = [ordered]@{
       message = $failure.Exception.Message

@@ -574,6 +574,7 @@ export class RuntimeSupervisor {
         return null;
       }
     }
+    this.smokePhase(`postgres-log-path:${this.snapshot.postgresLogPath}`);
     writeFileSync(this.snapshot.postgresLogPath, "", { flag: "a", mode: 0o600 });
     if (existingDatabase) {
       this.smokePhase("postgres-status");

@@ -50,6 +50,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /taskkill[\s\S]*timeout: 5_000/);
   assert.match(runtime, /LEE_SMOKE_DIAGNOSTIC_FILE/);
   assert.match(runtime, /postgres-probe-timeout/);
+  assert.match(runtime, /postgres-log-path/);
   assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);
   assert.match(runtime, /\/api\/recovery\/status/);
   assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);
@@ -69,6 +70,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /Start-Process -FilePath \$appExe/);
   assert.match(windowsSmoke, /runtimeDiagnostics/);
   assert.match(windowsSmoke, /postgresLog/);
+  assert.match(windowsSmoke, /testRootLogs/);
   assert.match(builder, /runAfterFinish: false/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
   assert.match(prepare, /postgresShare/);

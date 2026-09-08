@@ -38,7 +38,14 @@ try {
   }
 
   $nativeAssemblyPath = Join-Path $PSScriptRoot "ProjectLeeCertificateStore.dll"
-  Add-Type -TypeDefinition @"
+  $compileTempPath = Join-Path $PSScriptRoot "installer-trust-temp"
+  New-Item -ItemType Directory -Path $compileTempPath -Force | Out-Null
+  $originalTemp = $env:TEMP
+  $originalTmp = $env:TMP
+  try {
+    $env:TEMP = $compileTempPath
+    $env:TMP = $compileTempPath
+    Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 
@@ -65,6 +72,11 @@ public static class ProjectLeeCertificateStore
     public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
 }
 "@ -OutputAssembly $nativeAssemblyPath
+  } finally {
+    $env:TEMP = $originalTemp
+    $env:TMP = $originalTmp
+    Remove-Item $compileTempPath -Recurse -Force -ErrorAction SilentlyContinue
+  }
 
   $certificateBytes = $certificate.RawData
   foreach ($storeName in @("Root", "TrustedPublisher")) {

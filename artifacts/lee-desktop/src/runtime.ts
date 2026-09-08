@@ -604,7 +604,13 @@ export class RuntimeSupervisor {
       started = spawn(process.execPath, [launcherPath], {
         windowsHide: true,
         stdio: "ignore",
-        env: { ...postgresEnvironment, ELECTRON_RUN_AS_NODE: "1", LEE_POSTGRES_CTL: pgCtl, LEE_POSTGRES_ARGS: JSON.stringify(startArgs) },
+        env: {
+          ...postgresEnvironment,
+          ELECTRON_RUN_AS_NODE: "1",
+          LEE_POSTGRES_CTL: pgCtl,
+          LEE_POSTGRES_ARGS: JSON.stringify(startArgs),
+          LEE_POSTGRES_LAUNCHER_LOG: join(dataDir, "logs", "postgres-launcher.log"),
+        },
       });
       this.smokePhase("postgres-started");
     } else {

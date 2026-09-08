@@ -53,6 +53,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /waitForSmokeOwnerAuthentication/);
   assert.match(main, /quitAndInstall/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
+  assert.match(prepare, /postgresShare/);
   assert.match(packageRuntime, /LEE_POSTGRES_SOURCE/);
   assert.match(packageRuntime, /macOS and Windows runtimes must be staged explicitly/);
   assert.match(packageRuntime, /stagePostgresRuntime/);

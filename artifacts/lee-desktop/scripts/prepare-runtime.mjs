@@ -24,8 +24,11 @@ for (const executable of ["initdb", "pg_ctl", "pg_isready", "createdb", "postgre
     throw new Error(`Bundled PostgreSQL runtime is missing ${executable}. Stage it with scripts/stage-postgres-runtime.mjs before packaging.`);
   }
 }
-if (!existsSync(resolve(postgresRuntime, "share", "postgresql", "postgresql.conf.sample"))) {
-  throw new Error("Bundled PostgreSQL runtime is missing share/postgresql/postgresql.conf.sample.");
+const postgresShare = process.platform === "win32"
+  ? resolve(postgresRuntime, "share")
+  : resolve(postgresRuntime, "share", "postgresql");
+if (!existsSync(resolve(postgresShare, "postgresql.conf.sample"))) {
+  throw new Error(`Bundled PostgreSQL runtime is missing ${process.platform === "win32" ? "share" : "share/postgresql"}/postgresql.conf.sample.`);
 }
 await rm(resolve(resources, "console"), { recursive: true, force: true });
 await rm(resolve(resources, "api-server"), { recursive: true, force: true });

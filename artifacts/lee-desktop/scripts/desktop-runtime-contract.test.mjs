@@ -46,6 +46,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /LEE_INSTANCE_ID: instanceId/);
   assert.match(runtime, /timeout: 60_000/);
   assert.match(runtime, /timeout: 15_000/);
+  assert.match(runtime, /taskkill[\s\S]*timeout: 5_000/);
   assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);
   assert.match(runtime, /\/api\/recovery\/status/);
   assert.match(main, /LEE_SMOKE_UPDATE_FEED_URL/);

@@ -685,7 +685,12 @@ export class RuntimeSupervisor {
       setTimeout(resolve, 1500);
     });
     if (process.platform === "win32") {
-      spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" });
+      spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+        windowsHide: true,
+        stdio: "ignore",
+        timeout: 5_000,
+      });
+      await Promise.race([exited, new Promise<void>((resolve) => setTimeout(resolve, 1_500))]);
     } else {
       try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
       await exited;

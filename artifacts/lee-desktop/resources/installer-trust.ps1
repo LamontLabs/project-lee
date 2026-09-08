@@ -27,7 +27,11 @@ try {
         ))
         if ($matches.Count -eq 0) {
           $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
-          $registryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($registryPath)
+          $registryBaseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+            [Microsoft.Win32.RegistryHive]::CurrentUser,
+            [Microsoft.Win32.RegistryView]::Registry64
+          )
+          $registryKey = $registryBaseKey.OpenSubKey($registryPath)
           try {
             $blob = if ($null -ne $registryKey) {
               $registryKey.GetValue("Blob", $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
@@ -38,6 +42,7 @@ try {
             "registry-$storeName-$blobLength" | Add-Content $tracePath
           } finally {
             if ($null -ne $registryKey) { $registryKey.Close() }
+            $registryBaseKey.Close()
           }
           throw "certificate is missing from CurrentUser $storeName"
         }

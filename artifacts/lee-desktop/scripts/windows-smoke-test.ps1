@@ -206,6 +206,10 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
     throw "installed certificate trust helper exited with $trustExitCode; trace: $trace"
   }
+  $bootstrapTracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+  if (Test-Path $bootstrapTracePath) {
+    Copy-Item $bootstrapTracePath (Join-Path $testRoot "installer-trust-bootstrap.log") -Force
+  }
 }
 
 function Invoke-InstalledCertificateVerification([string] $certificatePath) {
@@ -236,7 +240,9 @@ function Invoke-InstalledCertificateVerification([string] $certificatePath) {
   if ($verifyExitCode -ne 0) {
     $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
-    throw "fresh certificate-store verification exited with $verifyExitCode; bootstrap trace: $trace"
+    $bootstrapTrace = Join-Path $testRoot "installer-trust-bootstrap.log"
+    $bootstrap = if (Test-Path $bootstrapTrace) { Get-Content $bootstrapTrace -Raw } else { "missing" }
+    throw "fresh certificate-store verification exited with $verifyExitCode; verify trace: $trace; bootstrap trace: $bootstrap"
   }
 }
 

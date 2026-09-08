@@ -177,25 +177,39 @@ function Wait-ForPackagedCertificateTrusted([string] $certificatePath) {
   } while ($true)
 }
 
+function Start-SmokePowerShell([string[]] $arguments, [string] $stdoutPath, [string] $stderrPath) {
+  $startParameters = @{
+    FilePath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+    ArgumentList = $arguments
+    RedirectStandardOutput = $stdoutPath
+    RedirectStandardError = $stderrPath
+    PassThru = $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:LEE_SMOKE_PASSWORD) -and -not [string]::IsNullOrWhiteSpace($ExpectedUserName)) {
+    $securePassword = ConvertTo-SecureString $env:LEE_SMOKE_PASSWORD -AsPlainText -Force
+    $startParameters.Credential = [System.Management.Automation.PSCredential]::new(
+      ".\$ExpectedUserName",
+      $securePassword
+    )
+    $startParameters.LoadUserProfile = $true
+  }
+  Start-Process @startParameters
+}
+
 function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
   $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
   Assert-True (Test-Path $trustScriptPath) "installed certificate trust helper is missing: $trustScriptPath"
-  $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
   $stdoutPath = Join-Path $testRoot "installer-trust-bootstrap.stdout.log"
   $stderrPath = Join-Path $testRoot "installer-trust-bootstrap.stderr.log"
-  $trustProcess = Start-Process `
-    -FilePath $powershellPath `
-    -ArgumentList @(
+  $trustProcess = Start-SmokePowerShell `
+    -Arguments @(
       "-NoLogo",
       "-NoProfile",
       "-NonInteractive",
       "-ExecutionPolicy", "Bypass",
       "-File", $trustScriptPath,
       "-CertificatePath", $certificatePath
-    ) `
-    -RedirectStandardOutput $stdoutPath `
-    -RedirectStandardError $stderrPath `
-    -PassThru
+    ) -stdoutPath $stdoutPath -stderrPath $stderrPath
   if (-not $trustProcess.WaitForExit(120000)) {
     Stop-ProcessTree $trustProcess.Id
     $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
@@ -217,12 +231,10 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
 
 function Invoke-InstalledCertificateVerification([string] $certificatePath) {
   $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
-  $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
   $stdoutPath = Join-Path $testRoot "installer-trust-verification.stdout.log"
   $stderrPath = Join-Path $testRoot "installer-trust-verification.stderr.log"
-  $verifyProcess = Start-Process `
-    -FilePath $powershellPath `
-    -ArgumentList @(
+  $verifyProcess = Start-SmokePowerShell `
+    -Arguments @(
       "-NoLogo",
       "-NoProfile",
       "-NonInteractive",
@@ -230,10 +242,7 @@ function Invoke-InstalledCertificateVerification([string] $certificatePath) {
       "-File", $trustScriptPath,
       "-CertificatePath", $certificatePath,
       "-VerifyOnly"
-    ) `
-    -RedirectStandardOutput $stdoutPath `
-    -RedirectStandardError $stderrPath `
-    -PassThru
+    ) -stdoutPath $stdoutPath -stderrPath $stderrPath
   if (-not $verifyProcess.WaitForExit(120000)) {
     Stop-ProcessTree $verifyProcess.Id
     throw "fresh certificate-store verification timed out"

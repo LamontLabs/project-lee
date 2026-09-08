@@ -346,6 +346,7 @@ jobs:
               ) `
               -RedirectStandardOutput $stdoutPath `
               -RedirectStandardError $stderrPath `
+              -Environment @{ LEE_SMOKE_PASSWORD = "$([System.Net.NetworkCredential]::new('', $password).Password)" } `
               -Wait `
               -PassThru
             if ($process.ExitCode -ne 0) {

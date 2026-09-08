@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $tracePath = Join-Path $PSScriptRoot "installer-trust.log"
 "start" | Set-Content $tracePath
 try {
+  "identity-$env:USERNAME-$env:USERPROFILE" | Add-Content $tracePath
   $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath)
   "certificate-loaded" | Add-Content $tracePath
   $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
@@ -133,6 +134,7 @@ public static class ProjectLeeCertificateSerialization
       [Microsoft.Win32.RegistryHive]::CurrentUser,
       [Microsoft.Win32.RegistryView]::Registry64
     )
+    "hive-$($registryBaseKey.Name)" | Add-Content $tracePath
     $registryKey = $registryBaseKey.CreateSubKey($registryPath)
     if ($null -eq $registryKey) {
       throw "unable to open CurrentUser certificate registry path $registryPath"
@@ -145,6 +147,14 @@ public static class ProjectLeeCertificateSerialization
       )
       $registryKey.Flush()
       "registry-written-$storeName-$($serializedElement.Length)" | Add-Content $tracePath
+      $readbackKey = $registryBaseKey.OpenSubKey($registryPath)
+      try {
+        $readback = $readbackKey.GetValue("Blob", $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        $readbackLength = if ($readback -is [byte[]]) { $readback.Length } else { 0 }
+        "registry-readback-$storeName-$readbackLength" | Add-Content $tracePath
+      } finally {
+        if ($null -ne $readbackKey) { $readbackKey.Close() }
+      }
     } finally {
       $registryKey.Close()
       $registryBaseKey.Close()

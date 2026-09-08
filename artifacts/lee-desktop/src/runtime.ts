@@ -1,7 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
+import { createConnection, createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -597,11 +597,18 @@ export class RuntimeSupervisor {
     this.postgresCtl = pgCtl;
     this.snapshot = { ...this.snapshot, postgresProcessId: started.pid ?? null };
     const url = `postgresql://lee@127.0.0.1:${port}/lee`;
+    this.smokePhase("postgres-probe");
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const probe = spawnSync(executable("pg_isready"), ["-h", "127.0.0.1", "-p", String(port)], { windowsHide: true, env: postgresEnvironment, timeout: 2_000 });
-      if (probe.status === 0) {
+      const portReady = await new Promise<boolean>((resolve) => {
+        const socket = createConnection({ host: "127.0.0.1", port });
+        const timer = setTimeout(() => { socket.destroy(); resolve(false); }, 2_000);
+        socket.once("connect", () => { clearTimeout(timer); socket.destroy(); resolve(true); });
+        socket.once("error", () => { clearTimeout(timer); socket.destroy(); resolve(false); });
+      });
+      if (portReady) {
         this.smokePhase("postgres-ready");
         const created = spawnSync(executable("createdb"), ["-h", "127.0.0.1", "-p", String(port), "-U", "lee", "lee"], { windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
+        this.smokePhase(created.status === 0 || created.stderr?.toString().includes("already exists") ? "database-created" : "database-create-failed");
         if (created.status === 0 || created.stderr?.toString().includes("already exists")) return url;
       }
       await new Promise((resolve) => setTimeout(resolve, 250));

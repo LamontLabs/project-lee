@@ -32,6 +32,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installerTrust, /Registry\]::CurrentUser/);
   assert.match(installerTrust, /RegistryValueKind\]::Binary/);
   assert.match(installerTrust, /\.Flush\(\)/);
+  assert.match(installerTrust, /registry-written-\$storeName/);
+  assert.match(installerTrust, /registry-\$storeName-\$blobLength/);
   assert.match(installerTrust, /certificate-added-\$storeName/);
   assert.match(installerTrust, /VerifyOnly/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);

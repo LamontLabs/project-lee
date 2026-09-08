@@ -26,6 +26,19 @@ try {
           $false
         ))
         if ($matches.Count -eq 0) {
+          $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
+          $registryKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($registryPath)
+          try {
+            $blob = if ($null -ne $registryKey) {
+              $registryKey.GetValue("Blob", $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            } else {
+              $null
+            }
+            $blobLength = if ($blob -is [byte[]]) { $blob.Length } else { 0 }
+            "registry-$storeName-$blobLength" | Add-Content $tracePath
+          } finally {
+            if ($null -ne $registryKey) { $registryKey.Close() }
+          }
           throw "certificate is missing from CurrentUser $storeName"
         }
         "verified-$storeName" | Add-Content $tracePath
@@ -122,6 +135,7 @@ public static class ProjectLeeCertificateSerialization
         [Microsoft.Win32.RegistryValueKind]::Binary
       )
       $registryKey.Flush()
+      "registry-written-$storeName-$($serializedElement.Length)" | Add-Content $tracePath
     } finally {
       $registryKey.Close()
     }

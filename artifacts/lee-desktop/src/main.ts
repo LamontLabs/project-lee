@@ -182,7 +182,15 @@ async function boot(): Promise<void> {
   if (smokeUpdateFeedUrl && smokeUpdateExpectedVersion && app.getVersion() === smokeUpdateExpectedVersion) {
     if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify({ status: "installed", version: app.getVersion() }, null, 2), "utf8");
   }
-  if (smokeExitRequested && !awaitingSmokeUpdate) waitForSmokeOwnerAuthentication();
+  if (smokeExitRequested && !awaitingSmokeUpdate) {
+    if (smokeOwnerAuthFile) {
+      waitForSmokeOwnerAuthentication();
+    } else {
+      await supervisor.stop();
+      consoleServer?.server.close();
+      app.exit(0);
+    }
+  }
 }
 
 app.on("before-quit", (event) => {

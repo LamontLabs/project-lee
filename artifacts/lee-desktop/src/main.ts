@@ -197,11 +197,18 @@ app.on("before-quit", (event) => {
   if (!isQuitting) {
     event.preventDefault();
     isQuitting = true;
+    if (!supervisor) {
+      app.exit(0);
+      return;
+    }
     void supervisor?.stop().finally(() => { consoleServer?.server.close(); app.quit(); });
   }
 });
 app.whenReady().then(async () => {
-  if (!hasSingleInstance) return;
+  if (!hasSingleInstance) {
+    app.exit(0);
+    return;
+  }
   const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));
   tray = new Tray(icon);
   tray.setToolTip("Project LEE");

@@ -94,7 +94,7 @@ function Get-StoreCertificateMatches(
 }
 
 function Assert-NoPreexistingProjectLeeCertificate {
-  foreach ($storeName in @("Root", "TrustedPublisher", "My", "CA", "TrustedPeople")) {
+  foreach ($storeName in @("TrustedPublisher", "My", "CA", "TrustedPeople")) {
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
       $storeName,
       [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
@@ -129,7 +129,7 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
   Assert-True ($privateKeyFiles.Count -eq 0) "installed resources contain possible private signing material: $($privateKeyFiles.FullName -join ', ')"
 
   $verifiedCurrentUserStores = @()
-  foreach ($storeName in @("Root", "TrustedPublisher")) {
+  foreach ($storeName in @("TrustedPublisher")) {
     $trustedCertificates = Get-StoreCertificateMatches $storeName `
       ([System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser) `
       $certificateThumbprint
@@ -147,7 +147,7 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
     Assert-True ($matches.Count -eq 0) "packaged Project LEE certificate was unexpectedly added to the current user's $storeName store"
   }
 
-  foreach ($storeName in @("Root", "TrustedPublisher")) {
+  foreach ($storeName in @("TrustedPublisher")) {
     $matches = Get-StoreCertificateMatches $storeName `
       ([System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine) `
       $certificateThumbprint
@@ -160,8 +160,8 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
     privateKeyPresent = $packagedCertificate.HasPrivateKey
     privateKeyFiles = @($privateKeyFiles | ForEach-Object { $_.FullName })
     currentUserStores = @($verifiedCurrentUserStores)
-    currentUserForbiddenStores = @("My", "CA", "TrustedPeople", "Disallowed")
-    localMachineStoresChecked = @("Root", "TrustedPublisher")
+    currentUserForbiddenStores = @("My", "CA", "TrustedPeople", "Disallowed", "Root")
+    localMachineStoresChecked = @("TrustedPublisher")
   }
 }
 
@@ -360,7 +360,7 @@ try {
   $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"
   $appExe = $appExe.FullName
-  Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
+  Set-Phase "certificate-trust" "Verifying the installed certificate in the current-user publisher trust store."
   Assert-PackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
   Set-Phase "migration-assets" "Checking packaged migration assets."
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `

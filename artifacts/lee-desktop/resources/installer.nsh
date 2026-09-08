@@ -8,12 +8,6 @@
     Abort
 
 lee_trust_certificate:
-  ExecWait '"$SYSDIR\certutil.exe" -user -addstore -f "Root" "$PLUGINSDIR\project-lee-signing.cer"' $0
-  ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "Project LEE could not install its private update-verification certificate."
-    Abort
-  ${EndIf}
-
   ExecWait '"$SYSDIR\certutil.exe" -user -addstore -f "TrustedPublisher" "$PLUGINSDIR\project-lee-signing.cer"' $0
   ${If} $0 != 0
     MessageBox MB_ICONSTOP|MB_OK "Project LEE could not register its private publisher certificate."

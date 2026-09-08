@@ -22,6 +22,7 @@ const smokeUpdateInterrupt = process.env.LEE_SMOKE_UPDATE_INTERRUPT;
 const smokeUpdateInterruptFile = process.env.LEE_SMOKE_UPDATE_INTERRUPT_FILE;
 const smokeUpdateInterruptDelayMs = Number(process.env.LEE_SMOKE_UPDATE_INTERRUPT_DELAY_MS ?? 250);
 const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
+const smokeExitRequested = app.commandLine.hasSwitch("lee-smoke-exit") || process.env.LEE_SMOKE_EXIT === "1";
 let smokeInterruptionTriggered = false;
 const hasSingleInstance = app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
@@ -181,7 +182,7 @@ async function boot(): Promise<void> {
   if (smokeUpdateFeedUrl && smokeUpdateExpectedVersion && app.getVersion() === smokeUpdateExpectedVersion) {
     if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify({ status: "installed", version: app.getVersion() }, null, 2), "utf8");
   }
-  if (app.commandLine.hasSwitch("lee-smoke-exit") && !awaitingSmokeUpdate) waitForSmokeOwnerAuthentication();
+  if (smokeExitRequested && !awaitingSmokeUpdate) waitForSmokeOwnerAuthentication();
 }
 
 app.on("before-quit", (event) => {

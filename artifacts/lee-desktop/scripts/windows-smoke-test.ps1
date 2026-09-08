@@ -382,6 +382,7 @@ try {
     APPDATA = $appData
     LEE_MIGRATION_COMMAND = "cmd /c exit 0"
     LEE_SMOKE_STATUS_FILE = $statusFile
+    LEE_SMOKE_EXIT = "1"
   }
   $first = Invoke-Lee $commonEnvironment "clean first launch"
   foreach ($directory in @(

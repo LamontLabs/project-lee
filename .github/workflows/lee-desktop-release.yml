@@ -64,7 +64,7 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) { throw "LEE_WINDOWS_CERTIFICATE is required for a trusted release." }
           if ([string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) { throw "LEE_WINDOWS_CERTIFICATE_PASSWORD is required for a trusted release." }
-      - name: Trust private Windows signing certificate for CI verification
+      - name: Prepare public Windows signing certificate for CI verification
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
@@ -78,6 +78,7 @@ jobs:
             failedStore = $null
             stores = @()
             markers = @()
+            storeMutation = "not-performed"
           }
           function Write-TrustEvidence {
             $trustEvidence | ConvertTo-Json -Depth 20 | Set-Content -Path $trustEvidencePath -Encoding utf8
@@ -92,41 +93,6 @@ jobs:
             Write-Host "[certificate-trust] $phase - $message"
             Write-TrustEvidence
           }
-          function Invoke-BoundedCertificateImport([string] $store, [string] $certificatePath) {
-            # Bounded noninteractive equivalent of: certutil.exe -user -f -addstore <store> <certificate>
-            $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-            $startInfo.FileName = "certutil.exe"
-            $startInfo.UseShellExecute = $false
-            $startInfo.CreateNoWindow = $true
-            $startInfo.RedirectStandardInput = $true
-            $startInfo.RedirectStandardOutput = $true
-            $startInfo.RedirectStandardError = $true
-            foreach ($argument in @("-user", "-f", "-addstore", $store, $certificatePath)) {
-              [void] $startInfo.ArgumentList.Add($argument)
-            }
-            $process = [System.Diagnostics.Process]::new()
-            $process.StartInfo = $startInfo
-            if (-not $process.Start()) { throw "certutil could not start for $store." }
-            $process.StandardInput.Close()
-            $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-            $stderrTask = $process.StandardError.ReadToEndAsync()
-            if (-not $process.WaitForExit(60000)) {
-              try { $process.Kill($true) } catch { }
-              $stdout = $stdoutTask.GetAwaiter().GetResult()
-              $stderr = $stderrTask.GetAwaiter().GetResult()
-              throw "certutil timed out after 60 seconds while importing into the current user's $store store. stdout=$stdout stderr=$stderr"
-            }
-            $process.WaitForExit()
-            $stdout = $stdoutTask.GetAwaiter().GetResult()
-            $stderr = $stderrTask.GetAwaiter().GetResult()
-            return [ordered]@{
-              store = $store
-              exitCode = $process.ExitCode
-              stdout = $stdout
-              stderr = $stderr
-            }
-          }
-
           try {
             Write-TrustMarker "decode-certificate" "Decoding the CI signing certificate."
             $pfxPath = Join-Path $env:RUNNER_TEMP "project-lee-signing.pfx"
@@ -142,25 +108,23 @@ jobs:
               $certificatePath,
               $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
             )
-            foreach ($store in @("Root", "TrustedPublisher")) {
-              Write-TrustMarker "import-$store-start" "Importing the public certificate into the current user's $store store."
-              try {
-                $result = Invoke-BoundedCertificateImport $store $certificatePath
-                $trustEvidence.stores += $result
-                if ($result.exitCode -ne 0) {
-                  throw "certutil could not add the signing certificate to the current user's $store store (exit code $($result.exitCode)). stdout=$($result.stdout) stderr=$($result.stderr)"
-                }
-                Write-TrustMarker "import-$store-complete" "The current user's $store store accepted the public certificate."
-              } catch {
-                $trustEvidence.status = "failed"
-                $trustEvidence.failedStore = $store
-                $trustEvidence.error = $_.Exception.Message
-                Write-TrustMarker "import-$store-failed" "Certificate trust setup failed for the current user's $store store."
-                throw
-              }
-            }
             Write-TrustMarker "package-certificate" "Copying the public certificate into the packaged resources."
             Copy-Item $certificatePath "$env:GITHUB_WORKSPACE\artifacts\lee-desktop\resources\lee-signing.cer" -Force
+            $trustEvidence.certificate = [ordered]@{
+              subject = $certificate.Subject
+              thumbprint = $certificate.Thumbprint.ToUpperInvariant()
+              privateKeyPresent = $false
+              source = "CI signing PFX export"
+              extensions = @(
+                $certificate.Extensions | ForEach-Object {
+                  [ordered]@{
+                    oid = $_.Oid.Value
+                    friendlyName = $_.Oid.FriendlyName
+                    formatted = $_.Format($true)
+                  }
+                }
+              )
+            }
             $trustEvidence.status = "passed"
             $trustEvidence.completedAt = [DateTime]::UtcNow.ToString("o")
             Write-TrustEvidence
@@ -179,24 +143,27 @@ jobs:
           if-no-files-found: warn
       - run: pnpm --filter @workspace/lee-desktop run package
         env:
-          CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
       - name: Verify Authenticode signatures
         shell: pwsh
         run: |
           $installers = Get-ChildItem artifacts/lee-desktop/release/*.exe -File
           if ($installers.Count -eq 0) { throw "No Windows installer was produced." }
-          $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
-          if (-not $signtool) {
-            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
-          }
-          if (-not $signtool) { throw "Windows SDK signtool.exe is unavailable on the runner." }
-          $signtoolPath = if ($signtool.PSObject.Properties.Name -contains "Source") { $signtool.Source } else { $signtool.FullName }
+          $publicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            (Resolve-Path "artifacts/lee-desktop/resources/lee-signing.cer").Path
+          )
+          $expectedThumbprint = $publicCertificate.Thumbprint.ToUpperInvariant()
           foreach ($installer in $installers) {
             $signature = Get-AuthenticodeSignature $installer.FullName
-            if ($signature.Status -ne "Valid") { throw "$($installer.Name) has an invalid Authenticode signature: $($signature.Status)." }
-            & $signtoolPath verify /pa /all $installer.FullName
-            if ($LASTEXITCODE -ne 0) { throw "signtool verification failed for $($installer.Name)." }
+            if ($null -eq $signature.SignerCertificate) {
+              throw "$($installer.Name) has no Authenticode signer certificate."
+            }
+            if ($signature.SignerCertificate.Thumbprint.ToUpperInvariant() -ne $expectedThumbprint) {
+              throw "$($installer.Name) is signed by an unexpected certificate: $($signature.SignerCertificate.Thumbprint)."
+            }
+            if ($signature.Status -notin @("Valid", "Unknown", "UnknownError")) {
+              throw "$($installer.Name) has an invalid Authenticode signature status: $($signature.Status)."
+            }
           }
       - name: Write Windows release metadata
         run: node artifacts/lee-desktop/scripts/write-release-manifest.mjs --platform windows
@@ -289,24 +256,24 @@ jobs:
             printf 'outer_timeout=true\n' >> "$command_status"
             if [[ ! -s release/unix-runtime-smoke-linux.json ]]; then
               node - "$console_log" "$process_state" release/unix-runtime-smoke-linux.json "$smoke_status" <<'NODE'
-const fs = require("node:fs");
-const [consolePath, processPath, evidencePath, status] = process.argv.slice(2);
-const read = (path) => {
-  try { return fs.readFileSync(path, "utf8").slice(-32768); } catch (error) { return `Unable to read ${path}: ${error.message}`; }
-};
-const consoleOutput = read(consolePath);
-const phases = [...consoleOutput.matchAll(/\[unix-runtime-smoke\] phase: ([^\r\n]+)/g)].map((match) => match[1]);
-const lastPhase = phases.at(-1) ?? "outer-timeout";
-fs.writeFileSync(evidencePath, `${JSON.stringify({
-  platform: "linux",
-  status: "failed",
-  phase: lastPhase,
-  timedOut: true,
-  error: { message: `Linux runtime smoke exceeded its outer timeout (exit ${status}).` },
-  child: { output: consoleOutput, processState: read(processPath) },
-  processState: read(processPath),
-}, null, 2)}\n`);
-NODE
+          const fs = require("node:fs");
+          const [consolePath, processPath, evidencePath, status] = process.argv.slice(2);
+          const read = (path) => {
+            try { return fs.readFileSync(path, "utf8").slice(-32768); } catch (error) { return `Unable to read ${path}: ${error.message}`; }
+          };
+          const consoleOutput = read(consolePath);
+          const phases = [...consoleOutput.matchAll(/\[unix-runtime-smoke\] phase: ([^\r\n]+)/g)].map((match) => match[1]);
+          const lastPhase = phases.at(-1) ?? "outer-timeout";
+          fs.writeFileSync(evidencePath, `${JSON.stringify({
+            platform: "linux",
+            status: "failed",
+            phase: lastPhase,
+            timedOut: true,
+            error: { message: `Linux runtime smoke exceeded its outer timeout (exit ${status}).` },
+            child: { output: consoleOutput, processState: read(processPath) },
+            processState: read(processPath),
+          }, null, 2)}\n`);
+          NODE
             fi
           fi
           exit "$smoke_status"
@@ -362,7 +329,7 @@ NODE
         run: |
           $installer = Get-ChildItem "$env:RUNNER_TEMP\lee-installer\*.exe" | Select-Object -First 1
           if (-not $installer) { throw "Downloaded NSIS installer is missing." }
-          $userName = "lee-installer-smoke-owner"
+          $userName = "lee-smoke-owner"
           $password = ConvertTo-SecureString "$([guid]::NewGuid().ToString('N'))!aA1" -AsPlainText -Force
           $evidencePath = Join-Path $env:RUNNER_TEMP "windows-smoke-evidence.json"
           $stdoutPath = Join-Path $env:RUNNER_TEMP "windows-smoke-owner.stdout.log"
@@ -382,10 +349,12 @@ NODE
                 "-File", $scriptPath,
                 "-InstallerPath", $installer.FullName,
                 "-EvidencePath", $evidencePath,
-                "-RequireNonAdmin"
+                "-RequireNonAdmin",
+                "-ExpectedUserName", $userName
               ) `
               -RedirectStandardOutput $stdoutPath `
               -RedirectStandardError $stderrPath `
+              -Environment @{ LEE_SMOKE_PASSWORD = "$([System.Net.NetworkCredential]::new('', $password).Password)" } `
               -Wait `
               -PassThru
             if ($process.ExitCode -ne 0) {

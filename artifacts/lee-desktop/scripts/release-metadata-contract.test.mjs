@@ -12,9 +12,16 @@ test("publish workflow is limited to Windows and Linux release metadata", () => 
   assert.match(workflow, /"latest\.yml", "latest-linux\.yml"/);
   assert.match(workflow, /X509Certificate2/);
   assert.match(workflow, /EphemeralKeySet/);
-  assert.match(workflow, /certutil\.exe -user -f -addstore/);
-  assert.doesNotMatch(workflow, /Import-PfxCertificate/);
-  assert.match(workflow, /@\("Root", "TrustedPublisher"\)/);
+  assert.match(workflow, /Prepare public Windows signing certificate for CI verification/);
+  assert.match(workflow, /privateKeyPresent = \$false/);
+  assert.match(workflow, /extensions = @\(/);
+  assert.match(workflow, /storeMutation = "not-performed"/);
+  assert.match(workflow, /Get-AuthenticodeSignature/);
+  assert.match(workflow, /SignerCertificate\.Thumbprint/);
+  assert.match(workflow, /expectedThumbprint/);
+  assert.match(workflow, /"UnknownError"/);
+  assert.doesNotMatch(workflow, /certutil\.exe|HKCU:\\Software\\Microsoft\\SystemCertificates|Import-Certificate|Import-PfxCertificate|StoreLocation\]::LocalMachine|CertOpenStore|CertOpenSystemStore|CertAddEncodedCertificateToStore|LeeCertificateStoreNative/);
+  assert.doesNotMatch(workflow, /result\.exitCode|certutil could not add/);
   assert.match(workflow, /resources\\lee-signing\.cer/);
   assert.doesNotMatch(workflow, /macos|macOS|latest-mac|LEE_APPLE|LEE_MACOS|merge-mac/i);
 });
@@ -44,5 +51,13 @@ test("Windows installer validation uses a fresh non-admin user profile", () => {
   assert.match(workflow, /-Credential \$credential/);
   assert.match(workflow, /-LoadUserProfile/);
   assert.match(workflow, /-RequireNonAdmin/);
+  assert.match(workflow, /\$userName = "lee-smoke-owner"/);
   assert.match(workflow, /Remove-LocalUser -Name \$userName/);
+});
+
+test("Linux timeout evidence heredoc remains valid YAML", () => {
+  assert.match(
+    workflow,
+    /run: \|\n(?:(?: {10}).*\n)+\s+node - .*<<'NODE'\n {10}const fs = require\("node:fs"\);[\s\S]*\n {10}NODE\n/,
+  );
 });

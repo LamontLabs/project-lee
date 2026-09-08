@@ -8,6 +8,7 @@ files:
   - dist/**
   - resources/**
   - "!resources/installer.nsh"
+  - "!resources/installer-trust.ps1"
   - "!resources/migrate-runtime.mjs"
   - "!resources/migrations/**"
   - "!**/*.map"
@@ -51,12 +52,12 @@ win:
         - x64
 nsis:
   include: resources/installer.nsh
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Project LEE
-  runAfterFinish: true
+  runAfterFinish: false
   differentialPackage: true
 publish:
   provider: github

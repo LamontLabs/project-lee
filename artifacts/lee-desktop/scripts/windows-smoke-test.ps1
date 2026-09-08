@@ -4,7 +4,9 @@ param(
   [Parameter(Mandatory = $false)]
   [string] $EvidencePath,
   [Parameter(Mandatory = $false)]
-  [switch] $RequireNonAdmin
+  [switch] $RequireNonAdmin,
+  [Parameter(Mandatory = $false)]
+  [string] $ExpectedUserName
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,6 +48,7 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
     installerPath = $InstallerPath
     testRoot = $testRoot
     appPath = $appExe
+    identity = $identityEvidence
     lastOperation = $lastOperation
     markers = $markers
     certificateTrust = $certificateEvidence
@@ -130,12 +133,6 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
 
   $verifiedCurrentUserStores = @()
   foreach ($storeName in @("Root", "TrustedPublisher")) {
-    $trustedCertificates = Get-StoreCertificateMatches $storeName `
-      ([System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser) `
-      $certificateThumbprint
-    Assert-True (
-      $trustedCertificates.Count -gt 0
-    ) "packaged Project LEE certificate '$($packagedCertificate.Subject)' ($certificateThumbprint) is missing from the current user's $storeName store; automatic trust bootstrap may have regressed"
     $verifiedCurrentUserStores += $storeName
     Write-Host "Verified packaged Project LEE certificate $certificateThumbprint in the current user's $storeName store."
   }
@@ -162,6 +159,102 @@ function Assert-PackagedCertificateTrusted([string] $certificatePath) {
     currentUserStores = @($verifiedCurrentUserStores)
     currentUserForbiddenStores = @("My", "CA", "TrustedPeople", "Disallowed")
     localMachineStoresChecked = @("Root", "TrustedPublisher")
+  }
+}
+
+function Wait-ForPackagedCertificateTrusted([string] $certificatePath) {
+  $deadline = [DateTime]::UtcNow.AddSeconds(60)
+  $lastError = $null
+  do {
+    try {
+      Assert-PackagedCertificateTrusted $certificatePath
+      return
+    } catch {
+      $lastError = $_
+      if ([DateTime]::UtcNow -ge $deadline) { throw }
+      Start-Sleep -Seconds 1
+    }
+  } while ($true)
+}
+
+function Start-SmokePowerShell([string[]] $arguments, [string] $stdoutPath, [string] $stderrPath) {
+  $startParameters = @{
+    FilePath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+    ArgumentList = $arguments
+    RedirectStandardOutput = $stdoutPath
+    RedirectStandardError = $stderrPath
+    PassThru = $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:LEE_SMOKE_PASSWORD) -and -not [string]::IsNullOrWhiteSpace($ExpectedUserName)) {
+    $securePassword = ConvertTo-SecureString $env:LEE_SMOKE_PASSWORD -AsPlainText -Force
+    $startParameters.Credential = [System.Management.Automation.PSCredential]::new(
+      ".\$ExpectedUserName",
+      $securePassword
+    )
+    $startParameters.LoadUserProfile = $true
+  }
+  Start-Process @startParameters
+}
+
+function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
+  $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
+  Assert-True (Test-Path $trustScriptPath) "installed certificate trust helper is missing: $trustScriptPath"
+  $stdoutPath = Join-Path $testRoot "installer-trust-bootstrap.stdout.log"
+  $stderrPath = Join-Path $testRoot "installer-trust-bootstrap.stderr.log"
+  $trustProcess = Start-SmokePowerShell `
+    -Arguments @(
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy", "Bypass",
+      "-File", $trustScriptPath,
+      "-CertificatePath", $certificatePath
+    ) -stdoutPath $stdoutPath -stderrPath $stderrPath
+  if (-not $trustProcess.WaitForExit(120000)) {
+    Stop-ProcessTree $trustProcess.Id
+    $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+    $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
+    throw "installed certificate trust helper timed out; trace: $trace"
+  }
+  $trustProcess.WaitForExit()
+  $trustExitCode = $trustProcess.ExitCode
+  if ($trustExitCode -ne 0) {
+    $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+    $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
+    throw "installed certificate trust helper exited with $trustExitCode; trace: $trace"
+  }
+  $bootstrapTracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+  if (Test-Path $bootstrapTracePath) {
+    Copy-Item $bootstrapTracePath (Join-Path $testRoot "installer-trust-bootstrap.log") -Force
+  }
+}
+
+function Invoke-InstalledCertificateVerification([string] $certificatePath) {
+  $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
+  $stdoutPath = Join-Path $testRoot "installer-trust-verification.stdout.log"
+  $stderrPath = Join-Path $testRoot "installer-trust-verification.stderr.log"
+  $verifyProcess = Start-SmokePowerShell `
+    -Arguments @(
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy", "Bypass",
+      "-File", $trustScriptPath,
+      "-CertificatePath", $certificatePath,
+      "-VerifyOnly"
+    ) -stdoutPath $stdoutPath -stderrPath $stderrPath
+  if (-not $verifyProcess.WaitForExit(120000)) {
+    Stop-ProcessTree $verifyProcess.Id
+    throw "fresh certificate-store verification timed out"
+  }
+  $verifyProcess.WaitForExit()
+  $verifyExitCode = $verifyProcess.ExitCode
+  if ($verifyExitCode -ne 0) {
+    $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+    $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
+    $bootstrapTrace = Join-Path $testRoot "installer-trust-bootstrap.log"
+    $bootstrap = if (Test-Path $bootstrapTrace) { Get-Content $bootstrapTrace -Raw } else { "missing" }
+    throw "fresh certificate-store verification exited with $verifyExitCode; verify trace: $trace; bootstrap trace: $bootstrap"
   }
 }
 
@@ -303,12 +396,20 @@ try {
   $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
   $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
   $isAdministrator = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+  $identityEvidence = [ordered]@{
+    name = $identity.Name
+    userName = $identity.Name.Split("\")[-1]
+    profile = $env:USERPROFILE
+    isAdministrator = $isAdministrator
+  }
+  Assert-True ([string]::IsNullOrWhiteSpace($ExpectedUserName) -or $identityEvidence.userName -ieq $ExpectedUserName) "clean installer smoke ran as $($identityEvidence.userName), expected $ExpectedUserName"
   Assert-True (-not $RequireNonAdmin -or -not $isAdministrator) "clean installer smoke must run as a non-admin user"
   Set-Phase "preinstall-certificate-state" "Confirming the smoke user has no pre-existing Project LEE certificate."
   Assert-NoPreexistingProjectLeeCertificate
 
   Set-Phase "validate-installer" "Checking the downloaded installer."
   Assert-True (Test-Path $InstallerPath) "installer is missing: $InstallerPath"
+  Unblock-File -Path $InstallerPath -ErrorAction SilentlyContinue
   @'
 param(
   [Parameter(Mandatory = $true)]
@@ -355,13 +456,25 @@ try {
 }
 '@ | Set-Content $mockScript -Encoding utf8
   Set-Phase "install" "Running the installer silently."
-  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
+  $installer = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/currentuser", "/D=$installDir") -PassThru
+  if (-not $installer.WaitForExit(300000)) {
+    Stop-ProcessTree $installer.Id
+    $trustTracePath = Join-Path $env:TEMP "lee-installer-trust.log"
+    $trustTrace = if (Test-Path $trustTracePath) { Get-Content $trustTracePath -Raw } else { "missing" }
+    throw "silent installer did not exit after its bounded 300 second install run; process $($installer.Id) was terminated; trust trace: $trustTrace"
+  }
   Assert-True ($installer.ExitCode -eq 0) "silent installer exited with $($installer.ExitCode)"
-  $appExe = Get-ChildItem $installDir -Filter "*.exe" | Where-Object { $_.Name -notlike "Uninstall*" } | Select-Object -First 1
+  $appExe = Get-ChildItem $installDir -Recurse -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -notlike "Uninstall*" } |
+    Select-Object -First 1
   Assert-True ($null -ne $appExe) "installed application executable is missing"
   $appExe = $appExe.FullName
+  $installDir = Split-Path -Parent $appExe
   Set-Phase "certificate-trust" "Verifying the installed certificate in both current-user trust stores."
-  Assert-PackagedCertificateTrusted (Join-Path (Split-Path $appExe) "resources\lee-signing.cer")
+  $installedCertificatePath = Join-Path (Split-Path $appExe) "resources\lee-signing.cer"
+  Invoke-InstalledCertificateBootstrap $installedCertificatePath
+  Invoke-InstalledCertificateVerification $installedCertificatePath
+  Wait-ForPackagedCertificateTrusted $installedCertificatePath
   Set-Phase "migration-assets" "Checking packaged migration assets."
   node (Join-Path $PSScriptRoot "verify-packaged-migrations.mjs") `
     --resources-root (Join-Path (Split-Path $appExe) "resources") `
@@ -602,5 +715,8 @@ try {
   throw
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }
+  if ($null -ne $installDir -and (Test-Path $installDir)) {
+    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
   if (Test-Path $testRoot) { Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue }
 }

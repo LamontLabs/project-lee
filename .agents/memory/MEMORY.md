@@ -63,6 +63,7 @@
 - [Cross-artifact visual language](cross-artifact-visual-language.md) — LEE UI uses black lacquer surfaces, crimson accents, red grid lines, grain, and restrained metallic sheen.
 - [Packaged desktop migration boundary](desktop-migration-boundary.md) — installed desktop startup migrates from bundled SQL and a runner, never the development workspace.
 - [Signed update validation](signed-update-validation.md) — published desktop feeds need tamper rejection, valid install, and retained evidence on each platform.
+- [Hosted Windows Root-store limitation](windows-root-store-runner.md) — noninteractive hosted users cannot complete the CurrentUser Root confirmation; registry presence is not logical-store trust.
 - [macOS PostgreSQL runtime closure](macos-postgres-closure.md) — bundled native libraries must be architecture-matched, loader-relative, and independent of Homebrew paths.
 - [Desktop update interruption](desktop-update-interruption.md) — interrupted download/install phases must preserve a live previous version before retry.
  - [Hosted release prerequisites](hosted-release-prerequisites.md) — local checks cannot replace a published tagged run from a GitHub connection with target-repository and signing-secret access.

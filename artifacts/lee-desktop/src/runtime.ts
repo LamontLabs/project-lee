@@ -613,6 +613,7 @@ export class RuntimeSupervisor {
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
+    this.smokePhase("postgres-probe-timeout");
     spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
     this.smokePhase("postgres-failed");
     this.postgres = null;

@@ -189,6 +189,10 @@ function Invoke-Lee([hashtable] $environment, [string] $label) {
   $script:lastOperation.exitCode = $process.ExitCode
   Assert-True (Test-Path $statusFile) "$label did not write runtime status"
   $status = Get-Content $statusFile -Raw | ConvertFrom-Json
+  foreach ($childPid in @($status.apiProcessId, $status.postgresProcessId) | Where-Object { $_ }) {
+    Stop-ProcessTree ([int] $childPid)
+  }
+  Start-Sleep -Milliseconds 500
   Remove-Item $statusFile -Force
   return $status
 }

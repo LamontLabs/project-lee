@@ -55,6 +55,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /quitAndInstall/);
   assert.match(main, /LEE_SMOKE_EXIT/);
   assert.match(main, /app\.exit\(0\)/);
+  assert.match(windowsSmoke, /Stop-ProcessTree \(\[int\] \$childPid\)/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
   assert.match(prepare, /postgresShare/);
   assert.match(packageRuntime, /LEE_POSTGRES_SOURCE/);

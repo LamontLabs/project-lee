@@ -183,7 +183,6 @@ jobs:
           if-no-files-found: warn
       - run: pnpm --filter @workspace/lee-desktop run package
         env:
-          CSC_LINK: ${{ secrets.LEE_WINDOWS_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.LEE_WINDOWS_CERTIFICATE_PASSWORD }}
       - name: Verify Authenticode signatures
         shell: pwsh

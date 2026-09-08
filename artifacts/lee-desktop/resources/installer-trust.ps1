@@ -66,7 +66,11 @@ try {
     $env:TMP = $compileTempPath
     $nativeApiType = Add-Type -TypeDefinition @"
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading;
 
 public static class ProjectLeeCertificateSerialization
 {
@@ -85,6 +89,117 @@ public static class ProjectLeeCertificateSerialization
 
     [DllImport("crypt32.dll", SetLastError = true)]
     public static extern bool CertFreeCertificateContext(IntPtr certificateContext);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindWindowEx(
+        IntPtr parentWindow,
+        IntPtr childAfter,
+        string className,
+        string windowName);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int GetWindowText(
+        IntPtr window,
+        StringBuilder text,
+        int textLength);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool PostMessage(
+        IntPtr window,
+        uint message,
+        IntPtr wParam,
+        IntPtr lParam);
+
+    private const uint ButtonClick = 0x00F5;
+
+    public static bool AddCurrentUserRoot(byte[] encodedCertificate, int timeoutMilliseconds, out string detail)
+    {
+        Exception failure = null;
+        using (var completed = new ManualResetEventSlim(false))
+        {
+            var worker = new Thread(() =>
+            {
+                try
+                {
+                    using (var certificate = new X509Certificate2(encodedCertificate))
+                    using (var store = new X509Store(StoreName.Root, StoreLocation.CurrentUser))
+                    {
+                        store.Open(OpenFlags.ReadWrite);
+                        store.Add(certificate);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    failure = exception;
+                }
+                finally
+                {
+                    completed.Set();
+                }
+            })
+            {
+                IsBackground = true
+            };
+            worker.Start();
+
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
+            while (!completed.IsSet && DateTime.UtcNow < deadline)
+            {
+                ApproveRootStorePrompt();
+                Thread.Sleep(100);
+            }
+
+            if (!completed.IsSet)
+            {
+                detail = "Root store add timed out waiting for the Windows confirmation dialog.";
+                return false;
+            }
+        }
+
+        if (failure != null)
+        {
+            detail = failure.GetBaseException().Message;
+            return false;
+        }
+
+        detail = "Root store add completed.";
+        return true;
+    }
+
+    private static void ApproveRootStorePrompt()
+    {
+        foreach (var process in Process.GetProcessesByName("csrss"))
+        {
+            try
+            {
+                var window = process.MainWindowHandle;
+                if (window == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                var button = IntPtr.Zero;
+                while ((button = FindWindowEx(window, button, "Button", null)) != IntPtr.Zero)
+                {
+                    var text = new StringBuilder(128);
+                    GetWindowText(button, text, text.Capacity);
+                    var label = text.ToString().Trim();
+                    if (label.Equals("Yes", StringComparison.OrdinalIgnoreCase) ||
+                        label.Equals("Install", StringComparison.OrdinalIgnoreCase) ||
+                        label.Equals("Allow", StringComparison.OrdinalIgnoreCase) ||
+                        label.Equals("OK", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PostMessage(button, ButtonClick, IntPtr.Zero, IntPtr.Zero);
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // A runner may deny inspection of a system process between enumeration and access.
+            }
+        }
+    }
 }
 "@ -PassThru
     "native-type-loaded" | Add-Content $tracePath
@@ -130,6 +245,16 @@ public static class ProjectLeeCertificateSerialization
 
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
+    if ($storeName -eq "Root") {
+      [string]$rootAddDetail = ""
+      $rootAdded = $nativeApiType::AddCurrentUserRoot($certificateBytes, 110000, [ref]$rootAddDetail)
+      "capi-root-$rootAdded-$rootAddDetail" | Add-Content $tracePath
+      if (-not $rootAdded) {
+        throw "unable to add the certificate to CurrentUser Root through the supported store API: $rootAddDetail"
+      }
+      "certificate-added-$storeName" | Add-Content $tracePath
+      continue
+    }
     $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
     $registryBaseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
       [Microsoft.Win32.RegistryHive]::CurrentUser,

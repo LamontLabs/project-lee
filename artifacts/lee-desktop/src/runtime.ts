@@ -592,7 +592,8 @@ export class RuntimeSupervisor {
     } else {
       this.smokePhase("postgres-fresh-skip-status");
     }
-    const started = spawn(pgCtl, ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: process.platform !== "win32" });
+    const postgresOptions = process.platform === "win32" ? `-p ${port}` : `-p ${port} -k "${socketDir}"`;
+    const started = spawn(pgCtl, ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: process.platform !== "win32" });
     this.smokePhase("postgres-started");
     this.postgres = started;
     this.postgresCtl = pgCtl;

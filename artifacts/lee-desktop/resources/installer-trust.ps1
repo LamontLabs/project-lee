@@ -28,7 +28,8 @@ try {
           $false
         ))
         if ($matches.Count -eq 0) {
-          $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
+          $physicalStorePath = if ($storeName -eq "Root") { "$storeName\.Default.LocalMachine" } else { $storeName }
+          $registryPath = "Software\Microsoft\SystemCertificates\$physicalStorePath\Certificates\$thumbprint"
           $registryBaseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
             [Microsoft.Win32.RegistryHive]::CurrentUser,
             [Microsoft.Win32.RegistryView]::Registry64
@@ -130,7 +131,8 @@ public static class ProjectLeeCertificateSerialization
 
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
+    $physicalStorePath = if ($storeName -eq "Root") { "$storeName\.Default.LocalMachine" } else { $storeName }
+    $registryPath = "Software\Microsoft\SystemCertificates\$physicalStorePath\Certificates\$thumbprint"
     $registryBaseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
       [Microsoft.Win32.RegistryHive]::CurrentUser,
       [Microsoft.Win32.RegistryView]::Registry64

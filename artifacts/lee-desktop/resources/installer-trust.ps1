@@ -37,78 +37,26 @@ try {
     exit 0
   }
 
-  $compileTempPath = Join-Path $PSScriptRoot "installer-trust-temp-$PID"
-  New-Item -ItemType Directory -Path $compileTempPath -Force | Out-Null
-  $originalTemp = $env:TEMP
-  $originalTmp = $env:TMP
-  try {
-    $env:TEMP = $compileTempPath
-    $env:TMP = $compileTempPath
-    $nativeApiType = Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-
-public static class ProjectLeeCertificateStore
-{
-    [DllImport("crypt32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern IntPtr CertOpenStore(
-        IntPtr storeProvider,
-        uint encodingType,
-        IntPtr cryptographicProvider,
-        uint flags,
-        string storeName);
-
-    [DllImport("crypt32.dll", SetLastError = true)]
-    public static extern bool CertAddEncodedCertificateToStore(
-        IntPtr certificateStore,
-        uint encodingType,
-        byte[] encodedCertificate,
-        int encodedCertificateLength,
-        uint addDisposition,
-        IntPtr certificateContext);
-
-    [DllImport("crypt32.dll", SetLastError = true)]
-    public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
-}
-"@ -PassThru
-    "native-type-loaded" | Add-Content $tracePath
-  } finally {
-    $env:TEMP = $originalTemp
-    $env:TMP = $originalTmp
-    Remove-Item $compileTempPath -Recurse -Force -ErrorAction SilentlyContinue
-  }
-
-  $certificateBytes = $certificate.RawData
+  $certutilPath = Join-Path $env:WINDIR "System32\certutil.exe"
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    $store = $nativeApiType::CertOpenStore(
-      [IntPtr]13,
-      [uint32]0x00010001,
-      [IntPtr]::Zero,
-      [uint32]0x00010000,
-      $storeName
-    )
-    if ($store -eq [IntPtr]::Zero) {
-      throw "CertOpenStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+    $stdoutPath = Join-Path $PSScriptRoot "installer-trust-certutil-$PID-$storeName.stdout.log"
+    $stderrPath = Join-Path $PSScriptRoot "installer-trust-certutil-$PID-$storeName.stderr.log"
+    $certutil = Start-Process `
+      -FilePath $certutilPath `
+      -ArgumentList @("-silent", "-user", "-addstore", "-f", $storeName, $CertificatePath) `
+      -RedirectStandardOutput $stdoutPath `
+      -RedirectStandardError $stderrPath `
+      -PassThru
+    if (-not $certutil.WaitForExit(60000)) {
+      & taskkill.exe /pid $certutil.Id /t /f 2>$null | Out-Null
+      throw "certutil timed out for CurrentUser $storeName"
     }
-    "store-opened-$storeName" | Add-Content $tracePath
-    try {
-      $added = $nativeApiType::CertAddEncodedCertificateToStore(
-        $store,
-        [uint32]0x00010001,
-        $certificateBytes,
-        $certificateBytes.Length,
-        [uint32]3,
-        [IntPtr]::Zero
-      )
-      if (-not $added) {
-        throw "CertAddEncodedCertificateToStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
-      }
-      "certificate-added-$storeName" | Add-Content $tracePath
-    } finally {
-      $nativeApiType::CertCloseStore($store, 0) | Out-Null
+    $certutil.WaitForExit()
+    if ($certutil.ExitCode -ne 0) {
+      throw "certutil failed for CurrentUser $storeName with exit code $($certutil.ExitCode)"
     }
-    "imported-$storeName" | Add-Content $tracePath
+    "certificate-added-$storeName" | Add-Content $tracePath
   }
   "complete" | Add-Content $tracePath
 } catch {

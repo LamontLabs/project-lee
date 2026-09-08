@@ -175,15 +175,11 @@ function Stop-ProcessTree([int] $processId) {
 
 function Invoke-Lee([hashtable] $environment, [string] $label) {
   Set-Phase "launch-$label" "Starting the packaged application."
-  $psi = [System.Diagnostics.ProcessStartInfo]::new()
-  $psi.FileName = $appExe
-  $psi.Arguments = "--lee-smoke-exit"
-  $psi.WorkingDirectory = $installDir
-  $psi.UseShellExecute = $false
-  foreach ($entry in $environment.GetEnumerator()) {
-    $psi.Environment[$entry.Key] = $entry.Value
-  }
-  $process = [System.Diagnostics.Process]::Start($psi)
+  $process = Start-Process -FilePath $appExe `
+    -ArgumentList @("--lee-smoke-exit") `
+    -WorkingDirectory $installDir `
+    -Environment $environment `
+    -PassThru
   Assert-True ($null -ne $process) "$label did not start"
   $script:lastOperation = [ordered]@{ label = $label; processId = $process.Id; timeoutSeconds = 120 }
   if (-not $process.WaitForExit(120000)) {

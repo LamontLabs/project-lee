@@ -60,6 +60,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /app\.exit\(0\)/);
   assert.match(main, /if \(!supervisor\)/);
   assert.match(windowsSmoke, /Stop-ProcessTree \(\[int\] \$childPid\)/);
+  assert.match(windowsSmoke, /Start-Process -FilePath \$appExe/);
   assert.match(windowsSmoke, /runtimeDiagnostics/);
   assert.match(builder, /runAfterFinish: false/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);

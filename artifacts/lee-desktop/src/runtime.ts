@@ -565,7 +565,8 @@ export class RuntimeSupervisor {
     const port = await this.availablePort(this.port + 1);
     const socketDir = join(dataDir, "postgres-socket");
     mkdirSync(socketDir, { recursive: true, mode: 0o700 });
-    if (!existsSync(join(databaseDir, "PG_VERSION"))) {
+    const existingDatabase = existsSync(join(databaseDir, "PG_VERSION"));
+    if (!existingDatabase) {
       this.smokePhase("postgres-init");
       const initialized = spawnSync(initdb, ["-D", databaseDir, "--auth=trust", "--username=lee"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 60_000 });
       if (initialized.status !== 0) {
@@ -574,17 +575,21 @@ export class RuntimeSupervisor {
       }
     }
     const postgresLog = this.openLog(this.snapshot.postgresLogPath);
-    this.smokePhase("postgres-status");
-    const existingStatus = spawnSync(pgCtl, ["-D", databaseDir, "-w", "status"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
-    if (existingStatus.status === 0) {
-      const stopped = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
-      if (stopped.status !== 0) {
-        const forced = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
-        if (forced.status !== 0) {
-          writeFileSync(join(dataDir, "logs", "postgres-recovery.log"), "PostgreSQL was detected but could not be stopped within the bounded recovery budget; the existing data directory was not replaced.\n", { mode: 0o600 });
-          return null;
+    if (existingDatabase) {
+      this.smokePhase("postgres-status");
+      const existingStatus = spawnSync(pgCtl, ["-D", databaseDir, "-w", "status"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
+      if (existingStatus.status === 0) {
+        const stopped = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
+        if (stopped.status !== 0) {
+          const forced = spawnSync(pgCtl, ["-D", databaseDir, "-w", "stop", "-m", "immediate"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, timeout: 10_000 });
+          if (forced.status !== 0) {
+            writeFileSync(join(dataDir, "logs", "postgres-recovery.log"), "PostgreSQL was detected but could not be stopped within the bounded recovery budget; the existing data directory was not replaced.\n", { mode: 0o600 });
+            return null;
+          }
         }
       }
+    } else {
+      this.smokePhase("postgres-fresh-skip-status");
     }
     const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: ["ignore", postgresLog, postgresLog], env: postgresEnvironment, detached: process.platform !== "win32" });
     this.smokePhase("postgres-started");

@@ -82,7 +82,7 @@ public static class ProjectLeeCertificateStore
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
     $store = $nativeApiType::CertOpenStore(
-      [IntPtr]10,
+      [IntPtr]13,
       [uint32]0x00010001,
       [IntPtr]::Zero,
       [uint32]0x00010000,

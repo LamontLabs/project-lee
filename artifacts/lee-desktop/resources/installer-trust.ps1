@@ -37,8 +37,8 @@ try {
     exit 0
   }
 
-  $nativeAssemblyPath = Join-Path $PSScriptRoot "ProjectLeeCertificateStore.dll"
-  $compileTempPath = Join-Path $PSScriptRoot "installer-trust-temp"
+  $nativeAssemblyPath = Join-Path $PSScriptRoot "ProjectLeeCertificateStore-$PID.dll"
+  $compileTempPath = Join-Path $PSScriptRoot "installer-trust-temp-$PID"
   New-Item -ItemType Directory -Path $compileTempPath -Force | Out-Null
   $originalTemp = $env:TEMP
   $originalTmp = $env:TMP
@@ -72,6 +72,7 @@ public static class ProjectLeeCertificateStore
     public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
 }
 "@ -OutputAssembly $nativeAssemblyPath -PassThru
+    "native-type-loaded" | Add-Content $tracePath
   } finally {
     $env:TEMP = $originalTemp
     $env:TMP = $originalTmp
@@ -91,6 +92,7 @@ public static class ProjectLeeCertificateStore
     if ($store -eq [IntPtr]::Zero) {
       throw "CertOpenStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
     }
+    "store-opened-$storeName" | Add-Content $tracePath
     try {
       $added = $nativeApiType::CertAddEncodedCertificateToStore(
         $store,
@@ -103,6 +105,7 @@ public static class ProjectLeeCertificateStore
       if (-not $added) {
         throw "CertAddEncodedCertificateToStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
       }
+      "certificate-added-$storeName" | Add-Content $tracePath
     } finally {
       $nativeApiType::CertCloseStore($store, 0) | Out-Null
     }

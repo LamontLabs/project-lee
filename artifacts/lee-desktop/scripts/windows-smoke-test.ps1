@@ -178,14 +178,29 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
   $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
   Assert-True (Test-Path $trustScriptPath) "installed certificate trust helper is missing: $trustScriptPath"
   $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-  & $powershellPath `
-    -NoLogo `
-    -NoProfile `
-    -NonInteractive `
-    -ExecutionPolicy Bypass `
-    -File $trustScriptPath `
-    -CertificatePath $certificatePath
-  $trustExitCode = $LASTEXITCODE
+  $stdoutPath = Join-Path $testRoot "installer-trust-bootstrap.stdout.log"
+  $stderrPath = Join-Path $testRoot "installer-trust-bootstrap.stderr.log"
+  $trustProcess = Start-Process `
+    -FilePath $powershellPath `
+    -ArgumentList @(
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy", "Bypass",
+      "-File", $trustScriptPath,
+      "-CertificatePath", $certificatePath
+    ) `
+    -RedirectStandardOutput $stdoutPath `
+    -RedirectStandardError $stderrPath `
+    -PassThru
+  if (-not $trustProcess.WaitForExit(120000)) {
+    Stop-ProcessTree $trustProcess.Id
+    $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
+    $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
+    throw "installed certificate trust helper timed out; trace: $trace"
+  }
+  $trustProcess.WaitForExit()
+  $trustExitCode = $trustProcess.ExitCode
   if ($trustExitCode -ne 0) {
     $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
@@ -196,15 +211,28 @@ function Invoke-InstalledCertificateBootstrap([string] $certificatePath) {
 function Invoke-InstalledCertificateVerification([string] $certificatePath) {
   $trustScriptPath = Join-Path (Split-Path -Parent $certificatePath) "installer-trust.ps1"
   $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-  & $powershellPath `
-    -NoLogo `
-    -NoProfile `
-    -NonInteractive `
-    -ExecutionPolicy Bypass `
-    -File $trustScriptPath `
-    -CertificatePath $certificatePath `
-    -VerifyOnly
-  $verifyExitCode = $LASTEXITCODE
+  $stdoutPath = Join-Path $testRoot "installer-trust-verification.stdout.log"
+  $stderrPath = Join-Path $testRoot "installer-trust-verification.stderr.log"
+  $verifyProcess = Start-Process `
+    -FilePath $powershellPath `
+    -ArgumentList @(
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy", "Bypass",
+      "-File", $trustScriptPath,
+      "-CertificatePath", $certificatePath,
+      "-VerifyOnly"
+    ) `
+    -RedirectStandardOutput $stdoutPath `
+    -RedirectStandardError $stderrPath `
+    -PassThru
+  if (-not $verifyProcess.WaitForExit(120000)) {
+    Stop-ProcessTree $verifyProcess.Id
+    throw "fresh certificate-store verification timed out"
+  }
+  $verifyProcess.WaitForExit()
+  $verifyExitCode = $verifyProcess.ExitCode
   if ($verifyExitCode -ne 0) {
     throw "fresh certificate-store verification exited with $verifyExitCode"
   }

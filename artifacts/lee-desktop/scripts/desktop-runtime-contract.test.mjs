@@ -34,10 +34,14 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installerTrust, /\$nativeApiType = Add-Type/);
   assert.match(installerTrust, /\$env:TEMP = \$compileTempPath/);
   assert.match(installerTrust, /\$env:TMP = \$compileTempPath/);
+  assert.match(installerTrust, /native-type-loaded/);
+  assert.match(installerTrust, /store-opened-\$storeName/);
+  assert.match(installerTrust, /certificate-added-\$storeName/);
   assert.match(installerTrust, /VerifyOnly/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);
   assert.match(installerTrust, /certificate-loaded/);
   assert.match(windowsSmoke, /WaitForExit\(300000\)/);
+  assert.match(windowsSmoke, /WaitForExit\(120000\)/);
   assert.match(windowsSmoke, /ArgumentList @\("\/S", "\/currentuser", "\/D=\$installDir"\)/);
   assert.match(windowsSmoke, /Unblock-File -Path \$InstallerPath/);
   assert.match(installer, /customInstall/);

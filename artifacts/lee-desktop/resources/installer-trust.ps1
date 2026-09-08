@@ -45,7 +45,7 @@ try {
   try {
     $env:TEMP = $compileTempPath
     $env:TMP = $compileTempPath
-    Add-Type -TypeDefinition @"
+    $nativeApiType = Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 
@@ -71,7 +71,7 @@ public static class ProjectLeeCertificateStore
     [DllImport("crypt32.dll", SetLastError = true)]
     public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
 }
-"@ -OutputAssembly $nativeAssemblyPath
+"@ -OutputAssembly $nativeAssemblyPath -PassThru
   } finally {
     $env:TEMP = $originalTemp
     $env:TMP = $originalTmp
@@ -81,7 +81,7 @@ public static class ProjectLeeCertificateStore
   $certificateBytes = $certificate.RawData
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    $store = [ProjectLeeCertificateStore]::CertOpenStore(
+    $store = $nativeApiType::CertOpenStore(
       [IntPtr]10,
       [uint32]0x00010001,
       [IntPtr]::Zero,
@@ -92,7 +92,7 @@ public static class ProjectLeeCertificateStore
       throw "CertOpenStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
     }
     try {
-      $added = [ProjectLeeCertificateStore]::CertAddEncodedCertificateToStore(
+      $added = $nativeApiType::CertAddEncodedCertificateToStore(
         $store,
         [uint32]0x00010001,
         $certificateBytes,
@@ -104,7 +104,7 @@ public static class ProjectLeeCertificateStore
         throw "CertAddEncodedCertificateToStore failed for CurrentUser $storeName with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
       }
     } finally {
-      [ProjectLeeCertificateStore]::CertCloseStore($store, 0) | Out-Null
+      $nativeApiType::CertCloseStore($store, 0) | Out-Null
     }
     "imported-$storeName" | Add-Content $tracePath
   }

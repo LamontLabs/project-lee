@@ -109,7 +109,11 @@ jobs:
               [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
             )
             $openssl = (Get-Command openssl.exe -ErrorAction Stop).Source
-            & $openssl pkcs12 -legacy -in $sourcePfxPath -nocerts -nodes -passin env:CSC_KEY_PASSWORD -out $privateKeyPath 2>$null
+            & $openssl pkcs12 -in $sourcePfxPath -nocerts -nodes -passin env:CSC_KEY_PASSWORD -out $privateKeyPath 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              Remove-Item $privateKeyPath -Force -ErrorAction SilentlyContinue
+              & $openssl pkcs12 -legacy -in $sourcePfxPath -nocerts -nodes -passin env:CSC_KEY_PASSWORD -out $privateKeyPath 2>$null
+            }
             if ($LASTEXITCODE -ne 0) { throw "OpenSSL could not extract the CI signing key." }
             @(
               "[req]"

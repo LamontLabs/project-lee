@@ -55,6 +55,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /waitForSmokeOwnerAuthentication/);
   assert.match(main, /quitAndInstall/);
   assert.match(main, /LEE_SMOKE_EXIT/);
+  assert.match(main, /main:\$\{label\}/);
   assert.match(main, /smokeExitRequested \|\| app\.requestSingleInstanceLock/);
   assert.match(main, /app\.exit\(0\)/);
   assert.match(main, /if \(!supervisor\)/);

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import { join } from "node:path";
-import { existsSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { RuntimeSupervisor } from "./runtime.js";
 import { startConsoleServer } from "./static-server.js";
 
@@ -24,6 +24,12 @@ const smokeUpdateInterruptDelayMs = Number(process.env.LEE_SMOKE_UPDATE_INTERRUP
 const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
 const smokeExitRequested = app.commandLine.hasSwitch("lee-smoke-exit") || process.env.LEE_SMOKE_EXIT === "1";
 let smokeInterruptionTriggered = false;
+function smokePhase(label: string): void {
+  const path = process.env.LEE_SMOKE_DIAGNOSTIC_FILE;
+  if (!path) return;
+  try { appendFileSync(path, `${new Date().toISOString()} main:${label}\n`, { mode: 0o600 }); } catch { /* Diagnostics must never affect startup. */ }
+}
+smokePhase("loaded");
 const hasSingleInstance = smokeExitRequested || app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
 else app.on("second-instance", () => { window?.show(); window?.focus(); });
@@ -159,6 +165,7 @@ async function writeSmokeDiscovery(filePath: string): Promise<void> {
 }
 
 async function boot(): Promise<void> {
+  smokePhase("boot");
   supervisor = new RuntimeSupervisor(app.getAppPath(), isProduction);
   const runtime = await supervisor.start();
   if (process.env.LEE_SMOKE_STATUS_FILE) {
@@ -170,7 +177,7 @@ async function boot(): Promise<void> {
     app.getVersion() !== smokeUpdateExpectedVersion,
   );
   if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile) {
-    app.exit(0);
+    process.exit(0);
     return;
   }
   if (isProduction) {
@@ -205,10 +212,12 @@ app.on("before-quit", (event) => {
   }
 });
 app.whenReady().then(async () => {
+  smokePhase("ready");
   if (!hasSingleInstance) {
     app.exit(0);
     return;
   }
+  smokePhase("lock-ready");
   const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));
   tray = new Tray(icon);
   tray.setToolTip("Project LEE");

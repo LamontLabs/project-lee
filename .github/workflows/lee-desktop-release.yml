@@ -115,6 +115,15 @@ jobs:
               thumbprint = $certificate.Thumbprint.ToUpperInvariant()
               privateKeyPresent = $false
               source = "CI signing PFX export"
+              extensions = @(
+                $certificate.Extensions | ForEach-Object {
+                  [ordered]@{
+                    oid = $_.Oid.Value
+                    friendlyName = $_.Oid.FriendlyName
+                    formatted = $_.Format($true)
+                  }
+                }
+              )
             }
             $trustEvidence.status = "passed"
             $trustEvidence.completedAt = [DateTime]::UtcNow.ToString("o")

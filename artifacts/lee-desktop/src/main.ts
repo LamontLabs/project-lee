@@ -1,10 +1,11 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, shell } from "electron";
-import { autoUpdater } from "electron-updater";
 import { join } from "node:path";
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { RuntimeSupervisor } from "./runtime.js";
 import { startConsoleServer } from "./static-server.js";
 
+type AutoUpdater = typeof import("electron-updater").autoUpdater;
+let autoUpdater: AutoUpdater;
 let window: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let supervisor: RuntimeSupervisor;
@@ -69,8 +70,10 @@ function waitForSmokeOwnerAuthentication(): void {
   check();
 }
 
-function configureUpdates(): void {
+async function configureUpdates(): Promise<void> {
   if (!isProduction) { setUpdateState({ status: "unsupported", message: "Updates are available in packaged builds." }); return; }
+  ({ autoUpdater } = await import("electron-updater"));
+  smokePhase("updater-ready");
   if (smokeUpdateFeedUrl) autoUpdater.setFeedURL({ provider: "generic", url: smokeUpdateFeedUrl });
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -238,7 +241,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("lee:update-check", () => checkForUpdates());
   ipcMain.handle("lee:update-download", async () => { if (updateState.status === "available") await autoUpdater.downloadUpdate(); return updateState; });
   ipcMain.handle("lee:update-install", () => { if (updateState.status === "downloaded") autoUpdater.quitAndInstall(); return updateState; });
-  configureUpdates();
+  if (!smokeExitRequested || smokeUpdateFeedUrl) await configureUpdates();
   await boot();
 });
 app.on("window-all-closed", () => { /* Tray keeps LEE alive until the user chooses Exit LEE. */ });

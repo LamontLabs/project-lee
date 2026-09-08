@@ -33,8 +33,8 @@ function smokePhase(label: string): void {
 smokePhase("loaded");
 const hasSingleInstance = smokeExitRequested || app.requestSingleInstanceLock();
 if (!hasSingleInstance) app.quit();
-else app.on("second-instance", () => { window?.show(); window?.focus(); });
-app.setAppUserModelId("com.lamontlabs.projectlee");
+else if (!smokeExitRequested) app.on("second-instance", () => { window?.show(); window?.focus(); });
+if (!smokeExitRequested) app.setAppUserModelId("com.lamontlabs.projectlee");
 
 function setUpdateState(next: UpdateState): void {
   updateState = next;
@@ -214,7 +214,7 @@ app.on("before-quit", (event) => {
     void supervisor?.stop().finally(() => { consoleServer?.server.close(); app.quit(); });
   }
 });
-app.whenReady().then(async () => {
+async function startReadyPath(): Promise<void> {
   smokePhase("ready");
   if (!hasSingleInstance) {
     app.exit(0);
@@ -243,5 +243,12 @@ app.whenReady().then(async () => {
   ipcMain.handle("lee:update-install", () => { if (updateState.status === "downloaded") autoUpdater.quitAndInstall(); return updateState; });
   if (!smokeExitRequested || smokeUpdateFeedUrl) await configureUpdates();
   await boot();
-});
+}
+
+if (smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) {
+  smokePhase("direct-boot");
+  void boot();
+} else {
+  app.whenReady().then(() => startReadyPath());
+}
 app.on("window-all-closed", () => { /* Tray keeps LEE alive until the user chooses Exit LEE. */ });

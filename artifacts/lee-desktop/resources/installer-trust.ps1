@@ -8,7 +8,8 @@ $ErrorActionPreference = "Stop"
 $tracePath = Join-Path $PSScriptRoot "installer-trust.log"
 "start" | Set-Content $tracePath
 try {
-  "identity-$env:USERNAME-$env:USERPROFILE" | Add-Content $tracePath
+  $currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+  "identity-$($currentIdentity.Name)-$env:USERPROFILE" | Add-Content $tracePath
   $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificatePath)
   "certificate-loaded" | Add-Content $tracePath
   $thumbprint = $certificate.Thumbprint.ToUpperInvariant()
@@ -160,6 +161,23 @@ public static class ProjectLeeCertificateSerialization
       $registryBaseKey.Close()
     }
     "certificate-added-$storeName" | Add-Content $tracePath
+  }
+  foreach ($storeName in @("Root", "TrustedPublisher")) {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+      $storeName,
+      [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+    )
+    try {
+      $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+      $matches = @($store.Certificates.Find(
+        [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+        $thumbprint,
+        $false
+      ))
+      "postwrite-$storeName-$($matches.Count)" | Add-Content $tracePath
+    } finally {
+      $store.Close()
+    }
   }
   "complete" | Add-Content $tracePath
 } catch {

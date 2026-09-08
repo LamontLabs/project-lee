@@ -597,7 +597,7 @@ export class RuntimeSupervisor {
         LD_LIBRARY_PATH: prepend(join(root, "lib"), process.env.LD_LIBRARY_PATH),
         DYLD_LIBRARY_PATH: prepend(join(root, "lib"), process.env.DYLD_LIBRARY_PATH),
       }),
-      PGSHAREDIR: join(root, "share", "postgresql"),
+      PGSHAREDIR: join(root, process.platform === "win32" ? "share" : join("share", "postgresql")),
       PGLIBDIR: join(root, "lib"),
     };
   }

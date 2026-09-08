@@ -58,6 +58,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(packageRuntime, /stagePostgresRuntime/);
   assert.match(packageRuntime, /verifyPostgresRuntime/);
   assert.match(packageRuntime, /suppliedRoot.*executableName/s);
+  assert.match(runtime, /PGSHAREDIR: join\(root, process\.platform === "win32" \? "share" : join\("share", "postgresql"\)\)/);
   assert.match(prepare, /createRequire\(import\.meta\.url\)/);
   assert.match(prepare, /verifyPackagedMigrations/);
   assert.match(migrationCheck, /_journal\.json/);

@@ -172,8 +172,11 @@ export async function stagePostgresRuntime({ platform, source, explicitShare = n
   await mkdir(destination, { recursive: true });
   await cp(sourceBin, resolve(destination, "bin"), { recursive: true, force: true });
   if (existsSync(sourceLib)) await cp(sourceLib, resolve(destination, "lib"), { recursive: true, force: true });
-  await mkdir(resolve(destination, "share"), { recursive: true });
-  await cp(sourceShare, resolve(destination, "share", "postgresql"), {
+  const destinationShare = platform === "win32" || platform === "windows"
+    ? resolve(destination, "share")
+    : resolve(destination, "share", "postgresql");
+  await mkdir(destinationShare, { recursive: true });
+  await cp(sourceShare, destinationShare, {
     recursive: true,
     force: true,
     // Ubuntu's PostgreSQL dictionaries include symlinks into /var/cache.

@@ -50,7 +50,7 @@ function runtimeEnvironment(postgresRoot) {
       LD_LIBRARY_PATH: [join(postgresRoot, "lib"), process.env.LD_LIBRARY_PATH].filter(Boolean).join(separator),
       DYLD_LIBRARY_PATH: [join(postgresRoot, "lib"), process.env.DYLD_LIBRARY_PATH].filter(Boolean).join(separator),
     }),
-    PGSHAREDIR: join(postgresRoot, "share", "postgresql"),
+    PGSHAREDIR: join(postgresRoot, process.platform === "win32" ? "share" : join("share", "postgresql")),
     PGLIBDIR: join(postgresRoot, "lib"),
   };
 }

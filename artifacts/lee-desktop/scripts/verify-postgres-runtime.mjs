@@ -143,8 +143,13 @@ export function verifyPostgresRuntime(runtimeRoot, { platform = "linux", archite
     const path = join(root, "bin", `${executable}${suffix}`);
     if (!existsSync(path) || !statSync(path).isFile()) throw new Error(`Bundled PostgreSQL runtime is missing ${path}.`);
   }
-  const share = join(root, "share", "postgresql", "postgresql.conf.sample");
+  const share = platform === "windows"
+    ? join(root, "share", "postgresql.conf.sample")
+    : join(root, "share", "postgresql", "postgresql.conf.sample");
   if (!existsSync(share)) throw new Error(`Bundled PostgreSQL runtime is missing ${share}.`);
+  if (platform === "windows" && !existsSync(join(root, "share", "postgres.bki"))) {
+    throw new Error(`Bundled PostgreSQL runtime is missing ${join(root, "share", "postgres.bki")}.`);
+  }
   const manifestPath = join(root, "runtime-manifest.json");
   if (!existsSync(manifestPath)) throw new Error(`Bundled PostgreSQL runtime manifest is missing: ${manifestPath}.`);
   let manifest;

@@ -13,7 +13,9 @@ test("macOS PostgreSQL staging relocates and verifies native dependencies", asyn
   assert.match(stage, /ownerDependencies\.filter\(\(value\) => value\.startsWith\("@rpath\/"\)\)/);
   assert.match(stage, /verifyPostgresRuntime\(destination/);
   assert.match(stage, /dereference: platform === "linux"/);
+  assert.match(stage, /destinationShare/);
   assert.match(verify, /Mach-O dependency escapes the packaged runtime/);
+  assert.match(verify, /postgres\.bki/);
   assert.match(verify, /lipo/);
   assert.match(verify, /@loader_path/);
   assert.match(verify, /@executable_path/);

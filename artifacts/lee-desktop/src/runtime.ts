@@ -574,7 +574,7 @@ export class RuntimeSupervisor {
         return null;
       }
     }
-    const postgresLog = this.openLog(this.snapshot.postgresLogPath);
+    writeFileSync(this.snapshot.postgresLogPath, "", { flag: "a", mode: 0o600 });
     if (existingDatabase) {
       this.smokePhase("postgres-status");
       const existingStatus = spawnSync(pgCtl, ["-D", databaseDir, "-w", "status"], { encoding: "utf8", windowsHide: true, env: postgresEnvironment, timeout: 5_000 });
@@ -591,7 +591,7 @@ export class RuntimeSupervisor {
     } else {
       this.smokePhase("postgres-fresh-skip-status");
     }
-    const started = spawn(pgCtl, ["-D", databaseDir, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: ["ignore", postgresLog, postgresLog], env: postgresEnvironment, detached: process.platform !== "win32" });
+    const started = spawn(pgCtl, ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", `-p ${port} -k "${socketDir}"`, "-w", "start"], { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: process.platform !== "win32" });
     this.smokePhase("postgres-started");
     this.postgres = started;
     this.postgresCtl = pgCtl;

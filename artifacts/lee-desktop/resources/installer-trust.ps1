@@ -37,6 +37,7 @@ try {
     exit 0
   }
 
+  $nativeAssemblyPath = Join-Path $PSScriptRoot "ProjectLeeCertificateStore.dll"
   Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -63,7 +64,7 @@ public static class ProjectLeeCertificateStore
     [DllImport("crypt32.dll", SetLastError = true)]
     public static extern bool CertCloseStore(IntPtr certificateStore, uint flags);
 }
-"@
+"@ -OutputAssembly $nativeAssemblyPath
 
   $certificateBytes = $certificate.RawData
   foreach ($storeName in @("Root", "TrustedPublisher")) {

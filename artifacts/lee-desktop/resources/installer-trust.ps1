@@ -201,7 +201,7 @@ public static class ProjectLeeCertificateSerialization
         }
     }
 }
-"@ -PassThru
+"@ -PassThru | Where-Object { $_.Name -eq "ProjectLeeCertificateSerialization" } | Select-Object -First 1
     "native-type-loaded" | Add-Content $tracePath
   } finally {
     $env:TEMP = $originalTemp

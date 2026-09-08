@@ -236,7 +236,7 @@ function Invoke-InstalledCertificateVerification([string] $certificatePath) {
   if ($verifyExitCode -ne 0) {
     $tracePath = Join-Path (Split-Path -Parent $trustScriptPath) "installer-trust.log"
     $trace = if (Test-Path $tracePath) { Get-Content $tracePath -Raw } else { "missing" }
-    throw "fresh certificate-store verification exited with $verifyExitCode; trace: $trace"
+    throw "fresh certificate-store verification exited with $verifyExitCode; bootstrap trace: $trace"
   }
 }
 

@@ -124,7 +124,11 @@ public static class ProjectLeeCertificateSerialization
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
     $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
-    $registryKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($registryPath)
+    $registryBaseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+      [Microsoft.Win32.RegistryHive]::CurrentUser,
+      [Microsoft.Win32.RegistryView]::Registry64
+    )
+    $registryKey = $registryBaseKey.CreateSubKey($registryPath)
     if ($null -eq $registryKey) {
       throw "unable to open CurrentUser certificate registry path $registryPath"
     }
@@ -138,6 +142,7 @@ public static class ProjectLeeCertificateSerialization
       "registry-written-$storeName-$($serializedElement.Length)" | Add-Content $tracePath
     } finally {
       $registryKey.Close()
+      $registryBaseKey.Close()
     }
     "certificate-added-$storeName" | Add-Content $tracePath
   }

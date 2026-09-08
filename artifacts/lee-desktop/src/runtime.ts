@@ -4,7 +4,6 @@ import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, re
 import { createConnection, createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { Worker } from "node:worker_threads";
 
 export type RuntimeState = "starting" | "live" | "degraded" | "unavailable" | "stopped";
 export type RuntimeSnapshot = {
@@ -354,7 +353,6 @@ export class RuntimeSupervisor {
   private child: ChildProcess | null = null;
   private postgres: ChildProcess | null = null;
   private postgresCtl: string | null = null;
-  private postgresLauncher: Worker | null = null;
   private snapshot: RuntimeSnapshot = {
     state: "stopped", apiUrl: "", database: "unavailable", migration: "pending",
     contract: "unavailable", checks: this.emptyChecks(), reason: null,
@@ -600,13 +598,12 @@ export class RuntimeSupervisor {
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
     let started: ChildProcess | null;
     if (process.platform === "win32") {
-      const launcher = new Worker(
-        `const { spawnSync } = require("node:child_process"); const { parentPort, workerData } = require("node:worker_threads"); const result = spawnSync(workerData.file, workerData.args, { windowsHide: true, stdio: "ignore", env: workerData.env }); parentPort?.postMessage({ status: result.status, error: result.error?.message ?? null });`,
-        { eval: true, workerData: { file: pgCtl, args: startArgs, env: postgresEnvironment } },
-      );
-      launcher.unref();
-      this.postgresLauncher = launcher;
-      started = null;
+      const launcherSource = "const { spawnSync } = require('node:child_process'); const result = spawnSync(process.env.LEE_POSTGRES_CTL, JSON.parse(process.env.LEE_POSTGRES_ARGS), { windowsHide: true, stdio: 'ignore', env: process.env }); process.exit(result.status ?? 1);";
+      started = spawn(process.execPath, ["-e", launcherSource], {
+        windowsHide: true,
+        stdio: "ignore",
+        env: { ...postgresEnvironment, ELECTRON_RUN_AS_NODE: "1", LEE_POSTGRES_CTL: pgCtl, LEE_POSTGRES_ARGS: JSON.stringify(startArgs) },
+      });
       this.smokePhase("postgres-started");
     } else {
       started = spawn(pgCtl, startArgs, { windowsHide: true, stdio: "ignore", env: postgresEnvironment, detached: true });
@@ -725,10 +722,6 @@ export class RuntimeSupervisor {
         stdio: "ignore",
         timeout: 15_000,
       });
-    }
-    if (this.postgresLauncher) {
-      await this.postgresLauncher.terminate();
-      this.postgresLauncher = null;
     }
     await this.terminate(this.postgres);
     this.child = null;

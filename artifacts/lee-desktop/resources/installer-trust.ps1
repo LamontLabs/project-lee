@@ -37,24 +37,95 @@ try {
     exit 0
   }
 
-  $certutilPath = Join-Path $env:WINDIR "System32\certutil.exe"
+  $compileTempPath = Join-Path $PSScriptRoot "installer-trust-temp-$PID"
+  New-Item -ItemType Directory -Path $compileTempPath -Force | Out-Null
+  $originalTemp = $env:TEMP
+  $originalTmp = $env:TMP
+  try {
+    $env:TEMP = $compileTempPath
+    $env:TMP = $compileTempPath
+    $nativeApiType = Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class ProjectLeeCertificateSerialization
+{
+    [DllImport("crypt32.dll", SetLastError = true)]
+    public static extern IntPtr CertCreateCertificateContext(
+        uint encodingType,
+        byte[] encodedCertificate,
+        int encodedCertificateLength);
+
+    [DllImport("crypt32.dll", SetLastError = true)]
+    public static extern bool CertSerializeCertificateStoreElement(
+        IntPtr certificateContext,
+        uint flags,
+        byte[] serializedElement,
+        ref uint serializedElementLength,
+        IntPtr reserved);
+
+    [DllImport("crypt32.dll", SetLastError = true)]
+    public static extern bool CertFreeCertificateContext(IntPtr certificateContext);
+}
+"@ -PassThru
+    "native-type-loaded" | Add-Content $tracePath
+  } finally {
+    $env:TEMP = $originalTemp
+    $env:TMP = $originalTmp
+    Remove-Item $compileTempPath -Recurse -Force -ErrorAction SilentlyContinue
+  }
+
+  $certificateBytes = $certificate.RawData
+  $certificateContext = $nativeApiType::CertCreateCertificateContext(
+    [uint32]0x00010001,
+    $certificateBytes,
+    $certificateBytes.Length
+  )
+  if ($certificateContext -eq [IntPtr]::Zero) {
+    throw "CertCreateCertificateContext failed with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+  }
+  try {
+    [uint32]$serializedLength = 0
+    $null = $nativeApiType::CertSerializeCertificateStoreElement(
+      $certificateContext,
+      [uint32]0,
+      $null,
+      [ref]$serializedLength,
+      [IntPtr]::Zero
+    )
+    if ($serializedLength -eq 0) {
+      throw "CertSerializeCertificateStoreElement returned an empty store element"
+    }
+    $serializedElement = New-Object byte[] $serializedLength
+    $serialized = $nativeApiType::CertSerializeCertificateStoreElement(
+      $certificateContext,
+      [uint32]0,
+      $serializedElement,
+      [ref]$serializedLength,
+      [IntPtr]::Zero
+    )
+    if (-not $serialized) {
+      throw "CertSerializeCertificateStoreElement failed with Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+    }
+  } finally {
+    $nativeApiType::CertFreeCertificateContext($certificateContext) | Out-Null
+  }
+
   foreach ($storeName in @("Root", "TrustedPublisher")) {
     "opening-$storeName" | Add-Content $tracePath
-    $stdoutPath = Join-Path $PSScriptRoot "installer-trust-certutil-$PID-$storeName.stdout.log"
-    $stderrPath = Join-Path $PSScriptRoot "installer-trust-certutil-$PID-$storeName.stderr.log"
-    $certutil = Start-Process `
-      -FilePath $certutilPath `
-      -ArgumentList @("-silent", "-user", "-addstore", "-f", $storeName, $CertificatePath) `
-      -RedirectStandardOutput $stdoutPath `
-      -RedirectStandardError $stderrPath `
-      -PassThru
-    if (-not $certutil.WaitForExit(60000)) {
-      & taskkill.exe /pid $certutil.Id /t /f 2>$null | Out-Null
-      throw "certutil timed out for CurrentUser $storeName"
+    $registryPath = "Software\Microsoft\SystemCertificates\$storeName\Certificates\$thumbprint"
+    $registryKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($registryPath)
+    if ($null -eq $registryKey) {
+      throw "unable to open CurrentUser certificate registry path $registryPath"
     }
-    $certutil.WaitForExit()
-    if ($certutil.ExitCode -ne 0) {
-      throw "certutil failed for CurrentUser $storeName with exit code $($certutil.ExitCode)"
+    try {
+      $registryKey.SetValue(
+        "Blob",
+        $serializedElement,
+        [Microsoft.Win32.RegistryValueKind]::Binary
+      )
+    } finally {
+      $registryKey.Close()
     }
     "certificate-added-$storeName" | Add-Content $tracePath
   }

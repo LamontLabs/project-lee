@@ -27,8 +27,10 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(installer, /File \/oname=lee-signing\.cer/);
   assert.match(installer, /File \/oname=installer-trust\.ps1/);
   assert.match(installer, /-File "\$INSTDIR\\resources\\installer-trust\.ps1"/);
-  assert.match(installerTrust, /certutil\.exe/);
-  assert.match(installerTrust, /"-silent", "-user", "-addstore", "-f"/);
+  assert.match(installerTrust, /CertCreateCertificateContext/);
+  assert.match(installerTrust, /CertSerializeCertificateStoreElement/);
+  assert.match(installerTrust, /Registry\]::CurrentUser/);
+  assert.match(installerTrust, /RegistryValueKind\]::Binary/);
   assert.match(installerTrust, /certificate-added-\$storeName/);
   assert.match(installerTrust, /VerifyOnly/);
   assert.match(installerTrust, /@\("Root", "TrustedPublisher"\)/);

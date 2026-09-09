@@ -350,30 +350,6 @@ export function saveRuntimeConfig(config: RuntimeConfig): void {
   writeFileSync(configPath, JSON.stringify(config, null, 2), { encoding: "utf8", mode: 0o600 });
 }
 
-async function runWindowsNativeLauncher(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<{ status: number | null; error: Error | null }> {
-  const launcher = spawn(command, args, {
-    cwd,
-    env,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (result: { status: number | null; error: Error | null }) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      resolve(result);
-    };
-    const timeout = setTimeout(() => {
-      launcher.kill();
-      finish({ status: null, error: new Error("Windows native launcher timed out.") });
-    }, 15_000);
-    launcher.once("error", (error) => finish({ status: null, error }));
-    launcher.once("exit", (status) => finish({ status, error: null }));
-  });
-}
-
 export class RuntimeSupervisor {
   private child: ChildProcess | null = null;
   private postgres: ChildProcess | null = null;
@@ -479,14 +455,17 @@ export class RuntimeSupervisor {
     }
     this.smokePhase("api-start");
     if (windowsNativeLauncher) {
-      const launchResult = await runWindowsNativeLauncher(
-        apiLaunchCommand,
-        apiLaunchArgs,
-        process.resourcesPath,
-        { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
-      );
-      appendFileSync(apiLauncherLogPath, `launcher-async-result: status=${launchResult.status ?? "null"} error=${launchResult.error?.message ?? "none"}\n`, { mode: 0o600 });
+      const launchResult = spawnSync(apiLaunchCommand, apiLaunchArgs, {
+        cwd: process.resourcesPath,
+        env: { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
+        stdio: "ignore",
+        windowsHide: true,
+        timeout: 15_000,
+      });
+      this.smokePhase("api-launch-returned");
+      appendFileSync(apiLauncherLogPath, `launcher-sync-result: status=${launchResult.status ?? "null"} error=${launchResult.error?.message ?? "none"}\n`, { mode: 0o600 });
       const apiPid = Number.parseInt(existsSync(apiPidPath) ? readFileSync(apiPidPath, "utf8").trim() : "", 10);
+      this.smokePhase("api-pid-read");
       if (launchResult.status !== 0 || !Number.isInteger(apiPid) || apiPid <= 0) {
         this.smokePhase("api-launch-error");
         this.snapshot = { ...this.snapshot, apiProcessId: null };
@@ -597,13 +576,14 @@ export class RuntimeSupervisor {
     if (windowsNativeLauncher) {
       writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
       try { unlinkSync(apiPidPath); } catch { /* The previous API process already exited. */ }
-      const launchResult = await runWindowsNativeLauncher(
-        windowsNativeLauncher,
-        ["--detach", command, ...args],
-        process.resourcesPath,
-        { ...apiEnvironment, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
-      );
-      appendFileSync(apiLauncherLogPath, `launcher-async-result: status=${launchResult.status ?? "null"} error=${launchResult.error?.message ?? "none"}\n`, { mode: 0o600 });
+      const launchResult = spawnSync(windowsNativeLauncher, ["--detach", command, ...args], {
+        cwd: process.resourcesPath,
+        env: { ...apiEnvironment, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
+        stdio: "ignore",
+        windowsHide: true,
+        timeout: 15_000,
+      });
+      appendFileSync(apiLauncherLogPath, `launcher-sync-result: status=${launchResult.status ?? "null"} error=${launchResult.error?.message ?? "none"}\n`, { mode: 0o600 });
       const parsedPid = Number.parseInt(existsSync(apiPidPath) ? readFileSync(apiPidPath, "utf8").trim() : "", 10);
       if (launchResult.status === 0 && Number.isInteger(parsedPid) && parsedPid > 0) apiPid = parsedPid;
       else this.smokePhase("api-launch-error");

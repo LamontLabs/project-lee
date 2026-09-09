@@ -55,6 +55,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /native launcher is missing/);
   assert.match(nativeLauncherSource, /CreateProcessW/);
   assert.match(nativeLauncherSource, /WaitForSingleObject/);
+  assert.match(nativeLauncher, /\/TP/);
   assert.match(nativeLauncher, /Microsoft\.VisualStudio\.Component\.VC\.Tools\.x86\.x64/);
   assert.match(runtime, /launcherPath/);
   assert.match(runtime, /postgres-launcher\.log/);

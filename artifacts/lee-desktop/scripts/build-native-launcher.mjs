@@ -24,7 +24,7 @@ function compile(command, args) {
 
 const compiler = spawnSync("where.exe", ["cl.exe"], { encoding: "utf8", windowsHide: true });
 if (compiler.status === 0 && compiler.stdout.trim()) {
-  compile("cl.exe", ["/nologo", "/O2", "/MT", "/W4", "/DUNICODE", "/D_UNICODE", source, `/Fe:${output}`, "/link", "/SUBSYSTEM:CONSOLE"]);
+  compile("cl.exe", ["/nologo", "/O2", "/MT", "/W4", "/TP", "/DUNICODE", "/D_UNICODE", source, `/Fe:${output}`, "/link", "/SUBSYSTEM:CONSOLE"]);
 } else {
   const vswhere = join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Microsoft Visual Studio", "Installer", "vswhere.exe");
   if (!existsSync(vswhere)) throw new Error("Visual Studio C++ tools are required to build the native Windows PostgreSQL launcher.");
@@ -38,7 +38,7 @@ if (compiler.status === 0 && compiler.stdout.trim()) {
     "@echo off",
     `call "${vcvars}"`,
     "if errorlevel 1 exit /b 1",
-    `cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE "${source}" /Fe:"${output}" /link /SUBSYSTEM:CONSOLE`,
+    `cl.exe /nologo /O2 /MT /W4 /TP /DUNICODE /D_UNICODE "${source}" /Fe:"${output}" /link /SUBSYSTEM:CONSOLE`,
     "exit /b %errorlevel%",
     "",
   ].join("\r\n"));

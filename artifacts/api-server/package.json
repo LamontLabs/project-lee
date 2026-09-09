@@ -47,6 +47,7 @@
     "test:cil-cost-benchmark": "node scripts/cil-cost-benchmark.test.mjs",
     "test:provider-boundary": "node --test scripts/provider-boundary.test.mjs",
     "test:project-bootstrap": "node scripts/project-bootstrap.test.mjs",
+    "test:bootstrap-awareness": "../lee-desktop/node_modules/.bin/tsx --test scripts/bootstrap-awareness-contract.test.ts",
     "test:change-intelligence": "../lee-desktop/node_modules/.bin/tsx --test scripts/change-intelligence-contract.test.ts",
     "test:welcome-back": "../lee-desktop/node_modules/.bin/tsx --test scripts/welcome-back-briefing.test.ts",
     "test:commitment-intelligence": "../lee-desktop/node_modules/.bin/tsx --test scripts/commitment-intelligence.test.ts",

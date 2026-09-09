@@ -429,6 +429,7 @@ try {
     APPDATA = $appData
     LEE_MIGRATION_COMMAND = "cmd /c exit 0"
     LEE_SMOKE_STATUS_FILE = $statusFile
+    LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
   } -PassThru
   Assert-True ($null -ne $trayProcess) "normal tray launch did not start"
   $trayDeadline = [DateTime]::UtcNow.AddSeconds(120)
@@ -456,6 +457,7 @@ try {
   $failedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
     APPDATA = $appData
     LEE_SMOKE_STATUS_FILE = $statusFile
+    LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
   } -PassThru
   Assert-True ($null -ne $failedTrayProcess) "failed migration tray launch did not start"
   $failedTrayDeadline = [DateTime]::UtcNow.AddSeconds(120)
@@ -480,6 +482,7 @@ try {
   $degradedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
     APPDATA = $appData
     LEE_SMOKE_STATUS_FILE = $statusFile
+    LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
   } -PassThru
   Assert-True ($null -ne $degradedTrayProcess) "degraded startup tray launch did not start"
   $degradedTrayDeadline = [DateTime]::UtcNow.AddSeconds(120)
@@ -572,6 +575,7 @@ try {
         LEE_MIGRATION_COMMAND = "cmd /c exit 0"
         LEE_SMOKE_STATUS_FILE = $statusFile
         LEE_SMOKE_DISCOVERY_FILE = $discoveryFile
+        LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
       } -PassThru
       Assert-True ($null -ne $malformedReviewProcess) "malformed discovery review launch did not start"
       Wait-ForFile $statusFile 120 "malformed discovery review launch"
@@ -598,6 +602,7 @@ try {
       LEE_MIGRATION_COMMAND = "cmd /c exit 0"
       LEE_SMOKE_STATUS_FILE = $statusFile
       LEE_SMOKE_DISCOVERY_FILE = $discoveryFile
+      LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
     } -PassThru
     Assert-True ($null -ne $reviewProcess) "discovery review launch did not start"
     Wait-ForFile $statusFile 120 "discovery review launch"

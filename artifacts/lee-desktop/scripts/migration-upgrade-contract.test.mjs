@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const script = await readFile(new URL("./migration-upgrade-smoke.mjs", import.meta.url), "utf8");
 const unixSmoke = await readFile(new URL("./unix-runtime-smoke.mjs", import.meta.url), "utf8");
 const windowsSmoke = await readFile(new URL("./windows-smoke-test.ps1", import.meta.url), "utf8");
 const workflow = await readFile(new URL("../../../.github/workflows/lee-desktop-release.yml", import.meta.url), "utf8");
+const migrationRoot = new URL("../../../lib/db/drizzle/", import.meta.url);
 
 test("existing-database migration smoke preserves history and records the upgrade", () => {
   assert.match(script, /oldMigrations/);
@@ -35,4 +36,16 @@ test("Windows packaged smoke tests execute and validate migration-upgrade eviden
   assert.match(workflow, /windows-smoke-test\.ps1/);
   assert.doesNotMatch(workflow, /linux-package:|Smoke test bundled Linux runtime|LEE_SMOKE_NO_SANDBOX|--no-sandbox/);
   assert.doesNotMatch(workflow, /macos|macOS|APPLE|LEE_MACOS/i);
+});
+
+test("latest schema snapshot is covered by packaged migration SQL", async () => {
+  const journal = JSON.parse(await readFile(new URL("meta/_journal.json", migrationRoot), "utf8"));
+  const latest = journal.entries.at(-1);
+  assert.ok(latest, "migration journal must contain a latest entry");
+  const snapshot = JSON.parse(await readFile(new URL(`meta/${String(latest.idx).padStart(4, "0")}_snapshot.json`, migrationRoot), "utf8"));
+  const files = await readdir(migrationRoot);
+  const sql = (await Promise.all(files.filter((file) => file.endsWith(".sql")).map((file) => readFile(new URL(file, migrationRoot), "utf8")))).join("\n");
+  const migratedTables = new Set([...sql.matchAll(/CREATE TABLE "([^"]+)"/g)].map((match) => match[1]));
+  const missing = Object.values(snapshot.tables ?? {}).map((table) => table.name).filter((name) => !migratedTables.has(name));
+  assert.deepEqual(missing, [], "every schema table must be created by the packaged migration history");
 });

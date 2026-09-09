@@ -64,6 +64,13 @@
       "when": 1788443530783,
       "tag": "0008_simple_maddog",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788937933637,
+      "tag": "0009_complete_mentor",
+      "breakpoints": true
     }
   ]
 }

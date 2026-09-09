@@ -195,6 +195,16 @@ function Stop-ProcessTree([int] $processId) {
   & taskkill.exe /pid $processId /t /f 2>$null | Out-Null
 }
 
+function Stop-PostgresProcesses() {
+  $deadline = [DateTime]::UtcNow.AddSeconds(15)
+  do {
+    $postgresProcesses = @(Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)
+    if ($postgresProcesses.Count -eq 0) { return }
+    $postgresProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 250
+  } while ([DateTime]::UtcNow -lt $deadline)
+}
+
 function Invoke-Lee([hashtable] $environment, [string] $label) {
   Set-Phase "launch-$label" "Starting the packaged application."
   $process = Start-Process -FilePath $appExe `
@@ -262,7 +272,7 @@ function Invoke-TrayExit([System.Diagnostics.Process] $process, [object] $status
     foreach ($childPid in @($status.apiProcessId, $status.postgresProcessId) | Where-Object { $_ }) {
       Stop-ProcessTree ([int] $childPid)
     }
-    Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Stop-PostgresProcesses
     return
   }
   Add-Type -AssemblyName UIAutomationClient

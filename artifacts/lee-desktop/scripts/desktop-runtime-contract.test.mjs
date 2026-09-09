@@ -11,6 +11,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
   const apiBuild = await read("../api-server/build.mjs");
+  const privateAuth = await read("../api-server/src/middlewares/private-auth.ts");
   const packageRuntime = await read("scripts/package-runtime.mjs");
   const nativeLauncher = await read("scripts/build-native-launcher.mjs");
   const nativeLauncherSource = await read("resources/postgres-launcher.c");
@@ -87,6 +88,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(prepare, /apiBundle[\s\S]*@google-cloud\\\/storage/);
   assert.match(apiBuild, /globalThis\.__dirname/);
   assert.match(prepare, /absolute build-time worker path/);
+  assert.match(privateAuth, /routePath = req\.path\.replace/);
+  assert.match(privateAuth, /routePath === "\/recovery\/status"/);
   assert.match(prepare, /Bundled Windows Node runtime is missing/);
   assert.match(prepare, /Packaged Windows API launcher is missing/);
   assert.match(packageRuntime, /copyFileSync\(process\.execPath/);

@@ -27,7 +27,8 @@ export function privateAuth(enabled = Boolean(process.env.LEE_OWNER_USERNAME && 
   const middleware: RequestHandler = (req, res, next) => {
     const configured = enabled || ownerExists();
     const desktopConfigured = configured || Boolean(process.env.LEE_DATA_DIR);
-    if (req.path === "/contract" || req.path === "/system-contract" || req.path === "/contract.json" || (!desktopConfigured && !configured) || req.path.startsWith("/api/android/") && !req.path.startsWith("/api/android/pairing") || req.path === "/email/gmail/webhook" || req.path.endsWith("/health") || req.path.endsWith("/healthz") || req.path.endsWith("/auth/login") || req.path.endsWith("/auth/session") || req.path.endsWith("/auth/logout") || req.path.endsWith("/auth/enroll")) { next(); return; }
+    const routePath = req.path.replace(/^\/api(?=\/|$)/, "") || "/";
+    if (routePath === "/contract" || routePath === "/system-contract" || routePath === "/contract.json" || routePath === "/recovery/status" || (!desktopConfigured && !configured) || routePath.startsWith("/android/") && !routePath.startsWith("/android/pairing") || routePath === "/email/gmail/webhook" || routePath.endsWith("/health") || routePath.endsWith("/healthz") || routePath.endsWith("/auth/login") || routePath.endsWith("/auth/session") || routePath.endsWith("/auth/logout") || routePath.endsWith("/auth/enroll")) { next(); return; }
     if (!configured) { res.status(428).json({ error: "Owner enrollment is required before using the private Lee API.", enrollmentRequired: true }); return; }
     const raw = req.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
     if (!raw) { res.status(401).json({ error: "Private Lee session required." }); return; }

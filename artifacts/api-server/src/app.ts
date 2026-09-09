@@ -1,6 +1,5 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { privateAuth } from "./middlewares/private-auth";
@@ -15,25 +14,21 @@ import mcpProjectsRouter from "./routes/mcp-projects";
 
 const app: Express = express();
 
-app.use(
-  pinoHttp({
-    logger,
-    serializers: {
-      req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
-      },
-      res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
-    },
-  }),
-);
+app.use((req, res, next) => {
+  const requestLogger = logger.child({ requestId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` });
+  req.log = requestLogger;
+  res.log = requestLogger;
+  const startedAt = Date.now();
+  res.once("finish", () => {
+    requestLogger.info({
+      method: req.method,
+      url: req.originalUrl?.split("?")[0],
+      statusCode: res.statusCode,
+      durationMs: Date.now() - startedAt,
+    }, "HTTP request completed");
+  });
+  next();
+});
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

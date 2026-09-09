@@ -17,6 +17,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const unixUpdate = await read("scripts/unix-update-smoke.mjs");
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
+  assert.match(builder, /from: resources\/postgres-launcher\.mjs[\s\S]*to: postgres-launcher\.mjs/);
   assert.match(builder, /from: resources\/lee-signing\.cer[\s\S]*to: lee-signing\.cer/);
   assert.match(builder, /nsis:[\s\S]*include: resources\/installer\.nsh/);
   assert.match(installer, /customInstall/);
@@ -46,9 +47,10 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /process\.platform === "win32" \? `-p \$\{port\}`/);
   assert.match(runtime, /process\.platform === "win32"[\s\S]*"-w", "start"/);
   assert.match(runtime, /spawn\(pgCtl, startArgs/);
-  assert.match(runtime, /spawn\("cmd\.exe"/);
-  assert.match(runtime, /quoteWindows/);
-  assert.match(runtime, /launcherCommand/);
+  assert.match(runtime, /spawn\(process\.execPath, \[launcherPath\],/);
+  assert.match(runtime, /ELECTRON_RUN_AS_NODE: "1"/);
+  assert.match(runtime, /LEE_POSTGRES_ARGS: JSON\.stringify\(startArgs\)/);
+  assert.match(runtime, /launcherPath/);
   assert.match(runtime, /postgres-launcher\.log/);
   assert.match(runtime, /randomUUID\(\)/);
   assert.match(runtime, /LEE_INSTANCE_ID: instanceId/);

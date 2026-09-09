@@ -598,19 +598,24 @@ export class RuntimeSupervisor {
       : ["-D", databaseDir, "-o", postgresOptions, "-l", this.snapshot.postgresLogPath, "-w", "start"];
     let started: ChildProcess | null;
     if (process.platform === "win32") {
-      const quoteWindows = (value: string) => `"${value.replace(/"/g, "\"\"")}"`;
       const launcherLogPath = join(dataDir, "logs", "postgres-launcher.log");
-      const launcherCommand = `${quoteWindows(pgCtl)} ${startArgs.map(quoteWindows).join(" ")}`;
-      writeFileSync(launcherLogPath, `command: ${launcherCommand}\n`, { mode: 0o600 });
+      const launcherPath = this.production
+        ? join(process.resourcesPath, "postgres-launcher.mjs")
+        : join(this.root, "resources", "postgres-launcher.mjs");
+      writeFileSync(launcherLogPath, `launcher-path: ${launcherPath}\n`, { mode: 0o600 });
       try {
-        started = spawn("cmd.exe", ["/d", "/c", launcherCommand], {
+        started = spawn(process.execPath, [launcherPath], {
           cwd: this.production ? process.resourcesPath : this.root,
           windowsHide: true,
-          stdio: ["ignore", "pipe", "pipe"],
-          env: postgresEnvironment,
+          stdio: "ignore",
+          env: {
+            ...postgresEnvironment,
+            ELECTRON_RUN_AS_NODE: "1",
+            LEE_POSTGRES_CTL: pgCtl,
+            LEE_POSTGRES_ARGS: JSON.stringify(startArgs),
+            LEE_POSTGRES_LAUNCHER_LOG: launcherLogPath,
+          },
         });
-        started.stdout?.on("data", (chunk) => appendFileSync(launcherLogPath, `stdout: ${String(chunk)}`, { mode: 0o600 }));
-        started.stderr?.on("data", (chunk) => appendFileSync(launcherLogPath, `stderr: ${String(chunk)}`, { mode: 0o600 }));
         started.once("error", (error) => appendFileSync(launcherLogPath, `spawn-error: ${error.message}\n`, { mode: 0o600 }));
         started.once("exit", (code, signal) => appendFileSync(launcherLogPath, `exit: code=${code ?? "null"} signal=${signal ?? "null"}\n`, { mode: 0o600 }));
       } catch (error) {

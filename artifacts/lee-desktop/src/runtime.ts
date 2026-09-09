@@ -791,21 +791,14 @@ export class RuntimeSupervisor {
   }
 
   private async waitForContract(): Promise<{ proof: boolean; mode: RecoveryMode } | null> {
-    const request = async (url: string): Promise<{ ok: boolean; payload: unknown }> => {
+    const request = async (url: string): Promise<Response> => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 1_500);
-      const deadline = new Promise<{ ok: boolean; payload: unknown }>((_, reject) => {
+      const deadline = new Promise<Response>((_, reject) => {
         setTimeout(() => reject(new Error("Startup probe timed out.")), 1_500);
       });
       try {
-        const response = await Promise.race([
-          fetch(url, { signal: controller.signal }).then(async (result) => ({
-            ok: result.ok,
-            payload: result.ok ? await result.json() : null,
-          })),
-          deadline,
-        ]);
-        return response;
+        return await Promise.race([fetch(url, { signal: controller.signal }), deadline]);
       } finally {
         clearTimeout(timeout);
       }
@@ -816,9 +809,13 @@ export class RuntimeSupervisor {
         if (response.ok) {
           const recovery = await request(`${this.apiUrl}/api/recovery/status`);
           if (recovery.ok) {
-            const status = recovery.payload as { mode?: RecoveryMode; proof?: { overall?: string } };
-            if (status.proof?.overall === "PASS" && status.mode) return { proof: true, mode: status.mode };
-            if (status.mode === "RECOVERY_MODE" || status.mode === "READ_ONLY" || status.mode === "MIGRATION_MODE" || status.mode === "SAFE_MODE") return { proof: false, mode: status.mode };
+            const status = await Promise.race([
+              recovery.json() as Promise<{ mode?: RecoveryMode; proof?: { overall?: string } }>,
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+            ]);
+            if (status?.proof?.overall === "PASS" && status.mode) return { proof: true, mode: status.mode };
+            if (status?.mode === "RECOVERY_MODE" || status?.mode === "READ_ONLY" || status?.mode === "MIGRATION_MODE" || status?.mode === "SAFE_MODE") return { proof: false, mode: status.mode };
+            return { proof: false, mode: "RECOVERY_MODE" };
           }
         }
       } catch { /* Startup probe; the final state remains visible to the user. */ }

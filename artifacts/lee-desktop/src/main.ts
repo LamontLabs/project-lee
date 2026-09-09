@@ -180,6 +180,7 @@ async function boot(): Promise<void> {
     app.getVersion() !== smokeUpdateExpectedVersion,
   );
   if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile) {
+    await supervisor.stop();
     process.exit(0);
     return;
   }

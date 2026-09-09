@@ -117,6 +117,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /smokePhase\("direct-boot"\)/);
   assert.match(main, /main:\$\{label\}/);
   assert.match(main, /smokeExitRequested \|\| app\.requestSingleInstanceLock/);
+  assert.match(main, /await supervisor\.stop\(\);\s*process\.exit\(0\)/);
   assert.match(main, /app\.exit\(0\)/);
   assert.match(main, /if \(!supervisor\)/);
   assert.match(windowsSmoke, /Stop-ProcessTree \(\[int\] \$childPid\)/);

@@ -94,6 +94,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(prepare, /Packaged Windows API launcher is missing/);
   assert.match(packageRuntime, /copyFileSync\(process\.execPath/);
   assert.match(apiLauncher, /api-launcher:\$\{message\}/);
+  assert.match(apiLauncher, /spawn\(process\.execPath, \[apiPath\]/);
+  assert.match(apiLauncher, /stdio: "inherit"/);
   assert.match(apiLauncher, /startup-timeout/);
   assert.match(runtime, /Promise\.race\(\[fetch\(url, \{ signal: controller\.signal \}\), deadline\]\)/);
   assert.match(runtime, /join\(process\.resourcesPath, "api-launcher\.mjs"\)/);

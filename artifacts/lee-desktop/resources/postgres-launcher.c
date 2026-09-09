@@ -73,26 +73,32 @@ int wmain(int argc, wchar_t** argv) {
   STARTUPINFOW startupInfo = {};
   startupInfo.cb = sizeof(startupInfo);
   HANDLE childLog = INVALID_HANDLE_VALUE;
+  HANDLE childInput = INVALID_HANDLE_VALUE;
   const wchar_t* childLogPath = _wgetenv(L"LEE_CHILD_OUTPUT_LOG");
   if (childLogPath && *childLogPath) {
     childLog = CreateFileW(childLogPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (childLog != INVALID_HANDLE_VALUE) {
+      childInput = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
       SetHandleInformation(childLog, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+      if (childInput != INVALID_HANDLE_VALUE) SetHandleInformation(childInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
       startupInfo.dwFlags = STARTF_USESTDHANDLES;
-      startupInfo.hStdInput = childLog;
+      startupInfo.hStdInput = childInput != INVALID_HANDLE_VALUE ? childInput : childLog;
       startupInfo.hStdOutput = childLog;
       startupInfo.hStdError = childLog;
       disableStandardHandleInheritance();
+      if (childInput != INVALID_HANDLE_VALUE) SetHandleInformation(childInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
     }
   }
   PROCESS_INFORMATION processInfo = {};
   const DWORD creationFlags = CREATE_NO_WINDOW | (detached ? CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS : 0);
   if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, childLog != INVALID_HANDLE_VALUE, creationFlags, nullptr, nullptr, &startupInfo, &processInfo)) {
     if (childLog != INVALID_HANDLE_VALUE) CloseHandle(childLog);
+    if (childInput != INVALID_HANDLE_VALUE) CloseHandle(childInput);
     appendLog(logPath, L"native-launcher-create-error: " + std::to_wstring(GetLastError()) + L"\n");
     return 1;
   }
   if (childLog != INVALID_HANDLE_VALUE) CloseHandle(childLog);
+  if (childInput != INVALID_HANDLE_VALUE) CloseHandle(childInput);
 
   if (detached) {
     const wchar_t* pidPath = _wgetenv(L"LEE_LAUNCHED_PID_FILE");

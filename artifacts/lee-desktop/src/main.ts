@@ -26,6 +26,7 @@ const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
 const smokeExitRequested = process.env.LEE_SMOKE_EXIT === "0"
   ? false
   : app.commandLine.hasSwitch("lee-smoke-exit") || process.env.LEE_SMOKE_EXIT === "1";
+const smokeHeadless = process.env.LEE_SMOKE_HEADLESS === "1";
 const smokeDebugFile = process.env.LEE_SMOKE_DEBUG_FILE ?? process.env.LEE_SMOKE_DIAGNOSTIC_FILE;
 let smokeInterruptionTriggered = false;
 function smokeDebug(event: string, details: Record<string, unknown> = {}): void {
@@ -42,6 +43,7 @@ function smokePhase(label: string): void {
 smokeDebug("module-loaded", {
   argv: process.argv,
   smokeExitRequested,
+  smokeHeadless,
   commandLineSmokeExit: app.commandLine.hasSwitch("lee-smoke-exit"),
   statusFile: Boolean(process.env.LEE_SMOKE_STATUS_FILE),
 });
@@ -207,6 +209,17 @@ async function boot(): Promise<void> {
   if (process.env.LEE_SMOKE_STATUS_FILE) {
     writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify({ version: app.getVersion(), ...runtime }, null, 2), "utf8");
   }
+  if (smokeHeadless && process.env.LEE_SMOKE_STATUS_FILE) {
+    smokePhase("headless-ready");
+    const statusFile = process.env.LEE_SMOKE_STATUS_FILE;
+    const exitWatcher = setInterval(() => {
+      if (!existsSync(statusFile)) {
+        clearInterval(exitWatcher);
+        void supervisor.stop().finally(() => app.exit(0));
+      }
+    }, 250);
+    return;
+  }
   const awaitingSmokeUpdate = Boolean(
     smokeUpdateFeedUrl &&
     smokeUpdateExpectedVersion &&
@@ -282,7 +295,7 @@ async function startReadyPath(): Promise<void> {
   await boot();
 }
 
-if (smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) {
+if ((smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) || smokeHeadless) {
   smokePhase("direct-boot");
   void boot();
 } else {

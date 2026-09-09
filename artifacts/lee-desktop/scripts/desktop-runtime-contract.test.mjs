@@ -112,6 +112,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /quitAndInstall/);
   assert.match(main, /LEE_SMOKE_EXIT/);
   assert.match(main, /process\.env\.LEE_SMOKE_EXIT === "0"/);
+  assert.match(main, /process\.env\.LEE_SMOKE_HEADLESS === "1"/);
+  assert.match(main, /headless-ready/);
   assert.match(main, /when-ready-pending/);
   assert.match(main, /uncaught-exception/);
   assert.match(main, /await import\("electron-updater"\)/);

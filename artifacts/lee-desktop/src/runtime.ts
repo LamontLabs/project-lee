@@ -1,6 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -791,30 +792,22 @@ export class RuntimeSupervisor {
   }
 
   private async waitForContract(): Promise<{ proof: boolean; mode: RecoveryMode } | null> {
-    const request = async (url: string): Promise<Response> => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 1_500);
-      const deadline = new Promise<Response>((_, reject) => {
-        setTimeout(() => reject(new Error("Startup probe timed out.")), 1_500);
+    const request = (url: string): Promise<{ ok: boolean }> => new Promise((resolve, reject) => {
+      const client = httpRequest(new URL(url), { headers: { accept: "application/json" } }, (response) => {
+        const ok = (response.statusCode ?? 0) >= 200 && (response.statusCode ?? 0) < 300;
+        response.resume();
+        resolve({ ok });
       });
-      try {
-        return await Promise.race([fetch(url, { signal: controller.signal }), deadline]);
-      } finally {
-        clearTimeout(timeout);
-      }
-    };
+      client.setTimeout(1_500, () => client.destroy(new Error("Startup probe timed out.")));
+      client.once("error", reject);
+      client.end();
+    });
     for (let attempt = 0; attempt < 30; attempt += 1) {
       try {
         const response = await request(`${this.apiUrl}/api/contract`);
         if (response.ok) {
           const recovery = await request(`${this.apiUrl}/api/recovery/status`);
           if (recovery.ok) {
-            const status = await Promise.race([
-              recovery.json() as Promise<{ mode?: RecoveryMode; proof?: { overall?: string } }>,
-              new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
-            ]);
-            if (status?.proof?.overall === "PASS" && status.mode) return { proof: true, mode: status.mode };
-            if (status?.mode === "RECOVERY_MODE" || status?.mode === "READ_ONLY" || status?.mode === "MIGRATION_MODE" || status?.mode === "SAFE_MODE") return { proof: false, mode: status.mode };
             return { proof: false, mode: "RECOVERY_MODE" };
           }
         }

@@ -68,6 +68,9 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
   if (Test-Path $apiLauncherLog) {
     $payload.apiLauncherLog = Get-Content $apiLauncherLog -Raw
   }
+  if (Test-Path $apiLog) {
+    $payload.apiLog = Get-Content $apiLog -Raw
+  }
   $payload.testRootLogs = @(
     Get-ChildItem -Path $testRoot -Recurse -File -ErrorAction SilentlyContinue |
       Where-Object { $_.Extension -in @(".log", ".json") } |

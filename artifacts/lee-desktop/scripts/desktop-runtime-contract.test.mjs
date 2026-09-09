@@ -98,6 +98,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /postgresLog/);
   assert.match(windowsSmoke, /postgresLauncherLog/);
   assert.match(windowsSmoke, /apiLauncherLog/);
+  assert.match(windowsSmoke, /apiLog/);
   assert.match(windowsSmoke, /testRootLogs/);
   assert.match(builder, /runAfterFinish: false/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);

@@ -600,15 +600,19 @@ export class RuntimeSupervisor {
     if (process.platform === "win32") {
       const quotePowerShell = (value: string) => `'${value.replace(/'/g, "''")}'`;
       const launcherLogPath = join(dataDir, "logs", "postgres-launcher.log");
-      const launcherCommand = `& ${quotePowerShell(pgCtl)} ${startArgs.map(quotePowerShell).join(" ")} *>> ${quotePowerShell(launcherLogPath)}`;
+      const launcherCommand = `& ${quotePowerShell(pgCtl)} ${startArgs.map(quotePowerShell).join(" ")}`;
+      writeFileSync(launcherLogPath, `command: ${launcherCommand}\n`, { mode: 0o600 });
       try {
         started = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", launcherCommand], {
           cwd: this.production ? process.resourcesPath : this.root,
           windowsHide: true,
-          stdio: "ignore",
+          stdio: ["ignore", "pipe", "pipe"],
           env: postgresEnvironment,
         });
+        started.stdout?.on("data", (chunk) => appendFileSync(launcherLogPath, `stdout: ${String(chunk)}`, { mode: 0o600 }));
+        started.stderr?.on("data", (chunk) => appendFileSync(launcherLogPath, `stderr: ${String(chunk)}`, { mode: 0o600 }));
         started.once("error", (error) => appendFileSync(launcherLogPath, `spawn-error: ${error.message}\n`, { mode: 0o600 }));
+        started.once("exit", (code, signal) => appendFileSync(launcherLogPath, `exit: code=${code ?? "null"} signal=${signal ?? "null"}\n`, { mode: 0o600 }));
       } catch (error) {
         appendFileSync(launcherLogPath, `spawn-error: ${error instanceof Error ? error.message : String(error)}\n`, { mode: 0o600 });
         this.smokePhase("postgres-launch-error");

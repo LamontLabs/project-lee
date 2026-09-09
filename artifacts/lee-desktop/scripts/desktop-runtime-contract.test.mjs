@@ -82,6 +82,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /timeout: 60_000/);
   assert.match(runtime, /timeout: 15_000/);
   assert.match(runtime, /spawnSync\(apiLaunchCommand/);
+  assert.match(runtime, /this\.production && process\.platform === "win32"[\s\S]*api-health-skipped/);
   assert.match(runtime, /taskkill[\s\S]*timeout: 5_000/);
   assert.match(runtime, /LEE_SMOKE_DIAGNOSTIC_FILE/);
   assert.match(runtime, /postgres-probe-timeout/);

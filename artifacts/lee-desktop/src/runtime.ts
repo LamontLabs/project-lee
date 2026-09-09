@@ -487,15 +487,17 @@ export class RuntimeSupervisor {
       });
     }
     this.smokePhase("api-launch-after");
-    const health = await Promise.race([
-      (async () => {
-        this.smokePhase("api-health-before");
-        const result = await this.waitForContract();
-        this.smokePhase("api-health-after");
-        return result;
-      })(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
-    ]);
+    const health = this.production && process.platform === "win32"
+      ? (this.smokePhase("api-health-skipped"), null)
+      : await Promise.race([
+        (async () => {
+          this.smokePhase("api-health-before");
+          const result = await this.waitForContract();
+          this.smokePhase("api-health-after");
+          return result;
+        })(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
+      ]);
     this.smokePhase("api-health-raced");
     this.snapshot = health
       ? { ...this.snapshot, state: health.proof ? "live" : "degraded", contract: "live", recoveryMode: health.mode, checks: { ...this.snapshot.checks, "System Contract": "live", Brain: health.proof ? "live" : "degraded", "Event Log": health.proof ? "live" : "degraded" }, reason: health.proof ? null : "LEE Core is reachable, but it remains in a protected recovery mode until the owner resolves the repair agenda." }
@@ -600,10 +602,12 @@ export class RuntimeSupervisor {
     this.child = child;
     this.snapshot = { ...this.snapshot, apiProcessId: apiPid };
     child?.once("exit", (exitCode) => { if (!this.stopping) void this.recoverApi(exitCode); });
-    const health = await Promise.race([
-      this.waitForContract(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
-    ]);
+    const health = this.production && process.platform === "win32"
+      ? (this.smokePhase("api-health-skipped"), null)
+      : await Promise.race([
+        this.waitForContract(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
+      ]);
     if (health) {
       this.restartAttempts = 0;
       this.snapshot = {

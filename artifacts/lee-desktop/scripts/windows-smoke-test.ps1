@@ -665,6 +665,22 @@ try {
   Write-Host "LEE Windows installer smoke test passed: clean launch, existing-database migration upgrade, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
 } catch {
   Write-SmokeEvidence "failed" $_
+  if ($env:GITHUB_ACTIONS -eq "true" -and (Test-Path $EvidencePath)) {
+    try {
+      $evidence = Get-Content $EvidencePath -Raw | ConvertFrom-Json
+      $summary = [ordered]@{
+        status = $evidence.status
+        phase = $evidence.phase
+        error = $evidence.error.message
+        lastOperation = $evidence.lastOperation.label
+        recentMarkers = @($evidence.markers | Select-Object -Last 5 | ForEach-Object { "$($_.phase): $($_.message)" })
+      } | ConvertTo-Json -Compress
+      $summary = $summary.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+      Write-Host "::error title=Windows smoke evidence::$summary"
+    } catch {
+      Write-Host "::error title=Windows smoke evidence::The smoke evidence file could not be summarized: $($_.Exception.Message)"
+    }
+  }
   throw
 } finally {
   Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue | ForEach-Object { Stop-ProcessTree $_.Id }

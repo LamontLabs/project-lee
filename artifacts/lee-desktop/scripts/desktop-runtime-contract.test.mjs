@@ -65,6 +65,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(nativeLauncherSource, /DETACHED_PROCESS/);
   assert.match(nativeLauncherSource, /LEE_CHILD_OUTPUT_LOG/);
   assert.match(runtime, /LEE_CHILD_OUTPUT_LOG: this\.snapshot\.apiLogPath/);
+  assert.match(runtime, /stdio: \["ignore", "ignore", "ignore"\]/);
   assert.match(nativeLauncher, /\/TP/);
   assert.match(nativeLauncher, /Microsoft\.VisualStudio\.Component\.VC\.Tools\.x86\.x64/);
   assert.match(runtime, /launcherPath/);

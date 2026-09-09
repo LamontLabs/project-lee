@@ -454,7 +454,7 @@ export class RuntimeSupervisor {
       const launchResult = spawnSync(apiLaunchCommand, apiLaunchArgs, {
         cwd: process.resourcesPath,
         env: { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["ignore", "ignore", "ignore"],
         encoding: "utf8",
         windowsHide: true,
         timeout: 15_000,
@@ -562,7 +562,7 @@ export class RuntimeSupervisor {
       const launchResult = spawnSync(windowsNativeLauncher, ["--detach", command, ...args], {
         cwd: process.resourcesPath,
         env: { ...apiEnvironment, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["ignore", "ignore", "ignore"],
         encoding: "utf8",
         windowsHide: true,
         timeout: 15_000,

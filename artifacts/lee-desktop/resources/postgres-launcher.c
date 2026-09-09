@@ -87,10 +87,14 @@ int wmain(int argc, wchar_t** argv) {
       startupInfo.hStdError = childLog;
       disableStandardHandleInheritance();
       if (childInput != INVALID_HANDLE_VALUE) SetHandleInformation(childInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    } else {
+      appendLog(logPath, L"native-launcher-child-log-open-error: " + std::to_wstring(GetLastError()) + L"\n");
     }
+  } else {
+    appendLog(logPath, L"native-launcher-child-log-not-configured\n");
   }
   PROCESS_INFORMATION processInfo = {};
-  const DWORD creationFlags = CREATE_NO_WINDOW | (detached ? CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS : 0);
+  const DWORD creationFlags = CREATE_NO_WINDOW | (detached ? CREATE_NEW_PROCESS_GROUP : 0);
   if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, childLog != INVALID_HANDLE_VALUE, creationFlags, nullptr, nullptr, &startupInfo, &processInfo)) {
     if (childLog != INVALID_HANDLE_VALUE) CloseHandle(childLog);
     if (childInput != INVALID_HANDLE_VALUE) CloseHandle(childInput);

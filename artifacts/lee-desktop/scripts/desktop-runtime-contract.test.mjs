@@ -63,7 +63,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /LEE_LAUNCHED_PID_FILE/);
   assert.match(nativeLauncherSource, /CreateProcessW/);
   assert.match(nativeLauncherSource, /WaitForSingleObject/);
-  assert.match(nativeLauncherSource, /DETACHED_PROCESS/);
+  assert.match(nativeLauncherSource, /CREATE_NEW_PROCESS_GROUP/);
   assert.match(nativeLauncherSource, /LEE_CHILD_OUTPUT_LOG/);
   assert.match(runtime, /LEE_CHILD_OUTPUT_LOG: this\.snapshot\.apiLogPath/);
   assert.match(runtime, /join\(process\.resourcesPath, "node\.exe"\)/);

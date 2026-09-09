@@ -81,6 +81,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /LEE_INSTANCE_ID: instanceId/);
   assert.match(runtime, /timeout: 60_000/);
   assert.match(runtime, /timeout: 15_000/);
+  assert.match(runtime, /runWindowsNativeLauncher/);
+  assert.doesNotMatch(runtime, /spawnSync\(apiLaunchCommand/);
   assert.match(runtime, /taskkill[\s\S]*timeout: 5_000/);
   assert.match(runtime, /LEE_SMOKE_DIAGNOSTIC_FILE/);
   assert.match(runtime, /postgres-probe-timeout/);

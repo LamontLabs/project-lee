@@ -85,6 +85,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /postgres-probe-timeout/);
   assert.match(runtime, /pg_isready/);
   assert.match(prepare, /apiBundle[\s\S]*@google-cloud\\\/storage/);
+  assert.match(apiBuild, /globalThis\.__dirname/);
+  assert.match(prepare, /absolute build-time worker path/);
   assert.match(prepare, /Bundled Windows Node runtime is missing/);
   assert.match(prepare, /Packaged Windows API launcher is missing/);
   assert.match(packageRuntime, /copyFileSync\(process\.execPath/);

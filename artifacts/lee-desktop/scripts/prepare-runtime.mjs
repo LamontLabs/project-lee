@@ -21,6 +21,9 @@ const apiBundle = readFileSync(resolve(apiDist, "index.mjs"), "utf8");
 if (/(?:^|\n)\s*import(?:[^;\n]*from\s*)?["']@google-cloud\/storage["']|(?:^|\n)\s*(?:const|let|var)\s+[^\n]*require\(["']@google-cloud\/storage["']/.test(apiBundle)) {
   throw new Error("Packaged API must bundle @google-cloud/storage; rebuild the API without externalizing its storage dependency.");
 }
+if (apiBundle.includes("/artifacts/api-server/dist") || /[A-Z]:\\.*artifacts\\api-server\\dist/i.test(apiBundle)) {
+  throw new Error("Packaged API contains an absolute build-time worker path; rebuild the API with relocatable worker paths.");
+}
 if (!existsSync(dbMigrations)) throw new Error("Database migrations are missing. Run @workspace/db generate first.");
 for (const executable of ["initdb", "pg_ctl", "pg_isready", "createdb", "postgres"]) {
   const suffix = process.platform === "win32" ? ".exe" : "";

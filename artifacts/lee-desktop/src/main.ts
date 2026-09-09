@@ -242,7 +242,7 @@ async function startReadyPath(): Promise<void> {
   ipcMain.handle("lee:update-check", () => checkForUpdates());
   ipcMain.handle("lee:update-download", async () => { if (updateState.status === "available") await autoUpdater.downloadUpdate(); return updateState; });
   ipcMain.handle("lee:update-install", () => { if (updateState.status === "downloaded") autoUpdater.quitAndInstall(); return updateState; });
-  if (!smokeExitRequested || smokeUpdateFeedUrl) await configureUpdates();
+  if ((!smokeExitRequested && !process.env.LEE_SMOKE_STATUS_FILE) || smokeUpdateFeedUrl) await configureUpdates();
   await boot();
 }
 

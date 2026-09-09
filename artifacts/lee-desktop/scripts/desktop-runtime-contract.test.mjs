@@ -88,8 +88,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(prepare, /apiBundle[\s\S]*@google-cloud\\\/storage/);
   assert.match(apiBuild, /globalThis\.__dirname/);
   assert.match(prepare, /absolute build-time worker path/);
-  assert.match(privateAuth, /routePath = req\.path\.replace/);
-  assert.match(privateAuth, /routePath === "\/recovery\/status"/);
+  assert.match(privateAuth, /req\.path === "\/api\/contract"/);
+  assert.match(privateAuth, /req\.path === "\/api\/recovery\/status"/);
   assert.match(prepare, /Bundled Windows Node runtime is missing/);
   assert.match(prepare, /Packaged Windows API launcher is missing/);
   assert.match(packageRuntime, /copyFileSync\(process\.execPath/);

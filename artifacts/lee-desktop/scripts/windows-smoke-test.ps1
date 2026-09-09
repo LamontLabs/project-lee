@@ -469,7 +469,12 @@ try {
   Assert-True ($databaseUrl -match "^postgresql://lee@127\.0\.0\.1:\d+/lee$") "private database URL was not persisted"
   $config | Add-Member -NotePropertyName migrationCommand -NotePropertyValue "cmd /c exit 23" -Force
   $config | ConvertTo-Json | Set-Content $configFile -Encoding utf8
-  $failed = Invoke-Lee @{ APPDATA = $appData; LEE_SMOKE_STATUS_FILE = $statusFile } "forced migration failure"
+  $failed = Invoke-Lee @{
+    APPDATA = $appData
+    LEE_MIGRATION_COMMAND = "cmd /c exit 23"
+    LEE_SMOKE_STATUS_FILE = $statusFile
+    LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
+  } "forced migration failure"
   Assert-True ($failed.migration -eq "failed") "forced migration failure was not reported"
   Assert-True ($failed.reason -like "*$migrationLog*") "migration failure did not report the log path"
   Assert-True (Test-Path $migrationLog) "migration log was not written"

@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BootstrapAwarenessResponse,
   BrainVersion,
   BrainVersionSummary,
   CilModelInventoryResponse,
@@ -85,6 +86,84 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetBootstrapAwarenessUrl = () => {
+
+
+
+
+  return `/api/bootstrap-awareness`
+}
+
+/**
+ * Returns an evidence-backed, read-only self-model for current Project LEE state and K6 desktop readiness.
+ * @summary Read Bootstrap Awareness Mode
+ */
+export const getBootstrapAwareness = async ( options?: RequestInit): Promise<BootstrapAwarenessResponse> => {
+
+  return customFetch<BootstrapAwarenessResponse>(getGetBootstrapAwarenessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBootstrapAwarenessQueryKey = () => {
+    return [
+    `/api/bootstrap-awareness`
+    ] as const;
+    }
+
+
+export const getGetBootstrapAwarenessQueryOptions = <TData = Awaited<ReturnType<typeof getBootstrapAwareness>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBootstrapAwareness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBootstrapAwarenessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBootstrapAwareness>>> = ({ signal }) => getBootstrapAwareness({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBootstrapAwareness>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBootstrapAwarenessQueryResult = NonNullable<Awaited<ReturnType<typeof getBootstrapAwareness>>>
+export type GetBootstrapAwarenessQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read Bootstrap Awareness Mode
+ */
+
+export function useGetBootstrapAwareness<TData = Awaited<ReturnType<typeof getBootstrapAwareness>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBootstrapAwareness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBootstrapAwarenessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 

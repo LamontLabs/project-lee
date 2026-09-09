@@ -39,7 +39,7 @@ export function manifestMarkdown(manifest: ManifestDocument) {
   return lines.join("\n");
 }
 
-export async function generateManifest() {
+export async function generateManifest(options: { emitEvent?: boolean } = {}) {
   const generatedAt = new Date();
   const [objects, facts, interpretations, people, assumptions, sources, events, engines, engineHealthRows, connectors, providers, policies, provisions, constitutionVersions, indexes, backups, costs, routes, tests, states, internalServices, loops, capacities, anchors, profiles, profileVersions, brainVersions, graphNodes, graphEdges] = await Promise.all([
     db.select().from(universalObject), db.select().from(factLedger), db.select().from(interpretationLedger), db.select().from(person),
@@ -120,7 +120,9 @@ export async function generateManifest() {
     economics: contract.economics,
     evidenceMap: contract.evidenceMap,
   };
-  await emitEvent({ eventType: "ManifestGenerated", aggregateType: "system_manifest", aggregateId: "system", payload: { manifestVersion: MANIFEST_VERSION, overallHealth: manifest.health.overall } });
+  if (options.emitEvent !== false) {
+    await emitEvent({ eventType: "ManifestGenerated", aggregateType: "system_manifest", aggregateId: "system", payload: { manifestVersion: MANIFEST_VERSION, overallHealth: manifest.health.overall } });
+  }
   return manifest;
 }
 export async function saveManifestSnapshot(manifest: ManifestDocument) {

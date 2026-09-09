@@ -77,3 +77,4 @@
 - [Memory Health boundary](memory-health-boundary.md) — canonical failures fail closed while derived-memory degradation stays rebuildable and explicitly labeled.
 - [Welcome-back briefing boundary](welcome-back-briefing-boundary.md) — owner continuity summaries use a dedicated session cursor and never treat missing history as new changes.
 - [Packaged Windows launch boundary](packaged-windows-launch-boundary.md) — external Node PostgreSQL startup works, but packaged Electron child Node mode does not start in hosted non-admin installs.
+- [Bootstrap Awareness boundary](bootstrap-awareness-boundary.md) — self-understanding composes existing evidence read-only and never becomes a second Brain, Event Log, or authority surface.

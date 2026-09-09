@@ -5,6 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * Evidence-backed read-only Bootstrap Awareness projection.
+ */
+export interface BootstrapAwarenessResponse { [key: string]: unknown }
+
 export type CilModelInventoryResponseInventoryModelsItem = {
   model_id: string;
   provider: string;

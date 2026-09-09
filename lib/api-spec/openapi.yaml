@@ -34,7 +34,22 @@ tags:
     description: People, interactions, relationship health, and cadence
   - name: reviews
     description: Permanent operational review narratives
+  - name: bootstrap-awareness
+    description: Read-only self-model for Project LEE bootstrap and K6 readiness
 paths:
+  /bootstrap-awareness:
+    get:
+      operationId: getBootstrapAwareness
+      tags: [bootstrap-awareness]
+      summary: Read Bootstrap Awareness Mode
+      description: Returns an evidence-backed, read-only self-model for current Project LEE state and K6 desktop readiness.
+      responses:
+        "200":
+          description: Current Bootstrap Awareness projection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapAwarenessResponse"
   /healthz:
     get:
       operationId: healthCheck
@@ -556,6 +571,10 @@ paths:
                 $ref: "#/components/schemas/OperationalReview"
 components:
   schemas:
+    BootstrapAwarenessResponse:
+      type: object
+      additionalProperties: true
+      description: Evidence-backed read-only Bootstrap Awareness projection.
     CilModelInventoryResponse:
       type: object
       properties:

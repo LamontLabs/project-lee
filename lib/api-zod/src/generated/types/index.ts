@@ -9,6 +9,7 @@
 export * from './approval';
 export * from './approvalApprovalMethod';
 export * from './approvalSpec';
+export * from './bootstrapAwarenessResponse';
 export * from './brainVersion';
 export * from './brainVersionPayload';
 export * from './brainVersionRecordCounts';

@@ -11,6 +11,8 @@ files:
   - "!resources/migrate-runtime.mjs"
   - "!resources/migrations/**"
   - "!**/*.map"
+asarUnpack:
+  - resources/postgres-launcher.exe
 extraResources:
   - from: resources/api-server
     to: api-server

@@ -24,6 +24,9 @@ for (const executable of ["initdb", "pg_ctl", "pg_isready", "createdb", "postgre
     throw new Error(`Bundled PostgreSQL runtime is missing ${executable}. Stage it with scripts/stage-postgres-runtime.mjs before packaging.`);
   }
 }
+if (process.platform === "win32" && !existsSync(resolve(resources, "postgres-launcher.exe"))) {
+  throw new Error("Native Windows PostgreSQL launcher is missing. Run scripts/build-native-launcher.mjs before packaging.");
+}
 const postgresShare = process.platform === "win32"
   ? resolve(postgresRuntime, "share")
   : resolve(postgresRuntime, "share", "postgresql");

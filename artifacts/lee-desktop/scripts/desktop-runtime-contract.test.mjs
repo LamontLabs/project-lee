@@ -11,6 +11,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
   const packageRuntime = await read("scripts/package-runtime.mjs");
+  const nativeLauncher = await read("scripts/build-native-launcher.mjs");
+  const nativeLauncherSource = await read("resources/postgres-launcher.c");
   const migrationCheck = await read("scripts/verify-packaged-migrations.mjs");
   const windowsSmoke = await read("scripts/windows-smoke-test.ps1");
   const windowsUpdate = await read("scripts/windows-update-smoke.ps1");
@@ -18,6 +20,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
   assert.match(builder, /from: resources\/postgres-launcher\.mjs[\s\S]*to: postgres-launcher\.mjs/);
+  assert.match(builder, /asarUnpack:[\s\S]*resources\/postgres-launcher\.exe/);
   assert.match(builder, /from: resources\/lee-signing\.cer[\s\S]*to: lee-signing\.cer/);
   assert.match(builder, /nsis:[\s\S]*include: resources\/installer\.nsh/);
   assert.match(installer, /customInstall/);
@@ -47,9 +50,12 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /process\.platform === "win32" \? `-p \$\{port\}`/);
   assert.match(runtime, /process\.platform === "win32"[\s\S]*"-w", "start"/);
   assert.match(runtime, /spawn\(pgCtl, startArgs/);
-  assert.match(runtime, /spawn\(process\.execPath, \["--no-sandbox", "--run-as-node", launcherPath\],/);
-  assert.match(runtime, /ELECTRON_RUN_AS_NODE: "1"/);
-  assert.match(runtime, /LEE_POSTGRES_ARGS: JSON\.stringify\(startArgs\)/);
+  assert.match(runtime, /spawn\(launcherPath, \[pgCtl, \.\.\.startArgs\],/);
+  assert.match(runtime, /app\.asar\.unpacked/);
+  assert.match(runtime, /native launcher is missing/);
+  assert.match(nativeLauncherSource, /CreateProcessW/);
+  assert.match(nativeLauncherSource, /WaitForSingleObject/);
+  assert.match(nativeLauncher, /Microsoft\.VisualStudio\.Component\.VC\.Tools\.x86\.x64/);
   assert.match(runtime, /launcherPath/);
   assert.match(runtime, /postgres-launcher\.log/);
   assert.match(runtime, /randomUUID\(\)/);

@@ -600,19 +600,21 @@ export class RuntimeSupervisor {
     if (process.platform === "win32") {
       const launcherLogPath = join(dataDir, "logs", "postgres-launcher.log");
       const launcherPath = this.production
-        ? join(process.resourcesPath, "postgres-launcher.mjs")
-        : join(this.root, "resources", "postgres-launcher.mjs");
+        ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
+        : join(this.root, "resources", "postgres-launcher.exe");
       writeFileSync(launcherLogPath, `launcher-path: ${launcherPath}\n`, { mode: 0o600 });
+      if (!existsSync(launcherPath)) {
+        appendFileSync(launcherLogPath, "launcher-error: native launcher is missing\n", { mode: 0o600 });
+        this.smokePhase("postgres-launch-error");
+        return null;
+      }
       try {
-        started = spawn(process.execPath, ["--no-sandbox", "--run-as-node", launcherPath], {
+        started = spawn(launcherPath, [pgCtl, ...startArgs], {
           cwd: this.production ? process.resourcesPath : this.root,
           windowsHide: true,
           stdio: "ignore",
           env: {
             ...postgresEnvironment,
-            ELECTRON_RUN_AS_NODE: "1",
-            LEE_POSTGRES_CTL: pgCtl,
-            LEE_POSTGRES_ARGS: JSON.stringify(startArgs),
             LEE_POSTGRES_LAUNCHER_LOG: launcherLogPath,
           },
         });

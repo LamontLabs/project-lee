@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, createWriteStream, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -430,7 +430,7 @@ export class RuntimeSupervisor {
       ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
       : null;
     const apiLaunchCommand = windowsNativeLauncher ?? command;
-    const apiLaunchArgs = windowsNativeLauncher ? [command, ...args] : args;
+    const apiLaunchArgs = windowsNativeLauncher ? ["--detach", command, ...args] : args;
     const childEnv = {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -444,19 +444,43 @@ export class RuntimeSupervisor {
     };
     const apiLog = this.openLog(this.snapshot.apiLogPath);
     const apiLauncherLogPath = join(dataDir, "logs", "api-launcher.log");
-    if (windowsNativeLauncher) writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
+    const apiPidPath = join(dataDir, "logs", "api-launcher.pid");
+    if (windowsNativeLauncher) {
+      writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
+      try { unlinkSync(apiPidPath); } catch { /* No previous detached API is expected on a cold boot. */ }
+    }
     this.smokePhase("api-start");
-    this.child = spawn(apiLaunchCommand, apiLaunchArgs, {
-      cwd: this.production ? process.resourcesPath : this.root,
-      env: windowsNativeLauncher ? { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath } : childEnv,
-      stdio: ["ignore", apiLog, apiLog],
-      windowsHide: true,
-      detached: process.platform !== "win32",
-    });
-    this.snapshot = { ...this.snapshot, apiProcessId: this.child.pid ?? null };
-    this.child.once("exit", (code) => {
-      if (!this.stopping && this.snapshot.state !== "stopped") void this.recoverApi(code);
-    });
+    if (windowsNativeLauncher) {
+      const launchResult = spawnSync(apiLaunchCommand, apiLaunchArgs, {
+        cwd: process.resourcesPath,
+        env: { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath },
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+      });
+      appendFileSync(apiLauncherLogPath, `launcher-sync-result: status=${launchResult.status ?? "null"} error=${launchResult.error?.message ?? "none"}\n${launchResult.stdout ?? ""}${launchResult.stderr ?? ""}`, { mode: 0o600 });
+      const apiPid = Number.parseInt(existsSync(apiPidPath) ? readFileSync(apiPidPath, "utf8").trim() : "", 10);
+      if (launchResult.status !== 0 || !Number.isInteger(apiPid) || apiPid <= 0) {
+        this.smokePhase("api-launch-error");
+        this.snapshot = { ...this.snapshot, apiProcessId: null };
+      } else {
+        this.child = null;
+        this.snapshot = { ...this.snapshot, apiProcessId: apiPid };
+      }
+    } else {
+      this.child = spawn(apiLaunchCommand, apiLaunchArgs, {
+        cwd: this.production ? process.resourcesPath : this.root,
+        env: childEnv,
+        stdio: ["ignore", apiLog, apiLog],
+        windowsHide: true,
+        detached: process.platform !== "win32",
+      });
+      this.snapshot = { ...this.snapshot, apiProcessId: this.child.pid ?? null };
+      this.child.once("exit", (code) => {
+        if (!this.stopping && this.snapshot.state !== "stopped") void this.recoverApi(code);
+      });
+    }
     const health = await this.waitForContract();
     this.snapshot = health
       ? { ...this.snapshot, state: health.proof ? "live" : "degraded", contract: "live", recoveryMode: health.mode, checks: { ...this.snapshot.checks, "System Contract": "live", Brain: health.proof ? "live" : "degraded", "Event Log": health.proof ? "live" : "degraded" }, reason: health.proof ? null : "LEE Core is reachable, but it remains in a protected recovery mode until the owner resolves the repair agenda." }
@@ -516,30 +540,50 @@ export class RuntimeSupervisor {
       ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
       : null;
     const apiLauncherLogPath = join(dataDir, "logs", "api-launcher.log");
-    if (windowsNativeLauncher) writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
-    const child = spawn(windowsNativeLauncher ?? command, windowsNativeLauncher ? [command, ...args] : args, {
-      cwd: this.production ? process.resourcesPath : this.root,
-      env: {
-        ...process.env,
-        DATABASE_URL: config.databaseUrl,
-        LEE_INSTANCE_ID: config.instanceId,
-        LEE_DATABASE_NAME: (() => {
-          try { return decodeURIComponent(new URL(config.databaseUrl ?? "").pathname.replace(/^\/+/, "")) || "lee"; } catch { return "lee"; }
-        })(),
-        PORT: String(this.port),
-        NODE_ENV: this.production ? "production" : "development",
-        LEE_DATA_DIR: dataDir,
-        ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
-        ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
-        ...(windowsNativeLauncher ? { LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath } : {}),
-      },
-      stdio: ["ignore", this.openLog(this.snapshot.apiLogPath), this.openLog(this.snapshot.apiLogPath)],
-      windowsHide: true,
-      detached: process.platform !== "win32",
-    });
+    const apiPidPath = join(dataDir, "logs", "api-launcher.pid");
+    const apiEnvironment = {
+      ...process.env,
+      DATABASE_URL: config.databaseUrl,
+      LEE_INSTANCE_ID: config.instanceId,
+      LEE_DATABASE_NAME: (() => {
+        try { return decodeURIComponent(new URL(config.databaseUrl ?? "").pathname.replace(/^\/+/, "")) || "lee"; } catch { return "lee"; }
+      })(),
+      PORT: String(this.port),
+      NODE_ENV: this.production ? "production" : "development",
+      LEE_DATA_DIR: dataDir,
+      ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
+      ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+    };
+    let child: ChildProcess | null = null;
+    let apiPid: number | null = null;
+    if (windowsNativeLauncher) {
+      writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
+      try { unlinkSync(apiPidPath); } catch { /* The previous API process already exited. */ }
+      const launchResult = spawnSync(windowsNativeLauncher, ["--detach", command, ...args], {
+        cwd: process.resourcesPath,
+        env: { ...apiEnvironment, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath },
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+      });
+      appendFileSync(apiLauncherLogPath, `launcher-sync-result: status=${launchResult.status ?? "null"} error=${launchResult.error?.message ?? "none"}\n${launchResult.stdout ?? ""}${launchResult.stderr ?? ""}`, { mode: 0o600 });
+      const parsedPid = Number.parseInt(existsSync(apiPidPath) ? readFileSync(apiPidPath, "utf8").trim() : "", 10);
+      if (launchResult.status === 0 && Number.isInteger(parsedPid) && parsedPid > 0) apiPid = parsedPid;
+      else this.smokePhase("api-launch-error");
+    } else {
+      child = spawn(command, args, {
+        cwd: this.production ? process.resourcesPath : this.root,
+      env: apiEnvironment,
+        stdio: ["ignore", this.openLog(this.snapshot.apiLogPath), this.openLog(this.snapshot.apiLogPath)],
+        windowsHide: true,
+        detached: process.platform !== "win32",
+      });
+      apiPid = child.pid ?? null;
+    }
     this.child = child;
-    this.snapshot = { ...this.snapshot, apiProcessId: child.pid ?? null };
-    child.once("exit", (exitCode) => { if (!this.stopping) void this.recoverApi(exitCode); });
+    this.snapshot = { ...this.snapshot, apiProcessId: apiPid };
+    child?.once("exit", (exitCode) => { if (!this.stopping) void this.recoverApi(exitCode); });
     const health = await this.waitForContract();
     if (health) {
       this.restartAttempts = 0;
@@ -765,6 +809,9 @@ export class RuntimeSupervisor {
     if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
     this.snapshot = { ...this.snapshot, state: "stopped", reason: null };
     await this.terminate(this.child);
+    if (!this.child && this.snapshot.apiProcessId) {
+      spawnSync("taskkill", ["/pid", String(this.snapshot.apiProcessId), "/t", "/f"], { windowsHide: true, stdio: "ignore", timeout: 5_000 });
+    }
     if (this.postgresCtl) {
       spawnSync(this.postgresCtl, ["-D", databaseDir, "-w", "stop", "-m", "fast"], {
         windowsHide: true,

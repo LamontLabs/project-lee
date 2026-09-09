@@ -56,9 +56,12 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /launcher-sync-result/);
   assert.match(runtime, /api-launcher\.log/);
   assert.match(runtime, /apiLaunchCommand/);
-  assert.match(runtime, /windowsNativeLauncher \? \[command, \.\.\.args\]/);
+  assert.match(runtime, /windowsNativeLauncher \? \["--detach", command, \.\.\.args\]/);
+  assert.match(runtime, /api-launcher\.pid/);
+  assert.match(runtime, /LEE_LAUNCHED_PID_FILE/);
   assert.match(nativeLauncherSource, /CreateProcessW/);
   assert.match(nativeLauncherSource, /WaitForSingleObject/);
+  assert.match(nativeLauncherSource, /DETACHED_PROCESS/);
   assert.match(nativeLauncher, /\/TP/);
   assert.match(nativeLauncher, /Microsoft\.VisualStudio\.Component\.VC\.Tools\.x86\.x64/);
   assert.match(runtime, /launcherPath/);
@@ -92,6 +95,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /runtimeDiagnostics/);
   assert.match(windowsSmoke, /postgresLog/);
   assert.match(windowsSmoke, /postgresLauncherLog/);
+  assert.match(windowsSmoke, /apiLauncherLog/);
   assert.match(windowsSmoke, /testRootLogs/);
   assert.match(builder, /runAfterFinish: false/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);

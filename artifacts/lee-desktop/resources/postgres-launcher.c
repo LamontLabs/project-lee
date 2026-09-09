@@ -44,13 +44,15 @@ static void appendLog(const wchar_t* path, const std::wstring& message) {
 
 int wmain(int argc, wchar_t** argv) {
   const wchar_t* logPath = _wgetenv(L"LEE_POSTGRES_LAUNCHER_LOG");
-  if (argc < 2) {
+  const bool detached = argc > 1 && _wcsicmp(argv[1], L"--detach") == 0;
+  const int commandIndex = detached ? 2 : 1;
+  if (argc <= commandIndex) {
     appendLog(logPath, L"native-launcher-error: missing command\n");
     return 2;
   }
 
-  std::wstring commandLine = quoteArgument(argv[1]);
-  for (int index = 2; index < argc; ++index) {
+  std::wstring commandLine = quoteArgument(argv[commandIndex]);
+  for (int index = commandIndex + 1; index < argc; ++index) {
     commandLine.push_back(L' ');
     commandLine += quoteArgument(argv[index]);
   }
@@ -61,9 +63,19 @@ int wmain(int argc, wchar_t** argv) {
   STARTUPINFOW startupInfo = {};
   startupInfo.cb = sizeof(startupInfo);
   PROCESS_INFORMATION processInfo = {};
-  if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &processInfo)) {
+  const DWORD creationFlags = CREATE_NO_WINDOW | (detached ? CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS : 0);
+  if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &startupInfo, &processInfo)) {
     appendLog(logPath, L"native-launcher-create-error: " + std::to_wstring(GetLastError()) + L"\n");
     return 1;
+  }
+
+  if (detached) {
+    const wchar_t* pidPath = _wgetenv(L"LEE_LAUNCHED_PID_FILE");
+    if (pidPath && *pidPath) appendLog(pidPath, std::to_wstring(processInfo.dwProcessId) + L"\n");
+    appendLog(logPath, L"native-launcher-detached: pid=" + std::to_wstring(processInfo.dwProcessId) + L"\n");
+    CloseHandle(processInfo.hThread);
+    CloseHandle(processInfo.hProcess);
+    return 0;
   }
 
   WaitForSingleObject(processInfo.hProcess, INFINITE);

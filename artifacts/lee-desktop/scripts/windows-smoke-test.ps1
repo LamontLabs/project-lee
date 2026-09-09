@@ -20,6 +20,7 @@ $configFile = Join-Path $appData "Project LEE\config.json"
 $migrationLog = Join-Path $appData "Project LEE\logs\migration.log"
 $postgresLog = Join-Path $appData "Project LEE\logs\postgres.log"
 $postgresLauncherLog = Join-Path $appData "Project LEE\logs\postgres-launcher.log"
+$apiLauncherLog = Join-Path $appData "Project LEE\logs\api-launcher.log"
 $databaseDir = Join-Path $appData "Project LEE\database"
 $migrationUpgradeFile = Join-Path $testRoot "migration-upgrade.json"
 $appExe = $null
@@ -63,6 +64,9 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
   }
   if (Test-Path $postgresLauncherLog) {
     $payload.postgresLauncherLog = Get-Content $postgresLauncherLog -Raw
+  }
+  if (Test-Path $apiLauncherLog) {
+    $payload.apiLauncherLog = Get-Content $apiLauncherLog -Raw
   }
   $payload.testRootLogs = @(
     Get-ChildItem -Path $testRoot -Recurse -File -ErrorAction SilentlyContinue |

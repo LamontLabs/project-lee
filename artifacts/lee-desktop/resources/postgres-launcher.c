@@ -62,16 +62,34 @@ int wmain(int argc, wchar_t** argv) {
   mutableCommand.push_back(L'\0');
   STARTUPINFOW startupInfo = {};
   startupInfo.cb = sizeof(startupInfo);
+  HANDLE childLog = INVALID_HANDLE_VALUE;
+  const wchar_t* childLogPath = _wgetenv(L"LEE_CHILD_OUTPUT_LOG");
+  if (childLogPath && *childLogPath) {
+    childLog = CreateFileW(childLogPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (childLog != INVALID_HANDLE_VALUE) {
+      SetHandleInformation(childLog, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+      startupInfo.dwFlags = STARTF_USESTDHANDLES;
+      startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+      startupInfo.hStdOutput = childLog;
+      startupInfo.hStdError = childLog;
+    }
+  }
   PROCESS_INFORMATION processInfo = {};
   const DWORD creationFlags = CREATE_NO_WINDOW | (detached ? CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS : 0);
-  if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &startupInfo, &processInfo)) {
+  if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, childLog != INVALID_HANDLE_VALUE, creationFlags, nullptr, nullptr, &startupInfo, &processInfo)) {
+    if (childLog != INVALID_HANDLE_VALUE) CloseHandle(childLog);
     appendLog(logPath, L"native-launcher-create-error: " + std::to_wstring(GetLastError()) + L"\n");
     return 1;
   }
+  if (childLog != INVALID_HANDLE_VALUE) CloseHandle(childLog);
 
   if (detached) {
     const wchar_t* pidPath = _wgetenv(L"LEE_LAUNCHED_PID_FILE");
     if (pidPath && *pidPath) appendLog(pidPath, std::to_wstring(processInfo.dwProcessId) + L"\n");
+    Sleep(250);
+    DWORD childExitCode = STILL_ACTIVE;
+    GetExitCodeProcess(processInfo.hProcess, &childExitCode);
+    if (childExitCode != STILL_ACTIVE) appendLog(logPath, L"native-launcher-child-exit: status=" + std::to_wstring(childExitCode) + L"\n");
     appendLog(logPath, L"native-launcher-detached: pid=" + std::to_wstring(processInfo.dwProcessId) + L"\n");
     CloseHandle(processInfo.hThread);
     CloseHandle(processInfo.hProcess);

@@ -453,7 +453,7 @@ export class RuntimeSupervisor {
     if (windowsNativeLauncher) {
       const launchResult = spawnSync(apiLaunchCommand, apiLaunchArgs, {
         cwd: process.resourcesPath,
-        env: { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath },
+        env: { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
         stdio: ["ignore", "pipe", "pipe"],
         encoding: "utf8",
         windowsHide: true,
@@ -561,7 +561,7 @@ export class RuntimeSupervisor {
       try { unlinkSync(apiPidPath); } catch { /* The previous API process already exited. */ }
       const launchResult = spawnSync(windowsNativeLauncher, ["--detach", command, ...args], {
         cwd: process.resourcesPath,
-        env: { ...apiEnvironment, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath },
+        env: { ...apiEnvironment, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
         stdio: ["ignore", "pipe", "pipe"],
         encoding: "utf8",
         windowsHide: true,

@@ -35,7 +35,7 @@ static void appendLog(const wchar_t* path, const std::wstring& message) {
   int byteCount = WideCharToMultiByte(CP_UTF8, 0, message.data(), static_cast<int>(message.size()), nullptr, 0, nullptr, nullptr);
   if (byteCount > 0) {
     std::string utf8(static_cast<size_t>(byteCount), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, message.data(), static_cast<int>(message.size()), utf8.data(), byteCount, nullptr, nullptr);
+    WideCharToMultiByte(CP_UTF8, 0, message.data(), static_cast<int>(message.size()), &utf8[0], byteCount, nullptr, nullptr);
     DWORD written = 0;
     WriteFile(file, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
   }

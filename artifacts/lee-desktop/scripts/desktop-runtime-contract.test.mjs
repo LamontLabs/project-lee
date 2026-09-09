@@ -54,6 +54,9 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /app\.asar\.unpacked/);
   assert.match(runtime, /native launcher is missing/);
   assert.match(runtime, /launcher-sync-result/);
+  assert.match(runtime, /api-launcher\.log/);
+  assert.match(runtime, /apiLaunchCommand/);
+  assert.match(runtime, /windowsNativeLauncher \? \[command, \.\.\.args\]/);
   assert.match(nativeLauncherSource, /CreateProcessW/);
   assert.match(nativeLauncherSource, /WaitForSingleObject/);
   assert.match(nativeLauncher, /\/TP/);

@@ -426,6 +426,11 @@ export class RuntimeSupervisor {
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? process.execPath;
     const args = config.apiArgs ?? [apiPath];
+    const windowsNativeLauncher = this.production && process.platform === "win32"
+      ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
+      : null;
+    const apiLaunchCommand = windowsNativeLauncher ?? command;
+    const apiLaunchArgs = windowsNativeLauncher ? [command, ...args] : args;
     const childEnv = {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -438,10 +443,12 @@ export class RuntimeSupervisor {
       ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     const apiLog = this.openLog(this.snapshot.apiLogPath);
+    const apiLauncherLogPath = join(dataDir, "logs", "api-launcher.log");
+    if (windowsNativeLauncher) writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
     this.smokePhase("api-start");
-    this.child = spawn(command, args, {
+    this.child = spawn(apiLaunchCommand, apiLaunchArgs, {
       cwd: this.production ? process.resourcesPath : this.root,
-      env: childEnv,
+      env: windowsNativeLauncher ? { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath } : childEnv,
       stdio: ["ignore", apiLog, apiLog],
       windowsHide: true,
       detached: process.platform !== "win32",
@@ -503,7 +510,14 @@ export class RuntimeSupervisor {
     if (this.stopping) return;
     const config = loadConfig();
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
-    const child = spawn(config.apiCommand ?? process.execPath, config.apiArgs ?? [apiPath], {
+    const command = config.apiCommand ?? process.execPath;
+    const args = config.apiArgs ?? [apiPath];
+    const windowsNativeLauncher = this.production && process.platform === "win32"
+      ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
+      : null;
+    const apiLauncherLogPath = join(dataDir, "logs", "api-launcher.log");
+    if (windowsNativeLauncher) writeFileSync(apiLauncherLogPath, `launcher-path: ${windowsNativeLauncher}\n`, { mode: 0o600 });
+    const child = spawn(windowsNativeLauncher ?? command, windowsNativeLauncher ? [command, ...args] : args, {
       cwd: this.production ? process.resourcesPath : this.root,
       env: {
         ...process.env,
@@ -517,6 +531,7 @@ export class RuntimeSupervisor {
         LEE_DATA_DIR: dataDir,
         ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
         ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+        ...(windowsNativeLauncher ? { LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath } : {}),
       },
       stdio: ["ignore", this.openLog(this.snapshot.apiLogPath), this.openLog(this.snapshot.apiLogPath)],
       windowsHide: true,

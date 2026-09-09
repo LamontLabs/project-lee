@@ -26,11 +26,37 @@ const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
 const smokeExitRequested = process.env.LEE_SMOKE_EXIT === "0"
   ? false
   : app.commandLine.hasSwitch("lee-smoke-exit") || process.env.LEE_SMOKE_EXIT === "1";
+const smokeDebugFile = process.env.LEE_SMOKE_DEBUG_FILE ?? process.env.LEE_SMOKE_DIAGNOSTIC_FILE;
 let smokeInterruptionTriggered = false;
+function smokeDebug(event: string, details: Record<string, unknown> = {}): void {
+  if (!smokeDebugFile) return;
+  try {
+    appendFileSync(smokeDebugFile, `${JSON.stringify({ at: new Date().toISOString(), event, ...details })}\n`, { mode: 0o600 });
+  } catch { /* Diagnostics must never affect startup. */ }
+}
 function smokePhase(label: string): void {
   const path = process.env.LEE_SMOKE_DIAGNOSTIC_FILE;
   if (!path) return;
   try { appendFileSync(path, `${new Date().toISOString()} main:${label}\n`, { mode: 0o600 }); } catch { /* Diagnostics must never affect startup. */ }
+}
+smokeDebug("module-loaded", {
+  argv: process.argv,
+  smokeExitRequested,
+  commandLineSmokeExit: app.commandLine.hasSwitch("lee-smoke-exit"),
+  statusFile: Boolean(process.env.LEE_SMOKE_STATUS_FILE),
+});
+if (smokeDebugFile) {
+  process.on("uncaughtException", (error) => {
+    smokeDebug("uncaught-exception", { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+    app.exit(1);
+  });
+  process.on("unhandledRejection", (reason) => {
+    smokeDebug("unhandled-rejection", { reason: reason instanceof Error ? reason.message : String(reason), stack: reason instanceof Error ? reason.stack : undefined });
+    app.exit(1);
+  });
+  app.on("ready", () => smokeDebug("app-ready"));
+  app.on("will-quit", () => smokeDebug("app-will-quit"));
+  app.on("quit", (_event, exitCode) => smokeDebug("app-quit", { exitCode }));
 }
 smokePhase("loaded");
 const hasSingleInstance = smokeExitRequested || Boolean(process.env.LEE_SMOKE_STATUS_FILE) || app.requestSingleInstanceLock();
@@ -224,13 +250,16 @@ app.on("before-quit", (event) => {
 });
 async function startReadyPath(): Promise<void> {
   smokePhase("ready");
+  smokeDebug("ready-path-entered", { hasSingleInstance });
   if (!hasSingleInstance) {
     app.exit(0);
     return;
   }
   smokePhase("lock-ready");
+  smokeDebug("tray-before");
   const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));
   tray = new Tray(icon);
+  smokeDebug("tray-created");
   tray.setToolTip("Project LEE");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open LEE", click: () => window?.show() },
@@ -257,6 +286,17 @@ if (smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) {
   smokePhase("direct-boot");
   void boot();
 } else {
-  app.whenReady().then(() => startReadyPath());
+  const readyWatchdog = smokeDebugFile ? setTimeout(() => smokeDebug("when-ready-pending"), 10_000) : null;
+  void app.whenReady()
+    .then(() => {
+      if (readyWatchdog) clearTimeout(readyWatchdog);
+      smokeDebug("when-ready-resolved");
+      return startReadyPath();
+    })
+    .catch((error: unknown) => {
+      if (readyWatchdog) clearTimeout(readyWatchdog);
+      smokeDebug("when-ready-rejected", { message: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+      app.exit(1);
+    });
 }
 app.on("window-all-closed", () => { /* Tray keeps LEE alive until the user chooses Exit LEE. */ });

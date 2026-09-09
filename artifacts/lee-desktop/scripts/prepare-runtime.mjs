@@ -17,6 +17,10 @@ const { build } = require(resolve(root, "artifacts/api-server/node_modules/esbui
 
 if (!existsSync(consoleDist)) throw new Error("Console build is missing. Run @workspace/lee-console build first.");
 if (!existsSync(apiDist)) throw new Error("API build is missing. Run @workspace/api-server build first.");
+const apiBundle = readFileSync(resolve(apiDist, "index.mjs"), "utf8");
+if (/(?:^|\n)\s*import(?:[^;\n]*from\s*)?["']@google-cloud\/storage["']|(?:^|\n)\s*(?:const|let|var)\s+[^\n]*require\(["']@google-cloud\/storage["']/.test(apiBundle)) {
+  throw new Error("Packaged API must bundle @google-cloud/storage; rebuild the API without externalizing its storage dependency.");
+}
 if (!existsSync(dbMigrations)) throw new Error("Database migrations are missing. Run @workspace/db generate first.");
 for (const executable of ["initdb", "pg_ctl", "pg_isready", "createdb", "postgres"]) {
   const suffix = process.platform === "win32" ? ".exe" : "";

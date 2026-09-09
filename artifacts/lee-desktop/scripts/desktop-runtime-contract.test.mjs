@@ -10,6 +10,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const runtime = await read("src/runtime.ts");
   const main = await read("src/main.ts");
   const prepare = await read("scripts/prepare-runtime.mjs");
+  const apiBuild = await read("../api-server/build.mjs");
   const packageRuntime = await read("scripts/package-runtime.mjs");
   const nativeLauncher = await read("scripts/build-native-launcher.mjs");
   const nativeLauncherSource = await read("resources/postgres-launcher.c");
@@ -76,6 +77,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /LEE_SMOKE_DIAGNOSTIC_FILE/);
   assert.match(runtime, /postgres-probe-timeout/);
   assert.match(runtime, /pg_isready/);
+  assert.match(prepare, /apiBundle[\s\S]*@google-cloud\\\/storage/);
+  assert.doesNotMatch(apiBuild, /"@google-cloud\/\*"/);
   assert.match(runtime, /postgres-log-path/);
   assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);
   assert.match(runtime, /\/api\/recovery\/status/);

@@ -12,10 +12,16 @@ function record(message) {
 }
 
 record(`entry exec=${process.execPath} cwd=${process.cwd()}`);
+const importTimeout = setTimeout(() => {
+  record("startup-timeout");
+  process.exit(1);
+}, 30_000);
 try {
   await import("./api-server/index.mjs");
   record("module-ready");
 } catch (error) {
   record(`startup-error ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
   throw error;
+} finally {
+  clearTimeout(importTimeout);
 }

@@ -794,8 +794,11 @@ export class RuntimeSupervisor {
     const request = async (url: string): Promise<Response> => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 1_500);
+      const deadline = new Promise<Response>((_, reject) => {
+        setTimeout(() => reject(new Error("Startup probe timed out.")), 1_500);
+      });
       try {
-        return await fetch(url, { signal: controller.signal });
+        return await Promise.race([fetch(url, { signal: controller.signal }), deadline]);
       } finally {
         clearTimeout(timeout);
       }

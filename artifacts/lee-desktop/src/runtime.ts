@@ -609,17 +609,28 @@ export class RuntimeSupervisor {
         return null;
       }
       try {
-        started = spawn(launcherPath, [pgCtl, ...startArgs], {
+        const launchResult = spawnSync(launcherPath, [pgCtl, ...startArgs], {
           cwd: this.production ? process.resourcesPath : this.root,
           windowsHide: true,
-          stdio: "ignore",
+          stdio: ["ignore", "pipe", "pipe"],
+          encoding: "utf8",
+          timeout: 75_000,
           env: {
             ...postgresEnvironment,
             LEE_POSTGRES_LAUNCHER_LOG: launcherLogPath,
           },
         });
-        started.once("error", (error) => appendFileSync(launcherLogPath, `spawn-error: ${error.message}\n`, { mode: 0o600 }));
-        started.once("exit", (code, signal) => appendFileSync(launcherLogPath, `exit: code=${code ?? "null"} signal=${signal ?? "null"}\n`, { mode: 0o600 }));
+        appendFileSync(
+          launcherLogPath,
+          `launcher-sync-result: status=${launchResult.status ?? "null"} signal=${launchResult.signal ?? "null"} error=${launchResult.error?.message ?? "none"}\n` +
+          `${launchResult.stdout ?? ""}${launchResult.stderr ?? ""}`,
+          { mode: 0o600 },
+        );
+        if (launchResult.status !== 0) {
+          this.smokePhase("postgres-launch-error");
+          return null;
+        }
+        started = null;
       } catch (error) {
         appendFileSync(launcherLogPath, `spawn-error: ${error instanceof Error ? error.message : String(error)}\n`, { mode: 0o600 });
         this.smokePhase("postgres-launch-error");

@@ -50,9 +50,10 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /process\.platform === "win32" \? `-p \$\{port\}`/);
   assert.match(runtime, /process\.platform === "win32"[\s\S]*"-w", "start"/);
   assert.match(runtime, /spawn\(pgCtl, startArgs/);
-  assert.match(runtime, /spawn\(launcherPath, \[pgCtl, \.\.\.startArgs\],/);
+  assert.match(runtime, /spawnSync\(launcherPath, \[pgCtl, \.\.\.startArgs\],/);
   assert.match(runtime, /app\.asar\.unpacked/);
   assert.match(runtime, /native launcher is missing/);
+  assert.match(runtime, /launcher-sync-result/);
   assert.match(nativeLauncherSource, /CreateProcessW/);
   assert.match(nativeLauncherSource, /WaitForSingleObject/);
   assert.match(nativeLauncher, /\/TP/);

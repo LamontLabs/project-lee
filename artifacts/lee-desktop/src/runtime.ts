@@ -458,6 +458,7 @@ export class RuntimeSupervisor {
       : null;
     const apiLaunchCommand = windowsNativeLauncher ?? command;
     const apiLaunchArgs = windowsNativeLauncher ? ["--detach", command, ...args] : args;
+    this.smokePhase("api-launch-before");
     const childEnv = {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -506,10 +507,17 @@ export class RuntimeSupervisor {
         if (!this.stopping && this.snapshot.state !== "stopped") void this.recoverApi(code);
       });
     }
+    this.smokePhase("api-launch-after");
     const health = await Promise.race([
-      this.waitForContract(),
+      (async () => {
+        this.smokePhase("api-health-before");
+        const result = await this.waitForContract();
+        this.smokePhase("api-health-after");
+        return result;
+      })(),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
     ]);
+    this.smokePhase("api-health-raced");
     this.snapshot = health
       ? { ...this.snapshot, state: health.proof ? "live" : "degraded", contract: "live", recoveryMode: health.mode, checks: { ...this.snapshot.checks, "System Contract": "live", Brain: health.proof ? "live" : "degraded", "Event Log": health.proof ? "live" : "degraded" }, reason: health.proof ? null : "LEE Core is reachable, but it remains in a protected recovery mode until the owner resolves the repair agenda." }
       : { ...this.snapshot, state: "degraded", contract: "unavailable", recoveryMode: "RECOVERY_MODE", checks: { ...this.snapshot.checks, "System Contract": "degraded", Brain: "degraded", "Event Log": "degraded" }, reason: "LEE Core started, but startup could not prove the canonical Brain and Event Log. LEE is in recovery mode." };

@@ -424,7 +424,7 @@ export class RuntimeSupervisor {
     this.snapshot = { ...this.snapshot, migration: "complete" };
     this.smokePhase("migration-complete");
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
-    const command = config.apiCommand ?? process.execPath;
+    const command = config.apiCommand ?? (this.production && process.platform === "win32" ? join(process.resourcesPath, "node.exe") : process.execPath);
     const args = config.apiArgs ?? [apiPath];
     const windowsNativeLauncher = this.production && process.platform === "win32"
       ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
@@ -440,7 +440,7 @@ export class RuntimeSupervisor {
       NODE_ENV: this.production ? "production" : "development",
       LEE_DATA_DIR: dataDir,
       ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
-      ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+       ...(this.production && command === process.execPath ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     const apiLog = this.openLog(this.snapshot.apiLogPath);
     const apiLauncherLogPath = join(dataDir, "logs", "api-launcher.log");
@@ -534,7 +534,7 @@ export class RuntimeSupervisor {
     if (this.stopping) return;
     const config = loadConfig();
     const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
-    const command = config.apiCommand ?? process.execPath;
+    const command = config.apiCommand ?? (this.production && process.platform === "win32" ? join(process.resourcesPath, "node.exe") : process.execPath);
     const args = config.apiArgs ?? [apiPath];
     const windowsNativeLauncher = this.production && process.platform === "win32"
       ? join(process.resourcesPath, "app.asar.unpacked", "resources", "postgres-launcher.exe")
@@ -552,7 +552,7 @@ export class RuntimeSupervisor {
       NODE_ENV: this.production ? "production" : "development",
       LEE_DATA_DIR: dataDir,
       ...(process.env.LEE_RESTORE_BACKUP_PATH ? { LEE_RESTORE_BACKUP_PATH: process.env.LEE_RESTORE_BACKUP_PATH } : {}),
-      ...(this.production ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+      ...(this.production && command === process.execPath ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     };
     let child: ChildProcess | null = null;
     let apiPid: number | null = null;

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -70,6 +70,11 @@ function existingRuntime(platform) {
 }
 
 const platform = normalizedPlatform();
+if (platform === "windows") {
+  const nodeRuntime = resolve(desktop, "resources", "node.exe");
+  copyFileSync(process.execPath, nodeRuntime);
+  console.log(`Bundled Node runtime for Windows API startup: ${nodeRuntime}.`);
+}
 const existing = existingRuntime(platform);
 if (existing) {
   console.log(`Using staged PostgreSQL ${existing.version ?? "runtime"} for ${platform} packaging.`);

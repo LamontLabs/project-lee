@@ -14,6 +14,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   const packageRuntime = await read("scripts/package-runtime.mjs");
   const nativeLauncher = await read("scripts/build-native-launcher.mjs");
   const nativeLauncherSource = await read("resources/postgres-launcher.c");
+  const apiLauncher = await read("resources/api-launcher.mjs");
   const migrationCheck = await read("scripts/verify-packaged-migrations.mjs");
   const windowsSmoke = await read("scripts/windows-smoke-test.ps1");
   const windowsUpdate = await read("scripts/windows-update-smoke.ps1");
@@ -21,6 +22,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
 
   assert.match(builder, /extraResources:[\s\S]*from: resources\/postgres[\s\S]*to: postgres/);
   assert.match(builder, /from: resources\/node\.exe[\s\S]*to: node\.exe/);
+  assert.match(builder, /from: resources\/api-launcher\.mjs[\s\S]*to: api-launcher\.mjs/);
   assert.match(builder, /from: resources\/postgres-launcher\.mjs[\s\S]*to: postgres-launcher\.mjs/);
   assert.match(builder, /asarUnpack:[\s\S]*resources\/postgres-launcher\.exe/);
   assert.match(builder, /from: resources\/lee-signing\.cer[\s\S]*to: lee-signing\.cer/);
@@ -84,7 +86,10 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /pg_isready/);
   assert.match(prepare, /apiBundle[\s\S]*@google-cloud\\\/storage/);
   assert.match(prepare, /Bundled Windows Node runtime is missing/);
+  assert.match(prepare, /Packaged Windows API launcher is missing/);
   assert.match(packageRuntime, /copyFileSync\(process\.execPath/);
+  assert.match(apiLauncher, /api-launcher:\$\{message\}/);
+  assert.match(runtime, /join\(process\.resourcesPath, "api-launcher\.mjs"\)/);
   assert.doesNotMatch(apiBuild, /"@google-cloud\/\*"/);
   assert.match(runtime, /postgres-log-path/);
   assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);

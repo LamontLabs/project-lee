@@ -34,6 +34,9 @@ if (process.platform === "win32" && !existsSync(resolve(resources, "postgres-lau
 if (process.platform === "win32" && !existsSync(resolve(resources, "node.exe"))) {
   throw new Error("Bundled Windows Node runtime is missing. Run scripts/package-runtime.mjs before packaging.");
 }
+if (process.platform === "win32" && !existsSync(resolve(resources, "api-launcher.mjs"))) {
+  throw new Error("Packaged Windows API launcher is missing.");
+}
 const postgresShare = process.platform === "win32"
   ? resolve(postgresRuntime, "share")
   : resolve(postgresRuntime, "share", "postgresql");

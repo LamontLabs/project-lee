@@ -22,6 +22,8 @@ extraResources:
     to: postgres
   - from: resources/node.exe
     to: node.exe
+  - from: resources/api-launcher.mjs
+    to: api-launcher.mjs
   - from: resources/migrate-runtime.mjs
     to: migrate-runtime.mjs
   - from: resources/postgres-launcher.mjs

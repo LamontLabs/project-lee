@@ -423,7 +423,9 @@ export class RuntimeSupervisor {
     }
     this.snapshot = { ...this.snapshot, migration: "complete" };
     this.smokePhase("migration-complete");
-    const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
+    const apiPath = this.production
+      ? (process.platform === "win32" ? join(process.resourcesPath, "api-launcher.mjs") : join(process.resourcesPath, "api-server", "index.mjs"))
+      : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? (this.production && process.platform === "win32" ? join(process.resourcesPath, "node.exe") : process.execPath);
     const args = config.apiArgs ?? [apiPath];
     const windowsNativeLauncher = this.production && process.platform === "win32"
@@ -533,7 +535,9 @@ export class RuntimeSupervisor {
     this.restartTimer = null;
     if (this.stopping) return;
     const config = loadConfig();
-    const apiPath = this.production ? join(process.resourcesPath, "api-server", "index.mjs") : join(this.root, "..", "api-server", "dist", "index.mjs");
+    const apiPath = this.production
+      ? (process.platform === "win32" ? join(process.resourcesPath, "api-launcher.mjs") : join(process.resourcesPath, "api-server", "index.mjs"))
+      : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? (this.production && process.platform === "win32" ? join(process.resourcesPath, "node.exe") : process.execPath);
     const args = config.apiArgs ?? [apiPath];
     const windowsNativeLauncher = this.production && process.platform === "win32"

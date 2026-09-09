@@ -472,6 +472,7 @@ try {
   $failed = Invoke-Lee @{
     APPDATA = $appData
     LEE_MIGRATION_COMMAND = "cmd /c exit 23"
+    LEE_SMOKE_MIGRATION_COMMAND = "cmd /c exit 23"
     LEE_SMOKE_STATUS_FILE = $statusFile
     LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
   } "forced migration failure"
@@ -483,6 +484,7 @@ try {
   Set-Phase "failed-tray-launch" "Checking visible migration failure handling."
   $failedTrayProcess = Start-Process -FilePath $appExe -WorkingDirectory $installDir -Environment @{
     APPDATA = $appData
+    LEE_SMOKE_MIGRATION_COMMAND = "cmd /c exit 23"
     LEE_SMOKE_STATUS_FILE = $statusFile
     LEE_SMOKE_DIAGNOSTIC_FILE = $diagnosticFile
     LEE_SMOKE_EXIT = "0"

@@ -770,9 +770,10 @@ export class RuntimeSupervisor {
   }
 
   private runMigrations(config: RuntimeConfig, databaseUrl: string, instanceId: string, databaseName: string): boolean {
+    const smokeMigrationCommand = process.env.LEE_SMOKE_MIGRATION_COMMAND;
     const configuredCommand = config.migrationCommand ?? process.env.LEE_MIGRATION_COMMAND;
-    const bundledMigration = this.production;
-    const command = configuredCommand ?? (bundledMigration
+    const bundledMigration = this.production && !smokeMigrationCommand;
+    const command = smokeMigrationCommand ?? configuredCommand ?? (bundledMigration
       ? process.execPath
       : "pnpm --filter @workspace/db push");
     const args = bundledMigration

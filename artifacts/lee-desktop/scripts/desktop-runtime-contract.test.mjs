@@ -97,7 +97,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(apiLauncher, /await import\("\.\/api-server\/index\.mjs"\)/);
   assert.match(apiLauncher, /startup-timeout/);
   assert.match(runtime, /Promise\.race\(\[fetch\(url, \{ signal: controller\.signal \}\), deadline\]\)/);
-  assert.match(runtime, /join\(process\.resourcesPath, "api-launcher\.mjs"\)/);
+  assert.match(runtime, /join\(process\.resourcesPath, "api-server", process\.platform === "win32" \? "index\.cjs" : "index\.mjs"\)/);
   assert.doesNotMatch(apiBuild, /"@google-cloud\/\*"/);
   assert.match(runtime, /postgres-log-path/);
   assert.match(runtime, /recoveryMode: "RECOVERY_MODE"/);

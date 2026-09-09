@@ -424,7 +424,7 @@ export class RuntimeSupervisor {
     this.snapshot = { ...this.snapshot, migration: "complete" };
     this.smokePhase("migration-complete");
     const apiPath = this.production
-      ? (process.platform === "win32" ? join(process.resourcesPath, "api-launcher.mjs") : join(process.resourcesPath, "api-server", "index.mjs"))
+      ? join(process.resourcesPath, "api-server", process.platform === "win32" ? "index.cjs" : "index.mjs")
       : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? (this.production && process.platform === "win32" ? join(process.resourcesPath, "node.exe") : process.execPath);
     const args = config.apiArgs ?? [apiPath];
@@ -536,7 +536,7 @@ export class RuntimeSupervisor {
     if (this.stopping) return;
     const config = loadConfig();
     const apiPath = this.production
-      ? (process.platform === "win32" ? join(process.resourcesPath, "api-launcher.mjs") : join(process.resourcesPath, "api-server", "index.mjs"))
+      ? join(process.resourcesPath, "api-server", process.platform === "win32" ? "index.cjs" : "index.mjs")
       : join(this.root, "..", "api-server", "dist", "index.mjs");
     const command = config.apiCommand ?? (this.production && process.platform === "win32" ? join(process.resourcesPath, "node.exe") : process.execPath);
     const args = config.apiArgs ?? [apiPath];

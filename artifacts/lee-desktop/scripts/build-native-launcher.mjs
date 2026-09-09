@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -32,8 +32,21 @@ if (compiler.status === 0 && compiler.stdout.trim()) {
   const installationPath = installation.stdout.trim();
   if (installation.status !== 0 || !installationPath) throw new Error("Visual Studio C++ tools are required to build the native Windows PostgreSQL launcher.");
   const vcvars = join(installationPath, "VC", "Auxiliary", "Build", "vcvars64.bat");
-  const command = `call "${vcvars}" && cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE "${source}" /Fe:"${output}" /link /SUBSYSTEM:CONSOLE`;
-  compile("cmd.exe", ["/d", "/s", "/c", command]);
+  const batchName = ".build-native-launcher.cmd";
+  const batchPath = join(desktop, batchName);
+  writeFileSync(batchPath, [
+    "@echo off",
+    `call "${vcvars}"`,
+    "if errorlevel 1 exit /b 1",
+    `cl.exe /nologo /O2 /MT /W4 /DUNICODE /D_UNICODE "${source}" /Fe:"${output}" /link /SUBSYSTEM:CONSOLE`,
+    "exit /b %errorlevel%",
+    "",
+  ].join("\r\n"));
+  try {
+    compile("cmd.exe", ["/d", "/c", batchName]);
+  } finally {
+    rmSync(batchPath, { force: true });
+  }
 }
 
 if (!existsSync(output)) throw new Error("Native Windows PostgreSQL launcher was not produced.");

@@ -604,7 +604,7 @@ export class RuntimeSupervisor {
         : join(this.root, "resources", "postgres-launcher.mjs");
       writeFileSync(launcherLogPath, `launcher-path: ${launcherPath}\n`, { mode: 0o600 });
       try {
-        started = spawn(process.execPath, ["--run-as-node", launcherPath], {
+        started = spawn(process.execPath, ["--no-sandbox", "--run-as-node", launcherPath], {
           cwd: this.production ? process.resourcesPath : this.root,
           windowsHide: true,
           stdio: "ignore",

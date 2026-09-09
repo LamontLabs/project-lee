@@ -454,7 +454,7 @@ export class RuntimeSupervisor {
       const launchResult = spawnSync(apiLaunchCommand, apiLaunchArgs, {
         cwd: process.resourcesPath,
         env: { ...childEnv, LEE_POSTGRES_LAUNCHER_LOG: apiLauncherLogPath, LEE_LAUNCHED_PID_FILE: apiPidPath, LEE_CHILD_OUTPUT_LOG: this.snapshot.apiLogPath },
-        stdio: ["ignore", "ignore", "ignore"],
+        stdio: ["ignore", "pipe", "pipe"],
         encoding: "utf8",
         windowsHide: true,
         timeout: 15_000,

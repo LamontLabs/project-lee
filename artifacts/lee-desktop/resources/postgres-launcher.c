@@ -42,6 +42,16 @@ static void appendLog(const wchar_t* path, const std::wstring& message) {
   CloseHandle(file);
 }
 
+static void disableStandardHandleInheritance() {
+  const DWORD standardHandles[] = { STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE };
+  for (DWORD standardHandle : standardHandles) {
+    HANDLE handle = GetStdHandle(standardHandle);
+    if (handle != nullptr && handle != INVALID_HANDLE_VALUE) {
+      SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+    }
+  }
+}
+
 int wmain(int argc, wchar_t** argv) {
   const wchar_t* logPath = _wgetenv(L"LEE_POSTGRES_LAUNCHER_LOG");
   const bool detached = argc > 1 && _wcsicmp(argv[1], L"--detach") == 0;
@@ -69,9 +79,10 @@ int wmain(int argc, wchar_t** argv) {
     if (childLog != INVALID_HANDLE_VALUE) {
       SetHandleInformation(childLog, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
       startupInfo.dwFlags = STARTF_USESTDHANDLES;
-      startupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+      startupInfo.hStdInput = childLog;
       startupInfo.hStdOutput = childLog;
       startupInfo.hStdError = childLog;
+      disableStandardHandleInheritance();
     }
   }
   PROCESS_INFORMATION processInfo = {};

@@ -598,12 +598,12 @@ export class RuntimeSupervisor {
       : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
     let started: ChildProcess | null;
     if (process.platform === "win32") {
-      const quotePowerShell = (value: string) => `'${value.replace(/'/g, "''")}'`;
+      const quoteWindows = (value: string) => `"${value.replace(/"/g, "\"\"")}"`;
       const launcherLogPath = join(dataDir, "logs", "postgres-launcher.log");
-      const launcherCommand = `& ${quotePowerShell(pgCtl)} ${startArgs.map(quotePowerShell).join(" ")}`;
+      const launcherCommand = `${quoteWindows(pgCtl)} ${startArgs.map(quoteWindows).join(" ")}`;
       writeFileSync(launcherLogPath, `command: ${launcherCommand}\n`, { mode: 0o600 });
       try {
-        started = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", launcherCommand], {
+        started = spawn("cmd.exe", ["/d", "/c", launcherCommand], {
           cwd: this.production ? process.resourcesPath : this.root,
           windowsHide: true,
           stdio: ["ignore", "pipe", "pipe"],

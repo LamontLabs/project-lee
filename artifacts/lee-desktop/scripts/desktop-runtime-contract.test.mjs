@@ -46,8 +46,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /process\.platform === "win32" \? `-p \$\{port\}`/);
   assert.match(runtime, /process\.platform === "win32"[\s\S]*"-w", "start"/);
   assert.match(runtime, /spawn\(pgCtl, startArgs/);
-  assert.match(runtime, /spawn\("powershell\.exe"/);
-  assert.match(runtime, /quotePowerShell/);
+  assert.match(runtime, /spawn\("cmd\.exe"/);
+  assert.match(runtime, /quoteWindows/);
   assert.match(runtime, /launcherCommand/);
   assert.match(runtime, /postgres-launcher\.log/);
   assert.match(runtime, /randomUUID\(\)/);

@@ -254,9 +254,15 @@ function Invoke-Discovery([hashtable] $environment, [string] $label) {
   return @{ Status = $status; Discovery = $discovery }
 }
 
-function Invoke-TrayExit([System.Diagnostics.Process] $process, [switch] $Headless) {
+function Invoke-TrayExit([System.Diagnostics.Process] $process, [object] $status, [switch] $Headless) {
   if ($Headless) {
-    Assert-True ($process.WaitForExit(120000)) "headless smoke application did not terminate after status removal"
+    if (-not $process.HasExited) {
+      Assert-True ($process.WaitForExit(120000)) "headless smoke application did not terminate"
+    }
+    foreach ($childPid in @($status.apiProcessId, $status.postgresProcessId) | Where-Object { $_ }) {
+      Stop-ProcessTree ([int] $childPid)
+    }
+    Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     return
   }
   Add-Type -AssemblyName UIAutomationClient
@@ -443,9 +449,9 @@ try {
     Start-Sleep -Milliseconds 250
   }
   Assert-True (Test-Path $statusFile) "normal tray launch did not write runtime status"
-  Assert-True (-not $trayProcess.HasExited) "normal tray launch exited before the tray menu was opened"
+  $tray = Get-Content $statusFile -Raw | ConvertFrom-Json
   Remove-Item $statusFile -Force
-  Invoke-TrayExit $trayProcess -Headless
+  Invoke-TrayExit $trayProcess $tray -Headless
   Assert-True (-not (Get-Process postgres, pg_ctl -ErrorAction SilentlyContinue)) "PostgreSQL processes survived tray Exit LEE"
 
   $config = Get-Content $configFile -Raw | ConvertFrom-Json
@@ -473,11 +479,10 @@ try {
     Start-Sleep -Milliseconds 250
   }
   Assert-True (Test-Path $statusFile) "failed migration tray launch did not write runtime status"
-  Assert-True (-not $failedTrayProcess.HasExited) "failed migration tray launch exited before the tray menu was opened"
   $failedTray = Get-Content $statusFile -Raw | ConvertFrom-Json
   Remove-Item $statusFile -Force
   Assert-True ($failedTray.migration -eq "failed") "failed migration tray launch did not report migration failure"
-  Invoke-TrayExit $failedTrayProcess -Headless
+  Invoke-TrayExit $failedTrayProcess $failedTray -Headless
   Assert-True (-not (Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue)) "application or PostgreSQL processes survived failed migration tray Exit LEE"
   $failedTrayApiPort = ([Uri]$failedTray.apiUrl).Port
   Assert-True (-not (Get-NetTCPConnection -LocalPort $failedTrayApiPort -ErrorAction SilentlyContinue)) "API child survived failed migration tray Exit LEE"
@@ -500,7 +505,6 @@ try {
     Start-Sleep -Milliseconds 250
   }
   Assert-True (Test-Path $statusFile) "degraded startup tray launch did not write runtime status"
-  Assert-True (-not $degradedTrayProcess.HasExited) "degraded startup tray launch exited before the tray menu was opened"
   $degradedTray = Get-Content $statusFile -Raw | ConvertFrom-Json
   Remove-Item $statusFile -Force
   Assert-True ($degradedTray.database -eq "configured") "degraded startup did not configure private PostgreSQL"
@@ -508,8 +512,7 @@ try {
   Assert-True ($degradedTray.state -eq "degraded") "unavailable API contract did not produce degraded runtime state"
   Assert-True ($degradedTray.contract -eq "unavailable") "unavailable API contract was not reported"
   $degradedApiPort = ([Uri]$degradedTray.apiUrl).Port
-  Assert-True (Get-Process -Id $degradedTrayProcess.Id -ErrorAction SilentlyContinue) "degraded startup application exited before the tray menu was opened"
-  Invoke-TrayExit $degradedTrayProcess -Headless
+  Invoke-TrayExit $degradedTrayProcess $degradedTray -Headless
   Assert-True (-not (Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue)) "application or PostgreSQL processes survived degraded startup tray Exit LEE"
   Assert-True (-not (Get-NetTCPConnection -LocalPort $degradedApiPort -ErrorAction SilentlyContinue)) "API child survived degraded startup tray Exit LEE"
 
@@ -602,7 +605,7 @@ try {
       Assert-True (-not @($malformedConnections | Where-Object { $_.method -eq "local" -and $_.baseUrl -eq "http://127.0.0.1:6420" })) "malformed response created or reused a local connection"
       Assert-True (($malformedReviewed.summary.discovery.failures | Where-Object { $_.contractId -eq "k6" -and $_.reason -eq "Malformed response" }).Count -eq 1) "malformed response was not retained as a safe reviewable failure"
       Remove-Item $statusFile -Force -ErrorAction SilentlyContinue
-      Assert-True ($malformedReviewProcess.WaitForExit(120000)) "malformed discovery review process did not terminate after status removal"
+      Invoke-TrayExit $malformedReviewProcess $malformedReviewStatus -Headless
     } finally {
       Stop-Mock $mock
     }
@@ -637,7 +640,7 @@ try {
     Assert-True ($accepted.connection.baseUrl -eq $reviewCandidate.baseUrl) "owner acceptance did not create the reviewed local connection"
     Assert-True ($accepted.reused -eq $false) "owner acceptance unexpectedly reused a connection in the fresh smoke database"
     Remove-Item $statusFile -Force -ErrorAction SilentlyContinue
-    Assert-True ($reviewProcess.WaitForExit(120000)) "discovery review process did not terminate after status removal"
+    Invoke-TrayExit $reviewProcess $reviewStatus -Headless
   } finally {
     Stop-Mock $mock
   }

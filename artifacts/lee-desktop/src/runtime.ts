@@ -594,8 +594,8 @@ export class RuntimeSupervisor {
     }
     const postgresOptions = process.platform === "win32" ? `-p ${port}` : `-p ${port} -k "${socketDir}"`;
     const startArgs = process.platform === "win32"
-      ? ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"]
-      : ["-D", databaseDir, "-l", this.snapshot.postgresLogPath, "-o", postgresOptions, "-w", "start"];
+      ? ["-D", databaseDir, "-o", postgresOptions, "-l", this.snapshot.postgresLogPath, "-w", "start"]
+      : ["-D", databaseDir, "-o", postgresOptions, "-l", this.snapshot.postgresLogPath, "-w", "start"];
     let started: ChildProcess | null;
     if (process.platform === "win32") {
       const quoteWindows = (value: string) => `"${value.replace(/"/g, "\"\"")}"`;

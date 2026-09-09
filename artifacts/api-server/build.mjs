@@ -18,9 +18,9 @@ async function buildAll() {
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
     bundle: true,
-    format: "esm",
+    format: "cjs",
     outdir: distDir,
-    outExtension: { ".js": ".mjs" },
+    outExtension: { ".js": ".cjs" },
     logLevel: "info",
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
@@ -107,25 +107,26 @@ async function buildAll() {
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {
-      js: `import { createRequire as __bannerCrReq } from 'node:module';
-import __bannerPath from 'node:path';
-import __bannerUrl from 'node:url';
-
-globalThis.require = __bannerCrReq(import.meta.url);
-globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
-globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+      js: `globalThis.require = require;
+globalThis.__filename = __filename;
+globalThis.__dirname = __dirname;
     `,
     },
   });
 
   const generatedFiles = await readdir(distDir);
   const absoluteWorkerPath = /const outputDir = "(?:\\.|[^"\\])*";/g;
-  for (const fileName of generatedFiles.filter((name) => name.endsWith(".mjs"))) {
+  for (const fileName of generatedFiles.filter((name) => name.endsWith(".mjs") || name.endsWith(".cjs"))) {
     const filePath = path.resolve(distDir, fileName);
     const source = await readFile(filePath, "utf8");
     const portableSource = source.replace(absoluteWorkerPath, "const outputDir = globalThis.__dirname;");
     if (portableSource !== source) await writeFile(filePath, portableSource, "utf8");
   }
+  await writeFile(
+    path.resolve(distDir, "index.mjs"),
+    'import "./index.cjs";\n',
+    "utf8",
+  );
 }
 
 buildAll().catch((err) => {

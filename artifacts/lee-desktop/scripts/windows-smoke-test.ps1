@@ -21,6 +21,7 @@ $migrationLog = Join-Path $appData "Project LEE\logs\migration.log"
 $postgresLog = Join-Path $appData "Project LEE\logs\postgres.log"
 $postgresLauncherLog = Join-Path $appData "Project LEE\logs\postgres-launcher.log"
 $apiLauncherLog = Join-Path $appData "Project LEE\logs\api-launcher.log"
+$apiLog = Join-Path $appData "Project LEE\logs\api.log"
 $databaseDir = Join-Path $appData "Project LEE\database"
 $migrationUpgradeFile = Join-Path $testRoot "migration-upgrade.json"
 $appExe = $null

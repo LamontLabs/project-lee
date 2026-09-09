@@ -787,11 +787,20 @@ export class RuntimeSupervisor {
   }
 
   private async waitForContract(): Promise<{ proof: boolean; mode: RecoveryMode } | null> {
+    const request = async (url: string): Promise<Response> => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1_500);
+      try {
+        return await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
     for (let attempt = 0; attempt < 30; attempt += 1) {
       try {
-        const response = await fetch(`${this.apiUrl}/api/contract`);
+        const response = await request(`${this.apiUrl}/api/contract`);
         if (response.ok) {
-          const recovery = await fetch(`${this.apiUrl}/api/recovery/status`, { headers: { accept: "application/json" } });
+          const recovery = await request(`${this.apiUrl}/api/recovery/status`);
           if (recovery.ok) {
             const status = await recovery.json() as { mode?: RecoveryMode; proof?: { overall?: string } };
             if (status.proof?.overall === "PASS" && status.mode) return { proof: true, mode: status.mode };

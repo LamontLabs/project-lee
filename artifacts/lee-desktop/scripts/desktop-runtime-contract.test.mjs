@@ -116,7 +116,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(main, /smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile/);
   assert.match(main, /smokePhase\("direct-boot"\)/);
   assert.match(main, /main:\$\{label\}/);
-  assert.match(main, /smokeExitRequested \|\| app\.requestSingleInstanceLock/);
+  assert.match(main, /smokeExitRequested \|\| Boolean\(process\.env\.LEE_SMOKE_STATUS_FILE\) \|\| app\.requestSingleInstanceLock/);
   assert.match(main, /await supervisor\.stop\(\);\s*process\.exit\(0\)/);
   assert.match(main, /!process\.env\.LEE_SMOKE_STATUS_FILE/);
   assert.match(main, /app\.exit\(0\)/);

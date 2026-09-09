@@ -31,9 +31,14 @@ function smokePhase(label: string): void {
   try { appendFileSync(path, `${new Date().toISOString()} main:${label}\n`, { mode: 0o600 }); } catch { /* Diagnostics must never affect startup. */ }
 }
 smokePhase("loaded");
-const hasSingleInstance = smokeExitRequested || app.requestSingleInstanceLock();
-if (!hasSingleInstance) app.quit();
-else if (!smokeExitRequested) app.on("second-instance", () => { window?.show(); window?.focus(); });
+const hasSingleInstance = smokeExitRequested || Boolean(process.env.LEE_SMOKE_STATUS_FILE) || app.requestSingleInstanceLock();
+if (!hasSingleInstance) {
+  smokePhase("lock-failed");
+  app.quit();
+} else {
+  smokePhase("lock-acquired");
+  if (!smokeExitRequested) app.on("second-instance", () => { window?.show(); window?.focus(); });
+}
 if (!smokeExitRequested) app.setAppUserModelId("com.lamontlabs.projectlee");
 
 function setUpdateState(next: UpdateState): void {

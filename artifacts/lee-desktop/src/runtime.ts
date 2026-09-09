@@ -791,14 +791,21 @@ export class RuntimeSupervisor {
   }
 
   private async waitForContract(): Promise<{ proof: boolean; mode: RecoveryMode } | null> {
-    const request = async (url: string): Promise<Response> => {
+    const request = async (url: string): Promise<{ ok: boolean; payload: unknown }> => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 1_500);
-      const deadline = new Promise<Response>((_, reject) => {
+      const deadline = new Promise<{ ok: boolean; payload: unknown }>((_, reject) => {
         setTimeout(() => reject(new Error("Startup probe timed out.")), 1_500);
       });
       try {
-        return await Promise.race([fetch(url, { signal: controller.signal }), deadline]);
+        const response = await Promise.race([
+          fetch(url, { signal: controller.signal }).then(async (result) => ({
+            ok: result.ok,
+            payload: result.ok ? await result.json() : null,
+          })),
+          deadline,
+        ]);
+        return response;
       } finally {
         clearTimeout(timeout);
       }
@@ -809,7 +816,7 @@ export class RuntimeSupervisor {
         if (response.ok) {
           const recovery = await request(`${this.apiUrl}/api/recovery/status`);
           if (recovery.ok) {
-            const status = await recovery.json() as { mode?: RecoveryMode; proof?: { overall?: string } };
+            const status = recovery.payload as { mode?: RecoveryMode; proof?: { overall?: string } };
             if (status.proof?.overall === "PASS" && status.mode) return { proof: true, mode: status.mode };
             if (status.mode === "RECOVERY_MODE" || status.mode === "READ_ONLY" || status.mode === "MIGRATION_MODE" || status.mode === "SAFE_MODE") return { proof: false, mode: status.mode };
           }

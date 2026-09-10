@@ -203,10 +203,14 @@ async function writeSmokeDiscovery(filePath: string): Promise<void> {
       reject(new Error(`LEE smoke discovery renderer failed to load (${errorCode}: ${errorDescription}).`));
     };
     const onLoad = () => {
+      smokePhase("renderer-discovery-before");
       void supervisor.discoverLocalServices()
         .then((discovery) => {
+          smokePhase("renderer-discovery-after");
           cleanup();
+          smokePhase("renderer-discovery-write-before");
           writeFileSync(filePath, JSON.stringify(discovery, null, 2), "utf8");
+          smokePhase("renderer-discovery-write-after");
           resolve();
         })
         .catch((error: unknown) => {
@@ -222,14 +226,20 @@ async function writeSmokeDiscovery(filePath: string): Promise<void> {
 async function boot(): Promise<void> {
   smokePhase("boot");
   supervisor = new RuntimeSupervisor(app.getAppPath(), isProduction);
+  smokePhase("supervisor-start-before");
   const runtime = await supervisor.start();
+  smokePhase("supervisor-start-after");
   if (process.env.LEE_SMOKE_STATUS_FILE) {
     writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify({ version: app.getVersion(), ...runtime }, null, 2), "utf8");
   }
   if (smokeHeadless && process.env.LEE_SMOKE_STATUS_FILE) {
     if (smokeDiscoveryFile) {
+      smokePhase("headless-discovery-before");
       const discovery = await supervisor.discoverLocalServices();
+      smokePhase("headless-discovery-after");
+      smokePhase("headless-discovery-write-before");
       writeFileSync(smokeDiscoveryFile, JSON.stringify(discovery, null, 2), "utf8");
+      smokePhase("headless-discovery-write-after");
     }
     smokePhase("headless-ready");
     const statusFile = process.env.LEE_SMOKE_STATUS_FILE;
@@ -248,8 +258,12 @@ async function boot(): Promise<void> {
   );
   if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile) {
     if (smokeDiscoveryFile) {
+      smokePhase("direct-discovery-before");
       const discovery = await supervisor.discoverLocalServices();
+      smokePhase("direct-discovery-after");
+      smokePhase("direct-discovery-write-before");
       writeFileSync(smokeDiscoveryFile, JSON.stringify(discovery, null, 2), "utf8");
+      smokePhase("direct-discovery-write-after");
     }
     await supervisor.stop();
     process.exit(0);

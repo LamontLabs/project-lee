@@ -380,12 +380,15 @@ export class RuntimeSupervisor {
 
   async discoverLocalServices(): Promise<LocalServiceDiscovery> {
     let allowlist: readonly LocalServiceAllowlistEntry[] = [];
+    this.smokePhase("discovery-allowlist-before");
     try {
       const response = await fetch(`${this.apiUrl}/api/desktop-setup/local-contracts`, { headers: { accept: "application/json", "X-LEE-Identity": "lee" } });
+      this.smokePhase("discovery-allowlist-response");
       if (response.ok) allowlist = normalizeRemoteAllowlist(await response.json());
     } catch {
       // Fail closed if the owner-controlled registry cannot be read.
     }
+    this.smokePhase("discovery-allowlist-after");
     return discoverLocalServices(allowlist, fetch, this.port);
   }
 

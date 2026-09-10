@@ -78,9 +78,16 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
       Select-Object FullName, Length
   )
   if ($null -ne $failure) {
+    $failureMessage = if ($failure.PSObject.Properties.Name -contains "message") {
+      [string]$failure.message
+    } elseif ($null -ne $failure.Exception) {
+      [string]$failure.Exception.Message
+    } else {
+      [string]$failure
+    }
     $payload.error = [ordered]@{
-      message = $failure.Exception.Message
-      scriptStackTrace = $failure.ScriptStackTrace
+      message = $failureMessage
+      scriptStackTrace = if ($failure.PSObject.Properties.Name -contains "scriptStackTrace") { $failure.scriptStackTrace } else { $failure.ScriptStackTrace }
     }
   }
   $payload | ConvertTo-Json -Depth 20 | Set-Content -Path $EvidencePath -Encoding utf8

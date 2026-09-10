@@ -246,7 +246,11 @@ async function boot(): Promise<void> {
     smokeUpdateExpectedVersion &&
     app.getVersion() !== smokeUpdateExpectedVersion,
   );
-  if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile && !smokeDiscoveryFile) {
+  if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile) {
+    if (smokeDiscoveryFile) {
+      const discovery = await supervisor.discoverLocalServices();
+      writeFileSync(smokeDiscoveryFile, JSON.stringify(discovery, null, 2), "utf8");
+    }
     await supervisor.stop();
     process.exit(0);
     return;
@@ -319,7 +323,7 @@ async function startReadyPath(): Promise<void> {
   await boot();
 }
 
-if ((smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile && !smokeDiscoveryFile) || smokeHeadless) {
+if ((smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) || smokeHeadless) {
   smokePhase("direct-boot");
   registerIpcHandlers();
   void boot();

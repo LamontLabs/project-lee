@@ -135,6 +135,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /Stop-ProcessTree \(\[int\] \$childPid\)/);
   assert.match(windowsSmoke, /Start-Process -FilePath \$appExe/);
   assert.match(windowsSmoke, /runtimeDiagnostics/);
+  assert.match(windowsSmoke, /Write-SmokeExcerpt/);
+  assert.match(windowsSmoke, /runtime diagnostic trace/);
   assert.match(windowsSmoke, /postgresLog/);
   assert.match(windowsSmoke, /postgresLauncherLog/);
   assert.match(windowsSmoke, /apiLauncherLog/);

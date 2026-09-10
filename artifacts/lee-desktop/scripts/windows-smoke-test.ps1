@@ -86,6 +86,24 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
   $payload | ConvertTo-Json -Depth 20 | Set-Content -Path $EvidencePath -Encoding utf8
 }
 
+function Write-SmokeExcerpt([string] $label, [string] $path, [int] $maxLength = 24000) {
+  Write-Host "--- LEE smoke $label ---"
+  Write-Host "path=$path"
+  if (-not (Test-Path $path)) {
+    Write-Host "missing"
+    return
+  }
+  $text = Get-Content $path -Raw -ErrorAction SilentlyContinue
+  if ([string]::IsNullOrEmpty($text)) {
+    Write-Host "empty"
+    return
+  }
+  if ($text.Length -gt $maxLength) {
+    $text = $text.Substring(0, $maxLength) + "`n...[truncated]..."
+  }
+  Write-Host ($text -replace "::", ": :")
+}
+
 function Set-Phase([string] $nextPhase, [string] $message = "") {
   $script:phase = $nextPhase
   $script:markers += [ordered]@{
@@ -667,6 +685,32 @@ try {
   Write-Host "LEE Windows installer smoke test passed: clean launch, existing-database migration upgrade, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
 } catch {
   Write-SmokeEvidence "failed" $_
+  Write-Host "=== LEE smoke failure diagnostics ==="
+  Write-Host "phase=$phase"
+  Write-Host "testRoot=$testRoot"
+  Write-Host "appPath=$appExe"
+  if ($null -ne $lastOperation) {
+    Write-Host ("lastOperation=" + ($lastOperation | ConvertTo-Json -Compress))
+  } else {
+    Write-Host "lastOperation=none"
+  }
+  Write-SmokeExcerpt "runtime diagnostic trace" $diagnosticFile
+  Write-SmokeExcerpt "postgres log" $postgresLog
+  Write-SmokeExcerpt "postgres launcher log" $postgresLauncherLog
+  Write-SmokeExcerpt "api launcher log" $apiLauncherLog
+  Write-SmokeExcerpt "api log" $apiLog
+  Write-Host "--- LEE smoke process snapshot ---"
+  Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue |
+    Select-Object ProcessName, Id, HasExited, StartTime |
+    Format-Table -AutoSize |
+    Out-String |
+    Write-Host
+  Write-Host "--- LEE smoke test-root files ---"
+  Get-ChildItem -Path $testRoot -Recurse -File -ErrorAction SilentlyContinue |
+    Select-Object FullName, Length |
+    Format-Table -AutoSize |
+    Out-String |
+    Write-Host
   if ($env:GITHUB_ACTIONS -eq "true" -and (Test-Path $EvidencePath)) {
     try {
       $evidence = Get-Content $EvidencePath -Raw | ConvertFrom-Json

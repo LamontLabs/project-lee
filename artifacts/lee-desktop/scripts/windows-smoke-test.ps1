@@ -89,19 +89,17 @@ function Write-SmokeEvidence([string] $status, [object] $failure = $null) {
 function Write-SmokeExcerpt([string] $label, [string] $path, [int] $maxLength = 24000) {
   Write-Host "--- LEE smoke $label ---"
   Write-Host "path=$path"
-  if (-not (Test-Path $path)) {
-    Write-Host "missing"
-    return
-  }
+  Write-Host ((Get-SmokeExcerptText $path $maxLength) -replace "::", ": :")
+}
+
+function Get-SmokeExcerptText([string] $path, [int] $maxLength = 8000) {
+  if (-not (Test-Path $path)) { return "missing" }
   $text = Get-Content $path -Raw -ErrorAction SilentlyContinue
-  if ([string]::IsNullOrEmpty($text)) {
-    Write-Host "empty"
-    return
-  }
+  if ([string]::IsNullOrEmpty($text)) { return "empty" }
   if ($text.Length -gt $maxLength) {
-    $text = $text.Substring(0, $maxLength) + "`n...[truncated]..."
+    return $text.Substring(0, $maxLength) + "`n...[truncated]..."
   }
-  Write-Host ($text -replace "::", ": :")
+  return $text
 }
 
 function Set-Phase([string] $nextPhase, [string] $message = "") {
@@ -684,7 +682,15 @@ try {
   Write-SmokeEvidence "passed"
   Write-Host "LEE Windows installer smoke test passed: clean launch, existing-database migration upgrade, bounded Electron local discovery, safe malformed/oversized/sensitive/timeout/unreachable handling, review-before-persist, private PostgreSQL, migration failure reporting, tray cleanup, and restart reuse."
 } catch {
-  Write-SmokeEvidence "failed" $_
+  $diagnosticExcerpt = Get-SmokeExcerptText $diagnosticFile 8000
+  $processExcerpt = @(Get-Process "Project-LEE", postgres, pg_ctl -ErrorAction SilentlyContinue |
+    Select-Object ProcessName, Id, HasExited, StartTime |
+    ConvertTo-Json -Compress) -join "`n"
+  $failure = [pscustomobject]@{
+    message = "$($_.Exception.Message)`nRuntime diagnostics:`n$diagnosticExcerpt`nProcess snapshot:`n$processExcerpt"
+    scriptStackTrace = $_.ScriptStackTrace
+  }
+  Write-SmokeEvidence "failed" $failure
   Write-Host "=== LEE smoke failure diagnostics ==="
   Write-Host "phase=$phase"
   Write-Host "testRoot=$testRoot"

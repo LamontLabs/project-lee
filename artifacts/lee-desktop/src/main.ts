@@ -317,7 +317,7 @@ async function startReadyPath(): Promise<void> {
   await boot();
 }
 
-if ((smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) || smokeHeadless) {
+if ((smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile && !smokeDiscoveryFile) || smokeHeadless) {
   smokePhase("direct-boot");
   registerIpcHandlers();
   void boot();

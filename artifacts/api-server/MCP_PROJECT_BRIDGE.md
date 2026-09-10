@@ -1,6 +1,6 @@
 # Multi-Project MCP Build Bridge
 
-This API service can act as an MCP server for coordinating development work across separately deployed Replit projects. It does not share project databases. Each project exposes a small authenticated project-agent surface, and the MCP bridge calls only the capabilities configured for that project.
+This API service can act as an MCP server for coordinating development work across separately deployed Replit projects. It does not share project databases. Each project exposes a small authenticated project-agent surface, and the MCP bridge calls only the capabilities configured for that project. Project health is reported per project as unverified, healthy, partial, unavailable, unauthorized, stale, or unconfigured; one failed project never makes the aggregate look healthy.
 
 ## Configure the bridge
 
@@ -28,7 +28,7 @@ Register remote projects with `MCP_PROJECTS_JSON`:
 ]
 ```
 
-`tokenEnv` is the name of an environment variable, not the credential itself. Set each project key as a Replit Secret. `capabilityLevel` is one of `OBSERVE`, `USE`, `MANAGE`, or `GOVERNED_MANAGE`; it is enforced for every bridge operation. Read access never implies modification or deployment authority. `adapter` may be:
+`tokenEnv` is the name of an environment variable, not the credential itself. Set each project key as a Replit Secret. `capabilityLevel` is one of `OBSERVE`, `USE`, `MANAGE`, or `GOVERNED_MANAGE`; it is enforced for every bridge operation. Read access never implies modification or deployment authority. The bridge returns credential readiness and the last observation freshness without returning credential names or values to MCP tools. `adapter` may be:
 
 - `auto` (default): try the companion contract first and use the standard contract only when the companion inspect route returns 404.
 - `project-agent`: use the existing `/api/project-bridge/*` contract.
@@ -36,7 +36,7 @@ Register remote projects with `MCP_PROJECTS_JSON`:
 
 Capability levels are cumulative: `OBSERVE` permits manifest, search, file, dependency, log, contract, and deployment inspection; `USE` adds bounded CI/lint/build/test/typecheck checks and change previews; `MANAGE` adds restart; `GOVERNED_MANAGE` adds approved modification. Modification still requires a fresh preview, a successful safe check, explicit owner confirmation, human confirmation, and CerbaSeal ALLOW.
 
-The standard adapter lets an existing Replit project expose the same scoped HTTP contract without copying Lee’s internal database or runtime. Its responses and write confirmation semantics must match the contract below. The bridge rejects non-HTTPS endpoints, unknown project IDs, missing credentials, unsafe paths, oversized files, and unregistered commands. Auto-detection never treats authentication, permission, timeout, or server errors as an adapter mismatch.
+The standard adapter lets an existing Replit project expose the same scoped HTTP contract without copying Lee’s internal database or runtime. Its responses and write confirmation semantics must match the contract below. The bridge rejects non-HTTPS endpoints, unknown project IDs, missing credentials, unsafe or sensitive paths, oversized files, and unregistered commands. Auto-detection never treats authentication, permission, timeout, or server errors as an adapter mismatch.
 
 ## Guided Console setup
 
@@ -74,9 +74,9 @@ The legacy project-agent routes are:
 - `GET /api/project-bridge/deployment`
 - `POST /api/project-bridge/restart`
 
-For `replit-standard`, use the equivalent routes listed in the adapter configuration above. Both route sets must enforce the same credential header, workspace-relative path restrictions, bounded file sizes, safe check allowlist, preview-before-apply flow, and HMAC confirmation behavior.
+For `replit-standard`, use the equivalent routes listed in the adapter configuration above. Both route sets must enforce the same credential header, workspace-relative path restrictions, sensitive-path exclusion, bounded file sizes, safe check allowlist, preview-before-apply flow, and HMAC confirmation behavior. The receiving project-agent stores a short-lived preview token and rejects an apply that does not match that preview.
 
-The project key is accepted only in `X-Project-Bridge-Key` or a Bearer authorization header. File operations are workspace-relative and reject absolute paths, traversal, `.git`, and `.env` paths. Checks are limited to the registered package typecheck/build/test commands.
+The project key is accepted only in `X-Project-Bridge-Key` or a Bearer authorization header. File operations are workspace-relative and reject absolute paths, traversal, `.git`, `.env`, secret, credential, private-key, and certificate paths. Checks are limited to the registered package typecheck/build/test commands.
 
 ## MCP tools
 

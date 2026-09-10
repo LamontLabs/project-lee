@@ -3,6 +3,7 @@ import test from "node:test";
 import { desc, eq } from "drizzle-orm";
 import { brainVersion, db, eventLog } from "@workspace/db";
 import { getBootstrapAwareness } from "../src/lib/bootstrap-awareness";
+import { ensureBootstrapObjective, getBootstrapObjective } from "../src/lib/executive-objectives";
 
 const deliverySignals = [
   "LEE_BUILD_STATUS",
@@ -79,7 +80,8 @@ test("Bootstrap Awareness excludes project-bridge mutation operations", async ()
     const mutationOperations = new Set(["check", "preview", "apply", "restart"]);
     const registeredProjects = awareness.projectBridge.registeredProjects;
 
-    assert.equal(registeredProjects.length, 1);
+    const fixture = registeredProjects.find((project) => project.id === "bootstrap-awareness-fixture");
+    assert.ok(fixture, "the configured project must remain registered alongside the canonical local self project");
     for (const project of registeredProjects) {
       assert.equal(
         [...mutationOperations].some((operation) => project.allowedOperations.includes(operation)),
@@ -87,6 +89,8 @@ test("Bootstrap Awareness excludes project-bridge mutation operations", async ()
         `project-bridge projection exposed a mutation operation for ${project.id}`,
       );
     }
+    assert.equal(awareness.projectBridge.selfInspection.result?.project?.name, "Project LEE");
+    assert.equal(awareness.projectBridge.selfInspection.result?.provenance?.readOnly, true);
     assert.deepEqual(awareness.projectBridge.localProject.readOnlyOperations, [
       "inspect", "search", "read", "dependencies", "logs", "contract", "deployment",
     ]);
@@ -105,11 +109,34 @@ test("Bootstrap Awareness reports absent delivery signals as unverified", async 
 
   for (const key of ["build", "tests", "deployment", "packaging"] as const) {
     assert.equal(awareness.delivery[key].status, "unverified", `${key} must remain unverified without a pipeline signal`);
-    assert.match(awareness.delivery[key].detail, /No .* signal is configured/);
+    assert.match(awareness.delivery[key].detail, /No authoritative .* evidence is connected/);
     assert.equal(awareness.delivery[key].evidence[0].observedAt, null);
   }
   assert.equal(
     awareness.systems.targetK6Architecture.find((item) => item.id === "packaged-runtime")?.status,
     "unverified",
   );
+});
+
+test("Bootstrap Awareness exposes a persisted objective and six explicit answers without writing during reads", async () => {
+  await ensureBootstrapObjective();
+  const persisted = await getBootstrapObjective();
+  assert.ok(persisted?.id, "bootstrap objective must be persisted in the executive objective system");
+
+  const beforeEventCount = await eventCount();
+  const first = await withMissingDeliverySignals(() => getBootstrapAwareness());
+  const second = await withMissingDeliverySignals(() => getBootstrapAwareness());
+
+  assert.equal(await eventCount(), beforeEventCount, "repeated awareness reads must not append objective or manifest history");
+  assert.equal(first.objective.persisted, true);
+  assert.equal(first.objective.recordId, persisted?.id);
+  assert.equal(first.inspectionBoundary.readOnly, true);
+  assert.equal(first.readiness.status === "healthy", false, "missing K6 proof must not produce false-green readiness");
+  assert.deepEqual(
+    first.bootstrapQuestions.map((item) => item.id),
+    ["blockers", "broken-systems", "next-work", "replit-changes", "readiness-improvement", "subsystem-health"],
+  );
+  assert.equal(first.bootstrapQuestions.length, 6);
+  assert.ok(first.bootstrapQuestions.every((item) => item.evidence.length > 0), "every bootstrap answer needs evidence");
+  assert.equal(second.objective.recordId, first.objective.recordId, "reads must remain restart-safe and point to the same objective");
 });

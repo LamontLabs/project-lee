@@ -3,6 +3,7 @@
 - [Historical Event Log recovery](historical-event-recovery.md) — preserve old sequence anomalies and keep recovery fail-closed until explicit reconciliation.
 - [Understanding output contract](understanding-output-contract.md) — extraction always returns source-backed facts, interpretations, provenance, and a completion event.
 - [Model routing boundary](model-routing-boundary.md) — context is budgeted before mandatory CIL routing; LEE executes CIL decisions and never locally selects a model.
+- [Governed local cognition](local-cognition-boundary.md) — Ollama is a CIL-selected, resource-gated destination for explicitly approved background work, never a local router.
 - [Connector write boundary](connector-write-boundary.md) — provider adapters normalize read syncs; external writes require an explicit CerbaSeal authorization.
 - [Mobile local-first boundary](mobile-local-first-boundary.md) — the companion remains useful offline, persisting pairing and captures locally before live API sync expands.
 - [Cost ledger boundary](cost-ledger-boundary.md) — every reasoning resolution records tier, model, token counts, provider, and estimated cost in an additive ledger.
@@ -78,3 +79,10 @@
 - [Welcome-back briefing boundary](welcome-back-briefing-boundary.md) — owner continuity summaries use a dedicated session cursor and never treat missing history as new changes.
 - [Packaged Windows launch boundary](packaged-windows-launch-boundary.md) — external Node PostgreSQL startup works, but packaged Electron child Node mode does not start in hosted non-admin installs.
 - [Bootstrap Awareness boundary](bootstrap-awareness-boundary.md) — self-understanding composes existing evidence read-only and never becomes a second Brain, Event Log, or authority surface.
+- [CIL recovery management boundary](cil-recovery-management-boundary.md) — normal CIL reasoning fails closed while recovery may self-repair routine project changes at MANAGE; protected surfaces stay governed.
+- [Delivery evidence boundary](delivery-evidence-boundary.md) — Bootstrap Awareness trusts fresh GitHub Actions or signed producer evidence; deployment IDs and local builds never imply healthy delivery.
+- [Canonical self bridge](canonical-self-bridge.md) — the workspace has a default local OBSERVE registration; remote project credentials remain required for external adapters.
+- [Project operator health boundary](project-operator-health-boundary.md) — project inspection stays sanitized, per-project health stays isolated, and local writes require a fresh preview token.
+- [Bootstrap self-model boundary](bootstrap-self-model-boundary.md) — durable K6 intent lives in executive objectives; six owner answers compose read-only evidence with freshness labels.
+- [Offline reality boundary](offline-awareness-boundary.md) — provider freshness is persisted separately from local continuity, with explicit stale/unavailable/unverified labels and governed reconnection.
+- [Personality Memory boundary](personality-memory-boundary.md) — model-independent personality is canonical, versioned, owner-reviewable, reversible, and presentation-only.

@@ -1,0 +1,2 @@
+DROP INDEX "personality_memory_profile_version_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "personality_memory_profile_version_unique" ON "personality_memory" USING btree ("profile_key","version");

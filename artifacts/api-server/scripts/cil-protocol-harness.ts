@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import http from "node:http";
 import { createHash, createHmac, randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db, internalCapabilityService } from "@workspace/db";
 import { reasoningService, type CILQueryRequest } from "../src/services/internal-services";
 import { routeModelRequest } from "../src/lib/model-router";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -57,7 +59,7 @@ const server = http.createServer(async (request, response) => {
   }));
 });
 
-server.listen(0, "127.0.0.1", () => {
+server.listen(0, "127.0.0.1", async () => {
 const port = (server.address() as { port: number }).port;
 const previous = {
   endpoint: process.env.CIL_LEE_ENDPOINT,
@@ -67,6 +69,7 @@ const previous = {
 process.env.CIL_LEE_ENDPOINT = `http://127.0.0.1:${port}/query/lee`;
 process.env.CIL_API_KEY = "cil-test-key";
 process.env.CIL_HMAC_SECRET = "cil-test-hmac";
+await db.update(internalCapabilityService).set({ currentHealth: "healthy", updatedAt: new Date() }).where(eq(internalCapabilityService.serviceId, "cil"));
 
 function request(correlation_id = randomUUID()): CILQueryRequest {
   return {
@@ -82,6 +85,10 @@ function request(correlation_id = randomUUID()): CILQueryRequest {
     frontier_escalation_permitted: true,
     desired_format: "detailed",
   };
+}
+
+async function restoreHealthyCILForNextCase() {
+  await db.update(internalCapabilityService).set({ currentHealth: "healthy", updatedAt: new Date() }).where(eq(internalCapabilityService.serviceId, "cil"));
 }
 
 test.after(async () => {
@@ -115,8 +122,10 @@ test("CIL drift, contradiction, provenance, and confidence remain visible", asyn
 test("CIL rejects malformed, mismatched, and replayed responses", async () => {
   mode = "MALFORMED";
   await assert.rejects(reasoningService.query(request()), /Invalid CIL response schema/);
+  await restoreHealthyCILForNextCase();
   mode = "WRONG_CORRELATION";
   await assert.rejects(reasoningService.query(request()), /Invalid CIL response schema/);
+  await restoreHealthyCILForNextCase();
   mode = "T1";
   const correlation = randomUUID();
   await reasoningService.query(request(correlation));
@@ -124,6 +133,7 @@ test("CIL rejects malformed, mismatched, and replayed responses", async () => {
 });
 
 test("CIL unavailability is recorded as graceful degradation", async () => {
+  await restoreHealthyCILForNextCase();
   mode = "UNAVAILABLE";
   await assert.rejects(reasoningService.query(request()), /HTTP 503/);
   assert.ok(received > 0);

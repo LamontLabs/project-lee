@@ -5,8 +5,40 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BootstrapAwarenessEvidence } from './bootstrapAwarenessEvidence';
+import type { BootstrapAwarenessQuestion } from './bootstrapAwarenessQuestion';
+import type { BootstrapAwarenessResponseActiveReplitTasks } from './bootstrapAwarenessResponseActiveReplitTasks';
+import type { BootstrapAwarenessResponseDelivery } from './bootstrapAwarenessResponseDelivery';
+import type { BootstrapAwarenessResponseIdentity } from './bootstrapAwarenessResponseIdentity';
+import type { BootstrapAwarenessResponseInspectionBoundary } from './bootstrapAwarenessResponseInspectionBoundary';
+import type { BootstrapAwarenessResponseMode } from './bootstrapAwarenessResponseMode';
+import type { BootstrapAwarenessResponseNextItem } from './bootstrapAwarenessResponseNextItem';
+import type { BootstrapAwarenessResponseObjective } from './bootstrapAwarenessResponseObjective';
+import type { BootstrapAwarenessResponsePermissions } from './bootstrapAwarenessResponsePermissions';
+import type { BootstrapAwarenessResponseProjectBridge } from './bootstrapAwarenessResponseProjectBridge';
+import type { BootstrapAwarenessResponseReadiness } from './bootstrapAwarenessResponseReadiness';
+import type { BootstrapAwarenessResponseSystems } from './bootstrapAwarenessResponseSystems';
+import type { BootstrapAwarenessResponseWork } from './bootstrapAwarenessResponseWork';
 
 /**
  * Evidence-backed read-only Bootstrap Awareness projection.
  */
-export interface BootstrapAwarenessResponse { [key: string]: unknown }
+export interface BootstrapAwarenessResponse {
+  awarenessVersion: string;
+  generatedAt: Date;
+  mode: BootstrapAwarenessResponseMode;
+  identity: BootstrapAwarenessResponseIdentity;
+  objective: BootstrapAwarenessResponseObjective;
+  work: BootstrapAwarenessResponseWork;
+  activeReplitTasks: BootstrapAwarenessResponseActiveReplitTasks;
+  delivery: BootstrapAwarenessResponseDelivery;
+  readiness: BootstrapAwarenessResponseReadiness;
+  systems: BootstrapAwarenessResponseSystems;
+  projectBridge: BootstrapAwarenessResponseProjectBridge;
+  permissions: BootstrapAwarenessResponsePermissions;
+  technicalDebt: string[];
+  technicalDebtEvidence?: BootstrapAwarenessEvidence[];
+  bootstrapQuestions: BootstrapAwarenessQuestion[];
+  next: BootstrapAwarenessResponseNextItem[];
+  inspectionBoundary: BootstrapAwarenessResponseInspectionBoundary;
+}

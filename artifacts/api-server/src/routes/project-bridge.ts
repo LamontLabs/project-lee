@@ -36,7 +36,7 @@ router.post("/changes/apply", async (req, res) => {
   const configured = process.env.PROJECT_BRIDGE_API_KEY ?? process.env.MCP_BRIDGE_API_KEY;
   const expected = configured ? changeConfirmationSignature(configured, req.body?.changes) : "";
   if (!bridgeTokenMatches(req.header("x-project-bridge-confirmation"), expected)) { res.status(403).json({ error: "A valid confirmation signature is required." }); return; }
-  try { res.json(await localApplyChanges(req.body?.changes)); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Change application failed." }); }
+  try { res.json(await localApplyChanges(req.body?.changes, String(req.body?.confirmationToken ?? ""))); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Change application failed." }); }
 });
 router.post("/checks/run", async (req, res) => {
   try { res.json(await localRunCheck(String(req.body?.command ?? ""))); } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Project check failed." }); }

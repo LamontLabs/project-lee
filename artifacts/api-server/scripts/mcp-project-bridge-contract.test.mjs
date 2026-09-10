@@ -62,7 +62,7 @@ test("missing credentials return isolated, credential-free failure guidance", ()
   assert.match(projectsSource, /router\.post\("\/:id\/test", async \(req, res\) =>/);
   assert.match(projectsSource, /const id = String\(req\.params\.id\)/);
   assert.match(projectsSource, /projectId: id/);
-  assert.match(projectsSource, /status: "failed"/);
+  assert.match(projectsSource, /status: health\.status/);
   assert.match(projectsSource, /requiredSetup:/);
   assert.doesNotMatch(projectsSource, /error:\s*.*tokenEnv/);
   assert.doesNotMatch(projectsSource, /error:\s*.*process\.env/);
@@ -75,9 +75,18 @@ test("unreachable agents fail one project without changing another project's hea
   assert.match(projectsSource, /const project = allProjects\(\)\.find\(\(item\) => item\.id === id\)/);
   assert.match(projectsSource, /if \(!project\) \{ res\.status\(404\)\.json\(\{ projectId: id, status: "not_configured"/);
   assert.match(projectsSource, /catch \(error\)/);
-  assert.match(projectsSource, /res\.status\(502\)\.json\(\{/);
+  assert.match(projectsSource, /res\.status\(health\.status === "unauthorized" \? 403 : 502\)\.json\(\{/);
   assert.match(projectsSource, /project: publicProject\(project\)/);
   assert.match(projectsSource, /error: message/);
   assert.match(projectsSource, /const projects = new Map\(configuredProjects\(\)\.map\(\(project\) => \[project\.id, project\]\)\)/);
   assert.match(projectsSource, /for \(const project of registeredProjects\(\)\) projects\.set\(project\.id, project\)/);
+});
+
+test("local bridge inspection and writes stay sanitized and preview-bound", () => {
+  assert.match(bridgeSource, /sensitivePathPatterns/);
+  assert.match(bridgeSource, /--fixed-strings/);
+  assert.match(bridgeSource, /!\*\*\/secrets\/\*\*/);
+  assert.match(bridgeSource, /localPendingChanges/);
+  assert.match(bridgeSource, /A fresh matching change preview and confirmation token are required/);
+  assert.match(agentSource, /localApplyChanges\(req\.body\?\.changes, String\(req\.body\?\.confirmationToken/);
 });

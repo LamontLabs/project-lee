@@ -1,10 +1,10 @@
 ---
 name: CIL contract drift
-description: The configured CIL host is not currently serving the enriched JSON API.
+description: The live CIL API uses authenticated /api JSON routes and nests inventory counts under summary.
 ---
 
-LEE’s enriched CIL contract is POST /query/lee with signed JSON, but the configured cognitive-infrastructure-layer.replit.app route currently returns frontend HTML or Cannot POST /api/query/lee rather than CILQueryResponse JSON.
+The verified live CIL contract is POST /api/query/lee, GET /api/capabilities/models, and GET /api/health on cognitive-infrastructure-layer.replit.app. Inventory totals are under summary; model records remain in models. The frontend fallback is /query/lee.
 
-**Why:** Treating the frontend deployment as the reasoning API would erase tier, provenance, confidence, cost, and fallback evidence.
+**Why:** The host serves both the frontend and authenticated API; using the frontend fallback or assuming top-level inventory totals produces HTML or false contract drift.
 
-**How to apply:** Keep CIL degraded until authenticated JSON responses pass correlation, replay, and schema validation; route failures to the managed frontier and record the fallback.
+**How to apply:** Keep CIL degraded until authenticated JSON responses pass correlation, replay, and schema validation. Use /api/health for a structured health probe, and normalize inventory counts from summary without selecting a local model or bypassing signed routing.

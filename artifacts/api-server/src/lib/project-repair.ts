@@ -26,11 +26,14 @@ import {
   runProjectCheck,
   searchProject,
   projectFor,
+  isCILProject,
+  projectOperationAuthorization,
   type Change,
   type ProjectOperation,
 } from "./mcp-project-bridge";
 import { currentProjectMomentum } from "./project-momentum";
 import { registerAction } from "./governance-engine";
+import { verifyCILRecovery } from "./cil-recovery";
 
 export const REPAIR_RUN_STATUSES = ["OBSERVED", "EVIDENCE_READY", "AWAITING_APPROVAL", "APPROVED", "RUNNING", "VERIFYING", "RETRY_WAIT", "SUCCEEDED", "BLOCKED", "FAILED"] as const;
 export type RepairRunStatus = typeof REPAIR_RUN_STATUSES[number];
@@ -49,6 +52,8 @@ type RepairRunRequest = {
   reason: string;
   requestedBy?: string;
   steps: RepairPlanStepInput[];
+  executionMode?: "OWNER_APPROVED" | "CIL_SELF_REPAIR";
+  expectedContract?: Record<string, unknown>;
 };
 
 function canonical(value: unknown): unknown {
@@ -84,16 +89,23 @@ function normalizePlan(steps: RepairPlanStepInput[]) {
 }
 
 export async function createRepairRun(projectId: string, request: RepairRunRequest) {
-  if (!projectFor(projectId)) throw new Error(`Unknown project: ${projectId}`);
+  const project = projectFor(projectId);
+  if (!project) throw new Error(`Unknown project: ${projectId}`);
+  const executionMode = request.executionMode === "CIL_SELF_REPAIR" ? "CIL_SELF_REPAIR" : "OWNER_APPROVED";
+  if (executionMode === "CIL_SELF_REPAIR") {
+    if (!isCILProject(project)) throw new Error("CIL self-repair plans must target the registered CIL project.");
+    const authorization = projectOperationAuthorization(project, "apply");
+    if (!authorization.allowed) throw new Error(`CIL self-repair requires a project capability of MANAGE or higher; ${authorization.reason}`);
+  }
   const plan = normalizePlan(request.steps);
   const planHash = hash(plan);
   const [run] = await db.insert(projectRepairRun).values({
     projectId,
     requestedBy: request.requestedBy ?? "owner",
-    request: { reason: request.reason, requestedBy: request.requestedBy ?? "owner" },
+    request: { reason: request.reason, requestedBy: request.requestedBy ?? "owner", executionMode, expectedContract: request.expectedContract ?? {} },
     plan,
     planHash,
-    diagnosis: { state: "observation_pending" },
+    diagnosis: { state: "observation_pending", executionMode },
   }).returning();
   if (!run) throw new Error("Repair run could not be created.");
   for (const [ordinal, step] of plan.entries()) {
@@ -149,20 +161,26 @@ export async function collectRepairEvidence(runId: string) {
   const contentHash = hash(content);
   const [evidence] = await db.insert(projectRepairEvidence).values({ runId, kind: "project_observation", sourceRef: `project:${run.projectId}`, content, contentHash }).returning();
   const evidenceBundleHash = hash({ planHash: run.planHash, evidence: [contentHash] });
+  const selfRepair = (run.request as any).executionMode === "CIL_SELF_REPAIR";
   await db.update(projectRepairRun).set({
-    status: "EVIDENCE_READY",
+    status: selfRepair ? "APPROVED" : "EVIDENCE_READY",
     diagnosis: { state: "observed", project: inspection, momentum, supportedBy: evidence?.id ?? null },
     evidenceBundleHash,
     updatedAt: new Date(),
   }).where(eq(projectRepairRun.id, runId));
   await event("RepairEvidenceCaptured", runId, { evidenceId: evidence?.id, evidenceBundleHash, momentumAvailable: momentum.length > 0 });
   await audit("project_repair_evidence", runId, "success", { evidenceBundleHash, evidenceId: evidence?.id });
+  if (selfRepair) {
+    await event("CILSelfRepairAuthorized", runId, { projectId: run.projectId, evidenceBundleHash, authority: "MANAGE", protectedSurfacesStillGoverned: true });
+    await audit("cil_self_repair_authorized", runId, "success", { evidenceBundleHash, authority: "MANAGE", protectedSurfacesStillGoverned: true });
+  }
   return getRepairRun(runId);
 }
 
 export async function requestRepairApproval(runId: string) {
   const run = await getRepairRun(runId);
   if (!run) throw new Error("Repair run not found.");
+  if ((run.request as any).executionMode === "CIL_SELF_REPAIR") throw new Error("CIL self-repair is authorized after fresh evidence; it does not use the owner approval endpoint.");
   if (run.status !== "EVIDENCE_READY" || !run.evidenceBundleHash) throw new Error("Fresh evidence is required before requesting repair approval.");
   const evidenceRefs = run.evidence.map((item) => item.id);
   const governance = await registerAction({
@@ -217,6 +235,8 @@ async function executeOperation(projectId: string, step: typeof projectRepairSte
       humanConfirmed: run.ownerConfirmed,
       evidenceRefs,
       reason: String((run.request as any).reason ?? "Owner-approved project repair."),
+      selfRepair: (run.request as any).executionMode === "CIL_SELF_REPAIR",
+      recoveryMode: (run.request as any).executionMode === "CIL_SELF_REPAIR" ? "CIL_RECOVERY" : undefined,
     });
   }
 }
@@ -271,6 +291,16 @@ export async function verifyRepairRun(runId: string) {
   if (allStepsPassed) {
     try { observed = { ...observed, project: await inspectProject(run.projectId) as Record<string, unknown> }; }
     catch (error) { result = "FAIL"; observed = { ...observed, error: error instanceof Error ? error.message : "Final project inspection failed." }; }
+    if (isCILProject(projectFor(run.projectId) ?? { id: run.projectId, name: "CIL", endpoint: "" })) {
+      try {
+        const verification = await verifyCILRecovery(run.projectId, ((run.request as any).expectedContract ?? {}) as Record<string, unknown>);
+        observed = { ...observed, cilRecovery: verification };
+        if (!verification.passed) result = "FAIL";
+      } catch (error) {
+        result = "FAIL";
+        observed = { ...observed, cilRecovery: { passed: false, error: error instanceof Error ? error.message : "CIL recovery verification failed." } };
+      }
+    }
   }
   const outputHash = hash(observed);
   await db.insert(projectRepairVerification).values({ runId, verifier: "project-repair-final-inspection", expected: { allStepsPassed: true }, observed, result, evidenceRefs: run.evidence.map((item) => item.id), outputHash, attemptNo: Math.max(...run.steps.map((step) => step.attemptCount), 0) });

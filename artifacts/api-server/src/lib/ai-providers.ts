@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { callUniversalSystem } from "./universal-systems";
 import { registerInternalServices } from "../services/internal-services";
+import { callOllama, type LocalExecutionEvidence } from "./local-cognition";
 
-export type ProviderName = "openai" | "anthropic" | "gemini";
+export type ProviderName = "openai" | "anthropic" | "gemini" | "ollama";
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 export type CILSelectedModelRoute = { model: string; provider: string; routeId: string };
-export type ProviderResult = { text: string; tokensIn: number; tokensOut: number; provider: ProviderName; model: string; routeId: string; estimatedCostUsd: number | null };
+export type ProviderResult = { text: string; tokensIn: number; tokensOut: number; provider: ProviderName; model: string; routeId: string; estimatedCostUsd: number | null; localExecution?: LocalExecutionEvidence };
 
 const PROVIDER_PRICE_CATALOG: Record<string, { input: number; output: number; provider: ProviderName }> = {
   "gpt-5-nano": { input: 0.0000001, output: 0.0000004, provider: "openai" },
@@ -91,11 +92,12 @@ async function callGemini(route: CILSelectedModelRoute, messages: ChatMessage[],
   return { text, tokensIn, tokensOut, provider: "gemini", model: route.model, routeId: route.routeId, estimatedCostUsd: estimateCost(route, tokensIn, tokensOut) };
 }
 
-export async function callProvider(route: CILSelectedModelRoute, messages: ChatMessage[], correlationId: string): Promise<ProviderResult> {
+export async function callProvider(route: CILSelectedModelRoute, messages: ChatMessage[], correlationId: string, options: { workloadClass?: string; signal?: AbortSignal } = {}): Promise<ProviderResult> {
   if (!route.model || !route.provider || !route.routeId) throw new Error("INVALID_CIL_MODEL_ROUTE");
   if (route.provider === "anthropic") return callAnthropic(route, messages, correlationId);
   if (route.provider === "gemini") return callGemini(route, messages, correlationId);
   if (route.provider === "openai") return callOpenAI(route, messages, correlationId);
+  if (route.provider === "ollama") return callOllama(route, messages, correlationId, options.workloadClass, options.signal);
   throw new Error(`UNSUPPORTED_CIL_PROVIDER:${route.provider}`);
 }
 

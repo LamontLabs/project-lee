@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { connection, connector, db, eventLog, oauthCredential } from "@workspace/db";
+import { getProviderFreshnessMap, type ProviderFreshnessRecord } from "./offline-awareness";
 
 export const CONNECTION_STATUSES = ["connected", "pending", "needs_reauthorization", "degraded", "unavailable", "incompatible", "disconnected"] as const;
 export const CONNECTION_METHODS = ["oauth", "api", "system_contract", "local", "file", "webhook", "manual"] as const;
@@ -33,6 +34,14 @@ export type ConnectionHealthProjection = {
   capabilities: string[];
   lastSyncAt: string | null;
   lastSuccessfulOperation: { label: string; at: string } | null;
+  freshness: {
+    state: string;
+    label: "current" | "stale" | "degraded" | "unavailable" | "unverified";
+    lastSuccessfulRefreshAt: string | null;
+    evidenceAgeMs: number | null;
+    limitations: string[];
+    lastReconnectedAt: string | null;
+  };
   lastError: string | null;
   credentialConfigured: boolean;
   diagnostics?: {
@@ -187,7 +196,7 @@ function authorityProjection(permissions: string[]) {
       : `${primary} is the highest granted authority; connectivity does not imply permission to change anything.`,
   };
 }
-export function projectConnectionHealth(row: typeof connection.$inferSelect, sync: typeof connector.$inferSelect | undefined, grantedScopes: string[], includeDiagnostics: boolean): ConnectionHealthProjection {
+export function projectConnectionHealth(row: typeof connection.$inferSelect, sync: typeof connector.$inferSelect | undefined, grantedScopes: string[], includeDiagnostics: boolean, freshness?: ProviderFreshnessRecord): ConnectionHealthProjection {
   const status = row.status as ConnectionStatus;
   const messages: Record<ConnectionStatus, { summary: string; whatFailed: string | null; remainsAvailable: string; blocked: string | null; recoveryAutomatic: boolean; ownerActionRequired: boolean }> = {
     connected: { summary: "Connected and ready for its granted capabilities.", whatFailed: null, remainsAvailable: "Granted capabilities and read access remain available.", blocked: null, recoveryAutomatic: false, ownerActionRequired: false },
@@ -203,6 +212,8 @@ export function projectConnectionHealth(row: typeof connection.$inferSelect, syn
   const healthAt = row.lastHealthCheck?.toISOString() ?? null;
   const successfulAt = status === "connected" ? (syncAt ?? healthAt) : null;
   const successfulLabel = syncAt ? "Provider sync" : row.method === "file" ? "Source import" : "Connection health check";
+  const freshnessState = freshness?.state ?? (syncAt ? "current" : "unverified");
+  const freshnessLabel = freshnessState === "current" || freshnessState === "reconnected" ? "current" : freshnessState === "stale" ? "stale" : freshnessState === "degraded" ? "degraded" : freshnessState === "offline" ? "unavailable" : "unverified";
   const result: ConnectionHealthProjection = {
     id: row.id,
     displayName: row.displayName,
@@ -217,6 +228,14 @@ export function projectConnectionHealth(row: typeof connection.$inferSelect, syn
     capabilities: row.capabilities.map((item) => typeof item === "string" ? item : String(item.name ?? item.id ?? item.capability ?? "Declared capability")),
     lastSyncAt: syncAt,
     lastSuccessfulOperation: successfulAt ? { label: successfulLabel, at: successfulAt } : null,
+    freshness: {
+      state: freshnessState,
+      label: freshnessLabel,
+      lastSuccessfulRefreshAt: freshness?.lastSuccessfulRefreshAt ?? syncAt,
+      evidenceAgeMs: freshness?.evidenceAgeMs ?? (sync?.lastSyncAt ? Math.max(0, Date.now() - sync.lastSyncAt.getTime()) : null),
+      limitations: freshness?.limitations ?? (syncAt ? ["External facts are current only as of the recorded provider sync."] : ["No successful provider refresh is recorded; external facts are unverified."]),
+      lastReconnectedAt: freshness?.lastReconnectedAt ?? null,
+    },
     lastError: row.lastError ?? sync?.lastError ?? null,
     credentialConfigured: Boolean(row.credentialRef),
   };
@@ -235,24 +254,30 @@ async function audit(eventType: string, row: typeof connection.$inferSelect, pay
 }
 
 export async function listConnections() {
-  const rows = await db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt);
-  const connectorRows = await db.select().from(connector);
+  const [rows, connectorRows, freshness] = await Promise.all([
+    db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt),
+    db.select().from(connector),
+    getProviderFreshnessMap(),
+  ]);
   const connectorByProvider = new Map(connectorRows.map((row) => [row.provider, row]));
   return rows.map(({ connection: row, credential }) => {
-    const provider = row.configuration?.oauthProvider;
+    const provider = typeof row.configuration?.oauthProvider === "string" ? row.configuration.oauthProvider : typeof row.configuration?.provider === "string" ? row.configuration.provider : null;
     const sync = typeof provider === "string" ? connectorByProvider.get(provider) : undefined;
-    return projectConnectionHealth(row, sync, credential?.scopes ?? [], true);
+    return projectConnectionHealth(row, sync, credential?.scopes ?? [], true, typeof provider === "string" ? freshness.get(provider) : undefined);
   });
 }
 
 export async function listConnectionHealth() {
-  const rows = await db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt);
-  const connectorRows = await db.select().from(connector);
+  const [rows, connectorRows, freshness] = await Promise.all([
+    db.select({ connection, credential: oauthCredential }).from(connection).leftJoin(oauthCredential, eq(oauthCredential.connectionId, connection.id)).orderBy(connection.updatedAt),
+    db.select().from(connector),
+    getProviderFreshnessMap(),
+  ]);
   const connectorByProvider = new Map(connectorRows.map((row) => [row.provider, row]));
   return rows.map(({ connection: row, credential }) => {
-    const provider = row.configuration?.oauthProvider;
+    const provider = typeof row.configuration?.oauthProvider === "string" ? row.configuration.oauthProvider : typeof row.configuration?.provider === "string" ? row.configuration.provider : null;
     const sync = typeof provider === "string" ? connectorByProvider.get(provider) : undefined;
-    return projectConnectionHealth(row, sync, credential?.scopes ?? [], false);
+    return projectConnectionHealth(row, sync, credential?.scopes ?? [], false, typeof provider === "string" ? freshness.get(provider) : undefined);
   });
 }
 

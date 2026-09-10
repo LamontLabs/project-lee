@@ -35,7 +35,7 @@ tags:
   - name: reviews
     description: Permanent operational review narratives
   - name: bootstrap-awareness
-    description: Read-only self-model for Project LEE bootstrap and K6 readiness
+    description: Evidence-backed self-model for Project LEE bootstrap and K6 readiness
 paths:
   /bootstrap-awareness:
     get:
@@ -50,6 +50,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BootstrapAwarenessResponse"
+  /bootstrap-awareness/delivery-evidence:
+    post:
+      operationId: recordDeliveryEvidence
+      tags: [bootstrap-awareness]
+      summary: Record signed delivery evidence
+      description: Records a build, test, deployment, or desktop-release result from its authoritative producer. Requests require the x-delivery-evidence-signature HMAC header; missing or stale evidence remains unverified in Bootstrap Awareness.
+      parameters:
+        - name: x-delivery-evidence-signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signal, status, source, observedAt, detail]
+              properties:
+                signal:
+                  type: string
+                  enum: [build, tests, deployment, packaging]
+                status:
+                  type: string
+                  enum: [healthy, partial, blocked, unverified]
+                source:
+                  type: string
+                observedAt:
+                  type: string
+                  format: date-time
+                detail:
+                  type: string
+                refs:
+                  type: array
+                  items:
+                    type: string
+                freshnessSeconds:
+                  type: integer
+      responses:
+        "201":
+          description: Evidence accepted
+        "401":
+          description: Signature missing or invalid
+        "503":
+          description: Evidence ingress is not configured
   /healthz:
     get:
       operationId: healthCheck
@@ -573,8 +619,120 @@ components:
   schemas:
     BootstrapAwarenessResponse:
       type: object
-      additionalProperties: true
       description: Evidence-backed read-only Bootstrap Awareness projection.
+      properties:
+        awarenessVersion:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        mode:
+          type: string
+          enum: [bootstrap_awareness]
+        identity:
+          type: object
+          additionalProperties: true
+        objective:
+          type: object
+          additionalProperties: true
+          properties:
+            id: { type: string }
+            recordId: { type: string, nullable: true }
+            persisted: { type: boolean }
+            title: { type: string }
+            statement: { type: string }
+            status: { type: string }
+            healthStatus: { type: string }
+            successMetrics:
+              type: array
+              items: { type: string }
+            evidence:
+              type: array
+              items: { $ref: "#/components/schemas/BootstrapAwarenessEvidence" }
+            freshness: { $ref: "#/components/schemas/BootstrapAwarenessFreshness" }
+        work:
+          type: object
+          additionalProperties: true
+        activeReplitTasks:
+          type: object
+          additionalProperties: true
+        delivery:
+          type: object
+          additionalProperties: true
+        readiness:
+          type: object
+          additionalProperties: true
+        systems:
+          type: object
+          additionalProperties: true
+        projectBridge:
+          type: object
+          additionalProperties: true
+        permissions:
+          type: object
+          additionalProperties: true
+        technicalDebt:
+          type: array
+          items: { type: string }
+        technicalDebtEvidence:
+          type: array
+          items: { $ref: "#/components/schemas/BootstrapAwarenessEvidence" }
+        bootstrapQuestions:
+          type: array
+          items: { $ref: "#/components/schemas/BootstrapAwarenessQuestion" }
+        next:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        inspectionBoundary:
+          type: object
+          additionalProperties: true
+      required: [awarenessVersion, generatedAt, mode, identity, objective, work, activeReplitTasks, delivery, readiness, systems, projectBridge, permissions, technicalDebt, bootstrapQuestions, next, inspectionBoundary]
+    BootstrapAwarenessStatus:
+      type: string
+      enum: [healthy, partial, degraded, blocked, stale, deferred, unverified]
+    BootstrapAwarenessFreshness:
+      type: string
+      enum: [current, stale, unverified]
+    BootstrapAwarenessEvidence:
+      type: object
+      properties:
+        source: { type: string }
+        observedAt:
+          type: string
+          format: date-time
+          nullable: true
+        detail: { type: string }
+        refs:
+          type: array
+          items: { type: string }
+      required: [source, observedAt, detail]
+    BootstrapAwarenessItem:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        status: { $ref: "#/components/schemas/BootstrapAwarenessStatus" }
+        detail: { type: string }
+        freshness: { $ref: "#/components/schemas/BootstrapAwarenessFreshness" }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/BootstrapAwarenessEvidence" }
+        ownerActionRequired: { type: boolean }
+      required: [id, label, status, detail, freshness, evidence]
+    BootstrapAwarenessQuestion:
+      type: object
+      properties:
+        id: { type: string }
+        question: { type: string }
+        answer: { type: string }
+        status: { $ref: "#/components/schemas/BootstrapAwarenessStatus" }
+        freshness: { $ref: "#/components/schemas/BootstrapAwarenessFreshness" }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/BootstrapAwarenessEvidence" }
+      required: [id, question, answer, status, freshness, evidence]
     CilModelInventoryResponse:
       type: object
       properties:

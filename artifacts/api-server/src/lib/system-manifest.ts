@@ -12,6 +12,7 @@ import { getRecoveryMode } from "./recovery-modes";
 import { projectContractSections } from "./system-contract";
 import { getStorageStatus } from "./retention";
 import { currentCognitiveRuntime } from "./cognitive-runtime";
+import { getOfflineAwareness } from "./offline-awareness";
 
 export const MANIFEST_VERSION = "1.0.0";
 const iso = (value: Date | null | undefined) => value?.toISOString() ?? null;
@@ -27,7 +28,7 @@ export type ManifestDocument = {
   validation: { result: "PASS" | "WARN"; checks: Array<{ name: string; result: "PASS" | "WARN"; evidence: Record<string, unknown> }> };
   contractVersion: string; runtime: Record<string, unknown>; events: Record<string, unknown>; permissions: Record<string, unknown>;
   risk: Record<string, unknown>; governance: Record<string, unknown>; humanConfirmation: Record<string, unknown>;
-  economics: Record<string, unknown>; evidenceMap: Record<string, unknown>;
+  economics: Record<string, unknown>; evidenceMap: Record<string, unknown>; externalReality: Record<string, unknown>;
 };
 
 export function manifestMarkdown(manifest: ManifestDocument) {
@@ -41,14 +42,14 @@ export function manifestMarkdown(manifest: ManifestDocument) {
 
 export async function generateManifest(options: { emitEvent?: boolean } = {}) {
   const generatedAt = new Date();
-  const [objects, facts, interpretations, people, assumptions, sources, events, engines, engineHealthRows, connectors, providers, policies, provisions, constitutionVersions, indexes, backups, costs, routes, tests, states, internalServices, loops, capacities, anchors, profiles, profileVersions, brainVersions, graphNodes, graphEdges] = await Promise.all([
+  const [objects, facts, interpretations, people, assumptions, sources, events, engines, engineHealthRows, connectors, providers, policies, provisions, constitutionVersions, indexes, backups, costs, routes, tests, states, internalServices, loops, capacities, anchors, profiles, profileVersions, brainVersions, graphNodes, graphEdges, externalReality] = await Promise.all([
     db.select().from(universalObject), db.select().from(factLedger), db.select().from(interpretationLedger), db.select().from(person),
     db.select().from(assumptionLedger), db.select().from(sourceVault), db.select().from(eventLog), db.select().from(engineRegistry),
     db.select().from(engineHealth), db.select().from(connector), db.select().from(providerRegistration), db.select().from(policyRecord).where(isNull(policyRecord.supersededAt)), db.select().from(constitutionProvision).where(eq(constitutionProvision.active, true)), db.select().from(constitutionVersion).orderBy(desc(constitutionVersion.version)), db.select().from(semanticIndex),
     db.select().from(backupArchive).orderBy(desc(backupArchive.createdAt)), db.select().from(costRecord), db.select().from(modelRouteDecision),
     db.select().from(selfTestRun).orderBy(desc(selfTestRun.startedAt)), db.select().from(leeState).limit(1), db.select().from(internalCapabilityService), db.select().from(executiveLoop), db.select().from(operationalCapacity).orderBy(desc(operationalCapacity.observedAt)).limit(1),
     db.select().from(strategicAnchor).where(eq(strategicAnchor.active, true)).orderBy(desc(strategicAnchor.createdAt)),
-    db.select().from(identityProfile), db.select().from(identityProfileVersion).orderBy(desc(identityProfileVersion.version)), db.select().from(brainVersion).orderBy(desc(brainVersion.createdAt)), db.select().from(graphNode), db.select().from(graphEdge),
+    db.select().from(identityProfile), db.select().from(identityProfileVersion).orderBy(desc(identityProfileVersion.version)), db.select().from(brainVersion).orderBy(desc(brainVersion.createdAt)), db.select().from(graphNode), db.select().from(graphEdge), getOfflineAwareness(),
   ]);
   const latestProfile = profiles[0];
   const latestProfileVersion = profileVersions.find((item) => item.profileId === latestProfile?.id);
@@ -119,6 +120,7 @@ export async function generateManifest(options: { emitEvent?: boolean } = {}) {
     humanConfirmation: contract.humanConfirmation,
     economics: contract.economics,
     evidenceMap: contract.evidenceMap,
+    externalReality,
   };
   if (options.emitEvent !== false) {
     await emitEvent({ eventType: "ManifestGenerated", aggregateType: "system_manifest", aggregateId: "system", payload: { manifestVersion: MANIFEST_VERSION, overallHealth: manifest.health.overall } });

@@ -5,10 +5,117 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type BootstrapAwarenessResponseMode = typeof BootstrapAwarenessResponseMode[keyof typeof BootstrapAwarenessResponseMode];
+
+
+export const BootstrapAwarenessResponseMode = {
+  bootstrap_awareness: 'bootstrap_awareness',
+} as const;
+
+export type BootstrapAwarenessResponseIdentity = { [key: string]: unknown };
+
+export interface BootstrapAwarenessEvidence {
+  source: string;
+  observedAt: string | null;
+  detail: string;
+  refs?: string[];
+}
+
+export type BootstrapAwarenessFreshness = typeof BootstrapAwarenessFreshness[keyof typeof BootstrapAwarenessFreshness];
+
+
+export const BootstrapAwarenessFreshness = {
+  current: 'current',
+  stale: 'stale',
+  unverified: 'unverified',
+} as const;
+
+export type BootstrapAwarenessResponseObjective = {
+  id?: string;
+  recordId?: string | null;
+  persisted?: boolean;
+  title?: string;
+  statement?: string;
+  status?: string;
+  healthStatus?: string;
+  successMetrics?: string[];
+  evidence?: BootstrapAwarenessEvidence[];
+  freshness?: BootstrapAwarenessFreshness;
+  [key: string]: unknown;
+ };
+
+export type BootstrapAwarenessResponseWork = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseActiveReplitTasks = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseDelivery = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseReadiness = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseSystems = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseProjectBridge = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponsePermissions = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseNextItem = { [key: string]: unknown };
+
+export type BootstrapAwarenessResponseInspectionBoundary = { [key: string]: unknown };
+
+export type BootstrapAwarenessStatus = typeof BootstrapAwarenessStatus[keyof typeof BootstrapAwarenessStatus];
+
+
+export const BootstrapAwarenessStatus = {
+  healthy: 'healthy',
+  partial: 'partial',
+  degraded: 'degraded',
+  blocked: 'blocked',
+  stale: 'stale',
+  deferred: 'deferred',
+  unverified: 'unverified',
+} as const;
+
+export interface BootstrapAwarenessQuestion {
+  id: string;
+  question: string;
+  answer: string;
+  status: BootstrapAwarenessStatus;
+  freshness: BootstrapAwarenessFreshness;
+  evidence: BootstrapAwarenessEvidence[];
+}
+
 /**
  * Evidence-backed read-only Bootstrap Awareness projection.
  */
-export interface BootstrapAwarenessResponse { [key: string]: unknown }
+export interface BootstrapAwarenessResponse {
+  awarenessVersion: string;
+  generatedAt: string;
+  mode: BootstrapAwarenessResponseMode;
+  identity: BootstrapAwarenessResponseIdentity;
+  objective: BootstrapAwarenessResponseObjective;
+  work: BootstrapAwarenessResponseWork;
+  activeReplitTasks: BootstrapAwarenessResponseActiveReplitTasks;
+  delivery: BootstrapAwarenessResponseDelivery;
+  readiness: BootstrapAwarenessResponseReadiness;
+  systems: BootstrapAwarenessResponseSystems;
+  projectBridge: BootstrapAwarenessResponseProjectBridge;
+  permissions: BootstrapAwarenessResponsePermissions;
+  technicalDebt: string[];
+  technicalDebtEvidence?: BootstrapAwarenessEvidence[];
+  bootstrapQuestions: BootstrapAwarenessQuestion[];
+  next: BootstrapAwarenessResponseNextItem[];
+  inspectionBoundary: BootstrapAwarenessResponseInspectionBoundary;
+}
+
+export interface BootstrapAwarenessItem {
+  id: string;
+  label: string;
+  status: BootstrapAwarenessStatus;
+  detail: string;
+  freshness: BootstrapAwarenessFreshness;
+  evidence: BootstrapAwarenessEvidence[];
+  ownerActionRequired?: boolean;
+}
 
 export type CilModelInventoryResponseInventoryModelsItem = {
   model_id: string;
@@ -245,9 +352,15 @@ export interface ConnectorSyncResult {
 
 export interface ConnectorHealth {
   provider: ConnectorProvider;
+  providerCategory?: string;
+  adapterName?: string;
   accessMode: string;
   status: string;
   lastSyncAt?: string;
+  lastSuccessfulRefreshAt?: string | null;
+  freshnessLabel?: string;
+  evidenceAgeMs?: number | null;
+  limitations?: string[];
   lastError?: string;
   authStatus?: string;
   consecutiveFailureCount?: number;
@@ -616,6 +729,36 @@ export type OperationalReview = OperationalReviewSummary & {
   sourceRefs: string[];
   reasoningCorrelationId?: string;
   reasoningCostUsd?: number;
+};
+
+export type RecordDeliveryEvidenceBodySignal = typeof RecordDeliveryEvidenceBodySignal[keyof typeof RecordDeliveryEvidenceBodySignal];
+
+
+export const RecordDeliveryEvidenceBodySignal = {
+  build: 'build',
+  tests: 'tests',
+  deployment: 'deployment',
+  packaging: 'packaging',
+} as const;
+
+export type RecordDeliveryEvidenceBodyStatus = typeof RecordDeliveryEvidenceBodyStatus[keyof typeof RecordDeliveryEvidenceBodyStatus];
+
+
+export const RecordDeliveryEvidenceBodyStatus = {
+  healthy: 'healthy',
+  partial: 'partial',
+  blocked: 'blocked',
+  unverified: 'unverified',
+} as const;
+
+export type RecordDeliveryEvidenceBody = {
+  signal: RecordDeliveryEvidenceBodySignal;
+  status: RecordDeliveryEvidenceBodyStatus;
+  source: string;
+  observedAt: string;
+  detail: string;
+  refs?: string[];
+  freshnessSeconds?: number;
 };
 
 export type SearchMemoryParams = {

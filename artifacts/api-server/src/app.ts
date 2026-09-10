@@ -11,6 +11,7 @@ import { internalServiceAuth } from "./middlewares/private-auth";
 import mcpBridgeRouter from "./routes/mcp-bridge";
 import projectBridgeRouter from "./routes/project-bridge";
 import mcpProjectsRouter from "./routes/mcp-projects";
+import deliveryEvidenceIngressRouter from "./routes/delivery-evidence-ingress";
 
 const app: Express = express();
 
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/mcp", mcpBridgeRouter);
 app.use("/api/project-bridge", projectBridgeRouter);
+app.use("/api", deliveryEvidenceIngressRouter);
 app.use(privateAuth());
 app.use(recoveryModeGuard);
 app.use("/api/mcp-projects", mcpProjectsRouter);

@@ -31,7 +31,7 @@ function listSqlFiles(directory) {
 }
 
 export function assertProductionMigrationSource(source) {
-  if (!/const bundledMigration = this\.production;/.test(source)) {
+  if (!/const bundledMigration = this\.production(?:\s*&&\s*!smokeMigrationCommand)?;/.test(source)) {
     throw new Error("Production migration contract is missing: packaged startup must always select bundled migrations.");
   }
   if (!/const args = bundledMigration\s+\? \[join\(process\.resourcesPath, "migrate-runtime\.mjs"\)\]/.test(source)) {

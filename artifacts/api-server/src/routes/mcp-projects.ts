@@ -9,6 +9,7 @@ import {
   inspectProjectDeployment,
   inspectProjectLogs,
   persistedProjectsJson,
+  projectHealthFor,
   previewProjectChanges,
   readProjectFile,
   registeredProjects,
@@ -21,6 +22,7 @@ import {
   type ProjectConfig,
 } from "../lib/mcp-project-bridge";
 import { approveRepair, collectRepairEvidence, createRepairRun, executeRepairStep, getRepairRun, listRepairRuns, requestRepairApproval, resumeRepairRuns, verifyRepairRun } from "../lib/project-repair";
+import { cilProjectId, getCILRecoveryState, verifyCILRecovery } from "../lib/cil-recovery";
 
 const router = Router();
 function allProjects() {
@@ -30,6 +32,7 @@ function allProjects() {
 }
 
 function publicProject(project: ProjectConfig) {
+  const health = projectHealthFor(project);
   return {
     id: project.id,
     name: project.name,
@@ -39,6 +42,7 @@ function publicProject(project: ProjectConfig) {
     allowedOperations: allowedProjectOperations(project),
     capabilities: project.capabilities ?? [],
     credentialConfigured: Boolean(project.tokenEnv && process.env[project.tokenEnv]),
+    health,
   };
 }
 
@@ -72,6 +76,51 @@ router.get("/setup", (req, res) => {
       "replit-standard": "Common Replit HTTP routes under /api/{inspect,files/read,changes/preview,changes/apply,checks/run}.",
     },
   });
+});
+
+router.get("/cil/recovery", async (_req, res) => {
+  try { res.json(await getCILRecoveryState()); }
+  catch (error) { res.status(500).json({ error: error instanceof Error ? error.message : "CIL recovery state could not be read." }); }
+});
+
+router.post("/cil/recovery/runs", async (req, res) => {
+  const projectId = String(req.body?.projectId ?? cilProjectId() ?? "");
+  if (!projectId) { res.status(409).json({ error: "No registered CIL project is available. Register it with MANAGE capability before starting self-repair." }); return; }
+  try {
+    const run = await createRepairRun(projectId, {
+      reason: String(req.body?.reason ?? "LEE-initiated CIL recovery."),
+      requestedBy: String(req.body?.requestedBy ?? "lee-recovery"),
+      steps: Array.isArray(req.body?.steps) ? req.body.steps : [],
+      expectedContract: req.body?.expectedContract ?? {},
+      executionMode: "CIL_SELF_REPAIR",
+    });
+    if (!run) throw new Error("CIL recovery run could not be created.");
+    const evidence = await collectRepairEvidence(run.id);
+    res.status(201).json(evidence);
+  } catch (error) { res.status(statusFor(error)).json({ error: error instanceof Error ? error.message : "CIL recovery run could not be created." }); }
+});
+
+router.post("/cil/recovery/runs/:runId/steps/:stepId/execute", async (req, res) => {
+  const run = await getRepairRun(req.params.runId);
+  if (!run || run.request?.executionMode !== "CIL_SELF_REPAIR") { res.status(404).json({ error: "CIL self-repair run not found." }); return; }
+  try { res.json(await executeRepairStep(req.params.runId, req.params.stepId)); }
+  catch (error) { res.status(statusFor(error)).json({ error: error instanceof Error ? error.message : "CIL self-repair step failed." }); }
+});
+
+router.post("/cil/recovery/runs/:runId/verify", async (req, res) => {
+  const run = await getRepairRun(req.params.runId);
+  if (!run || run.request?.executionMode !== "CIL_SELF_REPAIR") { res.status(404).json({ error: "CIL self-repair run not found." }); return; }
+  try { res.json(await verifyRepairRun(req.params.runId)); }
+  catch (error) { res.status(statusFor(error)).json({ error: error instanceof Error ? error.message : "CIL self-repair verification failed." }); }
+});
+
+router.post("/cil/recovery/verify", async (req, res) => {
+  const projectId = String(req.body?.projectId ?? cilProjectId() ?? "");
+  if (!projectId) { res.status(409).json({ error: "No registered CIL project is available." }); return; }
+  try {
+    const result = await verifyCILRecovery(projectId, req.body?.expectedContract ?? {});
+    res.status(result.passed ? 200 : 503).json(result);
+  } catch (error) { res.status(statusFor(error)).json({ error: error instanceof Error ? error.message : "CIL recovery verification failed." }); }
 });
 
 router.post("/", (req, res) => {
@@ -174,12 +223,15 @@ router.post("/:id/test", async (req, res) => {
   if (!project) { res.status(404).json({ projectId: id, status: "not_configured", error: "This project is not registered." }); return; }
   try {
     const result = await inspectProject(id);
-    res.json({ projectId: id, status: "connected", project: publicProject(project), agent: result });
+    const health = projectHealthFor(project);
+    const status = health.status === "partial" ? "partial" : "connected";
+    res.json({ projectId: id, status, project: publicProject(project), agent: result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "The project agent could not be reached.";
-    res.status(502).json({
+    const health = projectHealthFor(project);
+    const message = health.error ?? health.detail;
+    res.status(health.status === "unauthorized" ? 403 : 502).json({
       projectId: id,
-      status: "failed",
+      status: health.status,
       project: publicProject(project),
       error: message,
       requiredSetup: "Run the project-agent routes in this project and set PROJECT_BRIDGE_API_KEY, MCP_PROJECT_NAME, and optionally MCP_PROJECT_ROOT. The bridge credential must be configured as the named server-side secret.",

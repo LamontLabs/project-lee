@@ -53,6 +53,8 @@ import {
   commitment,
   relationshipQuestion,
   relationshipHealthScore,
+  personalityMemory,
+  personalityEvolutionHistory,
 } from "@workspace/db";
 import { emitEvent } from "./foundation-events";
 import { assertCanonicalMemoryWrite } from "./memory-write-boundary";
@@ -112,6 +114,8 @@ const tableSources = {
   commitment,
   relationshipQuestion,
   relationshipHealthScore,
+  personalityMemory,
+  personalityEvolutionHistory,
 } as const;
 
 type PortablePayload = { [K in keyof typeof tableSources]?: unknown[] };
@@ -496,7 +500,7 @@ async function restoreIntoIsolatedSchema(
 export async function verifyPortableBackup(manifest: any, payload: PortablePayload): Promise<RestoreEvidence> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) payload = {};
   const checks: RestoreCheck[] = [];
-  const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord", "beliefState", "predictionRecord", "causalClaim", "knowledgeGap", "memoryIndex", "memoryConflict", "workingMemory", "memoryConsolidationRun", "memoryConsolidationPhase", "learningAsset", "lessonRecord", "relationshipInteraction", "relationshipPromise", "commitment", "relationshipQuestion", "relationshipHealthScore", "experienceRecord"];
+  const required = ["eventLog", "brainVersion", "constitutionProvision", "constitutionVersion", "identityProfile", "identityProfileVersion", "personalityMemory", "personalityEvolutionHistory", "policyRecord", "factLedger", "interpretationLedger", "provenanceRecord", "beliefState", "predictionRecord", "causalClaim", "knowledgeGap", "memoryIndex", "memoryConflict", "workingMemory", "memoryConsolidationRun", "memoryConsolidationPhase", "learningAsset", "lessonRecord", "relationshipInteraction", "relationshipPromise", "commitment", "relationshipQuestion", "relationshipHealthScore", "experienceRecord"];
   const missing = required.filter((name) => !Array.isArray(payload[name as keyof PortablePayload]));
   checks.push({ name: "portable-manifest", result: manifest?.backup_format_version === BACKUP_FORMAT_VERSION && !missing.length ? "PASS" : "FAIL", evidence: { formatVersion: manifest?.backup_format_version, missing } });
   const checksumValid = manifest?.integrity?.payload_checksum === digest(payload);

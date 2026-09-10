@@ -12,7 +12,79 @@ import * as zod from 'zod';
  * Returns an evidence-backed, read-only self-model for current Project LEE state and K6 desktop readiness.
  * @summary Read Bootstrap Awareness Mode
  */
-export const GetBootstrapAwarenessResponse = zod.record(zod.string(), zod.unknown()).describe('Evidence-backed read-only Bootstrap Awareness projection.')
+export const GetBootstrapAwarenessResponse = zod.object({
+  "awarenessVersion": zod.string(),
+  "generatedAt": zod.coerce.date(),
+  "mode": zod.enum(['bootstrap_awareness']),
+  "identity": zod.record(zod.string(), zod.unknown()),
+  "objective": zod.object({
+  "id": zod.string().optional(),
+  "recordId": zod.string().nullish(),
+  "persisted": zod.boolean().optional(),
+  "title": zod.string().optional(),
+  "statement": zod.string().optional(),
+  "status": zod.string().optional(),
+  "healthStatus": zod.string().optional(),
+  "successMetrics": zod.array(zod.string()).optional(),
+  "evidence": zod.array(zod.object({
+  "source": zod.string(),
+  "observedAt": zod.coerce.date().nullable(),
+  "detail": zod.string(),
+  "refs": zod.array(zod.string()).optional()
+})).optional(),
+  "freshness": zod.enum(['current', 'stale', 'unverified']).optional()
+}),
+  "work": zod.record(zod.string(), zod.unknown()),
+  "activeReplitTasks": zod.record(zod.string(), zod.unknown()),
+  "delivery": zod.record(zod.string(), zod.unknown()),
+  "readiness": zod.record(zod.string(), zod.unknown()),
+  "systems": zod.record(zod.string(), zod.unknown()),
+  "projectBridge": zod.record(zod.string(), zod.unknown()),
+  "permissions": zod.record(zod.string(), zod.unknown()),
+  "technicalDebt": zod.array(zod.string()),
+  "technicalDebtEvidence": zod.array(zod.object({
+  "source": zod.string(),
+  "observedAt": zod.coerce.date().nullable(),
+  "detail": zod.string(),
+  "refs": zod.array(zod.string()).optional()
+})).optional(),
+  "bootstrapQuestions": zod.array(zod.object({
+  "id": zod.string(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "status": zod.enum(['healthy', 'partial', 'degraded', 'blocked', 'stale', 'deferred', 'unverified']),
+  "freshness": zod.enum(['current', 'stale', 'unverified']),
+  "evidence": zod.array(zod.object({
+  "source": zod.string(),
+  "observedAt": zod.coerce.date().nullable(),
+  "detail": zod.string(),
+  "refs": zod.array(zod.string()).optional()
+}))
+})),
+  "next": zod.array(zod.record(zod.string(), zod.unknown())),
+  "inspectionBoundary": zod.record(zod.string(), zod.unknown())
+}).describe('Evidence-backed read-only Bootstrap Awareness projection.')
+
+
+/**
+ * Records a build, test, deployment, or desktop-release result from its authoritative producer. Requests require the x-delivery-evidence-signature HMAC header; missing or stale evidence remains unverified in Bootstrap Awareness.
+ * @summary Record signed delivery evidence
+ */
+export const RecordDeliveryEvidenceHeader = zod.object({
+  "x-delivery-evidence-signature": zod.string()
+})
+
+export const RecordDeliveryEvidenceBody = zod.object({
+  "signal": zod.enum(['build', 'tests', 'deployment', 'packaging']),
+  "status": zod.enum(['healthy', 'partial', 'blocked', 'unverified']),
+  "source": zod.string(),
+  "observedAt": zod.coerce.date(),
+  "detail": zod.string(),
+  "refs": zod.array(zod.string()).optional(),
+  "freshnessSeconds": zod.number().optional()
+})
+
+export const RecordDeliveryEvidenceResponse = zod.void()
 
 
 /**
@@ -225,9 +297,15 @@ export const SyncConnectorResponse = zod.object({
  */
 export const ListConnectorHealthResponseItem = zod.object({
   "provider": zod.enum(['gmail', 'proton', 'github', 'google_drive', 'google_calendar', 'replit']),
+  "providerCategory": zod.string().optional(),
+  "adapterName": zod.string().optional(),
   "accessMode": zod.string(),
   "status": zod.string(),
   "lastSyncAt": zod.coerce.date().optional(),
+  "lastSuccessfulRefreshAt": zod.coerce.date().nullable().optional(),
+  "freshnessLabel": zod.string().optional(),
+  "evidenceAgeMs": zod.number().nullable().optional(),
+  "limitations": zod.array(zod.string()).optional(),
   "lastError": zod.string().optional(),
   "authStatus": zod.string().optional(),
   "consecutiveFailureCount": zod.number().optional(),

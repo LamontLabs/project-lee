@@ -53,4 +53,7 @@ export * from "./execution-readiness";
 export * from "./android-pairing";
 export * from "./desktop-setup";
 export * from "./local-service-contracts";
+export * from "./k6-authority-rehearsal";
+export * from "./offline";
+export * from "./personality";
 export { constitutionConsultation, constitutionViolation } from "./constitution";

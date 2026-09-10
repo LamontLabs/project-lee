@@ -71,6 +71,34 @@
       "when": 1788937933637,
       "tag": "0009_complete_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788940000000,
+      "tag": "0010_k6_authority_rehearsal",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789012035930,
+      "tag": "0011_great_smiling_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789012631677,
+      "tag": "0012_nosy_layla_miller",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789013015384,
+      "tag": "0013_nasty_bloodstorm",
+      "breakpoints": true
     }
   ]
 }

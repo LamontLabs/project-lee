@@ -404,6 +404,7 @@ async function prepareBriefing(run: typeof memoryConsolidationRun.$inferSelect, 
       contextItems: pipeline.context.items,
       preferredTier: "auto",
       costCeilingUsd: 0.05,
+      workloadClass: "briefing_preparation",
     });
     return {
       summary: { prepared: true, evidenceRefs: refs, routeTier: routed.tier, model: routed.model, answerExcerpt: routed.answer.slice(0, 500) },

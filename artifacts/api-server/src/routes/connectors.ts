@@ -11,6 +11,8 @@ import {
 import { connectorProviders, providerAdapters, type ConnectorProvider } from "../lib/connectors";
 import { connectorHealthScan, syncLiveConnector } from "../lib/connector-engine";
 import { recordNormalizedProviderChange } from "../lib/change-intelligence";
+import { recordProviderRefreshAttempt, recordProviderRefreshSuccess } from "../lib/offline-awareness";
+import { getOfflineAwareness } from "../lib/offline-awareness";
 
 const router: IRouter = Router();
 
@@ -38,6 +40,7 @@ router.post("/connectors/sync", async (req, res): Promise<void> => {
     }),
   );
   const now = new Date();
+  await recordProviderRefreshAttempt(input.provider, now);
 
   const result = await db.transaction(async (tx) => {
     await tx
@@ -145,6 +148,7 @@ router.post("/connectors/sync", async (req, res): Promise<void> => {
     };
   });
   for (const event of result.normalizedEvents) await recordNormalizedProviderChange(event);
+  await recordProviderRefreshSuccess(input.provider, { refreshAt: now, changedCount: result.normalizedCount, syncId: result.syncId, preservedLocalObservationCount: result.normalizedCount });
 
   res.status(201).json(
     SyncConnectorResponse.parse({
@@ -160,7 +164,7 @@ router.post("/connectors/sync", async (req, res): Promise<void> => {
 });
 
 router.get("/connectors/health", async (_req, res): Promise<void> => {
-  const rows = await db.select().from(connector);
+  const [rows, offline] = await Promise.all([db.select().from(connector), getOfflineAwareness()]);
   const byProvider = new Map(rows.map((row) => [row.provider, row]));
   res.json(
     ListConnectorHealthResponse.parse(
@@ -173,6 +177,10 @@ router.get("/connectors/health", async (_req, res): Promise<void> => {
           supportedEvents: providerAdapters[provider]?.supportedEvents ?? [],
           accessMode: row?.accessMode ?? "read",
           status: row?.status ?? "unconfigured",
+          lastSuccessfulRefreshAt: offline.providers.find((item) => item.provider === provider)?.lastSuccessfulRefreshAt ?? null,
+          freshnessLabel: offline.providers.find((item) => item.provider === provider)?.freshnessLabel ?? "unverified",
+          evidenceAgeMs: offline.providers.find((item) => item.provider === provider)?.evidenceAgeMs ?? null,
+          limitations: offline.providers.find((item) => item.provider === provider)?.limitations ?? [],
           authStatus: row?.authStatus ?? "not_connected",
           lastSyncAt: row?.lastSyncAt ?? undefined,
           lastError: row?.lastError ?? undefined,

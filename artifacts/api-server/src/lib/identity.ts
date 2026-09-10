@@ -1,5 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db, eventLog, identityProfile, identityProfileVersion } from "@workspace/db";
+import { getPersonalityContext } from "./personality-memory";
 
 export const IDENTITY_DIMENSIONS = [
   "role",
@@ -62,7 +63,7 @@ export async function getCurrentIdentity() {
 
 export async function consultIdentity() {
   const profile = await getCurrentIdentity();
-  return { profileId: profile.id, role: profile.values.role, priorities: profile.values.priorities, thresholds: Object.fromEntries(Object.keys(IDENTITY_ENUMS).map((key) => [key, profile.values[key]])) };
+  return { profileId: profile.id, role: profile.values.role, priorities: profile.values.priorities, thresholds: Object.fromEntries(Object.keys(IDENTITY_ENUMS).map((key) => [key, profile.values[key]])), personality: await getPersonalityContext() };
 }
 
 export async function updateIdentity(values: Record<string, unknown>, changeReason: string, confirm: boolean) {

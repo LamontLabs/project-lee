@@ -3,6 +3,17 @@ import { db, eventLog, executiveObjective, executiveObjectiveEvidence } from "@w
 
 export const OBJECTIVE_PRIORITIES = ["CRITICAL", "HIGH", "NORMAL", "LOW"] as const;
 export const OBJECTIVE_HEALTH = ["ON_TRACK", "AT_RISK", "STALLED", "ACHIEVED", "ABANDONED"] as const;
+export const BOOTSTRAP_OBJECTIVE_SOURCE = "bootstrap-awareness:k6-desktop-operational-readiness";
+export const BOOTSTRAP_OBJECTIVE_TITLE = "Reach verified Project LEE desktop operational readiness on the K6";
+export const BOOTSTRAP_OBJECTIVE_PURPOSE = "Reach verified Project LEE desktop operational readiness on the K6 while preserving the canonical Brain, Event Log, governance boundaries, and all existing working functionality.";
+export const BOOTSTRAP_OBJECTIVE_METRICS = [
+  "Canonical Brain remains verified and authoritative.",
+  "Immutable Event Log continuity remains verified.",
+  "CIL remains the mandatory reasoning and model-routing authority.",
+  "CerbaSeal remains fail-closed and owner approval remains required for consequential actions.",
+  "K6 simulation, packaging, migration, recovery, and reversal proofs pass with authoritative evidence.",
+  "Owner control and model-independent identity continuity remain preserved.",
+] as const;
 
 type ObjectiveInput = {
   title: string;
@@ -50,6 +61,62 @@ export async function getObjective(id: string) {
   const computed = await computeObjective(objective);
   const evidence = await db.select().from(executiveObjectiveEvidence).where(eq(executiveObjectiveEvidence.objectiveId, id)).orderBy(desc(executiveObjectiveEvidence.createdAt));
   return { ...computed, evidence };
+}
+
+export async function getBootstrapObjective() {
+  const [row] = await db.select().from(executiveObjective)
+    .where(eq(executiveObjective.sourceRef, BOOTSTRAP_OBJECTIVE_SOURCE))
+    .orderBy(desc(executiveObjective.updatedAt))
+    .limit(1);
+  if (!row) return null;
+  return getObjective(row.id);
+}
+
+/**
+ * Bootstrap objective initialization is deliberately separate from the
+ * read-only awareness projection. The sourceRef makes restart initialization
+ * idempotent within a runtime and lets the projection prove persistence.
+ */
+export async function ensureBootstrapObjective() {
+  const existing = await getBootstrapObjective();
+  if (existing) return existing;
+  const createdAt = new Date();
+  const [objective] = await db.insert(executiveObjective).values({
+    title: BOOTSTRAP_OBJECTIVE_TITLE,
+    description: BOOTSTRAP_OBJECTIVE_PURPOSE,
+    purpose: BOOTSTRAP_OBJECTIVE_PURPOSE,
+    sourceRef: BOOTSTRAP_OBJECTIVE_SOURCE,
+    confidence: 1,
+    status: "active",
+    healthStatus: "ON_TRACK",
+    progressNarrative: "Objective initialized; awaiting authoritative readiness evidence.",
+    currentBlockers: [],
+    successMetrics: [...BOOTSTRAP_OBJECTIVE_METRICS],
+    relatedProjects: ["Project LEE", "K6"],
+    expectedCompletion: null,
+    currentOwner: "Founder",
+    priority: 1,
+    targetDate: null,
+    metadata: { readOnlyProjection: true, objectiveKey: "k6-desktop-operational-readiness" },
+    createdAt,
+    updatedAt: createdAt,
+  }).returning();
+  const [event] = await db.insert(eventLog).values({
+    eventType: "ExecutiveObjectiveCreated",
+    aggregateType: "executive_objective",
+    aggregateId: objective.id,
+    sourceRef: BOOTSTRAP_OBJECTIVE_SOURCE,
+    occurredAt: createdAt,
+    payload: { title: objective.title, objectiveKey: "k6-desktop-operational-readiness", successMetrics: objective.successMetrics },
+  }).returning();
+  await db.insert(executiveObjectiveEvidence).values({
+    objectiveId: objective.id,
+    eventId: event.id,
+    evidenceType: "domain_event",
+    direction: "forward",
+    summary: "Bootstrap readiness objective initialized from the owner-defined K6 readiness contract.",
+  });
+  return getObjective(objective.id);
 }
 
 export async function createObjective(input: ObjectiveInput) {

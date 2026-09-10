@@ -16,6 +16,7 @@ import {
   searchProject,
 } from "../lib/mcp-project-bridge";
 import { collectRepairEvidence, createRepairRun, executeRepairStep, getRepairRun, requestRepairApproval, verifyRepairRun } from "../lib/project-repair";
+import { cilProjectId, getCILRecoveryState, verifyCILRecovery } from "../lib/cil-recovery";
 
 const router = Router();
 const protocolVersion = "2025-03-26";
@@ -45,6 +46,9 @@ const toolDefinitions = [
   { name: "project_repair_request_approval", description: "Create the governance request bound to the current repair plan and evidence hash.", inputSchema: { type: "object", properties: { repairRunId: { type: "string" } }, required: ["repairRunId"] } },
   { name: "project_repair_execute", description: "Execute one already approved repair step.", inputSchema: { type: "object", properties: { repairRunId: { type: "string" }, stepId: { type: "string" } }, required: ["repairRunId", "stepId"] } },
   { name: "project_repair_verify", description: "Verify a repair run with a fresh project inspection.", inputSchema: { type: "object", properties: { repairRunId: { type: "string" } }, required: ["repairRunId"] } },
+  { name: "cil_recovery_state", description: "Read CIL health, recovery mode, self-repair authority, and protected surfaces. Degraded CIL blocks normal reasoning but does not block deterministic recovery.", inputSchema: { type: "object", properties: {} } },
+  { name: "cil_recovery_start", description: "Start an evidence-first CIL self-repair run. Routine changes may self-apply at MANAGE; protected changes remain governed.", inputSchema: { type: "object", properties: { projectId: { type: "string" }, reason: { type: "string" }, steps: { type: "array" }, expectedContract: { type: "object" } }, required: ["reason", "steps"] } },
+  { name: "cil_recovery_verify", description: "Verify CIL project contract, health, model inventory, and the signed LEE-to-CIL query path.", inputSchema: { type: "object", properties: { projectId: { type: "string" }, expectedContract: { type: "object" } } } },
   { name: "multi_project_work", description: "Run dependent authorized inspection, read, search, preview, apply, restart, and check steps across registered projects.", inputSchema: { type: "object", properties: { steps: { type: "array" } }, required: ["steps"] } },
 ];
 
@@ -67,6 +71,19 @@ async function callTool(name: string, args: any) {
     case "project_repair_request_approval": return requestRepairApproval(String(args.repairRunId));
     case "project_repair_execute": return executeRepairStep(String(args.repairRunId), String(args.stepId));
     case "project_repair_verify": return verifyRepairRun(String(args.repairRunId));
+    case "cil_recovery_state": return getCILRecoveryState();
+    case "cil_recovery_start": {
+      const projectId = String(args.projectId ?? cilProjectId() ?? "");
+      if (!projectId) throw new Error("No registered CIL project is available.");
+      const run = await createRepairRun(projectId, { reason: String(args.reason ?? "LEE-initiated CIL recovery."), requestedBy: "lee-recovery", steps: Array.isArray(args.steps) ? args.steps : [], expectedContract: args.expectedContract ?? {}, executionMode: "CIL_SELF_REPAIR" });
+      if (!run) throw new Error("CIL recovery run could not be created.");
+      return collectRepairEvidence(run.id);
+    }
+    case "cil_recovery_verify": {
+      const projectId = String(args.projectId ?? cilProjectId() ?? "");
+      if (!projectId) throw new Error("No registered CIL project is available.");
+      return verifyCILRecovery(projectId, args.expectedContract ?? {});
+    }
     case "multi_project_work": return executeWorkPlan(args.steps);
     default: throw new Error(`Unknown MCP tool: ${name}`);
   }

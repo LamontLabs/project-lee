@@ -83,6 +83,7 @@ import workingMemoryRouter from "./working-memory";
 import epistemicHistoryRouter from "./epistemic-history";
 import retentionRouter from "./retention";
 import cognitiveRuntimeRouter from "./cognitive-runtime";
+import k6AuthorityRehearsalRouter from "./k6-authority-rehearsal";
 
 const router: IRouter = Router();
 
@@ -165,6 +166,7 @@ router.use(workingMemoryRouter);
 router.use(epistemicHistoryRouter);
 router.use(retentionRouter);
   router.use(cognitiveRuntimeRouter);
+router.use(k6AuthorityRehearsalRouter);
 router.use(selfTestRouter);
 router.use(recoveryRouter);
 router.use(ownershipRouter);

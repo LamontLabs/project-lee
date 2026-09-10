@@ -10,6 +10,13 @@ type RouteEvidence = {
   cilRerouted?: boolean;
   cilRerouteReason?: string;
 };
+type ExternalReality = {
+  state: string;
+  lastSuccessfulRefreshAt: string | null;
+  affectedProviders: string[];
+  expectedLimitations: string[];
+  providers: Array<{ provider: string; freshnessLabel: string; lastSuccessfulRefreshAt: string | null; evidenceAgeMs: number | null }>;
+};
 
 const sensitiveKinds = new Set(["email_thread", "email_status", "credential", "connector_payload"]);
 
@@ -126,7 +133,7 @@ export function sanitizeCILResponse(cil: CILQueryResponse) {
   return safe;
 }
 
-export function buildAskAnswerContract(input: { answer: string; items: SelectedContext[]; cil?: CILQueryResponse; route: RouteEvidence; intentType?: string }) {
+export function buildAskAnswerContract(input: { answer: string; items: SelectedContext[]; cil?: CILQueryResponse; route: RouteEvidence; intentType?: string; externalReality?: ExternalReality }) {
   const evidence = input.items.map(evidenceFor);
   const assumptions = evidence.filter((item) => item.epistemicType === "assumption");
   const contradictions = evidence.filter((item) => item.domain === "changes" && input.items.find((candidate) => candidate.id === item.id)?.kind === "contradiction");
@@ -168,6 +175,14 @@ export function buildAskAnswerContract(input: { answer: string; items: SelectedC
       currentCount: evidence.filter((item) => item.freshness === "fresh" || item.freshness === "current").length,
       label: freshnessState === "stale" || freshnessState === "expired" ? "Some context is aging" : "Context is current enough for this response",
     },
+    externalReality: input.externalReality ? {
+      state: input.externalReality.state,
+      label: input.externalReality.state === "current" ? "External provider evidence is current as of the recorded refreshes." : input.externalReality.state === "offline" ? "External provider evidence is unavailable; local records remain available but are not current external reality." : input.externalReality.state === "degraded" ? "Some external provider evidence is degraded or stale; provider-dependent claims must be labeled." : "External provider freshness is unverified.",
+      lastSuccessfulRefreshAt: input.externalReality.lastSuccessfulRefreshAt,
+      affectedProviders: input.externalReality.affectedProviders,
+      expectedLimitations: input.externalReality.expectedLimitations,
+      providers: input.externalReality.providers.map((provider) => ({ provider: provider.provider, freshness: provider.freshnessLabel, lastSuccessfulRefreshAt: provider.lastSuccessfulRefreshAt, evidenceAgeMs: provider.evidenceAgeMs })),
+    } : { state: "unverified", label: "External provider freshness was not included in this response.", lastSuccessfulRefreshAt: null, affectedProviders: [], expectedLimitations: ["Do not infer current provider state from local records alone."], providers: [] },
     assumptions,
     contradictions: {
       detected: Boolean(contradictions.length || input.cil?.contradiction_detected),

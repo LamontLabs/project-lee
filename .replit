@@ -28,6 +28,31 @@ CERBASEAL_POLICY_PACK_VERSION = "2026.7.1"
 CERBASEAL_EVALUATE_ENDPOINT = "https://cerbaseal.replit.app/evaluate"
 CERBASEAL_POLICY_VERSION_ENDPOINT = "https://cerbaseal.replit.app/policy/current-version"
 CERBASEAL_HEALTH_ENDPOINT = "https://cerbaseal.replit.app/health"
+CIL_HEALTH_ENDPOINT = "/api/health"
+LEE_CIL_PROJECT_ID = "cil-project"
+MCP_PROJECTS_JSON = """
+[
+  {
+    \"id\": \"cil-project\",
+    \"name\": \"Cognitive Infrastructure Layer\",
+    \"endpoint\": \"https://cognitive-infrastructure-layer.replit.app\",
+    \"tokenEnv\": \"CIL_API_KEY\",
+    \"adapter\": \"replit-standard\",
+    \"capabilityLevel\": \"MANAGE\",
+    \"capabilities\": [
+      \"inspect\",
+      \"search\",
+      \"read\",
+      \"dependencies\",
+      \"logs\",
+      \"contract\",
+      \"check\",
+      \"preview\",
+      \"apply\",
+      \"restart\"
+    ]
+  }
+]"""
 
 [nix]
 channel = "stable-25_05"

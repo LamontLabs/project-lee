@@ -5,7 +5,7 @@ import { emitEvent } from "../lib/foundation-events";
 import { callUniversalSystem, registerUniversalSystem } from "../lib/universal-systems";
 
 export type ResolutionTier = "T1_TRIGRAM" | "T2_SEMANTIC" | "T3_FRONTIER";
-export type CILQueryRequest = { correlation_id: string; query_text: string; semantic_domain: string; intent: { intent_type: string; risk_classification: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; project_id?: string }; project_id?: string; context_asset_refs: string[]; freshness_requirement: "any" | "current" | "verified"; desired_format: "concise" | "detailed" | "structured" | "narrative"; reuse_permitted: boolean; frontier_escalation_permitted: boolean; cost_ceiling_usd?: number; lee_brain_version: string; source_context_checksum: string; execution_failure?: { model: string; reason: string } };
+export type CILQueryRequest = { correlation_id: string; query_text: string; semantic_domain: string; intent: { intent_type: string; risk_classification: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; project_id?: string }; project_id?: string; context_asset_refs: string[]; freshness_requirement: "any" | "current" | "verified"; desired_format: "concise" | "detailed" | "structured" | "narrative"; reuse_permitted: boolean; frontier_escalation_permitted: boolean; cost_ceiling_usd?: number; lee_brain_version: string; source_context_checksum: string; execution_failure?: { model: string; reason: string }; recovery_probe?: boolean };
 export type CILModelRoute = { model: string; provider: string; route_id: string };
 export type CILQueryResponse = { correlation_id: string; resolution_tier: ResolutionTier; answer: string; cognitive_asset_id?: string; asset_version?: string; model_route?: CILModelRoute; selected_model?: string; confidence: number; cost_usd: number; latency_ms: number; semantic_domain: string; reuse_eligible: boolean; drift_detected: boolean; contradiction_detected: boolean; provenance: string[]; governance_status?: "approved" | "nominated" | "unreviewed"; freshness_state: "fresh" | "current" | "stale" | "expired"; recommend_escalation: boolean; escalation_reason?: string };
 export type CILInventoryModel = { model_id: string; provider: string; status: string; enabled: boolean; route_ids: string[] };
@@ -14,6 +14,8 @@ export type GovernedRequest = Record<string, unknown> & { lee_request_id: string
 export type GovernedResponse = { lee_request_id?: string; verdict: "ALLOW" | "HOLD" | "REJECT"; reason_codes: string[]; checked_invariants: unknown[]; missing_approvals?: unknown[]; remediation_requirements?: string[]; decision_id: string; decision_envelope: string; evidence_bundle_ref: string; audit_entry_ref: string; policy_version: string; timestamp: string; replay_checksum: string; authorization_expiry?: string; human_confirmation_required: boolean };
 
 let internalServiceRegistration: Promise<unknown> | undefined;
+const cilHealthEndpoint = () => process.env.CIL_HEALTH_ENDPOINT ?? "/api/health";
+
 function ensureInternalServicesRegistered() {
   internalServiceRegistration ??= registerInternalServices().then(async () => {
     const endpoint = process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT;
@@ -23,7 +25,7 @@ function ensureInternalServicesRegistered() {
         displayName: "CIL Reasoning Runtime",
         category: "reasoning",
         baseUrl: process.env.CIL_BASE_URL ?? new URL(endpoint).origin,
-        healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health",
+        healthEndpoint: cilHealthEndpoint(),
         failurePolicy: "graceful_degradation",
         credentialEnvKey: "CIL_API_KEY",
         capabilities: ["query", "model_inventory"],
@@ -39,11 +41,12 @@ async function setHealth(serviceId: string, health: "healthy" | "degraded" | "un
 }
 export async function registerInternalServices() {
   const definitions = [
-    { systemId: "cil", displayName: "CIL Reasoning Runtime", category: "reasoning", baseUrl: process.env.CIL_BASE_URL ?? (process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ? new URL(process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT!).origin : undefined), healthEndpoint: process.env.CIL_HEALTH_ENDPOINT ?? "/health", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "CIL_API_KEY", capabilities: ["query", "model_inventory"], requestEnvelope: "direct" as const },
+    { systemId: "cil", displayName: "CIL Reasoning Runtime", category: "reasoning", baseUrl: process.env.CIL_BASE_URL ?? (process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ? new URL(process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT!).origin : undefined), healthEndpoint: cilHealthEndpoint(), failurePolicy: "graceful_degradation" as const, credentialEnvKey: "CIL_API_KEY", capabilities: ["query", "model_inventory"], requestEnvelope: "direct" as const },
     { systemId: "cerbaseal", displayName: "CerbaSeal Governance", category: "governance", baseUrl: process.env.CERBASEAL_BASE_URL, healthEndpoint: "/health", failurePolicy: "fail_closed" as const, credentialEnvKey: "CERBASEAL_API_KEY", capabilities: ["evaluate", "health", "policy"], requestEnvelope: "direct" as const },
     { systemId: "replit-ai-openai", displayName: "Replit AI OpenAI Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL, healthEndpoint: "/models", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_OPENAI_API_KEY", capabilities: ["chat"], requestEnvelope: "direct" as const },
     { systemId: "replit-ai-anthropic", displayName: "Replit AI Anthropic Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL, healthEndpoint: "/v1/messages", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_ANTHROPIC_API_KEY", credentialHeader: "x-api-key", capabilities: ["chat"], requestEnvelope: "direct" as const },
     { systemId: "replit-ai-gemini", displayName: "Replit AI Gemini Bridge", category: "reasoning", baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL, healthEndpoint: "/models", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "AI_INTEGRATIONS_GEMINI_API_KEY", credentialHeader: "x-goog-api-key", capabilities: ["chat"], requestEnvelope: "direct" as const },
+    { systemId: "ollama", displayName: "Ollama Local K6 Runtime", category: "local_reasoning", baseUrl: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434", healthEndpoint: "/api/tags", failurePolicy: "graceful_degradation" as const, credentialEnvKey: "OLLAMA_API_KEY", capabilities: ["chat", "model_inventory", "approved_background_workloads"], requestEnvelope: "direct" as const },
   ];
   for (const item of definitions) {
     if (item.baseUrl) await registerUniversalSystem({ ...item, baseUrl: item.baseUrl });
@@ -104,6 +107,11 @@ function normalizeGateResult(request: GovernedRequest, raw: Record<string, any>)
 export interface ReasoningService { query(request: CILQueryRequest): Promise<CILQueryResponse>; }
 export const reasoningService: ReasoningService = { async query(request) {
   await ensureInternalServicesRegistered();
+   const [cilHealth] = await db.select({ currentHealth: internalCapabilityService.currentHealth }).from(internalCapabilityService).where(eq(internalCapabilityService.serviceId, "cil")).limit(1);
+   if (!request.recovery_probe && cilHealth && cilHealth.currentHealth !== "healthy") {
+     await emitEvent({ eventType: "CILQueryBlocked", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, health: cilHealth.currentHealth, modelExecutionBlocked: true, recoveryMode: "CIL_RECOVERY" } });
+     throw new Error(`CIL normal reasoning is blocked while the service is ${cilHealth.currentHealth}; use the governed recovery probe.`);
+   }
   await emitEvent({ eventType: "CILQueryRequested", aggregateType: "cil_query", aggregateId: request.correlation_id, payload: { correlationId: request.correlation_id, semanticDomain: request.semantic_domain, projectId: request.project_id ?? request.intent.project_id, riskClassification: request.intent.risk_classification, costCeilingUsd: request.cost_ceiling_usd } });
   const endpoint = process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT;
    if (!endpoint) { await setHealth("cil", "unavailable"); await emitEvent({ eventType: "CILUnavailable", aggregateType: "cil_service", aggregateId: request.correlation_id, payload: { errorSummary: "CIL_LEE_ENDPOINT is not configured", modelExecutionBlocked: true } }); throw new Error("CIL unavailable"); }
@@ -128,18 +136,20 @@ export async function getCILModelInventory(correlationId = randomUUID()): Promis
   try {
     const raw = (await callUniversalSystem("cil", "/api/capabilities/models", {}, correlationId, { method: "GET" })).result as Record<string, any>;
     const models = Array.isArray(raw?.models) ? raw.models : [];
+    const summary = raw?.summary && typeof raw.summary === "object" ? raw.summary : raw;
     const inventory: CILModelInventory = {
       correlation_id: String(raw?.correlation_id ?? ""),
-      total_configured: Number(raw?.total_configured),
-      total_enabled: Number(raw?.total_enabled),
-      total_available: Number(raw?.total_available),
-      total_unavailable: Number(raw?.total_unavailable),
+      total_configured: Number(summary?.total_configured),
+      total_enabled: Number(summary?.total_enabled),
+      total_available: Number(summary?.total_available),
+      total_unavailable: Number(summary?.total_unavailable),
       models: models.map((model: any) => ({ model_id: String(model?.model_id ?? ""), provider: String(model?.provider ?? ""), status: String(model?.status ?? ""), enabled: Boolean(model?.enabled), route_ids: Array.isArray(model?.route_ids) ? model.route_ids.map(String) : [] })),
     };
     if (inventory.correlation_id !== correlationId || !Number.isInteger(inventory.total_configured) || !Number.isInteger(inventory.total_enabled) || !Number.isInteger(inventory.total_available) || !Number.isInteger(inventory.total_unavailable) || inventory.models.some((model) => !model.model_id || !model.provider || !model.status)) throw new Error("Invalid CIL model inventory schema or correlation");
     await emitEvent({ eventType: "CILModelInventoryResolved", aggregateType: "cil_service", aggregateId: correlationId, correlationId, payload: { correlationId, totalConfigured: inventory.total_configured, totalEnabled: inventory.total_enabled, totalAvailable: inventory.total_available, totalUnavailable: inventory.total_unavailable, providers: [...new Set(inventory.models.map((model) => model.provider))] } });
     return inventory;
   } catch (error) {
+    await setHealth("cil", "degraded", { lastError: String(error), lastInventoryCorrelationId: correlationId });
     await emitEvent({ eventType: "CILModelInventoryUnavailable", aggregateType: "cil_service", aggregateId: correlationId, correlationId, payload: { correlationId, errorSummary: String(error) } });
     throw error;
   }
@@ -161,4 +171,19 @@ async function probeCerbaSeal() {
     await setHealth("cerbaseal", "unavailable", { lastError: String(error) });
   }
 }
-export async function internalServiceHealth() { await registerInternalServices(); if (process.env.CERBASEAL_BASE_URL) await probeCerbaSeal(); return db.select().from(internalCapabilityService); }
+async function probeCIL() {
+  try {
+    const response = (await callUniversalSystem("cil", cilHealthEndpoint(), {}, randomUUID(), { method: "GET", timeoutMs: 5000 })).result as Record<string, any>;
+    if (!response || String(response.status).toLowerCase() !== "ok" || String(response.service) !== "cil" || typeof response.contract_version !== "string") throw new Error("Invalid CIL health response");
+    await setHealth("cil", "healthy", { health: response, healthEndpoint: cilHealthEndpoint() });
+  } catch (error) {
+    await setHealth("cil", "degraded", { lastError: String(error), healthEndpoint: cilHealthEndpoint() });
+  }
+}
+
+export async function internalServiceHealth() {
+  await registerInternalServices();
+  if (process.env.CIL_LEE_ENDPOINT ?? process.env.LEE_CIL_ENDPOINT ?? process.env.CIL_BASE_URL) await probeCIL();
+  if (process.env.CERBASEAL_BASE_URL) await probeCerbaSeal();
+  return db.select().from(internalCapabilityService);
+}

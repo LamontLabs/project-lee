@@ -6,6 +6,7 @@ import { registerAction } from "../lib/governance-engine";
 import { pipelineFailureResponse, runRequestPipeline, type RequestPipelineSuccess } from "../lib/request-pipeline";
 import { consultCILRoute, routeModelRequest } from "../lib/model-router";
 import { buildAskAnswerContract, sanitizeCILResponse, sanitizeContextPacket } from "../lib/ask-lee-evidence";
+import { getOfflineAwareness } from "../lib/offline-awareness";
 
 const router: IRouter = Router();
 const modes = ["normal", "deep_think", "build", "write", "review", "pilot", "low_cost", "private", "no_model", "governed_action"] as const;
@@ -32,6 +33,7 @@ async function budgetState() {
 async function preview(query: string, mode: Mode, risk: string, budgetTokens: number, pipeline: RequestPipelineSuccess) {
   const state = await budgetState();
   const packet = pipeline.context;
+  const externalReality = await getOfflineAwareness();
   const cil = await consultCILRoute({
     correlationId: pipeline.correlationId,
     queryText: query,
@@ -41,6 +43,7 @@ async function preview(query: string, mode: Mode, risk: string, budgetTokens: nu
     contextItems: packet.items,
     preferredTier: "auto",
     costCeilingUsd: state.limited ? 0 : undefined,
+      personalityContext: pipeline.identity.personality,
   });
   const selectedTier = cil.resolution_tier === "T1_TRIGRAM" ? "T1" : cil.resolution_tier === "T2_SEMANTIC" ? "T2" : "T3";
   const selectedModel = cil.model_route?.model ?? cil.selected_model ?? "CIL";
@@ -49,7 +52,7 @@ async function preview(query: string, mode: Mode, risk: string, budgetTokens: nu
   const estimatedCostUsd = cil.cost_usd;
   const route = mode === "no_model" ? "packet_only" : selectedTier === "T1" || selectedTier === "T2" ? "cil_reuse" : "cil_selected_model";
   const reason = mode === "no_model" ? "The selected mode prohibits model execution." : `${selectedTier} route selected by CIL.`;
-  return { packet, publicPacket: sanitizeContextPacket(packet), selectedModel, selectedProvider, routeId, selectedTier, estimatedCostUsd, route, reason: `${reason} Intent: ${pipeline.intent.intentType}.`, budget: state, intent: pipeline.intent, cil };
+  return { packet, publicPacket: sanitizeContextPacket(packet), selectedModel, selectedProvider, routeId, selectedTier, estimatedCostUsd, route, reason: `${reason} Intent: ${pipeline.intent.intentType}.`, budget: state, intent: pipeline.intent, cil, externalReality };
 }
 
 router.post("/ai/context-preview", async (req, res): Promise<void> => {
@@ -102,7 +105,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
     } else {
       const hold = gate.record;
     await db.insert(eventLog).values({ eventType: "ModelCallHeld", aggregateType: "governance_request", aggregateId: hold.id, sourceRef: "model-router", correlationId, occurredAt: new Date(), payload: { estimatedCostUsd: route.estimatedCostUsd, model: route.selectedModel } });
-     res.status(202).json({ held: true, governanceRequestId: hold.id, correlationId, contextPacket: { ...route.publicPacket, selectedModel: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd }, answerContract: buildAskAnswerContract({ answer: "This model call is held for owner approval before execution.", items: route.packet.items, cil: route.cil, route: { tier: route.selectedTier, model: route.selectedModel, provider: route.selectedProvider, routeId: route.routeId }, intentType: intent.intentType }), estimatedCostUsd: route.estimatedCostUsd, reason: "Human approval is required before this model call." });
+      res.status(202).json({ held: true, governanceRequestId: hold.id, correlationId, externalReality: route.externalReality, contextPacket: { ...route.publicPacket, selectedModel: route.selectedModel, estimatedCostUsd: route.estimatedCostUsd }, answerContract: buildAskAnswerContract({ answer: "This model call is held for owner approval before execution.", items: route.packet.items, cil: route.cil, route: { tier: route.selectedTier, model: route.selectedModel, provider: route.selectedProvider, routeId: route.routeId }, intentType: intent.intentType, externalReality: route.externalReality }), estimatedCostUsd: route.estimatedCostUsd, reason: "Human approval is required before this model call." });
     return;
     }
   }
@@ -110,7 +113,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
     ? [undefined]
      : await db.insert(conversationMessage).values({ conversationId: item.id, role: "user", content: message, contextPacketId: packetId, intentId: intent.id }).returning();
   if (mode === "no_model") {
-    res.json({ held: false, packetOnly: true, correlationId, contextPacket: route.publicPacket, answerContract: buildAskAnswerContract({ answer: "Context-only mode selected. No model was called.", items: route.packet.items, cil: route.cil, route: { tier: route.selectedTier, model: route.selectedModel, provider: route.selectedProvider, routeId: route.routeId }, intentType: intent.intentType }), userMessage });
+     res.json({ held: false, packetOnly: true, correlationId, externalReality: route.externalReality, contextPacket: route.publicPacket, answerContract: buildAskAnswerContract({ answer: "Context-only mode selected. No model was called.", items: route.packet.items, cil: route.cil, route: { tier: route.selectedTier, model: route.selectedModel, provider: route.selectedProvider, routeId: route.routeId }, intentType: intent.intentType, externalReality: route.externalReality }), userMessage });
     return;
   }
    const result = await routeModelRequest({
@@ -123,6 +126,8 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
      contextItems: route.packet.items,
      preferredTier: "auto",
      costCeilingUsd: route.budget.limited ? 0 : undefined,
+      externalReality: route.externalReality,
+      personalityContext: pipeline.identity.personality,
    }, route.cil);
    const cost = result.estimatedCostUsd;
   const [assistantMessage] = mode === "private"
@@ -132,7 +137,7 @@ router.post("/ai/conversations/:id/messages", async (req, res): Promise<void> =>
      await db.insert(costRecord).values({ correlationId, engine: "ask-lee", provider: result.provider, tier: result.tier, model: result.model, promptTokens: result.promptTokens, completionTokens: result.completionTokens, totalTokens: result.totalTokens, estimatedCostUsd: cost, latencyMs: Date.now() - startedAt, cacheHit: route.packet.reused || result.tier === "T1" || result.tier === "T2", metadata: { conversationId: item.id, mode, route: route.route, routeId: result.routeId, costEstimateSource: result.costEstimateSource, budgetLimited: route.budget.limited, cilReroute: result.cilRerouted ?? false } });
      await db.insert(eventLog).values({ eventType: "CostRecordCreated", aggregateType: "cost_record", aggregateId: correlationId, sourceRef: "ask-lee", correlationId, occurredAt: new Date(), payload: { provider: result.provider, model: result.model, routeId: result.routeId, totalTokens: result.totalTokens, estimatedCostUsd: cost, cacheHit: route.packet.reused } });
   }
-    res.json({ held: false, correlationId, answer: result.answer, answerContract: buildAskAnswerContract({ answer: result.answer, items: route.packet.items, cil: result.cilEvidence ? { ...route.cil, ...result.cilEvidence } : route.cil, route: { tier: result.tier, model: result.model, provider: result.provider, routeId: result.routeId, cilRerouted: result.cilRerouted, cilRerouteReason: result.cilRerouteReason }, intentType: intent.intentType }), userMessage, assistantMessage, intent, contextPacket: route.publicPacket, estimatedCostUsd: cost, provider: result.provider, model: result.model, routeId: result.routeId, evidenceRefs: route.packet.items.map((entry) => entry.id) });
+     res.json({ held: false, correlationId, externalReality: route.externalReality, answer: result.answer, answerContract: buildAskAnswerContract({ answer: result.answer, items: route.packet.items, cil: result.cilEvidence ? { ...route.cil, ...result.cilEvidence } : route.cil, route: { tier: result.tier, model: result.model, provider: result.provider, routeId: result.routeId, cilRerouted: result.cilRerouted, cilRerouteReason: result.cilRerouteReason }, intentType: intent.intentType, externalReality: route.externalReality }), userMessage, assistantMessage, intent, contextPacket: route.publicPacket, estimatedCostUsd: cost, provider: result.provider, model: result.model, routeId: result.routeId, evidenceRefs: route.packet.items.map((entry) => entry.id) });
 });
 
 export default router;

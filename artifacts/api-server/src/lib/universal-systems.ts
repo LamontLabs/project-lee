@@ -77,7 +77,7 @@ export async function listUniversalSystems() {
   return rows.filter((row) => (row.metrics as Record<string, unknown>)?.universalSystemsApi === true);
 }
 
-export async function callUniversalSystem(systemId: string, path: string, payload: Record<string, unknown>, correlationId: string = randomUUID(), options: { method?: "GET" | "POST"; timeoutMs?: number } = {}) {
+export async function callUniversalSystem(systemId: string, path: string, payload: Record<string, unknown>, correlationId: string = randomUUID(), options: { method?: "GET" | "POST"; timeoutMs?: number; signal?: AbortSignal } = {}) {
   const [system] = await db.select().from(internalCapabilityService).where(eq(internalCapabilityService.serviceId, systemId)).limit(1);
   if (!system?.baseUrl) throw new Error("UNIVERSAL_SYSTEM_NOT_REGISTERED");
   if (!/^\/[a-zA-Z0-9._/:-]*$/.test(path)) throw new Error("UNIVERSAL_SYSTEM_PATH_INVALID");
@@ -86,6 +86,9 @@ export async function callUniversalSystem(systemId: string, path: string, payloa
   const encoded = JSON.stringify(metrics.requestEnvelope === "direct" || directSystems.has(systemId) ? payload : { contract_version: system.apiVersion, correlation_id: correlationId, payload });
   const credential = system.credentialEnvKey ? process.env[system.credentialEnvKey] : undefined;
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  if (options.signal?.aborted) controller.abort();
+  else options.signal?.addEventListener("abort", abortFromCaller, { once: true });
   const method = options.method ?? "POST";
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 8000);
   try {
@@ -98,10 +101,14 @@ export async function callUniversalSystem(systemId: string, path: string, payloa
     await db.insert(eventLog).values({ eventType: "UniversalSystemCallCompleted", aggregateType: "universal_system", aggregateId: system.id, correlationId, sourceRef: "universal-systems-api", occurredAt: new Date(), payload: { systemId, path } });
     return { systemId, correlationId, result };
   } catch (error) {
-    await db.update(internalCapabilityService).set({ currentHealth: "degraded", lastHealthCheck: new Date(), updatedAt: new Date(), metrics: { ...(system.metrics as Record<string, unknown>), lastError: String(error) } }).where(eq(internalCapabilityService.id, system.id));
-    await db.insert(eventLog).values({ eventType: "UniversalSystemCallFailed", aggregateType: "universal_system", aggregateId: system.id, correlationId, sourceRef: "universal-systems-api", occurredAt: new Date(), payload: { systemId, path, error: String(error) } });
+    const cancelledByCaller = options.signal?.aborted === true;
+    if (!cancelledByCaller) {
+      await db.update(internalCapabilityService).set({ currentHealth: "degraded", lastHealthCheck: new Date(), updatedAt: new Date(), metrics: { ...(system.metrics as Record<string, unknown>), lastError: String(error) } }).where(eq(internalCapabilityService.id, system.id));
+    }
+    await db.insert(eventLog).values({ eventType: "UniversalSystemCallFailed", aggregateType: "universal_system", aggregateId: system.id, correlationId, sourceRef: "universal-systems-api", occurredAt: new Date(), payload: { systemId, path, error: String(error), cancelledByCaller } });
     throw error;
   } finally {
     clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", abortFromCaller);
   }
 }

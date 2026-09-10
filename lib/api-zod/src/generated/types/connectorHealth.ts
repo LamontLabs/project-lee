@@ -9,9 +9,15 @@ import type { ConnectorProvider } from './connectorProvider';
 
 export interface ConnectorHealth {
   provider: ConnectorProvider;
+  providerCategory?: string;
+  adapterName?: string;
   accessMode: string;
   status: string;
   lastSyncAt?: Date;
+  lastSuccessfulRefreshAt?: Date | null;
+  freshnessLabel?: string;
+  evidenceAgeMs?: number | null;
+  limitations?: string[];
   lastError?: string;
   authStatus?: string;
   consecutiveFailureCount?: number;

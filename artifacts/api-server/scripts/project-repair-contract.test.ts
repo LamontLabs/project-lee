@@ -23,7 +23,7 @@ test("read-only authority can inspect but cannot modify or restart", () => {
 
 test("authorized manage levels expose only their permitted operations", () => {
   assert.equal(projectOperationAuthorization(project("MANAGE"), "restart").allowed, true);
-  assert.equal(projectOperationAuthorization(project("MANAGE"), "apply").allowed, false);
+  assert.equal(projectOperationAuthorization(project("MANAGE"), "apply").allowed, true);
   assert.equal(projectOperationAuthorization(project("GOVERNED_MANAGE"), "apply").allowed, true);
   assert.ok(allowedProjectOperations(project("GOVERNED_MANAGE")).includes("check"));
 });

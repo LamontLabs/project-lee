@@ -7,6 +7,7 @@ import { recordNormalizedProviderChange } from "./change-intelligence";
 import { recordCommitmentsFromNormalizedEvent } from "./commitment-intelligence";
 import { getOAuthAccessToken } from "./connection-center";
 import { emailProviderFor } from "./email-provider";
+import { recordProviderRefreshAttempt, recordProviderRefreshFailure, recordProviderRefreshSuccess } from "./offline-awareness";
 
 const connectors = new ReplitConnectors();
 
@@ -52,6 +53,7 @@ async function collect(provider: ConnectorProvider, configuration: Record<string
 
 export async function syncLiveConnector(provider: ConnectorProvider, configuration: Record<string, unknown> = {}) {
   const now = new Date();
+  await recordProviderRefreshAttempt(provider, now);
   const connectionId = typeof configuration.connectionId === "string"
     ? configuration.connectionId
     : typeof configuration.oauthConnectionId === "string" ? configuration.oauthConnectionId : null;
@@ -59,6 +61,7 @@ export async function syncLiveConnector(provider: ConnectorProvider, configurati
     try {
       await getOAuthAccessToken(connectionId);
     } catch {
+      await recordProviderRefreshFailure(provider, "OAuth authorization needs to be renewed.", { attemptedAt: now });
       return { provider, status: "failed", syncId: "", eventIds: [], eventCount: 0, error: "OAuth authorization needs to be renewed." };
     }
   }
@@ -93,6 +96,7 @@ export async function syncLiveConnector(provider: ConnectorProvider, configurati
       await recordNormalizedProviderChange(event);
       await recordCommitmentsFromNormalizedEvent(event);
     }
+    await recordProviderRefreshSuccess(provider, { refreshAt: new Date(), changedCount: stored.length, syncId: sync.id, preservedLocalObservationCount: stored.length });
     return { provider, status: completed.status, syncId: sync.id, eventIds: stored.map((event) => event.id), eventCount: stored.length, domainEventId: syncEvent.id, connector: updated };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Connector sync failed.";
@@ -100,6 +104,7 @@ export async function syncLiveConnector(provider: ConnectorProvider, configurati
     const [failed] = await db.update(connectorSync).set({ status: "failed", error: message, completedAt: new Date() }).where(eq(connectorSync.id, sync.id)).returning();
     const [updated] = await db.update(connector).set({ status: "error", lastError: message, consecutiveFailureCount: row.consecutiveFailureCount + 1, errorHistory: history, updatedAt: new Date() }).where(eq(connector.id, row.id)).returning();
     await db.insert(eventLog).values({ eventType: "ConnectorSyncFailed", aggregateType: "connector_sync", aggregateId: sync.id, sourceRef: `connector:${provider}`, occurredAt: new Date(), payload: { provider, syncId: sync.id, error: message, consecutiveFailureCount: updated.consecutiveFailureCount } });
+    await recordProviderRefreshFailure(provider, message, { attemptedAt: new Date(), syncId: sync.id });
     return { provider, status: failed.status, syncId: sync.id, eventIds: [], eventCount: 0, error: message, connector: updated };
   }
 }

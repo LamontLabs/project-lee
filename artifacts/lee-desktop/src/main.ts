@@ -23,12 +23,14 @@ const smokeUpdateInterrupt = process.env.LEE_SMOKE_UPDATE_INTERRUPT;
 const smokeUpdateInterruptFile = process.env.LEE_SMOKE_UPDATE_INTERRUPT_FILE;
 const smokeUpdateInterruptDelayMs = Number(process.env.LEE_SMOKE_UPDATE_INTERRUPT_DELAY_MS ?? 250);
 const smokeOwnerAuthFile = process.env.LEE_SMOKE_OWNER_AUTH_FILE;
+const smokeDiscoveryFile = process.env.LEE_SMOKE_DISCOVERY_FILE;
 const smokeExitRequested = process.env.LEE_SMOKE_EXIT === "0"
   ? false
   : app.commandLine.hasSwitch("lee-smoke-exit") || process.env.LEE_SMOKE_EXIT === "1";
 const smokeHeadless = process.env.LEE_SMOKE_HEADLESS === "1";
 const smokeDebugFile = process.env.LEE_SMOKE_DEBUG_FILE ?? process.env.LEE_SMOKE_DIAGNOSTIC_FILE;
 let smokeInterruptionTriggered = false;
+let ipcHandlersRegistered = false;
 function smokeDebug(event: string, details: Record<string, unknown> = {}): void {
   if (!smokeDebugFile) return;
   try {
@@ -103,6 +105,21 @@ function waitForSmokeOwnerAuthentication(): void {
     setTimeout(check, 50);
   };
   check();
+}
+
+function registerIpcHandlers(): void {
+  if (ipcHandlersRegistered) return;
+  ipcHandlersRegistered = true;
+  ipcMain.handle("lee:runtime-status", () => supervisor.status);
+  ipcMain.handle("lee:runtime-restart", async () => {
+    await supervisor.stop();
+    return supervisor.start();
+  });
+  ipcMain.handle("lee:discover-local-services", () => supervisor.discoverLocalServices());
+  ipcMain.handle("lee:update-status", () => updateState);
+  ipcMain.handle("lee:update-check", () => checkForUpdates());
+  ipcMain.handle("lee:update-download", async () => { if (updateState.status === "available") await autoUpdater.downloadUpdate(); return updateState; });
+  ipcMain.handle("lee:update-install", () => { if (updateState.status === "downloaded") autoUpdater.quitAndInstall(); return updateState; });
 }
 
 async function configureUpdates(): Promise<void> {
@@ -210,6 +227,10 @@ async function boot(): Promise<void> {
     writeFileSync(process.env.LEE_SMOKE_STATUS_FILE, JSON.stringify({ version: app.getVersion(), ...runtime }, null, 2), "utf8");
   }
   if (smokeHeadless && process.env.LEE_SMOKE_STATUS_FILE) {
+    if (smokeDiscoveryFile) {
+      const discovery = await supervisor.discoverLocalServices();
+      writeFileSync(smokeDiscoveryFile, JSON.stringify(discovery, null, 2), "utf8");
+    }
     smokePhase("headless-ready");
     const statusFile = process.env.LEE_SMOKE_STATUS_FILE;
     const exitWatcher = setInterval(() => {
@@ -225,7 +246,7 @@ async function boot(): Promise<void> {
     smokeUpdateExpectedVersion &&
     app.getVersion() !== smokeUpdateExpectedVersion,
   );
-  if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile) {
+  if (smokeExitRequested && !awaitingSmokeUpdate && !smokeOwnerAuthFile && !smokeDiscoveryFile) {
     await supervisor.stop();
     process.exit(0);
     return;
@@ -239,8 +260,8 @@ async function boot(): Promise<void> {
     consoleUrl = `${url}${url.includes("?") ? "&" : "?"}desktop=1`;
   }
   const browserWindow = setupWindow();
-  if (process.env.LEE_SMOKE_DISCOVERY_FILE) {
-    const discovery = writeSmokeDiscovery(process.env.LEE_SMOKE_DISCOVERY_FILE);
+  if (smokeDiscoveryFile) {
+    const discovery = writeSmokeDiscovery(smokeDiscoveryFile);
     await browserWindow.loadURL(consoleUrl);
     await discovery;
   } else {
@@ -252,6 +273,10 @@ async function boot(): Promise<void> {
   if (smokeExitRequested && !awaitingSmokeUpdate) {
     if (smokeOwnerAuthFile) {
       waitForSmokeOwnerAuthentication();
+    } else if (smokeDiscoveryFile) {
+      await supervisor.stop();
+      process.exit(0);
+      return;
     }
   }
 }
@@ -287,22 +312,14 @@ async function startReadyPath(): Promise<void> {
     { label: "Exit LEE", click: () => app.quit() },
   ]));
   tray.on("double-click", () => window?.show());
-  ipcMain.handle("lee:runtime-status", () => supervisor.status);
-  ipcMain.handle("lee:runtime-restart", async () => {
-    await supervisor.stop();
-    return supervisor.start();
-  });
-  ipcMain.handle("lee:discover-local-services", () => supervisor.discoverLocalServices());
-  ipcMain.handle("lee:update-status", () => updateState);
-  ipcMain.handle("lee:update-check", () => checkForUpdates());
-  ipcMain.handle("lee:update-download", async () => { if (updateState.status === "available") await autoUpdater.downloadUpdate(); return updateState; });
-  ipcMain.handle("lee:update-install", () => { if (updateState.status === "downloaded") autoUpdater.quitAndInstall(); return updateState; });
+  registerIpcHandlers();
   if ((!smokeExitRequested && !process.env.LEE_SMOKE_STATUS_FILE) || smokeUpdateFeedUrl) await configureUpdates();
   await boot();
 }
 
 if ((smokeExitRequested && !smokeUpdateFeedUrl && !smokeOwnerAuthFile) || smokeHeadless) {
   smokePhase("direct-boot");
+  registerIpcHandlers();
   void boot();
 } else {
   const readyWatchdog = smokeDebugFile ? setTimeout(() => smokeDebug("when-ready-pending"), 10_000) : null;

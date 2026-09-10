@@ -152,7 +152,7 @@ async function checkForUpdates(): Promise<UpdateState> {
   return updateState;
 }
 
-function setupWindow(url: string): void {
+function setupWindow(): BrowserWindow {
   window = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -162,10 +162,10 @@ function setupWindow(url: string): void {
     icon: join(app.getAppPath(), "resources", "lee.png"),
     webPreferences: { preload: join(app.getAppPath(), "dist", "preload.js"), contextIsolation: true, nodeIntegration: false },
   });
-  void window.loadURL(url);
   window.on("close", (event) => {
     if (!isQuitting) { event.preventDefault(); window?.hide(); }
   });
+  return window;
 }
 
 async function writeSmokeDiscovery(filePath: string): Promise<void> {
@@ -230,15 +230,21 @@ async function boot(): Promise<void> {
     process.exit(0);
     return;
   }
+  let consoleUrl: string;
   if (isProduction) {
     consoleServer = await startConsoleServer(join(process.resourcesPath, "console"), runtime.apiUrl);
-    setupWindow(`${consoleServer.url}/connections?desktop=1`);
+    consoleUrl = `${consoleServer.url}/connections?desktop=1`;
   } else {
     const url = process.env.LEE_CONSOLE_URL ?? "http://127.0.0.1:5173/";
-    setupWindow(`${url}${url.includes("?") ? "&" : "?"}desktop=1`);
+    consoleUrl = `${url}${url.includes("?") ? "&" : "?"}desktop=1`;
   }
+  const browserWindow = setupWindow();
   if (process.env.LEE_SMOKE_DISCOVERY_FILE) {
-    await writeSmokeDiscovery(process.env.LEE_SMOKE_DISCOVERY_FILE);
+    const discovery = writeSmokeDiscovery(process.env.LEE_SMOKE_DISCOVERY_FILE);
+    await browserWindow.loadURL(consoleUrl);
+    await discovery;
+  } else {
+    await browserWindow.loadURL(consoleUrl);
   }
   if (smokeUpdateFeedUrl && smokeUpdateExpectedVersion && app.getVersion() === smokeUpdateExpectedVersion) {
     if (smokeUpdateResultFile) writeFileSync(smokeUpdateResultFile, JSON.stringify({ status: "installed", version: app.getVersion() }, null, 2), "utf8");

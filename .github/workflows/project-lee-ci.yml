@@ -60,4 +60,6 @@ jobs:
           pnpm --filter @workspace/lee-desktop run test:runtime-contract
 
       - name: Run delivery evidence contract
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
         run: pnpm --filter @workspace/api-server run test:delivery-evidence

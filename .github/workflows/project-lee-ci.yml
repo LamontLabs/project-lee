@@ -58,3 +58,6 @@ jobs:
         run: |
           pnpm --filter @workspace/lee-desktop run test:release-metadata
           pnpm --filter @workspace/lee-desktop run test:runtime-contract
+
+      - name: Run delivery evidence contract
+        run: pnpm --filter @workspace/api-server run test:delivery-evidence

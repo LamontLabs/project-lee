@@ -281,6 +281,8 @@ function Stop-Mock([System.Diagnostics.Process] $process) {
 function Invoke-Discovery([hashtable] $environment, [string] $label) {
   Remove-Item $discoveryFile -Force -ErrorAction SilentlyContinue
   $discoveryEnvironment = @{} + $environment
+  $discoveryEnvironment["LEE_SMOKE_EXIT"] = "1"
+  $discoveryEnvironment["LEE_SMOKE_HEADLESS"] = "0"
   $discoveryEnvironment["LEE_SMOKE_DISCOVERY_FILE"] = [string]$discoveryFile
   $status = Invoke-Lee $discoveryEnvironment $label
   Wait-ForFile $discoveryFile 10 "$label discovery"

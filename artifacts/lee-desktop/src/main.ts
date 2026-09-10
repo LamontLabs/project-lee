@@ -203,7 +203,7 @@ async function writeSmokeDiscovery(filePath: string): Promise<void> {
       reject(new Error(`LEE smoke discovery renderer failed to load (${errorCode}: ${errorDescription}).`));
     };
     const onLoad = () => {
-      void browserWindow.webContents.executeJavaScript("window.leeRuntime.discoverLocalServices()", true)
+      void supervisor.discoverLocalServices()
         .then((discovery) => {
           cleanup();
           writeFileSync(filePath, JSON.stringify(discovery, null, 2), "utf8");

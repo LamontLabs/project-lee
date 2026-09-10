@@ -299,19 +299,21 @@ async function startReadyPath(): Promise<void> {
     app.exit(0);
     return;
   }
-  smokePhase("lock-ready");
-  smokeDebug("tray-before");
-  const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));
-  tray = new Tray(icon);
-  smokeDebug("tray-created");
-  tray.setToolTip("Project LEE");
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "Open LEE", click: () => window?.show() },
-    { label: "Open data folder", click: () => shell.openPath(join(process.env.APPDATA ?? app.getPath("appData"), "Project LEE")) },
-    { type: "separator" },
-    { label: "Exit LEE", click: () => app.quit() },
-  ]));
-  tray.on("double-click", () => window?.show());
+  if (!smokeDiscoveryFile) {
+    smokePhase("lock-ready");
+    smokeDebug("tray-before");
+    const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources", "lee.ico"));
+    tray = new Tray(icon);
+    smokeDebug("tray-created");
+    tray.setToolTip("Project LEE");
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: "Open LEE", click: () => window?.show() },
+      { label: "Open data folder", click: () => shell.openPath(join(process.env.APPDATA ?? app.getPath("appData"), "Project LEE")) },
+      { type: "separator" },
+      { label: "Exit LEE", click: () => app.quit() },
+    ]));
+    tray.on("double-click", () => window?.show());
+  }
   registerIpcHandlers();
   if ((!smokeExitRequested && !process.env.LEE_SMOKE_STATUS_FILE) || smokeUpdateFeedUrl) await configureUpdates();
   await boot();

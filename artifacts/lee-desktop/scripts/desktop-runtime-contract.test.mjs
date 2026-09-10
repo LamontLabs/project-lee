@@ -139,6 +139,8 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /discovery-allowlist-before/);
   assert.match(runtime, /discovery-allowlist-response/);
   assert.match(runtime, /discovery-allowlist-after/);
+  assert.match(runtime, /AbortController/);
+  assert.match(runtime, /setTimeout\(\(\) => controller\.abort\(\), 1_500\)/);
   assert.match(main, /main:\$\{label\}/);
   assert.match(main, /smokeExitRequested \|\| Boolean\(process\.env\.LEE_SMOKE_STATUS_FILE\) \|\| app\.requestSingleInstanceLock/);
   assert.match(main, /await supervisor\.stop\(\);\s*process\.exit\(0\)/);
@@ -155,6 +157,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(windowsSmoke, /apiLauncherLog/);
   assert.match(windowsSmoke, /apiLog/);
   assert.match(windowsSmoke, /testRootLogs/);
+  assert.match(windowsSmoke, /Remove\("apiCommand"\)[\s\S]*Set-Content \$configFile/);
   assert.match(builder, /runAfterFinish: false/);
   assert.match(prepare, /Bundled PostgreSQL runtime is missing/);
   assert.match(prepare, /postgresShare/);

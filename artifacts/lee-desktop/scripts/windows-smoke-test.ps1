@@ -280,7 +280,9 @@ function Stop-Mock([System.Diagnostics.Process] $process) {
 
 function Invoke-Discovery([hashtable] $environment, [string] $label) {
   Remove-Item $discoveryFile -Force -ErrorAction SilentlyContinue
-  $status = Invoke-Lee ($environment + @{ LEE_SMOKE_DISCOVERY_FILE = $discoveryFile }) $label
+  $discoveryEnvironment = @{} + $environment
+  $discoveryEnvironment["LEE_SMOKE_DISCOVERY_FILE"] = [string]$discoveryFile
+  $status = Invoke-Lee $discoveryEnvironment $label
   Wait-ForFile $discoveryFile 10 "$label discovery"
   $discovery = Get-Content $discoveryFile -Raw | ConvertFrom-Json
   Remove-Item $discoveryFile -Force
@@ -558,6 +560,7 @@ try {
 
   $config.PSObject.Properties.Remove("apiCommand")
   $config.PSObject.Properties.Remove("apiArgs")
+  $config | ConvertTo-Json | Set-Content $configFile -Encoding utf8
   $restarted = Invoke-Lee $commonEnvironment "restart"
   Assert-True ($restarted.database -eq "configured") "restart did not reuse the private database"
   $configAfterRestart = Get-Content $configFile -Raw | ConvertFrom-Json

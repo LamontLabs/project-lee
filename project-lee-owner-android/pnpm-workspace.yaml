@@ -1,0 +1,22 @@
+minimumReleaseAge: 1440
+
+packages:
+  - packages/*
+
+catalog:
+  '@tanstack/react-query': ^5.90.21
+  '@types/react': 19.2.17
+  '@types/react-dom': 19.2.3
+  react: 19.1.0
+  react-dom: 19.1.0
+  tsx: ^4.21.0
+  typescript: 5.9.3
+  zod: ^3.25.76
+
+autoInstallPeers: false
+
+onlyBuiltDependencies:
+  - '@swc/core'
+  - esbuild
+  - msw
+  - unrs-resolver

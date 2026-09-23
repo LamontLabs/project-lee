@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Lee Android Companion",
+    "slug": "lee-android",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "lee-android",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0809"
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.projectlee.owner",
+      "intentFilters": [
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "image/*" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/plain" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/uri-list" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/pdf" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/csv" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/markdown" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/rtf" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/msword" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }] }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

@@ -29,7 +29,7 @@ import { setBaseUrl } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -41,6 +41,7 @@ Notifications.setNotificationHandler({
 });
 
 const queryClient = new QueryClient();
+const FONT_LOAD_TIMEOUT_MS = 2500;
 
 function RootLayoutNav() {
   const colors = useColors();
@@ -180,14 +181,21 @@ export default function RootLayout() {
     CormorantGaramond_400Regular,
     CormorantGaramond_600SemiBold,
   });
+  const [fontLoadTimedOut, setFontLoadTimedOut] = React.useState(false);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
+    if (fontsLoaded || fontError || Platform.OS === 'web') return;
+    const timeout = setTimeout(() => setFontLoadTimedOut(true), FONT_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError && Platform.OS !== 'web') return null;
+  const startupReady = Platform.OS === 'web' || fontsLoaded || Boolean(fontError) || fontLoadTimedOut;
+
+  useEffect(() => {
+    if (startupReady) void SplashScreen.hideAsync().catch(() => undefined);
+  }, [startupReady]);
+
+  if (!startupReady && Platform.OS !== 'web') return null;
 
   return (
     <SafeAreaProvider>

@@ -3,6 +3,8 @@ import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.content.Intent
 
 import com.facebook.react.ReactActivity
@@ -13,6 +15,14 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 import expo.modules.ReactActivityDelegateWrapper
 
 class MainActivity : ReactActivity() {
+  private val startupSplashWatchdogHandler = Handler(Looper.getMainLooper())
+  private val startupSplashWatchdog = Runnable {
+    // Never leave the Android 12 system splash covering a failed or slow JS startup.
+    // If React has not hidden it by this point, reveal the native root so a debug
+    // error or an empty root can be diagnosed instead of looking like a hang.
+    SplashScreenManager.hide()
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
@@ -21,8 +31,14 @@ class MainActivity : ReactActivity() {
     // @generated begin expo-splashscreen - expo prebuild (DO NOT MODIFY) sync-f3ff59a738c56c9a6119210cb55f0b613eb8b6af
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
+    startupSplashWatchdogHandler.postDelayed(startupSplashWatchdog, 4000L)
     super.onCreate(null)
     LeeShareModule.receiveIntent(intent)
+  }
+
+  override fun onDestroy() {
+    startupSplashWatchdogHandler.removeCallbacks(startupSplashWatchdog)
+    super.onDestroy()
   }
 
   override fun onNewIntent(intent: Intent) {

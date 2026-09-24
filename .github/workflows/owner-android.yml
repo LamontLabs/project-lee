@@ -14,6 +14,8 @@ jobs:
     name: Validate and build Owner debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      EXPO_PUBLIC_DOMAIN: project-lee.replit.app
     steps:
       - name: Check out Owner repository
         uses: actions/checkout@v4
@@ -28,6 +30,46 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Validate canonical hosted Core endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          domain="${EXPO_PUBLIC_DOMAIN:-}"
+          if [[ -z "$domain" || "${domain,,}" == "core.invalid" || "${domain,,}" == *.invalid ]]; then
+            echo "::error::EXPO_PUBLIC_DOMAIN must be set to the canonical hosted Project LEE Core hostname."
+            exit 1
+          fi
+          if [[ ! "$domain" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::EXPO_PUBLIC_DOMAIN must be a hostname only; do not include a scheme, port, or API path."
+            exit 1
+          fi
+          response_file="$(mktemp)"
+          if ! status="$(curl --silent --show-error --connect-timeout 10 --max-time 20 --output "$response_file" --write-out '%{http_code}' "https://${domain}/api/healthz")"; then
+            echo "::error::Configured Project LEE Core host is not reachable."
+            rm -f "$response_file"
+            exit 1
+          fi
+          if [[ "$status" == "200" ]]; then
+            if ! node -e '
+              const fs = require("node:fs");
+              let health;
+              try { health = JSON.parse(fs.readFileSync(0, "utf8")); } catch { process.exit(1); }
+              if (health.status !== "ok" || health.live !== true) process.exit(1);
+            ' < "$response_file"; then
+              echo "::error::Configured host did not return the Project LEE Core liveness contract."
+              rm -f "$response_file"
+              exit 1
+            fi
+            echo "Canonical Core host is reachable; liveness verified, readiness not inferred."
+          elif [[ "$status" == "401" || "$status" == "403" ]]; then
+            echo "Canonical Core host is reachable and protected; readiness is not inferred."
+          else
+            echo "::error::Canonical Core host returned unexpected HTTP ${status}."
+            rm -f "$response_file"
+            exit 1
+          fi
+          rm -f "$response_file"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -61,8 +103,6 @@ jobs:
 
       - name: Assemble installable Owner release APK
         working-directory: project-lee-owner-android/android
-        env:
-          EXPO_PUBLIC_DOMAIN: core.invalid
         run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Verify package identity and APK output

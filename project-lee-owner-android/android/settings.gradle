@@ -31,7 +31,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'Project L.e.e.'
+rootProject.name = 'Lee Android Companion'
 
 expoAutolinking.useExpoVersionCatalog()
 

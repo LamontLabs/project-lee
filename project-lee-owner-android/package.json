@@ -66,6 +66,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
+    "babel-preset-expo": "54.0.12",
     "react-test-renderer": "19.1.0",
     "tsx": "catalog:",
     "typescript": "catalog:"

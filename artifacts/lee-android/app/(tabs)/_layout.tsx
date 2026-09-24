@@ -1,37 +1,37 @@
 import React from 'react';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
-
-const tabIcons: Record<string, keyof typeof Feather.glyphMap> = {
-  index: 'sun',
-  capture: 'mic',
-  waiting: 'clock',
-  alerts: 'bell',
-  ask: 'message-circle',
-  approvals: 'check-square',
-  systems: 'activity',
-};
+import { LeeBottomNav } from '@workspace/mobile-foundation';
 
 export default function TabLayout() {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={({ route }: { route: { name: string } }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
-        tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: Platform.OS === 'web' ? 84 : 78, paddingTop: 8 },
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => <Feather name={tabIcons[route.name] ?? 'circle'} color={color} size={size} />,
+        tabBarStyle: { display: 'none' },
       })}
+      tabBar={({ state, navigation }) => (
+        <LeeBottomNav
+          state={state}
+          navigation={navigation}
+          colors={colors}
+          bottomInset={Platform.OS === 'web' ? 8 : insets.bottom}
+          renderIcon={(name, color, size) => <Feather name={name as keyof typeof Feather.glyphMap} color={color} size={size} />}
+        />
+      )}
     >
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
       <Tabs.Screen name="ask" options={{ title: 'Ask Lee' }} />
       <Tabs.Screen name="capture" options={{ title: 'Capture' }} />
       <Tabs.Screen name="alerts" options={{ title: 'Alerts' }} />
-      <Tabs.Screen name="systems" options={{ title: 'Systems' }} />
+      <Tabs.Screen name="more" options={{ title: 'More' }} />
+      <Tabs.Screen name="systems" options={{ href: null }} />
+      <Tabs.Screen name="sessions" options={{ title: 'Watch' }} />
       <Tabs.Screen name="waiting" options={{ href: null }} />
       <Tabs.Screen name="approvals" options={{ title: 'Approvals' }} />
     </Tabs>

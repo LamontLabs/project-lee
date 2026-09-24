@@ -12,48 +12,60 @@
  * The useColors() hook will automatically pick it up.
  */
 
+import { mobileTokens } from '@workspace/mobile-foundation';
+
 const colors = {
   light: {
+    black: mobileTokens.colors.black,
     // Legacy aliases (kept for backward compatibility)
-    text: '#f5f1f2',
-    tint: '#ff3157',
+    text: mobileTokens.colors.foreground,
+    tint: mobileTokens.colors.primary,
 
     // Core surfaces
-    background: '#0a0809',
-    foreground: '#f5f1f2',
+    background: mobileTokens.colors.background,
+    foreground: mobileTokens.colors.foreground,
 
     // Cards / elevated surfaces
-    card: '#151012',
-    cardForeground: '#f5f1f2',
+    card: mobileTokens.colors.surface,
+    cardForeground: mobileTokens.colors.foreground,
 
     // Primary action color (buttons, links, active states)
-    primary: '#ff3157',
-    primaryForeground: '#ffffff',
+    primary: mobileTokens.colors.primary,
+    primaryForeground: mobileTokens.colors.primaryForeground,
 
     // Secondary / less-emphasis interactive surfaces
-    secondary: '#241416',
+    secondary: mobileTokens.colors.surfaceSubtle,
     secondaryForeground: '#e5d5d8',
 
     // Muted / subdued elements (dividers, timestamps, placeholders)
-    muted: '#1d1214',
-    mutedForeground: '#a98d93',
+    muted: mobileTokens.colors.surfaceRaised,
+    mutedForeground: mobileTokens.colors.mutedForeground,
 
     // Accent highlights (badges, selected items, focus rings)
-    accent: '#4a1822',
-    accentForeground: '#ffd9df',
+    accent: mobileTokens.colors.accent,
+    accentForeground: mobileTokens.colors.accentForeground,
 
     // Destructive actions (delete, error states)
-    destructive: '#ff6b78',
-    destructiveForeground: '#ffffff',
+    destructive: mobileTokens.colors.destructive,
+    destructiveForeground: mobileTokens.colors.destructiveForeground,
 
     // Borders and input outlines
-    border: '#402027',
-    input: '#4d252e',
+    border: mobileTokens.colors.border,
+    input: mobileTokens.colors.input,
+    surface: mobileTokens.colors.surface,
+    surfaceRaised: mobileTokens.colors.surfaceRaised,
+    surfaceSubtle: mobileTokens.colors.surfaceSubtle,
+    burgundy: mobileTokens.colors.burgundy,
+    crimsonDeep: mobileTokens.colors.crimsonDeep,
+    rose: mobileTokens.colors.rose,
+    divider: mobileTokens.colors.divider,
+    success: mobileTokens.colors.success,
+    warning: mobileTokens.colors.warning,
   },
 
   // Border radius (in px). Sync from the sibling web artifact's --radius
   // CSS variable. This value applies to cards, buttons, inputs, and modals.
-  radius: 8,
+  radius: mobileTokens.radius.lg,
 };
 
 export default colors;

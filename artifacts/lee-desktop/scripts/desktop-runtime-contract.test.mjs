@@ -142,7 +142,7 @@ test("all desktop packages include the relocatable PostgreSQL runtime", async ()
   assert.match(runtime, /AbortController/);
   assert.match(runtime, /setTimeout\(\(\) => controller\.abort\(\), 1_500\)/);
   assert.match(main, /main:\$\{label\}/);
-  assert.match(main, /discoveryFile: smokeDiscoveryFile \?\? null/);
+  assert.match(main, /writeFileSync\(smokeDiscoveryFile, JSON\.stringify\(discovery, null, 2\), "utf8"\)/);
   assert.match(main, /smokeExitRequested \|\| Boolean\(process\.env\.LEE_SMOKE_STATUS_FILE\) \|\| app\.requestSingleInstanceLock/);
   assert.match(main, /await supervisor\.stop\(\);\s*process\.exit\(0\)/);
   assert.match(main, /!process\.env\.LEE_SMOKE_STATUS_FILE/);

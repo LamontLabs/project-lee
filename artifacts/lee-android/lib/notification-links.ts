@@ -99,7 +99,11 @@ export function parseLeeLink(rawUrl: string): ParsedLink | null {
     return { type: 'protected', destination: routeName, id: routeSegments[0] };
   }
   if (routeName === 'ask' && routeSegments.length === 0) {
-    if (url.hash || [...url.searchParams.keys()].some((key) => key !== 'prompt')) return null;
+    let hasUnexpectedQueryKey = false;
+    url.searchParams.forEach((_value, key) => {
+      if (key !== 'prompt') hasUnexpectedQueryKey = true;
+    });
+    if (url.hash || hasUnexpectedQueryKey) return null;
     const prompt = url.searchParams.get('prompt');
     return { type: 'public', destination: 'ask', ...(prompt ? { prompt } : {}) };
   }

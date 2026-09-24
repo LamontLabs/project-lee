@@ -45,6 +45,7 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
 
       - name: Install JavaScript dependencies
+        working-directory: project-lee-owner-android
         run: pnpm install --frozen-lockfile
 
       - name: Run Owner and shared checks

@@ -30,8 +30,7 @@ export default function AskTab() {
     <View style={[styles.keyboard, { backgroundColor: colors.background }]}>
       <RoseBackdrop
         colors={colors}
-        topSource={require('../../assets/images/rose-top.png')}
-        bottomSource={require('../../assets/images/rose-bottom.png')}
+        backgroundSource={require('../../assets/images/lee-background.png')}
       />
       <KeyboardAvoidingView behavior="padding" style={styles.keyboard}>
       <View style={[styles.shell, { paddingTop: insets.top + 16 }]}>

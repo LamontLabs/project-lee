@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import { reloadAppAsync } from 'expo';
+import { RoseBackdrop } from '@workspace/mobile-foundation';
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -49,6 +50,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <RoseBackdrop colors={colors} backgroundSource={require('../assets/images/lee-background.png')} />
       {__DEV__ ? (
         <Pressable
           onPress={() => setIsModalVisible(true)}

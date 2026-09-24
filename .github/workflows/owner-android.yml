@@ -48,6 +48,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Owner and shared checks
+        working-directory: project-lee-owner-android
         run: |
           pnpm --filter @workspace/mobile-foundation exec tsc -p tsconfig.json --noEmit
           pnpm exec tsc -b packages/api-client-react packages/api-zod packages/mobile-foundation
@@ -55,24 +56,25 @@ jobs:
           pnpm run test:owner
 
       - name: Create ephemeral debug signing key
+        working-directory: project-lee-owner-android
         run: pnpm run ensure-debug-keystore
 
       - name: Assemble installable Owner release APK
-        working-directory: android
+        working-directory: project-lee-owner-android/android
         env:
           EXPO_PUBLIC_DOMAIN: core.invalid
         run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Verify package identity and APK output
         run: |
-          apk=android/app/build/outputs/apk/release/app-release.apk
+          apk=project-lee-owner-android/android/app/build/outputs/apk/release/app-release.apk
           test -f "$apk"
-          grep -q "applicationId 'com.projectlee.owner'" android/app/build.gradle
+          grep -q "applicationId 'com.projectlee.owner'" project-lee-owner-android/android/app/build.gradle
           unzip -l "$apk" | grep -Eq "assets/index.android.bundle($|\\.hbc|\\.packager\\.map)"
 
       - name: Upload Owner test APK
         uses: actions/upload-artifact@v4
         with:
           name: Project-LEE-Owner-Android-Test
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: project-lee-owner-android/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

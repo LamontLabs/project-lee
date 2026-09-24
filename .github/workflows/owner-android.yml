@@ -50,8 +50,6 @@ jobs:
       - name: Run Owner and shared checks
         working-directory: project-lee-owner-android
         run: |
-          pnpm --filter @workspace/mobile-foundation exec tsc -p tsconfig.json --noEmit
-          pnpm exec tsc -b packages/api-client-react packages/api-zod packages/mobile-foundation
           pnpm run typecheck
           pnpm run test:owner
 

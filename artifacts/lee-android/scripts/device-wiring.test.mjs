@@ -7,8 +7,10 @@ const capture = await fs.readFile(new URL("app/(tabs)/capture.tsx", root), "utf8
 const context = await fs.readFile(new URL("context/LeeContext.tsx", root), "utf8");
 const approvals = await fs.readFile(new URL("app/(tabs)/approvals.tsx", root), "utf8");
 const alerts = await fs.readFile(new URL("app/(tabs)/alerts.tsx", root), "utf8");
+const waiting = await fs.readFile(new URL("app/(tabs)/waiting.tsx", root), "utf8");
 const layout = await fs.readFile(new URL("app/_layout.tsx", root), "utf8");
 const ask = await fs.readFile(new URL("app/(tabs)/ask.tsx", root), "utf8");
+const notificationLinks = await fs.readFile(new URL("lib/notification-links.ts", root), "utf8");
 
 test("capture supports local-first text and device capture paths", () => {
   for (const mode of ["note", "idea", "observation", "project_update", "url"]) {
@@ -40,16 +42,25 @@ test("approval decisions remain online-only and expired approvals cannot be rele
 
 test("alerts deep-link to Ask Lee without dismissing the signal", () => {
   assert.match(alerts, /router\.push\(\{ pathname: '\/\(tabs\)\/ask'/);
-  assert.match(alerts, /Review this alert:/);
+  assert.match(alerts, /params: \{ alertId: alert\.id \}/);
   assert.doesNotMatch(alerts, /onPress=\{\(\) => void dismiss\(alert\.id\)\}>\s*<Text[^>]*>Open Lee/);
   assert.match(ask, /useLocalSearchParams/);
   assert.match(ask, /if \(prompt\) setQuestion/);
 });
 
-test("notification and app links preserve alert and approval identity", () => {
-  assert.match(layout, /approvalId/);
-  assert.match(layout, /alertId/);
+test("notification and app links revalidate exact Owner targets before routing", () => {
+  assert.match(layout, /handler\.openNotification/);
+  assert.match(layout, /handler\.openLink/);
+  assert.match(layout, /cacheFreshNotificationTarget/);
+  assert.match(notificationLinks, /approvalId/);
+  assert.match(notificationLinks, /alertId/);
+  assert.match(notificationLinks, /waitingId/);
+  assert.match(notificationLinks, /fetchFreshTarget/);
+  assert.match(notificationLinks, /markNotificationDelivery/);
+  assert.match(alerts, /authorizedNotificationTarget\?\.destination === 'alerts'/);
+  assert.match(approvals, /authorizedNotificationTarget\?\.destination === 'approvals'/);
+  assert.match(waiting, /authorizedNotificationTarget\?\.destination === 'waiting'/);
   assert.match(layout, /Linking\.getInitialURL/);
   assert.match(layout, /Linking\.addEventListener\('url'/);
-  assert.match(layout, /params: \{ id \}/);
+  assert.match(layout, /pathname: '\/\(tabs\)\/alerts', params: \{ id \}/);
 });

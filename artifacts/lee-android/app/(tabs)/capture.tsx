@@ -111,7 +111,7 @@ export default function CaptureTab() {
     }
   }
 
-  const uncertaintyItem = highestUncertainty(uncertainty);
+  const uncertaintyItem = highestUncertainty(uncertainty?.value ?? []);
   return (
     <Screen>
       <Eyebrow>Quick input</Eyebrow>

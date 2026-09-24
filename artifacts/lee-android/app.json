@@ -16,7 +16,20 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.projectlee.owner",
+      "intentFilters": [
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "image/*" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/plain" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/uri-list" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/pdf" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/csv" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "text/markdown" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/rtf" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/msword" }] },
+        { "action": "SEND", "category": ["DEFAULT"], "data": [{ "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }] }
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -29,7 +42,9 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-secure-store",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

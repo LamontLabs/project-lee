@@ -169,3 +169,28 @@ test('Ask and Today deep links remain available without protected-record routing
   assert.equal(await handler.openNotification({ tab: 'index', notificationId: 'notice/invalid' }), false);
   assert.deepEqual(events, ['navigate-public-ask', 'navigate-public-today', 'navigate-public-today']);
 });
+
+test('Owner invitation deep links validate and claim one-time invite secrets', async () => {
+  const setup = harness();
+  const claimed: string[] = [];
+  const handler = createNotificationLinkHandler({
+    getApi: () => setup.api as any,
+    cacheFreshTarget: () => undefined,
+    navigate: () => undefined,
+    navigatePublic: () => undefined,
+    pairInvite: async (invite) => {
+      claimed.push(invite);
+      return true;
+    },
+  });
+  const invite = 'A'.repeat(43);
+  const link = `lee-android://pair?invite=${invite}`;
+
+  assert.equal(await handler.openLink(link), true);
+  assert.equal(await handler.openLink(link), false);
+  assert.deepEqual(claimed, [invite]);
+  assert.equal(await handler.openLink('lee-android://pair?invite=short'), false);
+  assert.equal(await handler.openLink(`lee-android://pair?invite=${invite}&extra=value`), false);
+  assert.equal(await handler.openLink(`lee-android://pair/claim?invite=${invite}`), false);
+  assert.equal(await handler.openLink(`lee-android://pair?invite=${invite}#fragment`), false);
+});

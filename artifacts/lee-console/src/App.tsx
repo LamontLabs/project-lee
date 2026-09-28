@@ -223,6 +223,7 @@ const moreNavigation = [
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },
   { href: '/settings/identity', label: 'Identity', icon: BrainCircuit },
+  { href: '/settings/android', label: 'Android pairing', icon: Radio },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
 ];
@@ -330,7 +331,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/systems': 'Systems', '/bootstrap-awareness': 'Bootstrap awareness', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/epistemic-history': 'Epistemic history', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/systems': 'Systems', '/bootstrap-awareness': 'Bootstrap awareness', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/epistemic-history': 'Epistemic history', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/android': 'Android pairing', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
   const pageTitle = pageTitles[location] ?? 'Console';
   const moreIsActive = moreNavigation.some((item) => item.href === location);
   useEffect(() => { if (moreIsActive) setMoreOpen(true); }, [moreIsActive]);
@@ -1074,12 +1075,65 @@ function AndroidPairingPage() {
   const [items, setItems] = useState<any[]>([]);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [label, setLabel] = useState('Android companion');
-  const load = async () => { const response = await fetch('/api/android/pairings'); if (response.ok) setItems(await response.json()); };
+  const [invitationLabel, setInvitationLabel] = useState('Project LEE Owner Android');
+  const [invitation, setInvitation] = useState<{ deepLink: string; expiresAt: string } | null>(null);
+  const [invitationError, setInvitationError] = useState('');
+  const [invitationBusy, setInvitationBusy] = useState(false);
+  const load = async () => { const response = await fetch('/api/android/pairings', { cache: 'no-store' }); if (response.ok) setItems(await response.json()); };
   useEffect(() => { void load(); }, []);
   const issue = async () => { const response = await fetch('/api/android/pairings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label }) }); const data = await response.json(); if (response.ok) { setNewToken(data.token); await load(); } };
   const rotate = async (id: string) => { const response = await fetch(`/api/android/pairings/${id}/rotate`, { method: 'POST', headers: { 'content-type': 'application/json' } }); const data = await response.json(); if (response.ok) { setNewToken(data.token); await load(); } };
   const revoke = async (id: string) => { await fetch(`/api/android/pairings/${id}/revoke`, { method: 'POST' }); await load(); };
-  return <div className="mx-auto max-w-[960px]"><SectionHeading eyebrow="Settings / Android" title="Android pairing" detail="Issue short-lived device credentials. Raw tokens are shown only once and are never stored by Lee." /><Panel><div className="flex flex-wrap gap-2"><input value={label} onChange={(event) => setLabel(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" /><button onClick={() => void issue()} className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Issue token</button></div>{newToken && <div className="mt-4 rounded-xl border border-accent/40 bg-accent/10 p-3"><p className="text-xs font-semibold">Copy this token now</p><code className="mt-2 block break-all text-xs">{newToken}</code><p className="mt-2 text-[11px] text-muted-foreground">It will not be displayed again.</p></div>}</Panel><Panel className="mt-5"><div className="divide-y divide-border">{items.length ? items.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.label}</p><p className="text-xs text-muted-foreground">Expires {new Date(item.expiresAt).toLocaleString()}</p></div><StatusPill status={item.active && !item.revokedAt ? 'active' : 'offline'} /><button onClick={() => void rotate(item.id)} className="rounded-lg border border-border px-3 py-1.5 text-xs">Rotate</button><button onClick={() => void revoke(item.id)} disabled={!item.active} className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive disabled:opacity-40">Revoke</button></div>) : <EmptyState title="No Android pairings" detail="Issue a token to connect the companion." />}</div></Panel></div>;
+  const createInvitation = async () => {
+    setInvitationBusy(true);
+    setInvitationError('');
+    setInvitation(null);
+    try {
+      const response = await fetch('/api/android/pairing-invites', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ clientType: 'owner', label: invitationLabel }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? 'Could not create an Android invitation.');
+      if (typeof data.deepLink !== 'string' || typeof data.expiresAt !== 'string') {
+        throw new Error('The server returned an incomplete Android invitation.');
+      }
+      setInvitation({ deepLink: data.deepLink, expiresAt: data.expiresAt });
+      await load();
+    } catch (error) {
+      setInvitationError(error instanceof Error ? error.message : 'Could not create an Android invitation.');
+    } finally {
+      setInvitationBusy(false);
+    }
+  };
+  return <div className="mx-auto max-w-[960px]">
+    <SectionHeading eyebrow="Settings / Android" title="Connect Owner Android" detail="Create a single-use invitation link and open it on the Android device with LEE installed." />
+    <Panel>
+      <p className="lee-label text-primary">One-time Owner invitation</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">The link expires in 10 minutes and can be claimed once. The Android app receives its pairing credential directly; no token needs to be copied into the app.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <input aria-label="Android device label" value={invitationLabel} onChange={(event) => setInvitationLabel(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+        <button type="button" onClick={() => void createInvitation()} disabled={invitationBusy} className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-create-owner-android-invitation">{invitationBusy ? 'Creating invitation…' : 'Create invitation'}</button>
+      </div>
+      {invitationError && <p className="mt-3 text-sm text-destructive" role="alert">{invitationError}</p>}
+      {invitation && <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4" data-testid="owner-android-invitation">
+        <p className="text-sm font-semibold">Invitation ready</p>
+        <p className="mt-1 text-xs text-muted-foreground">Expires {new Date(invitation.expiresAt).toLocaleString()}. Open this on the Android device before it expires.</p>
+        <a href={invitation.deepLink} className="mt-3 inline-flex rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground" data-testid="link-open-owner-android-invitation">Open in LEE Android</a>
+      </div>}
+    </Panel>
+    <details className="mt-5 rounded-2xl border border-border bg-card/50 p-4">
+      <summary className="cursor-pointer text-sm font-semibold">Legacy direct-token pairing</summary>
+      <p className="mt-2 text-xs text-muted-foreground">For older clients that accept a manually entered token. The current Owner Android app uses the one-time invitation above.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <input value={label} onChange={(event) => setLabel(event.target.value)} aria-label="Legacy pairing label" className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+        <button onClick={() => void issue()} className="rounded-xl border border-border px-4 py-2 text-xs font-semibold">Issue legacy token</button>
+      </div>
+      {newToken && <div className="mt-4 rounded-xl border border-accent/40 bg-accent/10 p-3"><p className="text-xs font-semibold">Copy this legacy token now</p><code className="mt-2 block break-all text-xs">{newToken}</code><p className="mt-2 text-[11px] text-muted-foreground">It will not be displayed again.</p></div>}
+      <div className="mt-4 divide-y divide-border">{items.length ? items.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.label}</p><p className="text-xs text-muted-foreground">Expires {new Date(item.expiresAt).toLocaleString()}</p></div><StatusPill status={item.active && !item.revokedAt ? 'active' : 'offline'} /><button onClick={() => void rotate(item.id)} className="rounded-lg border border-border px-3 py-1.5 text-xs">Rotate</button><button onClick={() => void revoke(item.id)} disabled={!item.active} className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive disabled:opacity-40">Revoke</button></div>) : <EmptyState title="No Android pairings" detail="No legacy direct-token pairings are configured." />}</div>
+    </details>
+  </div>;
 }
 
 function SettingsPage({ onLock }: { onLock: () => void }) {
@@ -1209,19 +1263,37 @@ function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
   return <div className="lee-noise grid min-h-[100dvh] place-items-center bg-sidebar p-5 text-sidebar-foreground"><div className="max-w-md text-center lee-enter"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><LockKeyhole size={25} /></span><p className="lee-label mt-7 text-sidebar-primary">Console locked</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Private state is protected.</h1><p className="mt-3 text-sm leading-relaxed text-sidebar-foreground/60">The founder session is still here. Unlock locally to return to the operating view.</p><button onClick={onUnlock} className="mt-7 rounded-xl bg-sidebar-primary px-5 py-3 text-sm font-semibold text-sidebar-primary-foreground hover:opacity-90" data-testid="button-unlock-console">Unlock local session</button></div></div>;
 }
 
-function LoginScreen({ onAuthenticated, enrollmentRequired }: { onAuthenticated: () => void; enrollmentRequired?: boolean }) {
+type EnrollmentMode = 'hosted' | 'local';
+
+function LoginScreen({ onAuthenticated, enrollmentRequired, enrollmentMode = 'local' }: { onAuthenticated: () => void; enrollmentRequired?: boolean; enrollmentMode?: EnrollmentMode }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true); setError('');
     const form = new FormData(event.currentTarget);
-    const response = await fetch(enrollmentRequired ? '/api/auth/enroll' : '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: form.get('username'), password: form.get('password') }) });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok) onAuthenticated(); else setError(result.error ?? (enrollmentRequired ? 'Owner enrollment could not be completed.' : 'The owner credentials were not accepted.'));
-    setBusy(false);
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    const enrollmentToken = String(form.get('enrollmentToken') ?? '').trim();
+    if (enrollmentRequired && enrollmentMode === 'hosted' && enrollmentToken) {
+      headers['x-lee-enrollment-token'] = enrollmentToken;
+    }
+    try {
+      const response = await fetch(enrollmentRequired ? '/api/auth/enroll' : '/api/auth/login', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ username: form.get('username'), password: form.get('password') }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) onAuthenticated();
+      else setError(result.error ?? (enrollmentRequired ? 'Owner enrollment could not be completed.' : 'The owner credentials were not accepted.'));
+    } catch {
+      setError('LEE could not be reached. Check the connection and try again.');
+    } finally {
+      setBusy(false);
+    }
   };
-  return <div className="lee-noise grid min-h-[100dvh] place-items-center bg-sidebar p-5 text-sidebar-foreground"><form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-sidebar-border bg-sidebar-accent/70 p-7 shadow-2xl"><div className="grid h-12 w-12 place-items-center rounded-2xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><LockKeyhole size={22} /></div><p className="lee-label mt-7 text-sidebar-primary">{enrollmentRequired ? 'First-run owner setup' : 'Private founder console'}</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{enrollmentRequired ? 'Create your owner key.' : 'Enter Lee.'}</h1><p className="mt-3 text-sm leading-relaxed text-sidebar-foreground/60">{enrollmentRequired ? 'Set the local owner credentials for this installation. The local runtime must be available to complete setup, and the password is stored only as a salted secure hash.' : 'This surface is private. Your session is scoped to the owner and expires automatically.'}</p><div className="mt-7 space-y-3"><input name="username" required autoComplete="username" placeholder="Owner name" className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" /><input name="password" required minLength={enrollmentRequired ? 12 : undefined} type="password" autoComplete={enrollmentRequired ? 'new-password' : 'current-password'} placeholder={enrollmentRequired ? 'Password (12+ characters)' : 'Password'} className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" /></div>{error && <p className="mt-3 text-sm text-red-300">{error}</p>}<button disabled={busy} className="mt-6 w-full rounded-xl bg-sidebar-primary py-3 text-sm font-semibold text-sidebar-primary-foreground disabled:opacity-50">{busy ? (enrollmentRequired ? 'Creating credentials…' : 'Verifying…') : (enrollmentRequired ? 'Create owner credentials' : 'Unlock console')}</button></form></div>;
+  const hostedEnrollment = enrollmentRequired && enrollmentMode === 'hosted';
+  return <div className="lee-noise grid min-h-[100dvh] place-items-center bg-sidebar p-5 text-sidebar-foreground"><form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-sidebar-border bg-sidebar-accent/70 p-7 shadow-2xl"><div className="grid h-12 w-12 place-items-center rounded-2xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><LockKeyhole size={22} /></div><p className="lee-label mt-7 text-sidebar-primary">{enrollmentRequired ? 'First-run owner setup' : 'Private founder console'}</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{enrollmentRequired ? 'Create your owner key.' : 'Enter Lee.'}</h1><p className="mt-3 text-sm leading-relaxed text-sidebar-foreground/60">{hostedEnrollment ? 'Create the owner account for this hosted LEE. Enter the bootstrap token configured for its API deployment; the token is sent only with this enrollment request.' : enrollmentRequired ? 'Set the local owner credentials for this installation. The password is stored only as a salted secure hash.' : 'This surface is private. Your session is scoped to the owner and expires automatically.'}</p><div className="mt-7 space-y-3"><input name="username" required autoComplete="username" placeholder="Owner name" className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" />{hostedEnrollment && <input name="enrollmentToken" required type="password" autoComplete="new-password" placeholder="Hosted bootstrap token" aria-label="Hosted bootstrap token" className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" />}<input name="password" required minLength={enrollmentRequired ? 12 : undefined} type="password" autoComplete={enrollmentRequired ? 'new-password' : 'current-password'} placeholder={enrollmentRequired ? 'Password (12+ characters)' : 'Password'} className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" /></div>{error && <p className="mt-3 text-sm text-red-300" role="alert">{error}</p>}<button disabled={busy} className="mt-6 w-full rounded-xl bg-sidebar-primary py-3 text-sm font-semibold text-sidebar-primary-foreground disabled:opacity-50">{busy ? (enrollmentRequired ? 'Creating credentials…' : 'Verifying…') : (enrollmentRequired ? 'Create owner credentials' : 'Unlock console')}</button></form></div>;
 }
 
 function RuntimeUnavailableScreen() {
@@ -1402,15 +1474,16 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [enrollmentRequired, setEnrollmentRequired] = useState(false);
+  const [enrollmentMode, setEnrollmentMode] = useState<EnrollmentMode>('local');
   const [authUnavailable, setAuthUnavailable] = useState(false);
   useEffect(() => { document.documentElement.classList.add('dark'); return () => document.documentElement.classList.remove('dark'); }, []);
-  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (response) => { const result = await response.json(); if (response.status >= 500) throw new Error('The local runtime did not respond.'); return result; }).then((result) => { setAuthenticated(Boolean(result.authenticated)); setEnrollmentRequired(Boolean(result.enrollmentRequired)); setAuthChecked(true); }).catch(() => { setAuthUnavailable(true); setAuthChecked(true); }); }, []);
+  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (response) => { const result = await response.json(); if (response.status >= 500) throw new Error('The local runtime did not respond.'); return result; }).then((result) => { setAuthenticated(Boolean(result.authenticated)); setEnrollmentRequired(Boolean(result.enrollmentRequired)); setEnrollmentMode(result.enrollmentMode === 'hosted' ? 'hosted' : 'local'); setAuthChecked(true); }).catch(() => { setAuthUnavailable(true); setAuthChecked(true); }); }, []);
   const navigateToAsk = () => {
     const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
     window.history.pushState({}, '', `${basePath}/ask`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><DesktopSetupPanel />{!authChecked ? <div className="grid min-h-[100dvh] place-items-center bg-sidebar text-sidebar-foreground"><RefreshCw className="animate-spin text-sidebar-primary" /></div> : authUnavailable ? <RuntimeUnavailableScreen /> : !authenticated ? <LoginScreen enrollmentRequired={enrollmentRequired} onAuthenticated={() => { setEnrollmentRequired(false); setAuthenticated(true); }} /> : locked ? <LockedScreen onUnlock={() => setLocked(false)} /> : <Router onAsk={navigateToAsk} onLock={() => setLocked(true)} />}</WouterRouter></TooltipProvider><Toaster /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><DesktopSetupPanel />{!authChecked ? <div className="grid min-h-[100dvh] place-items-center bg-sidebar text-sidebar-foreground"><RefreshCw className="animate-spin text-sidebar-primary" /></div> : authUnavailable ? <RuntimeUnavailableScreen /> : !authenticated ? <LoginScreen enrollmentRequired={enrollmentRequired} enrollmentMode={enrollmentMode} onAuthenticated={() => { setEnrollmentRequired(false); setAuthenticated(true); }} /> : locked ? <LockedScreen onUnlock={() => setLocked(false)} /> : <Router onAsk={navigateToAsk} onLock={() => setLocked(true)} />}</WouterRouter></TooltipProvider><Toaster /></QueryClientProvider>;
 }
 
 export default App;

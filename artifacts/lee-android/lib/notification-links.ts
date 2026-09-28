@@ -21,6 +21,7 @@ export type NotificationLinkApi = {
 
 type ParsedLink =
   | { type: 'protected'; destination: ProtectedDestination; id: string }
+  | { type: 'invite'; invite: string }
   | { type: 'public'; destination: 'today' | 'ask'; prompt?: string };
 
 type NotificationPayloadTarget = {
@@ -35,6 +36,7 @@ type NotificationLinkDependencies = {
   cacheFreshTarget: (target: FreshNotificationTarget) => Promise<void> | void;
   navigate: (destination: ProtectedDestination, id: string) => Promise<void> | void;
   navigatePublic: (destination: 'today' | 'ask', prompt?: string) => void;
+  pairInvite?: (invite: string) => Promise<boolean>;
   reportReceiptFailure?: (error: unknown) => void;
 };
 
@@ -85,15 +87,22 @@ export function parseLeeLink(rawUrl: string): ParsedLink | null {
   if (url.protocol.toLowerCase() !== 'lee-android:' || url.username || url.password || url.port) return null;
 
   const hostname = url.hostname.toLowerCase();
-  const knownRoutes = new Set(['alerts', 'approvals', 'waiting', 'ask', 'today', 'index']);
+  const knownRoutes = new Set(['alerts', 'approvals', 'waiting', 'ask', 'today', 'index', 'pair']);
   if (hostname && !knownRoutes.has(hostname)) return null;
   const path = decodeSegments(url.pathname);
   if (!path) return null;
-  const routeName = protectedDestinations.has(hostname as ProtectedDestination) || hostname === 'ask' || hostname === 'today' || hostname === 'index'
+  const routeName = protectedDestinations.has(hostname as ProtectedDestination) || hostname === 'ask' || hostname === 'today' || hostname === 'index' || hostname === 'pair'
     ? hostname
     : path[0];
   const routeSegments = routeName === hostname ? path : path.slice(1);
 
+  if (routeName === 'pair') {
+    const query = [...url.searchParams.entries()];
+    if (url.hash || routeSegments.length !== 0 || query.length !== 1 || query[0][0] !== 'invite') return null;
+    const invite = query[0][1];
+    if (invite.length < 16 || invite.length > 512) return null;
+    return { type: 'invite', invite };
+  }
   if (routeName === 'alerts' || routeName === 'approvals' || routeName === 'waiting') {
     if (url.search || url.hash || routeSegments.length !== 1 || !exactId(routeSegments[0])) return null;
     return { type: 'protected', destination: routeName, id: routeSegments[0] };
@@ -207,6 +216,12 @@ export function createNotificationLinkHandler(dependencies: NotificationLinkDepe
     async openLink(rawUrl: string) {
       const parsed = parseLeeLink(rawUrl);
       if (!parsed) return false;
+      if (parsed.type === 'invite') {
+        if (!dependencies.pairInvite) return false;
+        return guarded(`invite:${parsed.invite}`, async () => {
+          if (!(await dependencies.pairInvite!(parsed.invite))) throw new Error('Owner invitation claim failed.');
+        });
+      }
       if (parsed.type === 'public') {
         dependencies.navigatePublic(parsed.destination, parsed.prompt);
         return true;

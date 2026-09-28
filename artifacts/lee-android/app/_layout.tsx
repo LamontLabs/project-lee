@@ -29,19 +29,22 @@ setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { pairing, api, isLoading, clearFreshNotificationTarget, cacheFreshNotificationTarget } = useLee();
+  const { pairing, api, isLoading, clearFreshNotificationTarget, cacheFreshNotificationTarget, pairInvite } = useLee();
   const apiRef = useRef(api);
   const clearTargetRef = useRef(clearFreshNotificationTarget);
   const cacheTargetRef = useRef(cacheFreshNotificationTarget);
+  const pairInviteRef = useRef(pairInvite);
   apiRef.current = isLoading ? null : api;
   clearTargetRef.current = clearFreshNotificationTarget;
   cacheTargetRef.current = cacheFreshNotificationTarget;
+  pairInviteRef.current = pairInvite;
   const linkHandlerRef = useRef<ReturnType<typeof createNotificationLinkHandler> | null>(null);
   if (!linkHandlerRef.current) {
     linkHandlerRef.current = createNotificationLinkHandler({
       getApi: () => apiRef.current,
       clearFreshTarget: () => clearTargetRef.current(),
       cacheFreshTarget: (target) => cacheTargetRef.current(target),
+      pairInvite: (invite) => pairInviteRef.current(invite),
       navigate: (destination, id) => {
         if (destination === 'alerts') router.replace({ pathname: '/(tabs)/alerts', params: { id } });
         else if (destination === 'approvals') router.replace({ pathname: '/(tabs)/approvals', params: { id } });

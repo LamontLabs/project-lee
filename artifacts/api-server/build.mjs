@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
@@ -9,9 +10,43 @@ import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = path.resolve(artifactDir, "../..");
+
+async function sourceFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) return sourceFiles(absolute);
+    if (entry.isFile() && /\.(?:ts|tsx|mts|mjs|js|json|sql)$/.test(entry.name)) return [absolute];
+    return [];
+  }));
+  return nested.flat();
+}
+
+async function calculateBuildId() {
+  const inputs = [
+    ...await sourceFiles(path.resolve(artifactDir, "src")),
+    ...await sourceFiles(path.resolve(workspaceRoot, "lib/db/src")),
+    path.resolve(artifactDir, "package.json"),
+    path.resolve(artifactDir, "tsconfig.json"),
+    path.resolve(artifactDir, "build.mjs"),
+    path.resolve(workspaceRoot, "lib/db/package.json"),
+    path.resolve(workspaceRoot, "pnpm-lock.yaml"),
+    path.resolve(workspaceRoot, "tsconfig.base.json"),
+  ].sort();
+  const hash = createHash("sha256");
+  for (const input of inputs) {
+    hash.update(path.relative(workspaceRoot, input));
+    hash.update("\0");
+    hash.update(await readFile(input));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
+  const buildId = await calculateBuildId();
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
@@ -22,6 +57,9 @@ async function buildAll() {
     outdir: distDir,
     outExtension: { ".js": ".cjs" },
     logLevel: "info",
+    define: {
+      __LEE_BUILD_ID__: JSON.stringify(buildId),
+    },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
     // Examples of unbundleable packages:
@@ -127,6 +165,7 @@ globalThis.__dirname = __dirname;
     'import "./index.cjs";\n',
     "utf8",
   );
+  console.info(`LEE_API_BUILD_ID=${buildId}`);
 }
 
 buildAll().catch((err) => {

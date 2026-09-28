@@ -1,6 +1,7 @@
 import { Link, Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { RoseBackdrop } from '@workspace/mobile-foundation';
 
 export default function NotFoundScreen() {
   const colors = useColors();
@@ -9,6 +10,7 @@ export default function NotFoundScreen() {
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <RoseBackdrop colors={colors} backgroundSource={require('../assets/images/lee-background.png')} />
         <Text style={[styles.title, { color: colors.foreground }]}>
           This screen doesn&apos;t exist.
         </Text>

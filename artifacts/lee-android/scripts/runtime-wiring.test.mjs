@@ -5,14 +5,16 @@ import fs from "node:fs/promises";
 const context = await fs.readFile(new URL("../context/LeeContext.tsx", import.meta.url), "utf8");
 const types = await fs.readFile(new URL("../lib/types.ts", import.meta.url), "utf8");
 const api = await fs.readFile(new URL("../lib/api.ts", import.meta.url), "utf8");
+const mobileFoundation = await fs.readFile(new URL("../../../lib/mobile-foundation/src/index.ts", import.meta.url), "utf8");
 
 test("Android local queue preserves failed syncs across restart", () => {
-  assert.match(types, /status: 'queued' \| 'synced' \| 'failed'/);
+  assert.match(types, /Capture = CaptureQueueItem &/);
+  assert.match(mobileFoundation, /status: 'queued' \| 'syncing' \| 'synced' \| 'failed' \| 'conflict' \| 'rejected'/);
   assert.match(types, /lastError\?: string/);
-  assert.match(context, /status: 'failed' as const/);
-  assert.match(context, /await saveCaptures\(failed\)/);
-  assert.match(context, /const queued = captures\.filter\(\(capture\) => capture\.status !== 'synced'\)/);
-  assert.doesNotMatch(context, /queued\.some\(\(item\) => item\.id === capture\.id\) \? \{ \.\.\.capture, status: 'synced'/);
+  assert.match(context, /nextStatus = status === 409[\s\S]*'failed'/);
+  assert.match(context, /await saveCaptures\(next\)/);
+  assert.match(context, /const stored = await getCaptures\(\)/);
+  assert.match(context, /const queued = stored\.filter\(\(capture\) => capture\.status !== 'synced'\)/);
 });
 
 test("Android API wiring uses registered guarded routes and governed approval", () => {

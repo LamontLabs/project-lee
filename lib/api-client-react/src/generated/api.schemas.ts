@@ -147,6 +147,57 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type AndroidPairingInviteInputClientType = typeof AndroidPairingInviteInputClientType[keyof typeof AndroidPairingInviteInputClientType];
+
+
+export const AndroidPairingInviteInputClientType = {
+  owner: 'owner',
+} as const;
+
+export interface AndroidPairingInviteInput {
+  clientType: AndroidPairingInviteInputClientType;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label?: string;
+}
+
+export type AndroidPairingInviteClaimInputClientType = typeof AndroidPairingInviteClaimInputClientType[keyof typeof AndroidPairingInviteClaimInputClientType];
+
+
+export const AndroidPairingInviteClaimInputClientType = {
+  owner: 'owner',
+} as const;
+
+export interface AndroidPairingInviteClaimInput {
+  /**
+     * @minLength 32
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9_-]{32,128}$
+     */
+  invite: string;
+  clientType: AndroidPairingInviteClaimInputClientType;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  deviceId: string;
+}
+
+export interface AndroidPairingInviteCreated {
+  /** @minLength 1 */
+  deepLink: string;
+  expiresAt: string;
+}
+
+export interface AndroidPairingInviteClaimed {
+  /** @minLength 32 */
+  token: string;
+  pairingId: string;
+  expiresAt: string;
+}
+
 export type UnderstandingRunInputSourceReliability = typeof UnderstandingRunInputSourceReliability[keyof typeof UnderstandingRunInputSourceReliability];
 
 

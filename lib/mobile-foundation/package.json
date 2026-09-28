@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/mobile-foundation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ui": "./src/ui.tsx",
+    "./contract": "./src/contract.ts"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "expo-secure-store": "~15.0.8",
+    "react": "catalog:",
+    "react-native": "0.81.5",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "expo-secure-store": ">=15",
+    "react": ">=18",
+    "react-native": ">=0.81"
+  }
+}

@@ -9,6 +9,7 @@ import MemoryHealthPanel from './MemoryHealthPanel';
 import RetentionArchivePanel from './RetentionArchivePanel';
 import CognitiveRuntimePanel from './CognitiveRuntimePanel';
 import WelcomeBackBriefing from './WelcomeBackBriefing';
+import AndroidConnectionCard from './components/AndroidConnectionCard';
 import WorkingMemoryPanel from './WorkingMemoryPanel';
 import EpistemicHistoryPage from './EpistemicHistoryPage';
 import KnowledgeMapPage from './KnowledgeMapPage';
@@ -223,6 +224,7 @@ const moreNavigation = [
   { href: '/settings/self-improvement', label: 'Self-improvement', icon: RefreshCw },
   { href: '/settings/system-economics', label: 'System economics', icon: Gauge },
   { href: '/settings/identity', label: 'Identity', icon: BrainCircuit },
+  { href: '/settings/android', label: 'Android pairing', icon: Radio },
   { href: '/events', label: 'Events', icon: Radio },
   { href: '/reviews', label: 'Reviews', icon: FileText },
 ];
@@ -330,7 +332,7 @@ function AppShell({ children, onAsk, onLock }: { children: ReactNode; onAsk: () 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/systems': 'Systems', '/bootstrap-awareness': 'Bootstrap awareness', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/epistemic-history': 'Epistemic history', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
+  const pageTitles: Record<string, string> = { '/': 'Today', '/ask': 'Ask LEE', '/systems': 'Systems', '/bootstrap-awareness': 'Bootstrap awareness', '/projects': 'Projects', '/portfolio': 'Portfolio', '/people': 'People', '/decisions': 'Decisions', '/waiting': 'Waiting', '/evidence': 'Evidence', '/epistemic-history': 'Epistemic history', '/imports': 'Imports', '/connections': 'Connections', '/connectors': 'Connectors', '/costs': 'Costs', '/governance': 'Governance', '/backups': 'Backups', '/objectives': 'Objectives', '/organization': 'Organization', '/strategy/decision-patterns': 'Decision patterns', '/knowledge': 'Knowledge', '/institutional': 'Institutional Knowledge', '/events': 'Event history', '/reviews': 'Operational reviews', '/health': 'System health', '/settings': 'Settings', '/settings/android': 'Android pairing', '/settings/manifest': 'System manifest', '/settings/world-state': 'World State', '/settings/operational-memory': 'Operational Memory', '/initiative': 'Initiative', '/operational-intelligence/history': 'Operational History', '/settings/bootstrap': 'Project Bootstrap', '/settings/internal-services': 'Internal services', '/settings/self-test': 'System self-test', '/settings/self-improvement': 'Self-improvement', '/settings/system-economics': 'System economics', '/settings/identity': 'Identity' };
   const pageTitle = pageTitles[location] ?? 'Console';
   const moreIsActive = moreNavigation.some((item) => item.href === location);
   useEffect(() => { if (moreIsActive) setMoreOpen(true); }, [moreIsActive]);
@@ -1071,15 +1073,16 @@ function ConnectorsPage() {
 }
 
 function AndroidPairingPage() {
-  const [items, setItems] = useState<any[]>([]);
-  const [newToken, setNewToken] = useState<string | null>(null);
-  const [label, setLabel] = useState('Android companion');
-  const load = async () => { const response = await fetch('/api/android/pairings'); if (response.ok) setItems(await response.json()); };
-  useEffect(() => { void load(); }, []);
-  const issue = async () => { const response = await fetch('/api/android/pairings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label }) }); const data = await response.json(); if (response.ok) { setNewToken(data.token); await load(); } };
-  const rotate = async (id: string) => { const response = await fetch(`/api/android/pairings/${id}/rotate`, { method: 'POST', headers: { 'content-type': 'application/json' } }); const data = await response.json(); if (response.ok) { setNewToken(data.token); await load(); } };
-  const revoke = async (id: string) => { await fetch(`/api/android/pairings/${id}/revoke`, { method: 'POST' }); await load(); };
-  return <div className="mx-auto max-w-[960px]"><SectionHeading eyebrow="Settings / Android" title="Android pairing" detail="Issue short-lived device credentials. Raw tokens are shown only once and are never stored by Lee." /><Panel><div className="flex flex-wrap gap-2"><input value={label} onChange={(event) => setLabel(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" /><button onClick={() => void issue()} className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">Issue token</button></div>{newToken && <div className="mt-4 rounded-xl border border-accent/40 bg-accent/10 p-3"><p className="text-xs font-semibold">Copy this token now</p><code className="mt-2 block break-all text-xs">{newToken}</code><p className="mt-2 text-[11px] text-muted-foreground">It will not be displayed again.</p></div>}</Panel><Panel className="mt-5"><div className="divide-y divide-border">{items.length ? items.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.label}</p><p className="text-xs text-muted-foreground">Expires {new Date(item.expiresAt).toLocaleString()}</p></div><StatusPill status={item.active && !item.revokedAt ? 'active' : 'offline'} /><button onClick={() => void rotate(item.id)} className="rounded-lg border border-border px-3 py-1.5 text-xs">Rotate</button><button onClick={() => void revoke(item.id)} disabled={!item.active} className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive disabled:opacity-40">Revoke</button></div>) : <EmptyState title="No Android pairings" detail="Issue a token to connect the companion." />}</div></Panel></div>;
+  return (
+    <div className="mx-auto max-w-[960px]">
+      <SectionHeading
+        eyebrow="Settings / Android"
+        title="Connect Owner Android"
+        detail="Create a secure one-time link and open it on the Android phone with LEE installed."
+      />
+      <AndroidConnectionCard />
+    </div>
+  );
 }
 
 function SettingsPage({ onLock }: { onLock: () => void }) {
@@ -1087,16 +1090,86 @@ function SettingsPage({ onLock }: { onLock: () => void }) {
   const [briefs, setBriefs] = useState(true);
   const [notice, setNotice] = useState('');
   const [capacity, setCapacity] = useState<any>(null);
-  const [pairing, setPairing] = useState<any>(null);
-  const [newToken, setNewToken] = useState('');
-  const [pairingBusy, setPairingBusy] = useState(false);
   useEffect(() => { void fetch('/api/operational-capacity').then((response) => response.ok ? response.json() : null).then(setCapacity); }, []);
-  const loadPairing = useCallback(async () => { const response = await fetch('/api/android/pairing', { cache: 'no-store' }); if (response.ok) setPairing(await response.json()); }, []);
-  useEffect(() => { void loadPairing(); }, [loadPairing]);
   const overrideCapacity = async (state: string | null) => { const response = await fetch('/api/operational-capacity/override', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state }) }); if (response.ok) setCapacity((await response.json())[0]); };
-  const rotatePairing = async () => { setPairingBusy(true); setNewToken(''); const response = await fetch('/api/android/pairing/rotate', { method: 'POST' }); const result = await response.json(); if (response.ok) { setNewToken(result.token); setPairing({ active: true, ...result }); setNotice('New Android pairing token issued. Save it now; it will not be shown again.'); } else setNotice(result.error ?? 'Could not issue an Android pairing token.'); setPairingBusy(false); };
-  const revokePairing = async () => { setPairingBusy(true); const response = await fetch('/api/android/pairing/revoke', { method: 'POST' }); if (response.ok) { setPairing({ active: false }); setNewToken(''); setNotice('Android pairing token revoked.'); } else setNotice('Could not revoke the Android pairing token.'); setPairingBusy(false); };
-  return <div className="mx-auto max-w-[960px]"><SectionHeading eyebrow="Boundaries & preferences" title="Settings" detail="The quiet controls behind a private operating console." /><div className="space-y-5"><Panel><div className="flex flex-col gap-5 sm:flex-row sm:items-center"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck size={23} /></div><div className="flex-1"><p className="lee-label text-primary">Private access</p><h3 className="mt-1 text-lg font-semibold">Founder session is active</h3><p className="mt-1 text-sm text-muted-foreground">This console has no invited members and no public share surface.</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> Verified</span></div></Panel>{capacity && <Panel><div className="flex items-center justify-between gap-4"><div><p className="lee-label text-primary">Operational capacity</p><h3 className="mt-1 text-lg font-semibold">{capacity.state} · {Math.round(capacity.score)}/100</h3><p className="mt-1 text-sm text-muted-foreground">Inference-only presentation signal. It does not model mood or collect new data.</p></div><div className="flex flex-wrap gap-2">{['HIGH', 'NOMINAL', 'CONSTRAINED', 'LOW'].map((state) => <button key={state} onClick={() => void overrideCapacity(state)} className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${capacity.overrideState === state ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}>{state}</button>)}<button onClick={() => void overrideCapacity(null)} className="rounded-xl border border-border px-3 py-2 text-[11px] font-semibold">Auto</button></div></div></Panel>}<Panel><div className="flex items-center gap-3"><Radio className="text-primary" size={18} /><div><p className="lee-label text-primary">Android companion</p><h3 className="mt-1 text-lg font-semibold">Pairing access</h3></div><span className={`ml-auto rounded-full border px-2.5 py-1 text-xs font-semibold ${pairing?.active ? 'border-primary/25 bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}>{pairing?.active ? 'Token active' : 'Not paired'}</span></div><p className="mt-3 text-sm text-muted-foreground">Issue a one-time token for the Android companion. Rotating immediately revokes every previous token.</p>{newToken && <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="lee-label text-primary">Copy this token now</p><code className="mt-2 block break-all text-xs">{newToken}</code></div>}<div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void rotatePairing()} disabled={pairingBusy} className="rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-rotate-android-pairing">{pairing?.active ? 'Rotate token' : 'Generate token'}</button>{pairing?.active && <button onClick={() => void revokePairing()} disabled={pairingBusy} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive disabled:opacity-50" data-testid="button-revoke-android-pairing">Revoke token</button>}</div>{pairing?.lastUsedAt && <p className="mt-3 text-xs text-muted-foreground">Last verified by Android {formatDate(pairing.lastUsedAt)}.</p>}</Panel><Panel><div className="flex items-center gap-3"><Settings2 className="text-primary" size={18} /><div><p className="lee-label text-primary">Session preferences</p><h3 className="mt-1 text-lg font-semibold">How Lee should meet you</h3></div></div><div className="mt-5 divide-y divide-border"><SettingToggle title="Opening brief" detail="Prepare the daily signal when the console opens." value={briefs} onChange={() => setBriefs(!briefs)} testId="toggle-opening-brief" /><SettingToggle title="Quiet system notices" detail="Show meaningful state changes without interrupting the work surface." value={notifications} onChange={() => setNotifications(!notifications)} testId="toggle-system-notices" /></div></Panel><Panel><div className="flex items-center gap-3"><Clock3 className="text-primary" size={18} /><div><p className="lee-label text-primary">Current session</p><h3 className="mt-1 text-lg font-semibold">Local session-22</h3></div></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Started</p><p className="mt-2 text-sm font-semibold">Today, 07:28</p></div><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Location</p><p className="mt-2 text-sm font-semibold">Founder device</p></div><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Access</p><p className="mt-2 text-sm font-semibold">Full console</p></div></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setNotice('Other sessions revoked. This device remains active.')} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-revoke-sessions">Revoke other sessions</button><button onClick={onLock} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10" data-testid="button-lock-console-settings">Lock console</button></div>{notice && <p className="mt-4 text-xs text-primary" data-testid="status-settings-notice">{notice}</p>}</Panel></div></div>;
+  return (
+    <div className="mx-auto max-w-[960px]">
+      <SectionHeading eyebrow="Boundaries & preferences" title="Settings" detail="The quiet controls behind a private operating console." />
+      <div className="space-y-5">
+        <Panel>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <ShieldCheck size={23} />
+            </div>
+            <div className="flex-1">
+              <p className="lee-label text-primary">Private access</p>
+              <h3 className="mt-1 text-lg font-semibold">Founder session is active</h3>
+              <p className="mt-1 text-sm text-muted-foreground">This console has no invited members and no public share surface.</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Verified
+            </span>
+          </div>
+        </Panel>
+        {capacity && (
+          <Panel>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="lee-label text-primary">Operational capacity</p>
+                <h3 className="mt-1 text-lg font-semibold">{capacity.state} · {Math.round(capacity.score)}/100</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Inference-only presentation signal. It does not model mood or collect new data.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['HIGH', 'NOMINAL', 'CONSTRAINED', 'LOW'].map((state) => (
+                  <button
+                    key={state}
+                    onClick={() => void overrideCapacity(state)}
+                    className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${capacity.overrideState === state ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+                  >
+                    {state}
+                  </button>
+                ))}
+                <button onClick={() => void overrideCapacity(null)} className="rounded-xl border border-border px-3 py-2 text-[11px] font-semibold">Auto</button>
+              </div>
+            </div>
+          </Panel>
+        )}
+        <AndroidConnectionCard />
+        <Panel>
+          <div className="flex items-center gap-3">
+            <Settings2 className="text-primary" size={18} />
+            <div>
+              <p className="lee-label text-primary">Session preferences</p>
+              <h3 className="mt-1 text-lg font-semibold">How Lee should meet you</h3>
+            </div>
+          </div>
+          <div className="mt-5 divide-y divide-border">
+            <SettingToggle title="Opening brief" detail="Prepare the daily signal when the console opens." value={briefs} onChange={() => setBriefs(!briefs)} testId="toggle-opening-brief" />
+            <SettingToggle title="Quiet system notices" detail="Show meaningful state changes without interrupting the work surface." value={notifications} onChange={() => setNotifications(!notifications)} testId="toggle-system-notices" />
+          </div>
+        </Panel>
+        <Panel>
+          <div className="flex items-center gap-3">
+            <Clock3 className="text-primary" size={18} />
+            <div>
+              <p className="lee-label text-primary">Current session</p>
+              <h3 className="mt-1 text-lg font-semibold">Local session-22</h3>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Started</p><p className="mt-2 text-sm font-semibold">Today, 07:28</p></div>
+            <div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Location</p><p className="mt-2 text-sm font-semibold">Founder device</p></div>
+            <div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Access</p><p className="mt-2 text-sm font-semibold">Full console</p></div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button onClick={() => setNotice('Other sessions revoked. This device remains active.')} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-revoke-sessions">Revoke other sessions</button>
+            <button onClick={onLock} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10" data-testid="button-lock-console-settings">Lock console</button>
+          </div>
+          {notice && <p className="mt-4 text-xs text-primary" data-testid="status-settings-notice">{notice}</p>}
+        </Panel>
+      </div>
+    </div>
+  );
 }
 
 function SelfTestPage() {
@@ -1209,19 +1282,37 @@ function LockedScreen({ onUnlock }: { onUnlock: () => void }) {
   return <div className="lee-noise grid min-h-[100dvh] place-items-center bg-sidebar p-5 text-sidebar-foreground"><div className="max-w-md text-center lee-enter"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><LockKeyhole size={25} /></span><p className="lee-label mt-7 text-sidebar-primary">Console locked</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Private state is protected.</h1><p className="mt-3 text-sm leading-relaxed text-sidebar-foreground/60">The founder session is still here. Unlock locally to return to the operating view.</p><button onClick={onUnlock} className="mt-7 rounded-xl bg-sidebar-primary px-5 py-3 text-sm font-semibold text-sidebar-primary-foreground hover:opacity-90" data-testid="button-unlock-console">Unlock local session</button></div></div>;
 }
 
-function LoginScreen({ onAuthenticated, enrollmentRequired }: { onAuthenticated: () => void; enrollmentRequired?: boolean }) {
+type EnrollmentMode = 'hosted' | 'local';
+
+function LoginScreen({ onAuthenticated, enrollmentRequired, enrollmentMode = 'local' }: { onAuthenticated: () => void; enrollmentRequired?: boolean; enrollmentMode?: EnrollmentMode }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true); setError('');
     const form = new FormData(event.currentTarget);
-    const response = await fetch(enrollmentRequired ? '/api/auth/enroll' : '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: form.get('username'), password: form.get('password') }) });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok) onAuthenticated(); else setError(result.error ?? (enrollmentRequired ? 'Owner enrollment could not be completed.' : 'The owner credentials were not accepted.'));
-    setBusy(false);
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    const enrollmentToken = String(form.get('enrollmentToken') ?? '').trim();
+    if (enrollmentRequired && enrollmentMode === 'hosted' && enrollmentToken) {
+      headers['x-lee-enrollment-token'] = enrollmentToken;
+    }
+    try {
+      const response = await fetch(enrollmentRequired ? '/api/auth/enroll' : '/api/auth/login', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ username: form.get('username'), password: form.get('password') }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) onAuthenticated();
+      else setError(result.error ?? (enrollmentRequired ? 'Owner enrollment could not be completed.' : 'The owner credentials were not accepted.'));
+    } catch {
+      setError('LEE could not be reached. Check the connection and try again.');
+    } finally {
+      setBusy(false);
+    }
   };
-  return <div className="lee-noise grid min-h-[100dvh] place-items-center bg-sidebar p-5 text-sidebar-foreground"><form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-sidebar-border bg-sidebar-accent/70 p-7 shadow-2xl"><div className="grid h-12 w-12 place-items-center rounded-2xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><LockKeyhole size={22} /></div><p className="lee-label mt-7 text-sidebar-primary">{enrollmentRequired ? 'First-run owner setup' : 'Private founder console'}</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{enrollmentRequired ? 'Create your owner key.' : 'Enter Lee.'}</h1><p className="mt-3 text-sm leading-relaxed text-sidebar-foreground/60">{enrollmentRequired ? 'Set the local owner credentials for this installation. The local runtime must be available to complete setup, and the password is stored only as a salted secure hash.' : 'This surface is private. Your session is scoped to the owner and expires automatically.'}</p><div className="mt-7 space-y-3"><input name="username" required autoComplete="username" placeholder="Owner name" className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" /><input name="password" required minLength={enrollmentRequired ? 12 : undefined} type="password" autoComplete={enrollmentRequired ? 'new-password' : 'current-password'} placeholder={enrollmentRequired ? 'Password (12+ characters)' : 'Password'} className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" /></div>{error && <p className="mt-3 text-sm text-red-300">{error}</p>}<button disabled={busy} className="mt-6 w-full rounded-xl bg-sidebar-primary py-3 text-sm font-semibold text-sidebar-primary-foreground disabled:opacity-50">{busy ? (enrollmentRequired ? 'Creating credentials…' : 'Verifying…') : (enrollmentRequired ? 'Create owner credentials' : 'Unlock console')}</button></form></div>;
+  const hostedEnrollment = enrollmentRequired && enrollmentMode === 'hosted';
+  return <div className="lee-noise grid min-h-[100dvh] place-items-center bg-sidebar p-5 text-sidebar-foreground"><form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-sidebar-border bg-sidebar-accent/70 p-7 shadow-2xl"><div className="grid h-12 w-12 place-items-center rounded-2xl border border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"><LockKeyhole size={22} /></div><p className="lee-label mt-7 text-sidebar-primary">{enrollmentRequired ? 'First-run owner setup' : 'Private founder console'}</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{enrollmentRequired ? 'Create your owner key.' : 'Enter Lee.'}</h1><p className="mt-3 text-sm leading-relaxed text-sidebar-foreground/60">{hostedEnrollment ? 'Create the owner account for this hosted LEE. Enter the bootstrap token configured for its API deployment; the token is sent only with this enrollment request.' : enrollmentRequired ? 'Set the local owner credentials for this installation. The password is stored only as a salted secure hash.' : 'This surface is private. Your session is scoped to the owner and expires automatically.'}</p><div className="mt-7 space-y-3"><input name="username" required autoComplete="username" placeholder="Owner name" className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" />{hostedEnrollment && <input name="enrollmentToken" required type="password" autoComplete="new-password" placeholder="Hosted bootstrap token" aria-label="Hosted bootstrap token" className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" />}<input name="password" required minLength={enrollmentRequired ? 12 : undefined} type="password" autoComplete={enrollmentRequired ? 'new-password' : 'current-password'} placeholder={enrollmentRequired ? 'Password (12+ characters)' : 'Password'} className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar px-3 text-sm outline-none focus:border-sidebar-primary" /></div>{error && <p className="mt-3 text-sm text-red-300" role="alert">{error}</p>}<button disabled={busy} className="mt-6 w-full rounded-xl bg-sidebar-primary py-3 text-sm font-semibold text-sidebar-primary-foreground disabled:opacity-50">{busy ? (enrollmentRequired ? 'Creating credentials…' : 'Verifying…') : (enrollmentRequired ? 'Create owner credentials' : 'Unlock console')}</button></form></div>;
 }
 
 function RuntimeUnavailableScreen() {
@@ -1402,15 +1493,16 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [enrollmentRequired, setEnrollmentRequired] = useState(false);
+  const [enrollmentMode, setEnrollmentMode] = useState<EnrollmentMode>('local');
   const [authUnavailable, setAuthUnavailable] = useState(false);
   useEffect(() => { document.documentElement.classList.add('dark'); return () => document.documentElement.classList.remove('dark'); }, []);
-  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (response) => { const result = await response.json(); if (response.status >= 500) throw new Error('The local runtime did not respond.'); return result; }).then((result) => { setAuthenticated(Boolean(result.authenticated)); setEnrollmentRequired(Boolean(result.enrollmentRequired)); setAuthChecked(true); }).catch(() => { setAuthUnavailable(true); setAuthChecked(true); }); }, []);
+  useEffect(() => { void fetch('/api/auth/session', { cache: 'no-store' }).then(async (response) => { const result = await response.json(); if (response.status >= 500) throw new Error('The local runtime did not respond.'); return result; }).then((result) => { setAuthenticated(Boolean(result.authenticated)); setEnrollmentRequired(Boolean(result.enrollmentRequired)); setEnrollmentMode(result.enrollmentMode === 'hosted' ? 'hosted' : 'local'); setAuthChecked(true); }).catch(() => { setAuthUnavailable(true); setAuthChecked(true); }); }, []);
   const navigateToAsk = () => {
     const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
     window.history.pushState({}, '', `${basePath}/ask`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><DesktopSetupPanel />{!authChecked ? <div className="grid min-h-[100dvh] place-items-center bg-sidebar text-sidebar-foreground"><RefreshCw className="animate-spin text-sidebar-primary" /></div> : authUnavailable ? <RuntimeUnavailableScreen /> : !authenticated ? <LoginScreen enrollmentRequired={enrollmentRequired} onAuthenticated={() => { setEnrollmentRequired(false); setAuthenticated(true); }} /> : locked ? <LockedScreen onUnlock={() => setLocked(false)} /> : <Router onAsk={navigateToAsk} onLock={() => setLocked(true)} />}</WouterRouter></TooltipProvider><Toaster /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><DesktopSetupPanel />{!authChecked ? <div className="grid min-h-[100dvh] place-items-center bg-sidebar text-sidebar-foreground"><RefreshCw className="animate-spin text-sidebar-primary" /></div> : authUnavailable ? <RuntimeUnavailableScreen /> : !authenticated ? <LoginScreen enrollmentRequired={enrollmentRequired} enrollmentMode={enrollmentMode} onAuthenticated={() => { setEnrollmentRequired(false); setAuthenticated(true); }} /> : locked ? <LockedScreen onUnlock={() => setLocked(false)} /> : <Router onAsk={navigateToAsk} onLock={() => setLocked(true)} />}</WouterRouter></TooltipProvider><Toaster /></QueryClientProvider>;
 }
 
 export default App;

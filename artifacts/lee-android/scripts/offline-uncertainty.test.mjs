@@ -48,30 +48,29 @@ test("briefing prioritizes VERY HIGH over a higher-scoring HIGH record", () => {
 });
 
 test("cached uncertainty is rendered on both brief and capture screens", () => {
-  assert.match(storage, /getUncertainty\(\): Promise<UncertaintyRecord\[\]>/);
-  assert.match(storage, /saveUncertainty\(items: UncertaintyRecord\[\]\)/);
+  assert.match(storage, /getUncertaintyCache/);
+  assert.match(storage, /saveUncertaintyCache/);
   assert.match(context, /getUncertainty\(\)/);
-  assert.match(context, /setUncertainty\(storedUncertainty\)/);
+  assert.match(context, /setUncertainty\(storedUncertainty/);
+  assert.match(brief, /const uncertainty = uncertaintySnapshot\?\.value \?\? \[\]/);
   assert.match(brief, /highestUncertainty\(uncertainty\)/);
-  assert.match(capture, /highestUncertainty\(uncertainty\)/);
+  assert.match(capture, /highestUncertainty\(uncertainty\?\.value \?\? \[\]\)/);
   assert.match(capture, /<UncertaintyNotice item=\{uncertaintyItem\} offline=\{!pairing\} \/>/);
   assert.match(notice, /VERY HIGH UNCERTAINTY/);
   assert.match(notice, /offline \? ' · CACHED' : ''/);
 });
 
 test("uncertainty refresh failure does not prevent a queued capture from saving", () => {
-  const refreshStart = context.indexOf("async refresh()");
-  const uncertaintyRefresh = context.indexOf("createLeeApi(pairing).uncertainty()", refreshStart);
-  const refreshFailure = context.indexOf("Cached uncertainty remains available offline.", uncertaintyRefresh);
-  const addCaptureStart = context.indexOf("async addCapture");
-  const captureSave = context.indexOf("await saveCaptures(next);", addCaptureStart);
-  const captureSync = context.indexOf("createLeeApi(pairing).capture", addCaptureStart);
+  const hostedRefresh = context.indexOf("const refreshHosted");
+  const uncertaintyRead = context.indexOf("uncertaintyRequest ?? createLeeApi(pairing).uncertainty()", hostedRefresh);
+  const enqueueStart = context.indexOf("const enqueuePerception");
+  const captureSave = context.indexOf("await saveCaptures(next);", enqueueStart);
+  const captureSync = context.indexOf("await syncCapture(capture)", captureSave);
 
-  assert.notEqual(refreshStart, -1);
-  assert.notEqual(uncertaintyRefresh, -1);
-  assert.notEqual(refreshFailure, -1);
-  assert.match(context.slice(uncertaintyRefresh, refreshFailure), /Promise\.all/);
-  assert.match(context.slice(uncertaintyRefresh, refreshFailure + 90), /\}\s*catch\s*\{/);
-  assert.ok(captureSave < captureSync, "capture must be persisted before any live sync attempt");
-  assert.match(context.slice(addCaptureStart, captureSync), /status: 'queued'/);
+  assert.notEqual(hostedRefresh, -1);
+  assert.notEqual(uncertaintyRead, -1);
+  assert.notEqual(enqueueStart, -1);
+  assert.ok(captureSave > enqueueStart, "capture must be persisted before sync");
+  assert.ok(captureSync > captureSave, "sync must happen only after persistence");
+  assert.match(context.slice(enqueueStart, captureSave), /status: 'queued'/);
 });

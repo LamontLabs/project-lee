@@ -51,6 +51,7 @@ export * from "./uncertainty";
 export * from "./resource-allocation";
 export * from "./execution-readiness";
 export * from "./android-pairing";
+export * from "./android-pairing-invite";
 export * from "./desktop-setup";
 export * from "./local-service-contracts";
 export * from "./k6-authority-rehearsal";

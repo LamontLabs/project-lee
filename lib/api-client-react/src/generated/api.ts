@@ -20,6 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AndroidPairingInviteClaimInput,
+  AndroidPairingInviteClaimed,
+  AndroidPairingInviteCreated,
+  AndroidPairingInviteInput,
   BootstrapAwarenessResponse,
   BrainVersion,
   BrainVersionSummary,
@@ -87,6 +91,148 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getCreateAndroidPairingInviteUrl = () => {
+
+
+
+
+  return `/api/android/pairing-invites`
+}
+
+/**
+ * Requires a valid private Lee session. Invitation creation is disabled in protected Recovery Modes.
+ * @summary Create a one-time Owner Android invitation
+ */
+export const createAndroidPairingInvite = async (androidPairingInviteInput: AndroidPairingInviteInput, options?: RequestInit): Promise<AndroidPairingInviteCreated> => {
+
+  return customFetch<AndroidPairingInviteCreated>(getCreateAndroidPairingInviteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(androidPairingInviteInput)
+  }
+);}
+
+
+
+
+export const getCreateAndroidPairingInviteMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAndroidPairingInvite>>, TError,{data: BodyType<AndroidPairingInviteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAndroidPairingInvite>>, TError,{data: BodyType<AndroidPairingInviteInput>}, TContext> => {
+
+const mutationKey = ['createAndroidPairingInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAndroidPairingInvite>>, {data: BodyType<AndroidPairingInviteInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAndroidPairingInvite(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAndroidPairingInviteMutationResult = NonNullable<Awaited<ReturnType<typeof createAndroidPairingInvite>>>
+    export type CreateAndroidPairingInviteMutationBody = BodyType<AndroidPairingInviteInput>
+    export type CreateAndroidPairingInviteMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a one-time Owner Android invitation
+ */
+export const useCreateAndroidPairingInvite = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAndroidPairingInvite>>, TError,{data: BodyType<AndroidPairingInviteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAndroidPairingInvite>>,
+        TError,
+        {data: BodyType<AndroidPairingInviteInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAndroidPairingInviteMutationOptions(options));
+    }
+
+export const getClaimAndroidPairingInviteUrl = () => {
+
+
+
+
+  return `/api/android/pairing-invites/claim`
+}
+
+/**
+ * Public only for this exchange. Each invitation can be claimed once and claims are disabled in protected Recovery Modes.
+ * @summary Claim a one-time Owner Android invitation
+ */
+export const claimAndroidPairingInvite = async (androidPairingInviteClaimInput: AndroidPairingInviteClaimInput, options?: RequestInit): Promise<AndroidPairingInviteClaimed> => {
+
+  return customFetch<AndroidPairingInviteClaimed>(getClaimAndroidPairingInviteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(androidPairingInviteClaimInput)
+  }
+);}
+
+
+
+
+export const getClaimAndroidPairingInviteMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAndroidPairingInvite>>, TError,{data: BodyType<AndroidPairingInviteClaimInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimAndroidPairingInvite>>, TError,{data: BodyType<AndroidPairingInviteClaimInput>}, TContext> => {
+
+const mutationKey = ['claimAndroidPairingInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimAndroidPairingInvite>>, {data: BodyType<AndroidPairingInviteClaimInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  claimAndroidPairingInvite(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimAndroidPairingInviteMutationResult = NonNullable<Awaited<ReturnType<typeof claimAndroidPairingInvite>>>
+    export type ClaimAndroidPairingInviteMutationBody = BodyType<AndroidPairingInviteClaimInput>
+    export type ClaimAndroidPairingInviteMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Claim a one-time Owner Android invitation
+ */
+export const useClaimAndroidPairingInvite = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimAndroidPairingInvite>>, TError,{data: BodyType<AndroidPairingInviteClaimInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimAndroidPairingInvite>>,
+        TError,
+        {data: BodyType<AndroidPairingInviteClaimInput>},
+        TContext
+      > => {
+      return useMutation(getClaimAndroidPairingInviteMutationOptions(options));
+    }
 
 export const getGetBootstrapAwarenessUrl = () => {
 

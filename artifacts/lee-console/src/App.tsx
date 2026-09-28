@@ -9,6 +9,7 @@ import MemoryHealthPanel from './MemoryHealthPanel';
 import RetentionArchivePanel from './RetentionArchivePanel';
 import CognitiveRuntimePanel from './CognitiveRuntimePanel';
 import WelcomeBackBriefing from './WelcomeBackBriefing';
+import AndroidConnectionCard from './components/AndroidConnectionCard';
 import WorkingMemoryPanel from './WorkingMemoryPanel';
 import EpistemicHistoryPage from './EpistemicHistoryPage';
 import KnowledgeMapPage from './KnowledgeMapPage';
@@ -1072,68 +1073,16 @@ function ConnectorsPage() {
 }
 
 function AndroidPairingPage() {
-  const [items, setItems] = useState<any[]>([]);
-  const [newToken, setNewToken] = useState<string | null>(null);
-  const [label, setLabel] = useState('Android companion');
-  const [invitationLabel, setInvitationLabel] = useState('Project LEE Owner Android');
-  const [invitation, setInvitation] = useState<{ deepLink: string; expiresAt: string } | null>(null);
-  const [invitationError, setInvitationError] = useState('');
-  const [invitationBusy, setInvitationBusy] = useState(false);
-  const load = async () => { const response = await fetch('/api/android/pairings', { cache: 'no-store' }); if (response.ok) setItems(await response.json()); };
-  useEffect(() => { void load(); }, []);
-  const issue = async () => { const response = await fetch('/api/android/pairings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label }) }); const data = await response.json(); if (response.ok) { setNewToken(data.token); await load(); } };
-  const rotate = async (id: string) => { const response = await fetch(`/api/android/pairings/${id}/rotate`, { method: 'POST', headers: { 'content-type': 'application/json' } }); const data = await response.json(); if (response.ok) { setNewToken(data.token); await load(); } };
-  const revoke = async (id: string) => { await fetch(`/api/android/pairings/${id}/revoke`, { method: 'POST' }); await load(); };
-  const createInvitation = async () => {
-    setInvitationBusy(true);
-    setInvitationError('');
-    setInvitation(null);
-    try {
-      const response = await fetch('/api/android/pairing-invites', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ clientType: 'owner', label: invitationLabel }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error ?? 'Could not create an Android invitation.');
-      if (typeof data.deepLink !== 'string' || typeof data.expiresAt !== 'string') {
-        throw new Error('The server returned an incomplete Android invitation.');
-      }
-      setInvitation({ deepLink: data.deepLink, expiresAt: data.expiresAt });
-      await load();
-    } catch (error) {
-      setInvitationError(error instanceof Error ? error.message : 'Could not create an Android invitation.');
-    } finally {
-      setInvitationBusy(false);
-    }
-  };
-  return <div className="mx-auto max-w-[960px]">
-    <SectionHeading eyebrow="Settings / Android" title="Connect Owner Android" detail="Create a single-use invitation link and open it on the Android device with LEE installed." />
-    <Panel>
-      <p className="lee-label text-primary">One-time Owner invitation</p>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">The link expires in 10 minutes and can be claimed once. The Android app receives its pairing credential directly; no token needs to be copied into the app.</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <input aria-label="Android device label" value={invitationLabel} onChange={(event) => setInvitationLabel(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-        <button type="button" onClick={() => void createInvitation()} disabled={invitationBusy} className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-create-owner-android-invitation">{invitationBusy ? 'Creating invitation…' : 'Create invitation'}</button>
-      </div>
-      {invitationError && <p className="mt-3 text-sm text-destructive" role="alert">{invitationError}</p>}
-      {invitation && <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4" data-testid="owner-android-invitation">
-        <p className="text-sm font-semibold">Invitation ready</p>
-        <p className="mt-1 text-xs text-muted-foreground">Expires {new Date(invitation.expiresAt).toLocaleString()}. Open this on the Android device before it expires.</p>
-        <a href={invitation.deepLink} className="mt-3 inline-flex rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground" data-testid="link-open-owner-android-invitation">Open in LEE Android</a>
-      </div>}
-    </Panel>
-    <details className="mt-5 rounded-2xl border border-border bg-card/50 p-4">
-      <summary className="cursor-pointer text-sm font-semibold">Legacy direct-token pairing</summary>
-      <p className="mt-2 text-xs text-muted-foreground">For older clients that accept a manually entered token. The current Owner Android app uses the one-time invitation above.</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <input value={label} onChange={(event) => setLabel(event.target.value)} aria-label="Legacy pairing label" className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
-        <button onClick={() => void issue()} className="rounded-xl border border-border px-4 py-2 text-xs font-semibold">Issue legacy token</button>
-      </div>
-      {newToken && <div className="mt-4 rounded-xl border border-accent/40 bg-accent/10 p-3"><p className="text-xs font-semibold">Copy this legacy token now</p><code className="mt-2 block break-all text-xs">{newToken}</code><p className="mt-2 text-[11px] text-muted-foreground">It will not be displayed again.</p></div>}
-      <div className="mt-4 divide-y divide-border">{items.length ? items.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{item.label}</p><p className="text-xs text-muted-foreground">Expires {new Date(item.expiresAt).toLocaleString()}</p></div><StatusPill status={item.active && !item.revokedAt ? 'active' : 'offline'} /><button onClick={() => void rotate(item.id)} className="rounded-lg border border-border px-3 py-1.5 text-xs">Rotate</button><button onClick={() => void revoke(item.id)} disabled={!item.active} className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive disabled:opacity-40">Revoke</button></div>) : <EmptyState title="No Android pairings" detail="No legacy direct-token pairings are configured." />}</div>
-    </details>
-  </div>;
+  return (
+    <div className="mx-auto max-w-[960px]">
+      <SectionHeading
+        eyebrow="Settings / Android"
+        title="Connect Owner Android"
+        detail="Create a secure one-time link and open it on the Android phone with LEE installed."
+      />
+      <AndroidConnectionCard />
+    </div>
+  );
 }
 
 function SettingsPage({ onLock }: { onLock: () => void }) {
@@ -1141,16 +1090,86 @@ function SettingsPage({ onLock }: { onLock: () => void }) {
   const [briefs, setBriefs] = useState(true);
   const [notice, setNotice] = useState('');
   const [capacity, setCapacity] = useState<any>(null);
-  const [pairing, setPairing] = useState<any>(null);
-  const [newToken, setNewToken] = useState('');
-  const [pairingBusy, setPairingBusy] = useState(false);
   useEffect(() => { void fetch('/api/operational-capacity').then((response) => response.ok ? response.json() : null).then(setCapacity); }, []);
-  const loadPairing = useCallback(async () => { const response = await fetch('/api/android/pairing', { cache: 'no-store' }); if (response.ok) setPairing(await response.json()); }, []);
-  useEffect(() => { void loadPairing(); }, [loadPairing]);
   const overrideCapacity = async (state: string | null) => { const response = await fetch('/api/operational-capacity/override', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state }) }); if (response.ok) setCapacity((await response.json())[0]); };
-  const rotatePairing = async () => { setPairingBusy(true); setNewToken(''); const response = await fetch('/api/android/pairing/rotate', { method: 'POST' }); const result = await response.json(); if (response.ok) { setNewToken(result.token); setPairing({ active: true, ...result }); setNotice('New Android pairing token issued. Save it now; it will not be shown again.'); } else setNotice(result.error ?? 'Could not issue an Android pairing token.'); setPairingBusy(false); };
-  const revokePairing = async () => { setPairingBusy(true); const response = await fetch('/api/android/pairing/revoke', { method: 'POST' }); if (response.ok) { setPairing({ active: false }); setNewToken(''); setNotice('Android pairing token revoked.'); } else setNotice('Could not revoke the Android pairing token.'); setPairingBusy(false); };
-  return <div className="mx-auto max-w-[960px]"><SectionHeading eyebrow="Boundaries & preferences" title="Settings" detail="The quiet controls behind a private operating console." /><div className="space-y-5"><Panel><div className="flex flex-col gap-5 sm:flex-row sm:items-center"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck size={23} /></div><div className="flex-1"><p className="lee-label text-primary">Private access</p><h3 className="mt-1 text-lg font-semibold">Founder session is active</h3><p className="mt-1 text-sm text-muted-foreground">This console has no invited members and no public share surface.</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> Verified</span></div></Panel>{capacity && <Panel><div className="flex items-center justify-between gap-4"><div><p className="lee-label text-primary">Operational capacity</p><h3 className="mt-1 text-lg font-semibold">{capacity.state} · {Math.round(capacity.score)}/100</h3><p className="mt-1 text-sm text-muted-foreground">Inference-only presentation signal. It does not model mood or collect new data.</p></div><div className="flex flex-wrap gap-2">{['HIGH', 'NOMINAL', 'CONSTRAINED', 'LOW'].map((state) => <button key={state} onClick={() => void overrideCapacity(state)} className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${capacity.overrideState === state ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}>{state}</button>)}<button onClick={() => void overrideCapacity(null)} className="rounded-xl border border-border px-3 py-2 text-[11px] font-semibold">Auto</button></div></div></Panel>}<Panel><div className="flex items-center gap-3"><Radio className="text-primary" size={18} /><div><p className="lee-label text-primary">Android companion</p><h3 className="mt-1 text-lg font-semibold">Pairing access</h3></div><span className={`ml-auto rounded-full border px-2.5 py-1 text-xs font-semibold ${pairing?.active ? 'border-primary/25 bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}>{pairing?.active ? 'Token active' : 'Not paired'}</span></div><p className="mt-3 text-sm text-muted-foreground">Issue a one-time token for the Android companion. Rotating immediately revokes every previous token.</p>{newToken && <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3"><p className="lee-label text-primary">Copy this token now</p><code className="mt-2 block break-all text-xs">{newToken}</code></div>}<div className="mt-4 flex flex-wrap gap-2"><button onClick={() => void rotatePairing()} disabled={pairingBusy} className="rounded-xl bg-primary px-3.5 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-50" data-testid="button-rotate-android-pairing">{pairing?.active ? 'Rotate token' : 'Generate token'}</button>{pairing?.active && <button onClick={() => void revokePairing()} disabled={pairingBusy} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive disabled:opacity-50" data-testid="button-revoke-android-pairing">Revoke token</button>}</div>{pairing?.lastUsedAt && <p className="mt-3 text-xs text-muted-foreground">Last verified by Android {formatDate(pairing.lastUsedAt)}.</p>}</Panel><Panel><div className="flex items-center gap-3"><Settings2 className="text-primary" size={18} /><div><p className="lee-label text-primary">Session preferences</p><h3 className="mt-1 text-lg font-semibold">How Lee should meet you</h3></div></div><div className="mt-5 divide-y divide-border"><SettingToggle title="Opening brief" detail="Prepare the daily signal when the console opens." value={briefs} onChange={() => setBriefs(!briefs)} testId="toggle-opening-brief" /><SettingToggle title="Quiet system notices" detail="Show meaningful state changes without interrupting the work surface." value={notifications} onChange={() => setNotifications(!notifications)} testId="toggle-system-notices" /></div></Panel><Panel><div className="flex items-center gap-3"><Clock3 className="text-primary" size={18} /><div><p className="lee-label text-primary">Current session</p><h3 className="mt-1 text-lg font-semibold">Local session-22</h3></div></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Started</p><p className="mt-2 text-sm font-semibold">Today, 07:28</p></div><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Location</p><p className="mt-2 text-sm font-semibold">Founder device</p></div><div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Access</p><p className="mt-2 text-sm font-semibold">Full console</p></div></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setNotice('Other sessions revoked. This device remains active.')} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-revoke-sessions">Revoke other sessions</button><button onClick={onLock} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10" data-testid="button-lock-console-settings">Lock console</button></div>{notice && <p className="mt-4 text-xs text-primary" data-testid="status-settings-notice">{notice}</p>}</Panel></div></div>;
+  return (
+    <div className="mx-auto max-w-[960px]">
+      <SectionHeading eyebrow="Boundaries & preferences" title="Settings" detail="The quiet controls behind a private operating console." />
+      <div className="space-y-5">
+        <Panel>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <ShieldCheck size={23} />
+            </div>
+            <div className="flex-1">
+              <p className="lee-label text-primary">Private access</p>
+              <h3 className="mt-1 text-lg font-semibold">Founder session is active</h3>
+              <p className="mt-1 text-sm text-muted-foreground">This console has no invited members and no public share surface.</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Verified
+            </span>
+          </div>
+        </Panel>
+        {capacity && (
+          <Panel>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="lee-label text-primary">Operational capacity</p>
+                <h3 className="mt-1 text-lg font-semibold">{capacity.state} · {Math.round(capacity.score)}/100</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Inference-only presentation signal. It does not model mood or collect new data.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['HIGH', 'NOMINAL', 'CONSTRAINED', 'LOW'].map((state) => (
+                  <button
+                    key={state}
+                    onClick={() => void overrideCapacity(state)}
+                    className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${capacity.overrideState === state ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+                  >
+                    {state}
+                  </button>
+                ))}
+                <button onClick={() => void overrideCapacity(null)} className="rounded-xl border border-border px-3 py-2 text-[11px] font-semibold">Auto</button>
+              </div>
+            </div>
+          </Panel>
+        )}
+        <AndroidConnectionCard />
+        <Panel>
+          <div className="flex items-center gap-3">
+            <Settings2 className="text-primary" size={18} />
+            <div>
+              <p className="lee-label text-primary">Session preferences</p>
+              <h3 className="mt-1 text-lg font-semibold">How Lee should meet you</h3>
+            </div>
+          </div>
+          <div className="mt-5 divide-y divide-border">
+            <SettingToggle title="Opening brief" detail="Prepare the daily signal when the console opens." value={briefs} onChange={() => setBriefs(!briefs)} testId="toggle-opening-brief" />
+            <SettingToggle title="Quiet system notices" detail="Show meaningful state changes without interrupting the work surface." value={notifications} onChange={() => setNotifications(!notifications)} testId="toggle-system-notices" />
+          </div>
+        </Panel>
+        <Panel>
+          <div className="flex items-center gap-3">
+            <Clock3 className="text-primary" size={18} />
+            <div>
+              <p className="lee-label text-primary">Current session</p>
+              <h3 className="mt-1 text-lg font-semibold">Local session-22</h3>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Started</p><p className="mt-2 text-sm font-semibold">Today, 07:28</p></div>
+            <div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Location</p><p className="mt-2 text-sm font-semibold">Founder device</p></div>
+            <div className="rounded-xl bg-muted/60 p-3.5"><p className="lee-label text-muted-foreground">Access</p><p className="mt-2 text-sm font-semibold">Full console</p></div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button onClick={() => setNotice('Other sessions revoked. This device remains active.')} className="rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold hover:bg-muted" data-testid="button-revoke-sessions">Revoke other sessions</button>
+            <button onClick={onLock} className="rounded-xl border border-destructive/30 px-3.5 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10" data-testid="button-lock-console-settings">Lock console</button>
+          </div>
+          {notice && <p className="mt-4 text-xs text-primary" data-testid="status-settings-notice">{notice}</p>}
+        </Panel>
+      </div>
+    </div>
+  );
 }
 
 function SelfTestPage() {

@@ -1,7 +1,8 @@
-import { createCipheriv, createDecipheriv, createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { connection, connector, db, eventLog, oauthCredential } from "@workspace/db";
 import { getProviderFreshnessMap, type ProviderFreshnessRecord } from "./offline-awareness";
+import { openJson, sealJson, sensitiveDataKey } from "./secret-box";
 
 export const CONNECTION_STATUSES = ["connected", "pending", "needs_reauthorization", "degraded", "unavailable", "incompatible", "disconnected"] as const;
 export const CONNECTION_METHODS = ["oauth", "api", "system_contract", "local", "file", "webhook", "manual"] as const;
@@ -61,19 +62,15 @@ export const oauthProviders = {
   gmail: { authorization: "https://accounts.google.com/o/oauth2/v2/auth", token: "https://oauth2.googleapis.com/token", scopes: ["https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send"], supportsRefresh: true },
 } as const;
 export type OAuthProvider = keyof typeof oauthProviders;
-const oauthSecret = () => createHash("sha256").update(process.env.SESSION_SECRET ?? "development-session-secret").digest();
-function seal(value: unknown) {
-  const iv = randomBytes(12); const cipher = createCipheriv("aes-256-gcm", oauthSecret(), iv);
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), "utf8"), cipher.final()]);
-  return `${iv.toString("base64url")}.${cipher.getAuthTag().toString("base64url")}.${encrypted.toString("base64url")}`;
-}
+const oauthSecret = sensitiveDataKey;
+const seal = sealJson;
 function unseal(value: string): Record<string, unknown> {
-  const [ivText, tagText, encryptedText] = value.split(".");
-  if (!ivText || !tagText || !encryptedText) throw new Error("OAuth credential is invalid.");
-  const decipher = createDecipheriv("aes-256-gcm", oauthSecret(), Buffer.from(ivText, "base64url"));
-  decipher.setAuthTag(Buffer.from(tagText, "base64url"));
-  const plain = Buffer.concat([decipher.update(Buffer.from(encryptedText, "base64url")), decipher.final()]).toString("utf8");
-  const parsed = JSON.parse(plain);
+  let parsed: unknown;
+  try {
+    parsed = openJson(value);
+  } catch {
+    throw new Error("OAuth credential is invalid.");
+  }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("OAuth credential is invalid.");
   return parsed as Record<string, unknown>;
 }

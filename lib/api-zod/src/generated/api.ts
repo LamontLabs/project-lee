@@ -9,6 +9,58 @@ import * as zod from 'zod';
 
 
 /**
+ * Requires a valid private Lee session. Invitation creation is disabled in protected Recovery Modes.
+ * @summary Create a one-time Owner Android invitation
+ */
+export const createAndroidPairingInviteBodyLabelMax = 120;
+
+
+
+export const CreateAndroidPairingInviteBody = zod.object({
+  "clientType": zod.enum(['owner']),
+  "label": zod.string().min(1).max(createAndroidPairingInviteBodyLabelMax).optional()
+})
+
+
+
+
+export const CreateAndroidPairingInviteResponse = zod.object({
+  "deepLink": zod.string().min(1),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
+ * Public only for this exchange. Each invitation can be claimed once and claims are disabled in protected Recovery Modes.
+ * @summary Claim a one-time Owner Android invitation
+ */
+export const claimAndroidPairingInviteBodyInviteMin = 32;
+export const claimAndroidPairingInviteBodyInviteMax = 128;
+
+
+export const claimAndroidPairingInviteBodyInviteRegExp = new RegExp('^[A-Za-z0-9_-]{32,128}$');
+export const claimAndroidPairingInviteBodyDeviceIdMax = 128;
+
+
+
+export const ClaimAndroidPairingInviteBody = zod.object({
+  "invite": zod.string().min(claimAndroidPairingInviteBodyInviteMin).max(claimAndroidPairingInviteBodyInviteMax).regex(claimAndroidPairingInviteBodyInviteRegExp),
+  "clientType": zod.enum(['owner']),
+  "deviceId": zod.string().min(1).max(claimAndroidPairingInviteBodyDeviceIdMax)
+})
+
+export const claimAndroidPairingInviteResponseTokenMin = 32;
+
+
+
+export const ClaimAndroidPairingInviteResponse = zod.object({
+  "token": zod.string().min(claimAndroidPairingInviteResponseTokenMin),
+  "pairingId": zod.string().uuid(),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
  * Returns an evidence-backed, read-only self-model for current Project LEE state and K6 desktop readiness.
  * @summary Read Bootstrap Awareness Mode
  */
@@ -302,9 +354,9 @@ export const ListConnectorHealthResponseItem = zod.object({
   "accessMode": zod.string(),
   "status": zod.string(),
   "lastSyncAt": zod.coerce.date().optional(),
-  "lastSuccessfulRefreshAt": zod.coerce.date().nullable().optional(),
+  "lastSuccessfulRefreshAt": zod.coerce.date().nullish(),
   "freshnessLabel": zod.string().optional(),
-  "evidenceAgeMs": zod.number().nullable().optional(),
+  "evidenceAgeMs": zod.number().nullish(),
   "limitations": zod.array(zod.string()).optional(),
   "lastError": zod.string().optional(),
   "authStatus": zod.string().optional(),

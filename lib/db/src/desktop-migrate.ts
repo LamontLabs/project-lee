@@ -3,6 +3,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { eventLogSequenceAllocatorSql } from "./event-log-sequence.mjs";
 
 const { Pool } = pg;
 const databaseUrl = process.env.DATABASE_URL;
@@ -23,6 +24,7 @@ if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(instanceId)) {
 
 try {
   await migrate(drizzle(pool), { migrationsFolder });
+  await pool.query(eventLogSequenceAllocatorSql());
   await pool.query(`
     CREATE OR REPLACE FUNCTION prevent_event_log_mutation()
     RETURNS trigger
